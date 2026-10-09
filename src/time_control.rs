@@ -1,4 +1,5 @@
-//! Game clock, pause/speed input, and the minimal debug readout.
+//! Game clock and its pause/speed keyboard shortcuts. The on-screen readout
+//! lives in `topbar.rs`.
 
 use bevy::prelude::*;
 
@@ -20,33 +21,13 @@ impl Default for GameClock {
     }
 }
 
-#[derive(Component)]
-struct DebugReadout;
-
 pub struct TimeControlPlugin;
 
 impl Plugin for TimeControlPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<GameClock>()
-            .add_systems(Startup, spawn_debug_readout)
-            .add_systems(
-                Update,
-                (tick_clock, handle_time_input, update_debug_readout),
-            );
+            .add_systems(Update, (tick_clock, handle_time_input));
     }
-}
-
-fn spawn_debug_readout(mut commands: Commands) {
-    commands.spawn((
-        DebugReadout,
-        Text::new(""),
-        Node {
-            position_type: PositionType::Absolute,
-            top: px(12),
-            left: px(12),
-            ..default()
-        },
-    ));
 }
 
 fn tick_clock(time: Res<Time>, mut clock: ResMut<GameClock>) {
@@ -64,15 +45,5 @@ fn handle_time_input(keys: Res<ButtonInput<KeyCode>>, mut clock: ResMut<GameCloc
     }
     if keys.just_pressed(KeyCode::Minus) {
         clock.speed_days_per_sec = (clock.speed_days_per_sec / 2.0).max(0.0625);
-    }
-}
-
-fn update_debug_readout(clock: Res<GameClock>, mut query: Query<&mut Text, With<DebugReadout>>) {
-    for mut text in &mut query {
-        let status = if clock.paused { "PAUSED" } else { "running" };
-        *text = Text::new(format!(
-            "Day {:.1}   Speed: {:.2}x/day   {}   [Space: pause, +/-: speed]",
-            clock.elapsed_days, clock.speed_days_per_sec, status
-        ));
     }
 }

@@ -1,43 +1,23 @@
-//! Maps real units (AU, km) to render-space units. Deliberately not to real
-//! proportions - at real scale planets are invisible specks next to their
-//! orbit radius, so orbit distance and body size each get their own,
-//! independently tuned scale.
+//! Maps real distances (km) to render-space units. A single linear scale
+//! applies to every orbit - planetary (AU-scale) and lunar/station
+//! (km-scale) alike - so relative positions are true to scale. Marker *size*
+//! is a fixed pixel size by class (see `markers.rs`), never derived from
+//! physical size.
 
+use crate::system_data::KM_PER_AU;
 use bevy::prelude::Vec3;
 
-/// Render units per astronomical unit, for orbit *distance*.
-pub const AU_TO_UNITS: f32 = 12.0;
+/// Render units per AU. Puts the outermost gates (~6 AU) at a few hundred
+/// render units, which is what the camera's zoom range is tuned around.
+const RENDER_UNITS_PER_AU: f64 = 90.0;
+const RENDER_UNITS_PER_KM: f64 = RENDER_UNITS_PER_AU / KM_PER_AU;
 
-const MIN_BODY_RADIUS: f32 = 0.18;
-const MAX_BODY_RADIUS: f32 = 2.2;
-const BODY_RADIUS_SCALE: f32 = 0.004;
-
-pub fn au_to_render(au: f64) -> f32 {
-    au as f32 * AU_TO_UNITS
+pub fn km_to_render(km: f64) -> f32 {
+    (km * RENDER_UNITS_PER_KM) as f32
 }
 
-/// Compressed (sqrt) scale for body *size*, with a floor and ceiling so the
-/// star doesn't dwarf the planets and small bodies stay visible.
-pub fn km_to_render_radius(km: f64) -> f32 {
-    let radius = (km.max(1.0) as f32).sqrt() * BODY_RADIUS_SCALE;
-    radius.clamp(MIN_BODY_RADIUS, MAX_BODY_RADIUS)
-}
-
-/// A moon's orbit around its planet uses its own small linear scale (moon
-/// orbits are tens of thousands of km, not AU) with a floor that keeps it
-/// clear of the planet's own render radius.
-pub fn moon_orbit_render(orbit_radius_km: f64, planet_render_radius: f32) -> f32 {
-    let scaled = (orbit_radius_km / 15_000.0) as f32;
-    scaled.max(planet_render_radius + 0.15)
-}
-
-/// A static position at the system edge, given as (distance, angle) in AU/degrees.
-pub fn polar_au_to_render(distance_au: f64, angle_deg: f64) -> Vec3 {
+pub fn polar_km_to_render(distance_km: f64, angle_deg: f64) -> Vec3 {
     let angle = angle_deg.to_radians();
-    let distance = au_to_render(distance_au);
-    Vec3::new(
-        distance * angle.cos() as f32,
-        0.0,
-        distance * angle.sin() as f32,
-    )
+    let distance = km_to_render(distance_km);
+    Vec3::new(distance * angle.cos() as f32, 0.0, distance * angle.sin() as f32)
 }

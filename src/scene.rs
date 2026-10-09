@@ -1,11 +1,18 @@
-//! Spawns the star, planets, moon, and gates from `SystemData`.
+//! Spawns the Corvane system as invisible, positioned entities: a star, a
+//! tree of planets/moons/stations, belt salvage sites, and gates. Nothing
+//! here is rendered directly - `markers.rs` draws the vector-display
+//! overlay from these entities' projected screen positions, and the belt's
+//! translucent annulus mesh is the one piece of actual 3D geometry.
 
+use bevy::color::palettes::css::SLATE_GRAY;
 use bevy::prelude::*;
 
-use crate::camera::on_body_clicked;
 use crate::orbits::OrbitalBody;
-use crate::scale::{au_to_render, km_to_render_radius, moon_orbit_render, polar_au_to_render};
-use crate::system_data::SystemData;
+use crate::scale::{km_to_render, polar_km_to_render};
+use crate::system_data::{
+    period_days_for, BodyBlueprint, BodyClass, DisplayName, Description, KeyFacts, Knowledge,
+    Ownership, SystemData, SystemDataResource,
+};
 
 pub struct ScenePlugin;
 
@@ -15,101 +22,132 @@ impl Plugin for ScenePlugin {
     }
 }
 
-fn spawn_system(
+pub fn spawn_system(
     mut commands: Commands,
-    system_data: Res<SystemData>,
+    mut system_data: ResMut<SystemDataResource>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let star = &system_data.star;
-    let star_radius = km_to_render_radius(star.radius_km);
-
-    commands
-        .spawn((
-            Name::new(star.name),
-            Mesh3d(meshes.add(Sphere::new(star_radius))),
-            MeshMaterial3d(materials.add(StandardMaterial {
-                base_color: star.color,
-                // Always reads as bright regardless of its own light's falloff.
-                unlit: true,
-                ..default()
-            })),
-            Transform::from_xyz(0.0, 0.0, 0.0),
-        ))
-        .observe(on_body_clicked);
+    let Some(system_data) = system_data.0.take() else {
+        return;
+    };
+    let SystemData {
+        star_name,
+        star_mass_kg,
+        star_knowledge,
+        planets,
+        belt,
+        gates,
+    } = system_data;
 
     commands.spawn((
-        Name::new("Star Light"),
-        PointLight {
-            intensity: 40_000_000.0,
-            range: 150.0,
-            shadow_maps_enabled: true,
-            ..default()
-        },
-        Transform::from_xyz(0.0, 0.0, 0.0),
+        Name::new(star_name),
+        DisplayName(star_name.to_string()),
+        Description("The system's star.".to_string()),
+        KeyFacts(vec![("Class".to_string(), "K2V".to_string())]),
+        BodyClass::Star,
+        Ownership::Neutral,
+        star_knowledge,
+        Transform::IDENTITY,
     ));
 
-    for planet in &system_data.planets {
-        let planet_radius = km_to_render_radius(planet.radius_km);
-        let orbit_radius = au_to_render(planet.orbit_radius_au);
-
-        let planet_entity = commands
-            .spawn((
-                Name::new(planet.name),
-                Mesh3d(meshes.add(Sphere::new(planet_radius))),
-                MeshMaterial3d(materials.add(StandardMaterial {
-                    base_color: planet.color,
-                    ..default()
-                })),
-                Transform::from_xyz(orbit_radius, 0.0, 0.0),
-                OrbitalBody {
-                    orbit_radius,
-                    period_days: planet.period_days,
-                    phase0_rad: 0.0,
-                },
-            ))
-            .observe(on_body_clicked)
-            .id();
-
-        if let Some(moon) = &planet.moon {
-            let moon_radius = km_to_render_radius(moon.radius_km);
-            let moon_orbit_radius = moon_orbit_render(moon.orbit_radius_km, planet_radius);
-
-            commands
-                .spawn((
-                    Name::new(moon.name),
-                    Mesh3d(meshes.add(Sphere::new(moon_radius))),
-                    MeshMaterial3d(materials.add(StandardMaterial {
-                        base_color: moon.color,
-                        ..default()
-                    })),
-                    Transform::from_xyz(moon_orbit_radius, 0.0, 0.0),
-                    OrbitalBody {
-                        orbit_radius: moon_orbit_radius,
-                        period_days: moon.period_days,
-                        phase0_rad: 0.0,
-                    },
-                    ChildOf(planet_entity),
-                ))
-                .observe(on_body_clicked);
-        }
+    for planet in planets {
+        spawn_body(&mut commands, planet, None, star_mass_kg);
     }
 
-    for gate in &system_data.gates {
-        let position = polar_au_to_render(gate.distance_au, gate.angle_deg);
-
-        commands
-            .spawn((
-                Name::new(gate.name),
-                Mesh3d(meshes.add(Cuboid::new(0.6, 0.6, 0.6))),
-                MeshMaterial3d(materials.add(StandardMaterial {
-                    base_color: Color::srgb(0.2, 0.9, 0.9),
-                    unlit: true,
-                    ..default()
-                })),
-                Transform::from_translation(position)
-                    .with_rotation(Quat::from_rotation_y(std::f32::consts::FRAC_PI_4)),
-            ))
-            .observe(on_body_clicked);
+    for site in belt.salvage_sites {
+        spawn_body(&mut commands, site, None, star_mass_kg);
     }
+
+    let inner = km_to_render(belt.inner_radius_km);
+    let outer = km_to_render(belt.outer_radius_km);
+    commands.spawn((
+        Name::new("Belt"),
+        Mesh3d(meshes.add(Annulus::new(inner, outer).mesh().resolution(128))),
+        MeshMaterial3d(materials.add(StandardMaterial {
+            base_color: Color::from(SLATE_GRAY).with_alpha(0.18),
+            unlit: true,
+            alpha_mode: AlphaMode::Blend,
+            cull_mode: None,
+            ..default()
+        })),
+        Transform::from_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+    ));
+
+    for gate in gates {
+        let orbit_radius = km_to_render(gate.distance_km);
+        let period_days = period_days_for(gate.distance_km, star_mass_kg);
+        let phase0_rad = gate.angle_deg.to_radians();
+        let position = polar_km_to_render(gate.distance_km, gate.angle_deg);
+        commands.spawn((
+            Name::new(gate.name),
+            DisplayName(gate.name.to_string()),
+            Description(format!("A gate linking to the {} system.", gate.destination)),
+            KeyFacts(vec![("Destination".to_string(), gate.destination.to_string())]),
+            BodyClass::Gate,
+            Ownership::Neutral,
+            Knowledge::Surveyed { imaged_day: 0.0 },
+            Transform::from_translation(position),
+            OrbitalBody {
+                orbit_radius,
+                period_days,
+                phase0_rad,
+            },
+        ));
+    }
+}
+
+fn spawn_body(
+    commands: &mut Commands,
+    blueprint: BodyBlueprint,
+    parent: Option<Entity>,
+    central_mass_kg: f64,
+) -> Entity {
+    let BodyBlueprint {
+        name,
+        class,
+        ownership,
+        description,
+        key_facts,
+        knowledge,
+        orbit_radius_km,
+        phase0_rad,
+        mass_kg,
+        children,
+    } = blueprint;
+
+    let orbit_radius = km_to_render(orbit_radius_km);
+    let period_days = period_days_for(orbit_radius_km, central_mass_kg);
+    let (sin, cos) = phase0_rad.sin_cos();
+
+    let mut entity_commands = commands.spawn((
+        Name::new(name),
+        DisplayName(name.to_string()),
+        Description(description.to_string()),
+        KeyFacts(
+            key_facts
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect(),
+        ),
+        class,
+        ownership,
+        knowledge,
+        Transform::from_xyz(orbit_radius * cos as f32, 0.0, orbit_radius * sin as f32),
+        OrbitalBody {
+            orbit_radius,
+            period_days,
+            phase0_rad,
+        },
+    ));
+    if let Some(parent) = parent {
+        entity_commands.insert(ChildOf(parent));
+    }
+    let entity = entity_commands.id();
+
+    for child in children {
+        spawn_body(commands, child, Some(entity), mass_kg);
+    }
+
+    entity
 }

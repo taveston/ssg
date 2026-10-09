@@ -10,6 +10,7 @@
 use bevy::prelude::*;
 use std::f64::consts::TAU;
 
+use crate::system_data::BodyClass;
 use crate::time_control::GameClock;
 
 #[derive(Component)]
@@ -37,20 +38,27 @@ fn update_orbital_positions(clock: Res<GameClock>, mut query: Query<(&OrbitalBod
 
 fn draw_orbit_paths(
     mut gizmos: Gizmos,
-    bodies: Query<(&OrbitalBody, Option<&ChildOf>)>,
+    bodies: Query<(&OrbitalBody, &BodyClass, Option<&ChildOf>)>,
     transforms: Query<&GlobalTransform>,
 ) {
     // Lay the circle flat in the XZ plane (same plane the orbits move in).
     let ring_orientation = Quat::from_rotation_arc(Vec3::Z, Vec3::Y);
-    for (body, child_of) in &bodies {
+    for (body, class, child_of) in &bodies {
+        if *class != BodyClass::Planet {
+            // Only major bodies get an orbit ring; moons, stations, gates,
+            // and salvage sites would just add clutter.
+            continue;
+        }
         let center = child_of
             .and_then(|c| transforms.get(c.parent()).ok())
             .map(GlobalTransform::translation)
             .unwrap_or(Vec3::ZERO);
-        gizmos.circle(
-            Isometry3d::new(center, ring_orientation),
-            body.orbit_radius,
-            Color::srgba(0.5, 0.55, 0.65, 0.6),
-        );
+        gizmos
+            .circle(
+                Isometry3d::new(center, ring_orientation),
+                body.orbit_radius,
+                crate::colors::ORBIT_LINE.with_alpha(0.35),
+            )
+            .resolution(128);
     }
 }

@@ -1,5 +1,7 @@
-//! Hand-rolled orbit/zoom/pan camera, plus click-to-focus via Bevy's mesh
-//! picking: clicking any body makes the camera follow it as it orbits.
+//! Hand-rolled orbit/zoom/pan camera. The camera only refocuses on a body
+//! when `CameraFocus` is explicitly set to `Following` (from the inset's
+//! Focus action in `hover_inspect.rs`) - clicking a marker inspects it, it
+//! does not move the camera.
 
 use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
 use bevy::prelude::*;
@@ -27,15 +29,19 @@ impl Default for OrbitCameraState {
     fn default() -> Self {
         Self {
             yaw: 0.6,
-            pitch: 0.55,
-            distance: 70.0,
+            // Steep, near-top-down by default.
+            pitch: 1.15,
+            distance: 300.0,
         }
     }
 }
 
-const MIN_DISTANCE: f32 = 4.0;
-const MAX_DISTANCE: f32 = 250.0;
-const PITCH_LIMIT: f32 = 1.5;
+// The render-space span runs from a moon's orbit (a small fraction of a
+// render unit) out to the gates (several hundred units), hence the huge
+// zoom range and the multiplicative (logarithmic-feeling) zoom step below.
+const MIN_DISTANCE: f32 = 0.05;
+const MAX_DISTANCE: f32 = 900.0;
+const PITCH_LIMIT: f32 = 1.55;
 
 #[derive(Component)]
 struct OrbitCamera;
@@ -46,7 +52,6 @@ impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<CameraFocus>()
             .init_resource::<OrbitCameraState>()
-            .add_plugins(MeshPickingPlugin)
             .add_systems(Startup, spawn_camera)
             .add_systems(
                 Update,
@@ -145,9 +150,4 @@ fn update_camera_transform(
     );
     camera_transform.translation = target + offset;
     camera_transform.look_at(target, Vec3::Y);
-}
-
-/// Attach to any body entity so clicking it makes the camera follow it.
-pub fn on_body_clicked(click: On<PointerClick>, mut focus: ResMut<CameraFocus>) {
-    *focus = CameraFocus::Following(click.entity);
 }
