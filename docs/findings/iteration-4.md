@@ -129,6 +129,40 @@
 - **Affects:** ARCH-04, ARCH-35 · **Type:** spec gap
 - **Disposition:** accepted in iteration 4; confirm nothing looks different in the playtest.
 
+## Playtest, 2026-10-10
+
+Each was checked against the iteration 3 code (`3c91a59`); none was introduced by the iteration 4 refactor.
+
+### F4-26 · A planet's own orbit line flickers when zoomed in on it
+- **Observation:** zoomed in so the planet's satellites fill the view, the line of the planet's own orbit round the star comes in and out of view. Cause: rings are drawn as 128 straight chords, and a chord is dropped whole if either end is behind the camera. At Halden IV's satellite frame the camera is about one render unit from an orbit 180 units in radius, so the chord through the view is about 9 units long and its far end is often behind the camera. The chords are also visibly wrong at this scale: a 9-unit chord on a 180-unit circle bows about 0.05 units from the arc, roughly 40 px at this zoom, so the line doesn't pass through the planet. Unchanged since iteration 3.
+- **Affects:** MRK-05, SCL-02 · **Type:** bug
+- **Disposition:** open for triage. Fix: clip chords at the near plane instead of dropping them, and draw the visible part of a large ring with enough segments for the zoom (or around the view only). Small; could go into the camera iteration or before it.
+
+### F4-27 · Zooming out drops the camera off the planet
+- **Observation:** after zooming in onto a planet, zooming out detaches the camera, which stays where the planet was while the planet moves on. Cause: every zoom step that doesn't latch onto a body sets a fixed centre, and zooming out never latches. This is the iteration 3 zoom model (F4-13).
+- **Affects:** CAM-05, CAM-08, ZOOM-13 · **Type:** conflict (built behaviour against unbuilt spec)
+- **Disposition:** replaced by the camera iteration: CAM-08 says zooming that stays inside the system frame doesn't end focus.
+
+### F4-28 · Double-click doesn't frame a body
+- **Observation:** double-clicking a planet does nothing visible. Cause: the first click of a double-click selects the body; the second arrives with a click count of 2, finds the body already selected, and takes the planetary-view hook (the withdrawn ZOOM-09) instead of framing it (the withdrawn ZOOM-08). The framing branch can never be reached by a double-click. This is the "already inspected" ambiguity that withdrew ZOOM-09. F still frames the selection.
+- **Affects:** ZOOM-16, ZOOM-17 · **Type:** bug
+- **Disposition:** replaced by the camera iteration, where ZOOM-16 and ZOOM-17 decide by focus instead of selection, which removes the ambiguity.
+
+### F4-29 · Bodies jitter while the camera follows a planet; orbit lines stay steady
+- **Observation:** while the camera follows a planet, its markers and its satellites' markers shake, while the rings stay still. Cause: the camera centres on the body's position from the previous frame (it reads `GlobalTransform`, which Bevy only updates after the frame's systems have run), while the markers are placed from the body's newer position. The body therefore sits one frame of orbital motion away from the centre, and that gap changes with every frame's length. At Halden IV's satellite frame one frame of its orbital motion is about 13 px at 1 d/s and 65 px at 5 d/s, so uneven frame times show as jitter. Rings are drawn from the same frame as the camera, so they don't shake. Same frame ordering in iteration 3.
+- **Affects:** CAM-05 ("keeps its place on screen at any time rate"), MRK-03 · **Type:** bug
+- **Disposition:** open for triage. Fix: have the camera pivot use the followed body's current simulated position (`OrbitPositionKm` up its parent chain, through `scale.rs`) rather than last frame's transform, and project markers after transform propagation so camera and bodies come from the same frame. CAM-05's check at 5 d/s already covers it.
+
+### F4-30 · Zooming in hops focus between satellites
+- **Observation:** changing zoom inside a planet's satellite system switches the followed body unpredictably between satellites. Cause: each zoom-in step latches onto whichever body is nearest the anchor within a quarter of the new frame, satellites included, so successive steps can pick different moons. The playtester's view: zooming to focus is poor UX.
+- **Affects:** CAM-21 · **Type:** spec wrong (suspected)
+- **Disposition:** open for triage. As specced, CAM-21 would behave differently: it focuses only when nothing is focused, only the body whose satellite frame is the inner limit, and later steps anchor on that body, so it wouldn't hop between moons. The question is whether zoom should set focus at all, or focus only comes from double-click, F and the Focus button (CAM-06).
+
+### F4-31 · Left drag doesn't pan
+- **Observation:** left-click drag does nothing; middle drag pans (iteration 1).
+- **Affects:** CAM-10 · **Type:** bug (not built)
+- **Disposition:** camera iteration (CAM-10).
+
 <!-- Findings from the build: copy this block.
 ### F4-16 · Short title
 - **Observation:**
