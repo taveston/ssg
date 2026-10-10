@@ -41,15 +41,43 @@ impl Plugin for TopBarPlugin {
     }
 }
 
-fn button_node() -> Node {
-    Node {
-        padding: UiRect::axes(px(12), px(5)),
-        border: UiRect::all(px(1)),
-        margin: UiRect::left(px(6)),
-        ..default()
-    }
+const BAR_FONT_PX: f32 = 14.0;
+/// CLK-02: the active rate's highlight.
+const ACTIVE_ALPHA: f32 = 0.3;
+/// A rate button is active when the clock runs within this of its rate.
+const RATE_MATCH_TOLERANCE: f64 = 0.01;
+const BUTTON_FONT_PX: f32 = 13.0;
+
+/// A top-bar button: an outlined box with a label, highlighted by
+/// `update_button_styles` when active.
+fn spawn_button<'a>(
+    bar: &'a mut ChildSpawnerCommands,
+    fonts: &Fonts,
+    label: &str,
+    marker: impl Bundle,
+) -> EntityCommands<'a> {
+    let mut button = bar.spawn((
+        marker,
+        Node {
+            padding: UiRect::axes(px(12), px(5)),
+            border: UiRect::all(px(1)),
+            margin: UiRect::left(px(6)),
+            ..default()
+        },
+        BackgroundColor(Color::NONE),
+        BorderColor::all(colors::PANEL_BORDER),
+    ));
+    button.with_children(|b| {
+        b.spawn((
+            Text::new(label),
+            fonts.label(BUTTON_FONT_PX),
+            TextColor(colors::NEUTRAL),
+        ));
+    });
+    button
 }
 
+/// CLK-02: breadcrumb, date, Pause, 1 d/s and 5 d/s.
 fn spawn_top_bar(mut commands: Commands, fonts: Res<Fonts>) {
     commands
         .spawn((
@@ -68,57 +96,28 @@ fn spawn_top_bar(mut commands: Commands, fonts: Res<Fonts>) {
         .with_children(|bar| {
             bar.spawn((
                 Text::new("Cluster / Corvane system"),
-                fonts.label(14.0),
+                fonts.label(BAR_FONT_PX),
                 TextColor(colors::NEUTRAL),
             ));
-
             bar.spawn((
                 DateText,
                 Text::new(""),
-                fonts.mono(14.0),
+                fonts.mono(BAR_FONT_PX),
                 TextColor(colors::NEUTRAL),
             ));
-
-            bar.spawn((
-                PauseButton,
-                button_node(),
-                BackgroundColor(Color::NONE),
-                BorderColor::all(colors::PANEL_BORDER),
-            ))
-            .with_children(|b| {
-                b.spawn((
-                    Text::new("Pause"),
-                    fonts.label(13.0),
-                    TextColor(colors::NEUTRAL),
-                ));
-            })
-            .observe(on_pause_clicked);
-
+            spawn_button(bar, &fonts, "Pause", PauseButton).observe(on_pause_clicked);
             for (label, speed) in [("1 d/s", 1.0_f64), ("5 d/s", 5.0_f64)] {
-                bar.spawn((
-                    SpeedButton(speed),
-                    button_node(),
-                    BackgroundColor(Color::NONE),
-                    BorderColor::all(colors::PANEL_BORDER),
-                ))
-                .with_children(|b| {
-                    b.spawn((
-                        Text::new(label),
-                        fonts.label(13.0),
-                        TextColor(colors::NEUTRAL),
-                    ));
-                })
-                .observe(
+                spawn_button(bar, &fonts, label, SpeedButton(speed)).observe(
                     move |_click: On<PointerClick>, mut clock: ResMut<GameClock>| {
                         clock.run_at(speed);
                     },
                 );
             }
-
+            // Not specced (F4-12), kept until triaged.
             bar.spawn((
                 FpsText,
                 Text::new(""),
-                fonts.mono(13.0),
+                fonts.mono(BUTTON_FONT_PX),
                 TextColor(colors::PANEL_BORDER),
             ));
         });
@@ -169,16 +168,16 @@ fn update_button_styles(
 ) {
     for mut background in &mut pause_buttons {
         background.0 = if clock.is_paused() {
-            colors::OWN.with_alpha(0.3)
+            colors::OWN.with_alpha(ACTIVE_ALPHA)
         } else {
             Color::NONE
         };
     }
     for (speed_button, mut background) in &mut speed_buttons {
-        let active =
-            !clock.is_paused() && (clock.rate_days_per_sec() - speed_button.0).abs() < 0.01;
+        let active = !clock.is_paused()
+            && (clock.rate_days_per_sec() - speed_button.0).abs() < RATE_MATCH_TOLERANCE;
         background.0 = if active {
-            colors::OWN.with_alpha(0.3)
+            colors::OWN.with_alpha(ACTIVE_ALPHA)
         } else {
             Color::NONE
         };

@@ -1,9 +1,13 @@
 //! A small hand-rolled proleptic Gregorian calendar, just enough to turn a
-//! day-count into a readable date. No date/time crate needed for this.
+//! day-count into a readable date for the top bar (CLK-02) and the inset
+//! status lines (INS-04). No date/time crate needed for this.
 
 const EPOCH_YEAR: i64 = 2341;
 const EPOCH_MONTH: u32 = 3;
 const EPOCH_DAY: i64 = 14;
+
+/// The mean Gregorian month, 365.2425 / 12 days.
+const MEAN_DAYS_PER_MONTH: f64 = 30.4368;
 
 const MONTH_NAMES: [&str; 12] = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
@@ -77,7 +81,7 @@ pub fn format_date(date: &CalendarDate) -> String {
 /// "2 Y 9 M AGO" style, from a number of days in the past. Approximate
 /// (average month length) - this is flavour text, not a precise duration.
 pub fn format_time_ago(days_ago: f64) -> String {
-    let total_months = (days_ago.max(0.0) / 30.4368).floor() as i64;
+    let total_months = (days_ago.max(0.0) / MEAN_DAYS_PER_MONTH).floor() as i64;
     let years = total_months / 12;
     let months = total_months % 12;
     if years > 0 {

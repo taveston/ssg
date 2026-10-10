@@ -12,6 +12,13 @@ use super::stops::{ZoomStops, distance_for_radius};
 use super::zoom::animated_distance;
 use crate::view::tunables::Tunables;
 
+/// Render-unit clip planes wide enough for a moon's orbit up close and the
+/// whole system with its gates.
+const NEAR_CLIP: f32 = 0.001;
+const FAR_CLIP: f32 = 20_000.0;
+/// Where the camera is spawned, in render units, before its first update.
+const SPAWN_POSITION: Vec3 = Vec3::new(0.0, 40.0, 70.0);
+
 pub fn spawn_camera(mut commands: Commands) {
     commands.spawn((
         OrbitCamera,
@@ -19,11 +26,14 @@ pub fn spawn_camera(mut commands: Commands) {
         // The zoom range spans a moon's orbit up to the whole system, so
         // the default near/far pair (0.1 / 1000) would clip at both ends.
         Projection::Perspective(PerspectiveProjection {
-            near: 0.001,
-            far: 20_000.0,
+            near: NEAR_CLIP,
+            far: FAR_CLIP,
             ..default()
         }),
-        Transform::from_xyz(0.0, 40.0, 70.0).looking_at(Vec3::ZERO, Vec3::Y),
+        // Placed properly by `update_camera_transform`, but systems on the
+        // first frame see this pose: far out and looking at the star, so
+        // nothing measures as unfolded before the camera has settled.
+        Transform::from_translation(SPAWN_POSITION).looking_at(Vec3::ZERO, Vec3::Y),
     ));
 }
 

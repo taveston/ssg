@@ -14,7 +14,11 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
-use super::fold::{FoldSummary, SatelliteFoldState, advance_fold_anim, next_folded, pill_flags};
+use super::anim::step_per_frame;
+use super::fold::{
+    FoldSummary, SatelliteFoldState, advance_fold_anim, fully_folded, hidden_by_ancestry,
+    next_folded, pill_flags,
+};
 use super::scale::km_to_render;
 use super::tunables::Tunables;
 use crate::sim::body::{BodyClass, Ownership};
@@ -27,7 +31,12 @@ impl Plugin for GroupingPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<FoldSummary>()
             .add_systems(Startup, attach_fold_state.in_set(Boot::Derive))
-            .add_systems(Update, update_grouping.in_set(Stage::Grouping));
+            .add_systems(
+                Update,
+                (fold_satellites, resolve_hidden, summarise_folds)
+                    .chain()
+                    .in_set(Stage::Grouping),
+            );
     }
 }
 
@@ -44,96 +53,88 @@ fn attach_fold_state(mut commands: Commands, satellites: Query<Entity, UnfoldedS
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-fn update_grouping(
+/// GRP-01 to GRP-03: measure each satellite's orbit on screen, run the
+/// hysteresis latch, and slide it towards its new state.
+fn fold_satellites(
     time: Res<Time>,
     tunables: Res<Tunables>,
     camera_q: Query<(&Camera, &GlobalTransform)>,
     transforms: Query<&GlobalTransform>,
-    parents: Query<&ChildOf>,
-    classes: Query<(&BodyClass, &Ownership)>,
-    mut satellites: Query<(Entity, &Orbit, &ChildOf, &mut SatelliteFoldState)>,
-    mut summary: ResMut<FoldSummary>,
+    mut satellites: Query<(&Orbit, &ChildOf, &mut SatelliteFoldState)>,
 ) {
     let Ok((camera, camera_transform)) = camera_q.single() else {
         return;
     };
-
     // Measure orbit radius along the camera's least-foreshortened screen
     // axis, flattened into the orbital plane. This depends only on zoom and
     // tilt, never on where the satellite currently is in its orbit, so the
-    // test can't flicker as a satellite comes round.
+    // test can't flicker as a satellite comes round (GRP-02: per satellite,
+    // so outer ones unfold first).
     let right = camera_transform.right().as_vec3();
     let right_flat = Vec3::new(right.x, 0.0, right.z).normalize_or_zero();
+    let step = step_per_frame(time.delta_secs(), tunables.fold_unfold_anim_ms);
 
-    let step = crate::view::anim::step_per_frame(time.delta_secs(), tunables.fold_unfold_anim_ms);
-
-    for (entity, orbital, child_of, mut fold) in &mut satellites {
-        let Ok(parent_transform) = transforms.get(child_of.parent()) else {
+    for (orbit, child_of, mut fold) in &mut satellites {
+        let Ok(parent) = transforms.get(child_of.parent()) else {
             continue;
         };
-        let parent_world = parent_transform.translation();
-
-        let on_screen_radius = match (
-            camera.world_to_viewport(camera_transform, parent_world),
-            camera.world_to_viewport(
-                camera_transform,
-                parent_world + right_flat * km_to_render(orbital.radius_km),
-            ),
-        ) {
-            (Ok(centre), Ok(edge)) => centre.distance(edge),
+        let centre = parent.translation();
+        let edge = centre + right_flat * km_to_render(orbit.radius_km);
+        let (Ok(centre), Ok(edge)) = (
+            camera.world_to_viewport(camera_transform, centre),
+            camera.world_to_viewport(camera_transform, edge),
+        ) else {
             // Off-screen or behind the camera: leave the latch alone.
-            _ => {
-                let _ = entity;
-                continue;
-            }
+            continue;
         };
-
         fold.folded = next_folded(
-            on_screen_radius,
+            centre.distance(edge),
             fold.folded,
             tunables.unfold_at_px,
             tunables.fold_below_px,
         );
-
         fold.anim_t = advance_fold_anim(fold.anim_t, fold.folded, step);
     }
+}
 
-    // A satellite of a folded satellite stays hidden no matter what its own
-    // test said. Hierarchies here are shallow, so a small memoised walk is
-    // plenty. "Hidden" means *fully* folded, so the slide in and out of the
-    // parent stays visible in both directions.
-    let folded_now: HashMap<Entity, bool> = satellites
+/// GRP-01: a satellite of a fully folded satellite is hidden too.
+fn resolve_hidden(mut satellites: Query<(Entity, &ChildOf, &mut SatelliteFoldState)>) {
+    let tree: HashMap<Entity, (Entity, bool)> = satellites
         .iter()
-        .map(|(entity, _, _, fold)| (entity, fold.folded && fold.anim_t <= 0.001))
-        .collect();
-
-    let mut cache: HashMap<Entity, bool> = HashMap::new();
-    let hidden: Vec<(Entity, bool)> = satellites
-        .iter()
-        .map(|(entity, _, _, _)| {
-            let hidden = ancestor_hidden(entity, &folded_now, &parents, &mut cache);
-            (entity, hidden)
+        .map(|(entity, child_of, fold)| {
+            (
+                entity,
+                (child_of.parent(), fully_folded(fold.folded, fold.anim_t)),
+            )
         })
         .collect();
-
-    let hidden_lookup: HashMap<Entity, bool> = hidden.iter().copied().collect();
-    for (entity, _, _, mut fold) in &mut satellites {
-        fold.effective_hidden = hidden_lookup.get(&entity).copied().unwrap_or(fold.folded);
+    let hidden = hidden_by_ancestry(&tree);
+    for (entity, _, mut fold) in &mut satellites {
+        fold.effective_hidden = hidden.get(&entity).copied().unwrap_or(fold.folded);
     }
+}
 
+/// GRP-05 / GRP-06: what each parent's "+N" pill counts and flags.
+fn summarise_folds(
+    satellites: Query<(Entity, &ChildOf, &SatelliteFoldState)>,
+    classes: Query<(&BodyClass, &Ownership)>,
+    mut summary: ResMut<FoldSummary>,
+) {
     summary.0.clear();
-    for (entity, _, child_of, fold) in &satellites {
+    for (entity, child_of, fold) in &satellites {
         // Count by the latch, not by `effective_hidden`: a satellite joins
         // or leaves the count the moment it starts folding or unfolding,
         // so the "+N" and the sliding marker hand over cleanly.
         if !fold.folded {
             continue;
         }
-        let parent = child_of.parent();
         // Only count a satellite against the nearest *visible* ancestor:
         // if its own parent is folded too, it's already represented there.
-        if folded_now.get(&parent).copied().unwrap_or(false) {
+        let parent = child_of.parent();
+        let parent_folded = satellites
+            .get(parent)
+            .is_ok_and(|(_, _, parent_fold)| fully_folded(parent_fold.folded, parent_fold.anim_t));
+        if parent_folded {
             continue;
         }
         let group = summary.0.entry(parent).or_default();
@@ -147,28 +148,4 @@ fn update_grouping(
             group.has_own_ship |= flags.has_own_ship;
         }
     }
-}
-
-fn ancestor_hidden(
-    entity: Entity,
-    folded: &HashMap<Entity, bool>,
-    parents: &Query<&ChildOf>,
-    cache: &mut HashMap<Entity, bool>,
-) -> bool {
-    if let Some(known) = cache.get(&entity) {
-        return *known;
-    }
-    let own = folded.get(&entity).copied().unwrap_or(false);
-    let hidden = own
-        || match parents.get(entity) {
-            Ok(child_of) => {
-                let parent = child_of.parent();
-                // Only satellites appear in `folded`; a planet parent ends
-                // the walk.
-                folded.contains_key(&parent) && ancestor_hidden(parent, folded, parents, cache)
-            }
-            Err(_) => false,
-        };
-    cache.insert(entity, hidden);
-    hidden
 }

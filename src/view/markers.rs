@@ -145,19 +145,9 @@ fn spawn_markers(
     }
 }
 
-fn spawn_marker(
-    commands: &mut Commands,
-    fonts: &Fonts,
-    body: Entity,
-    class: BodyClass,
-    ownership: Ownership,
-    name: &DisplayName,
-) {
-    let half = marker_half_size(class);
-    let color = colors::ownership_color(ownership);
-    let shape = marker_shape(class, ownership);
-    let style = shape.style();
-
+/// MRK-03 / MRK-04: the marker's box, sized by class and shaped by
+/// rounding and borders.
+fn marker_node(shape: MarkerShape, half: Vec2) -> Node {
     let mut node = Node {
         position_type: PositionType::Absolute,
         width: px(half.x * 2.0),
@@ -171,13 +161,28 @@ fn spawn_marker(
     if matches!(shape, MarkerShape::Disc | MarkerShape::HollowCircle) {
         node.border_radius = BorderRadius::MAX;
     }
+    node
+}
+
+fn spawn_marker(
+    commands: &mut Commands,
+    fonts: &Fonts,
+    body: Entity,
+    class: BodyClass,
+    ownership: Ownership,
+    name: &DisplayName,
+) {
+    let half = marker_half_size(class);
+    let color = colors::ownership_color(ownership);
+    let shape = marker_shape(class, ownership);
+    let style = shape.style();
 
     let mut marker = commands.spawn((
         MarkerFor(body),
         MarkerHalfSize(half),
         MarkerBaseColor(color),
         style,
-        node,
+        marker_node(shape, half),
         // The hover ring (HOV-01): an outline, invisible until hovered.
         Outline {
             width: px(0),
@@ -280,18 +285,12 @@ fn update_markers(
         node.top = px(pos.y - half.0.y);
 
         let color = base_color.0.with_alpha(alpha);
-        match style {
-            MarkerStyle::Fill => {
-                if let Some(mut background) = background {
-                    background.0 = color;
-                }
+        match (style, background, border) {
+            (MarkerStyle::Fill, Some(mut background), _) => background.0 = color,
+            (MarkerStyle::Border, _, Some(mut border)) => {
+                border.set_all(color);
             }
-            MarkerStyle::Border => {
-                if let Some(mut border) = border {
-                    border.set_all(color);
-                }
-            }
-            MarkerStyle::Glyph => {}
+            _ => {}
         }
         // Labels (and glyph markers) carry their colour on child text.
         for child in children.into_iter().flat_map(|children| children.iter()) {

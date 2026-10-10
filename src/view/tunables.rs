@@ -1,4 +1,5 @@
-//! Every number the presentation spec marks *tunable*, in one place.
+//! Every number the presentation spec marks *tunable*, in one place
+//! (ARCH-22).
 //!
 //! The tunables table in `docs/spec/system-view.md` lists them with the
 //! spec IDs that use them; `docs/ideas/presentation/presentation.md`

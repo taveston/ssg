@@ -1,6 +1,6 @@
 //! Loads the two OFL fonts from `assets/fonts/` once and shares the
 //! handles as a resource. Barlow for labels and UI, JetBrains Mono for
-//! dates, figures, and status readouts.
+//! dates, figures, and status readouts (MRK-02).
 
 use bevy::prelude::*;
 

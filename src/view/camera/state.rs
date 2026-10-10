@@ -4,6 +4,8 @@
 
 use bevy::prelude::*;
 
+use crate::view::anim::MS_PER_SEC;
+
 #[derive(Resource, Clone, Copy)]
 pub enum CameraFocus {
     Fixed(Vec3),
@@ -23,15 +25,22 @@ pub struct OrbitCameraState {
     pub distance: f32,
 }
 
+/// The opening heading, from iteration 1. CAM-02 (not built) makes it
+/// north up.
+const START_YAW: f32 = 0.6;
+/// Steep, near-top-down by default. CAM-02 (not built) makes it straight
+/// down.
+const START_PITCH: f32 = 1.15;
+/// Replaced at startup by the system frame, once the stops have been
+/// computed from the real orbits.
+const PLACEHOLDER_DISTANCE: f32 = 300.0;
+
 impl Default for OrbitCameraState {
     fn default() -> Self {
         Self {
-            yaw: 0.6,
-            // Steep, near-top-down by default.
-            pitch: 1.15,
-            // Replaced at startup by the system frame, once the stops have
-            // been computed from the real orbits.
-            distance: 300.0,
+            yaw: START_YAW,
+            pitch: START_PITCH,
+            distance: PLACEHOLDER_DISTANCE,
         }
     }
 }
@@ -98,5 +107,5 @@ pub fn retarget(
     anim.start_focus = current_focus;
     anim.target_focus = target_focus;
     anim.elapsed = 0.0;
-    anim.duration = (duration_ms / 1000.0).max(f32::EPSILON);
+    anim.duration = (duration_ms / MS_PER_SEC).max(f32::EPSILON);
 }

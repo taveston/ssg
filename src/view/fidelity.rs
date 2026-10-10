@@ -1,5 +1,6 @@
 //! Procedural placeholder imagery for the inspection inset's fidelity
-//! states - no art assets yet, so these are generated in code: a shaded
+//! states (INS-04). There are no art assets yet, so these are generated in
+//! code: a shaded
 //! gradient globe for surveyed, seeded grain for unsurveyed, and a sepia
 //! variant of the globe for stale. One image per *state*, shared by every
 //! body in that state - the per-body date/figures are separate text.

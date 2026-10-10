@@ -7,7 +7,60 @@
 //! by it. Everything here is therefore phrased in distances, and the
 //! conversion to and from a framed radius lives in `stops.rs`.
 
+use bevy::math::Vec3;
+
 use crate::view::anim::ease_out_cubic;
+
+/// One planned zoom step: where it ends and how long it takes.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ZoomStep {
+    pub target: f32,
+    pub duration_ms: f32,
+}
+
+/// The settings a zoom step is planned with.
+#[derive(Debug, Clone, Copy)]
+pub struct StepSettings {
+    pub step_factor: f32,
+    pub anim_ms: f32,
+    pub stop_resistance: f32,
+}
+
+/// ZOOM-01 / ZOOM-05: plan a step of `notches` from `current`: one step
+/// factor per notch, settling on the first stop in the way (and taking
+/// longer to do it), clamped to the limits `inner..=outer`. The limits are
+/// still the withdrawn ZOOM-06's (F4-13): scrolling past one does nothing.
+pub fn plan_zoom_step(
+    current: f32,
+    notches: f32,
+    stops: &[f32],
+    inner: f32,
+    outer: f32,
+    settings: StepSettings,
+) -> ZoomStep {
+    let naive_target = stepped_distance(current, notches, settings.step_factor);
+    let crossed = first_stop_crossed(current, naive_target, stops);
+    ZoomStep {
+        target: crossed
+            .unwrap_or(naive_target)
+            .clamp(inner.min(outer), outer),
+        duration_ms: step_duration_ms(
+            settings.anim_ms,
+            settings.stop_resistance,
+            crossed.is_some(),
+        ),
+    }
+}
+
+/// The withdrawn ZOOM-03 anchor (F4-13; ZOOM-13 replaces it): the view
+/// centre that keeps `anchor` at the same place on screen when the camera
+/// distance goes from `current` to `target`.
+pub fn anchored_centre(anchor: Vec3, centre: Vec3, current: f32, target: f32) -> Vec3 {
+    if current <= f32::EPSILON {
+        return centre;
+    }
+    anchor + (centre - anchor) * (target / current)
+}
 
 /// ZOOM-01: each wheel notch multiplies the view scale by
 /// `step_factor`, i.e. divides the camera distance by it. Positive
@@ -176,6 +229,60 @@ mod tests {
         assert_eq!(animated_distance(start, target, 10.0, duration), target);
         let half = animated_distance(start, target, duration * 0.5, duration);
         assert!(half < 150.0, "ease-out covers more than half by halfway");
+    }
+
+    const SETTINGS: StepSettings = StepSettings {
+        step_factor: STEP_FACTOR,
+        anim_ms: ANIM_MS,
+        stop_resistance: RESISTANCE,
+    };
+
+    /// ZOOM-01 / ZOOM-05: a plain step is one factor; a step over a stop
+    /// lands on it and takes longer.
+    #[test]
+    fn zoom_05_planned_step_settles_on_stops() {
+        let plain = plan_zoom_step(100.0, 1.0, &[], 0.0, 1000.0, SETTINGS);
+        assert_eq!(
+            plain,
+            ZoomStep {
+                target: 50.0,
+                duration_ms: ANIM_MS
+            }
+        );
+        let resisted = plan_zoom_step(100.0, 1.0, &[70.0], 0.0, 1000.0, SETTINGS);
+        assert_eq!(resisted.target, 70.0);
+        assert!(resisted.duration_ms > ANIM_MS);
+    }
+
+    /// Scrolling past a limit does nothing: the step stops at the limit.
+    #[test]
+    fn zoom_01_planned_step_stops_at_the_limits() {
+        assert_eq!(
+            plan_zoom_step(100.0, -1.0, &[], 1.0, 150.0, SETTINGS).target,
+            150.0
+        );
+        assert_eq!(
+            plan_zoom_step(100.0, -1.0, &[], 1.0, 100.0, SETTINGS).target,
+            100.0
+        );
+        assert_eq!(
+            plan_zoom_step(2.0, 1.0, &[], 1.5, 150.0, SETTINGS).target,
+            1.5
+        );
+    }
+
+    /// The anchor keeps its place: scaling the distance scales the anchor's
+    /// offset from the centre by the same factor.
+    #[test]
+    fn zoom_03_anchor_keeps_its_place_on_screen() {
+        let anchor = Vec3::new(10.0, 0.0, 0.0);
+        let centre = Vec3::ZERO;
+        assert_eq!(
+            anchored_centre(anchor, centre, 100.0, 50.0),
+            Vec3::new(5.0, 0.0, 0.0)
+        );
+        assert_eq!(anchored_centre(anchor, centre, 100.0, 100.0), centre);
+        assert_eq!(anchored_centre(anchor, centre, 0.0, 50.0), centre);
     }
 
     /// ZOOM-02: a notch arriving mid-animation retargets from the *current*

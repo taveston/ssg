@@ -6,21 +6,22 @@
 //! MOT-08: applies to everything that orbits, not just satellites -
 //! close-in planets get it too. Gates keep their edge-indicator treatment.
 
-use std::collections::HashMap;
-
 use bevy::prelude::*;
 
 use super::motion_mode::{
     MotionModeState, advance_crossfade, apparent_period_secs, next_ring_mode, should_sample,
     trail_dot_fade, trail_sample_interval_days,
 };
-use crate::sim::body::{BodyClass, DisplayName};
+use crate::sim::body::{BodyClass, DisplayName, Ownership};
+use crate::sim::clock::GameClock;
 use crate::sim::orbit::Orbit;
+use crate::view::anim::step_per_frame;
 use crate::view::colors;
 use crate::view::fold::SatelliteFoldState;
 use crate::view::fonts::Fonts;
 use crate::view::hover;
 use crate::view::scale::km_to_render;
+use crate::view::screen::in_viewport;
 use crate::view::selection::Selection;
 use crate::view::targets::MarkerFor;
 use crate::view::tunables::Tunables;
@@ -45,22 +46,45 @@ pub struct FadingTrail {
 #[derive(Component)]
 pub struct TrailDotFor(pub Entity, pub usize);
 
-/// The label that sits on an exposure ring at a fixed spot.
+/// The label that sits on an exposure ring at a fixed spot (MOT-02).
 #[derive(Component)]
 pub struct RingLabelFor(pub Entity);
 
 /// One of a necklace of invisible hit targets strung around an exposure
-/// ring, so hovering or clicking the ring itself hits the satellite.
-/// Gizmo-drawn rings aren't pickable on their own.
+/// ring, so hovering or clicking the ring itself hits the satellite
+/// (MOT-05). Gizmo-drawn rings aren't pickable on their own.
 #[derive(Component)]
 pub struct RingHitFor(pub Entity, pub usize);
 
+/// MOT-01: how many dots a trail is drawn with.
 pub const TRAIL_LENGTH: usize = 16;
 /// Alpha of the newest trail dot. The trail is a hint of where the body has
 /// just been, so even its brightest sample sits well under the marker's.
 const TRAIL_PEAK_ALPHA: f32 = 0.5;
+const TRAIL_DOT_PX: f32 = 3.0;
 const RING_HIT_SEGMENTS: usize = 16;
 const RING_HIT_SIZE_PX: f32 = 14.0;
+/// Below this strength an exposure ring's label and hit targets are off.
+const MIN_RING_STRENGTH: f32 = 0.05;
+/// Where a ring's label sits relative to its fixed spot on the ring.
+const RING_LABEL_OFFSET_PX: Vec2 = Vec2::new(6.0, -6.0);
+const RING_LABEL_FONT_PX: f32 = 11.0;
+
+/// MOT-01: which stored sample trail dot `dot_index` shows (dot 0 is the
+/// oldest), when `stored` samples have been taken so far. A trail that is
+/// still filling up leaves its oldest dots empty.
+pub fn trail_sample_for_dot(dot_index: usize, stored: usize, length: usize) -> Option<usize> {
+    let age_from_newest = length.checked_sub(dot_index + 1)?;
+    stored.checked_sub(age_from_newest + 1)
+}
+
+/// MOT-01: add a sample, dropping the oldest once the trail is full.
+pub fn push_trail_sample(samples: &mut Vec<Vec3>, sample: Vec3, length: usize) {
+    samples.push(sample);
+    while samples.len() > length {
+        samples.remove(0);
+    }
+}
 
 pub struct MotionPlugin;
 
@@ -69,7 +93,13 @@ impl Plugin for MotionPlugin {
         app.add_systems(Startup, spawn_motion_visuals.in_set(Boot::Overlay))
             .add_systems(
                 Update,
-                (update_motion_modes, update_trails, update_ring_visuals)
+                (
+                    update_motion_modes,
+                    sample_trails,
+                    draw_trails,
+                    place_ring_labels,
+                    place_ring_hits,
+                )
                     .chain()
                     .in_set(Stage::Motion),
             );
@@ -87,81 +117,89 @@ fn spawn_motion_visuals(
         if *class == BodyClass::Gate {
             continue;
         }
-
         commands
             .entity(entity)
             .insert((MotionModeState::default(), FadingTrail::default()));
-
-        for index in 0..TRAIL_LENGTH {
-            commands.spawn((
-                TrailDotFor(entity, index),
-                Node {
-                    position_type: PositionType::Absolute,
-                    width: px(3),
-                    height: px(3),
-                    display: Display::None,
-                    border_radius: BorderRadius::MAX,
-                    ..default()
-                },
-                BackgroundColor(Color::NONE),
-            ));
-        }
-
-        commands.spawn((
-            RingLabelFor(entity),
-            Node {
-                position_type: PositionType::Absolute,
-                display: Display::None,
-                ..default()
-            },
-            Text::new(name.0.clone()),
-            fonts.label(11.0),
-            TextColor(colors::NEUTRAL),
-        ));
-
-        for index in 0..RING_HIT_SEGMENTS {
-            commands
-                .spawn((
-                    RingHitFor(entity, index),
-                    MarkerFor(entity),
-                    Node {
-                        position_type: PositionType::Absolute,
-                        width: px(RING_HIT_SIZE_PX),
-                        height: px(RING_HIT_SIZE_PX),
-                        display: Display::None,
-                        ..default()
-                    },
-                    BackgroundColor(Color::NONE),
-                ))
-                .observe(hover::on_marker_over)
-                .observe(hover::on_marker_out)
-                .observe(hover::on_marker_click);
-        }
+        spawn_trail_dots(&mut commands, entity);
+        spawn_ring_label(&mut commands, &fonts, entity, name);
+        spawn_ring_hits(&mut commands, entity);
     }
 }
 
+fn spawn_trail_dots(commands: &mut Commands, body: Entity) {
+    for index in 0..TRAIL_LENGTH {
+        commands.spawn((
+            TrailDotFor(body, index),
+            Node {
+                position_type: PositionType::Absolute,
+                width: px(TRAIL_DOT_PX),
+                height: px(TRAIL_DOT_PX),
+                display: Display::None,
+                border_radius: BorderRadius::MAX,
+                ..default()
+            },
+            BackgroundColor(Color::NONE),
+        ));
+    }
+}
+
+fn spawn_ring_label(commands: &mut Commands, fonts: &Fonts, body: Entity, name: &DisplayName) {
+    commands.spawn((
+        RingLabelFor(body),
+        Node {
+            position_type: PositionType::Absolute,
+            display: Display::None,
+            ..default()
+        },
+        Text::new(name.0.clone()),
+        fonts.label(RING_LABEL_FONT_PX),
+        TextColor(colors::NEUTRAL),
+    ));
+}
+
+fn spawn_ring_hits(commands: &mut Commands, body: Entity) {
+    for index in 0..RING_HIT_SEGMENTS {
+        commands
+            .spawn((
+                RingHitFor(body, index),
+                MarkerFor(body),
+                Node {
+                    position_type: PositionType::Absolute,
+                    width: px(RING_HIT_SIZE_PX),
+                    height: px(RING_HIT_SIZE_PX),
+                    display: Display::None,
+                    ..default()
+                },
+                BackgroundColor(Color::NONE),
+            ))
+            // MOT-05: hover and click on the ring target its object.
+            .observe(hover::on_marker_over)
+            .observe(hover::on_marker_out)
+            .observe(hover::on_marker_click);
+    }
+}
+
+/// MOT-01 to MOT-04: each body's mode follows its apparent period, with a
+/// cross-fade on every switch.
 fn update_motion_modes(
     time: Res<Time>,
-    clock: Res<crate::sim::clock::GameClock>,
+    clock: Res<GameClock>,
     tunables: Res<Tunables>,
     mut bodies: Query<(&Orbit, &mut MotionModeState)>,
 ) {
-    let step = crate::view::anim::step_per_frame(time.delta_secs(), tunables.motion_crossfade_ms);
-
-    for (orbital, mut state) in &mut bodies {
+    let step = step_per_frame(time.delta_secs(), tunables.motion_crossfade_ms);
+    for (orbit, mut state) in &mut bodies {
         let apparent = apparent_period_secs(
-            orbital.period_days,
+            orbit.period_days,
             clock.rate_days_per_sec(),
             clock.is_paused(),
         );
-
         let target_ring = next_ring_mode(
             apparent,
             state.ring_mode,
             tunables.t_ring_secs,
             tunables.t_dot_secs,
         );
-
         if target_ring != state.ring_mode {
             state.ring_mode = target_ring;
             state.crossfade_t = 0.0;
@@ -170,216 +208,210 @@ fn update_motion_modes(
     }
 }
 
-#[allow(clippy::too_many_arguments, clippy::type_complexity)]
-fn update_trails(
-    clock: Res<crate::sim::clock::GameClock>,
+/// The position of a body's parent in render space, or the origin (the
+/// star) for a body with none.
+fn parent_position(child_of: Option<&ChildOf>, transforms: &Query<&GlobalTransform>) -> Vec3 {
+    child_of
+        .and_then(|child_of| transforms.get(child_of.parent()).ok())
+        .map(GlobalTransform::translation)
+        .unwrap_or(Vec3::ZERO)
+}
+
+/// MOT-01: record trail samples by simulated days, so a trail covers a
+/// fixed arc of its orbit, independent of frame rate and time rate.
+fn sample_trails(
+    clock: Res<GameClock>,
     tunables: Res<Tunables>,
+    mut bodies: Query<(&GlobalTransform, &Orbit, Option<&ChildOf>, &mut FadingTrail)>,
+    transforms: Query<&GlobalTransform>,
+) {
+    let now = clock.elapsed_days();
+    for (transform, orbit, child_of, mut trail) in &mut bodies {
+        let interval_days =
+            trail_sample_interval_days(orbit.period_days, tunables.trail_arc_degrees, TRAIL_LENGTH);
+        if !should_sample(now, trail.last_sample_day, interval_days) {
+            continue;
+        }
+        trail.last_sample_day = now;
+        // Relative to the parent, so the trail traces the orbit rather than
+        // the parent's path through the system.
+        let sample = transform.translation() - parent_position(child_of, &transforms);
+        push_trail_sample(&mut trail.positions, sample, TRAIL_LENGTH);
+    }
+}
+
+/// MOT-01: place each trail dot on its sample, replayed against where the
+/// parent is *now* so the trail stays wrapped round it, fading with age.
+#[allow(clippy::type_complexity)]
+fn draw_trails(
     camera_q: Query<(&Camera, &GlobalTransform)>,
-    mut bodies: Query<(
-        Entity,
-        &GlobalTransform,
-        &Orbit,
+    bodies: Query<(
+        &FadingTrail,
         &MotionModeState,
         Option<&SatelliteFoldState>,
         Option<&ChildOf>,
-        &mut FadingTrail,
+        Option<&Ownership>,
     )>,
     transforms: Query<&GlobalTransform>,
     mut dots: Query<(&TrailDotFor, &mut Node, &mut BackgroundColor)>,
-    colors_q: Query<&crate::sim::body::Ownership>,
 ) {
     let Ok((camera, camera_transform)) = camera_q.single() else {
         return;
     };
-
-    struct TrailView {
-        positions: Vec<Vec3>,
-        /// Samples are relative to this body's current position, if it has
-        /// a parent; absolute otherwise.
-        parent: Option<Entity>,
-        strength: f32,
-        color: Color,
-    }
-    let mut trails: HashMap<Entity, TrailView> = HashMap::new();
-
-    for (entity, transform, orbital, mode, fold, child_of, mut trail) in &mut bodies {
-        let hidden = fold.map(|f| f.effective_hidden).unwrap_or(false);
-        // A folded satellite draws nothing at all - no marker, label, ring
-        // or trail.
-        let strength = if hidden { 0.0 } else { mode.dot_strength() };
-
-        let parent = child_of.map(ChildOf::parent);
-        let parent_pos = parent
-            .and_then(|p| transforms.get(p).ok())
-            .map(GlobalTransform::translation)
-            .unwrap_or(Vec3::ZERO);
-
-        // Sample by simulated days so the trail covers a fixed arc of the
-        // orbit, independent of frame rate and time rate.
-        let interval_days = trail_sample_interval_days(
-            orbital.period_days,
-            tunables.trail_arc_degrees,
-            TRAIL_LENGTH,
-        );
-        if should_sample(clock.elapsed_days(), trail.last_sample_day, interval_days) {
-            trail.last_sample_day = clock.elapsed_days();
-            // Store relative to the parent, so the trail traces the orbit
-            // rather than the parent's path through the system.
-            trail.positions.push(transform.translation() - parent_pos);
-            if trail.positions.len() > TRAIL_LENGTH {
-                trail.positions.remove(0);
-            }
-        }
-
-        let color = colors_q
-            .get(entity)
-            .map(|ownership| colors::ownership_color(*ownership))
-            .unwrap_or(colors::NEUTRAL);
-        trails.insert(
-            entity,
-            TrailView {
-                positions: trail.positions.clone(),
-                parent,
-                strength,
-                color,
-            },
-        );
-    }
-
     for (dot_for, mut node, mut background) in &mut dots {
-        let Some(view) = trails.get(&dot_for.0) else {
+        let Ok((trail, mode, fold, child_of, ownership)) = bodies.get(dot_for.0) else {
             node.display = Display::None;
             continue;
         };
-        if view.strength <= 0.0 {
-            node.display = Display::None;
-            continue;
-        }
-        let age_from_newest = TRAIL_LENGTH - 1 - dot_for.1;
-        let Some(sample) = view
-            .positions
-            .len()
-            .checked_sub(age_from_newest + 1)
-            .map(|i| view.positions[i])
+        // GRP-01: a folded satellite draws nothing at all - no marker,
+        // label, ring or trail.
+        let hidden = fold.is_some_and(|f| f.effective_hidden);
+        let strength = if hidden { 0.0 } else { mode.dot_strength() };
+        let sample = trail_sample_for_dot(dot_for.1, trail.positions.len(), TRAIL_LENGTH)
+            .map(|index| trail.positions[index])
+            .filter(|_| strength > 0.0);
+        let world = sample.map(|sample| parent_position(child_of, &transforms) + sample);
+        let Some(pos) =
+            world.and_then(|world| camera.world_to_viewport(camera_transform, world).ok())
         else {
             node.display = Display::None;
             continue;
         };
-        // Replay the stored offset against where the parent is *now*, so
-        // the trail stays wrapped around the parent as it moves.
-        let parent_pos = view
-            .parent
-            .and_then(|p| transforms.get(p).ok())
-            .map(GlobalTransform::translation)
-            .unwrap_or(Vec3::ZERO);
-        let world_pos = parent_pos + sample;
-        let Ok(pos) = camera.world_to_viewport(camera_transform, world_pos) else {
-            node.display = Display::None;
-            continue;
-        };
         node.display = Display::Flex;
-        node.left = px(pos.x - 1.5);
-        node.top = px(pos.y - 1.5);
-        let fade = trail_dot_fade(age_from_newest, TRAIL_LENGTH);
-        background.0 = view
-            .color
-            .with_alpha(fade * TRAIL_PEAK_ALPHA * view.strength);
+        node.left = px(pos.x - TRAIL_DOT_PX / 2.0);
+        node.top = px(pos.y - TRAIL_DOT_PX / 2.0);
+        let age = TRAIL_LENGTH - 1 - dot_for.1;
+        let color = ownership.map_or(colors::NEUTRAL, |o| colors::ownership_color(*o));
+        background.0 =
+            color.with_alpha(trail_dot_fade(age, TRAIL_LENGTH) * TRAIL_PEAK_ALPHA * strength);
     }
 }
 
-/// Places the on-ring label and the ring's hit targets. The ring itself is
-/// drawn as a gizmo in `rings.rs`, which reads `MotionModeState` directly.
-#[allow(clippy::too_many_arguments)]
-fn update_ring_visuals(
+type RingBodies<'w, 's> = Query<
+    'w,
+    's,
+    (
+        &'static Orbit,
+        &'static MotionModeState,
+        Option<&'static ChildOf>,
+        Option<&'static SatelliteFoldState>,
+    ),
+>;
+
+/// Where the point at `angle` on a body's orbit lands on screen.
+fn ring_point(
+    body: Entity,
+    angle: f32,
+    bodies: &RingBodies,
+    transforms: &Query<&GlobalTransform>,
+    camera: (&Camera, &GlobalTransform),
+) -> Option<Vec2> {
+    let (orbit, _, child_of, _) = bodies.get(body).ok()?;
+    let centre = match child_of {
+        Some(child_of) => transforms.get(child_of.parent()).ok()?.translation(),
+        None => Vec3::ZERO,
+    };
+    let radius = km_to_render(orbit.radius_km);
+    let world = centre + Vec3::new(radius * angle.cos(), 0.0, radius * angle.sin());
+    camera.0.world_to_viewport(camera.1, world).ok()
+}
+
+/// MOT-02: how strongly a body's exposure ring shows, if at all.
+fn ring_strength(body: Entity, bodies: &RingBodies) -> Option<f32> {
+    let (_, mode, _, fold) = bodies.get(body).ok()?;
+    let hidden = fold.is_some_and(|f| f.effective_hidden);
+    let strength = mode.ring_strength();
+    (!hidden && strength > MIN_RING_STRENGTH).then_some(strength)
+}
+
+/// MOT-02: the label sits on the ring at a fixed spot - the body's start
+/// phase - so it doesn't appear to orbit while the body is a ring. MOT-07:
+/// a selected body's label is white.
+fn place_ring_labels(
     camera_q: Query<(&Camera, &GlobalTransform)>,
     windows: Query<&Window>,
     selection: Res<Selection>,
-    bodies: Query<(
-        &Orbit,
-        &MotionModeState,
-        Option<&ChildOf>,
-        Option<&SatelliteFoldState>,
-    )>,
+    bodies: RingBodies,
     transforms: Query<&GlobalTransform>,
-    mut labels: Query<(&RingLabelFor, &mut Node, &mut TextColor), Without<RingHitFor>>,
-    mut hits: Query<(&RingHitFor, &mut Node), Without<RingLabelFor>>,
+    mut labels: Query<(&RingLabelFor, &mut Node, &mut TextColor)>,
 ) {
-    let Ok((camera, camera_transform)) = camera_q.single() else {
-        return;
-    };
-    let Ok(window) = windows.single() else {
+    let (Ok(camera), Ok(window)) = (camera_q.single(), windows.single()) else {
         return;
     };
     let viewport = Vec2::new(window.width(), window.height());
-
-    // Where a point at `angle` on a body's orbit lands on screen.
-    let ring_point = |entity: Entity, angle: f32| -> Option<Vec2> {
-        let (orbital, _, child_of, _) = bodies.get(entity).ok()?;
-        let centre = match child_of {
-            Some(child_of) => transforms.get(child_of.parent()).ok()?.translation(),
-            None => Vec3::ZERO,
-        };
-        let world = centre
-            + Vec3::new(
-                km_to_render(orbital.radius_km) * angle.cos(),
-                0.0,
-                km_to_render(orbital.radius_km) * angle.sin(),
-            );
-        camera.world_to_viewport(camera_transform, world).ok()
-    };
-
-    let ring_active = |entity: Entity| -> bool {
-        let Ok((_, mode, _, fold)) = bodies.get(entity) else {
-            return false;
-        };
-        let hidden = fold.map(|f| f.effective_hidden).unwrap_or(false);
-        !hidden && mode.ring_strength() > 0.05
-    };
-
     for (label_for, mut node, mut color) in &mut labels {
-        let entity = label_for.0;
-        if !ring_active(entity) {
-            node.display = Display::None;
-            continue;
-        }
-        // Fixed spot on the ring: the body's start phase, so the label
-        // doesn't appear to orbit while the body itself is a ring.
-        let Ok((orbital, mode, _, _)) = bodies.get(entity) else {
-            node.display = Display::None;
-            continue;
-        };
-        let Some(pos) = ring_point(entity, orbital.phase0_rad as f32) else {
+        let body = label_for.0;
+        let placed = ring_strength(body, &bodies).and_then(|strength| {
+            let (orbit, ..) = bodies.get(body).ok()?;
+            let pos = ring_point(body, orbit.phase0_rad as f32, &bodies, &transforms, camera)?;
+            in_viewport(pos, viewport).then_some((pos, strength))
+        });
+        let Some((pos, strength)) = placed else {
             node.display = Display::None;
             continue;
         };
-        if pos.x < 0.0 || pos.y < 0.0 || pos.x > viewport.x || pos.y > viewport.y {
-            node.display = Display::None;
-            continue;
-        }
         node.display = Display::Flex;
-        node.left = px(pos.x + 6.0);
-        node.top = px(pos.y - 6.0);
-        let base = if selection.is_open(entity) {
+        node.left = px(pos.x + RING_LABEL_OFFSET_PX.x);
+        node.top = px(pos.y + RING_LABEL_OFFSET_PX.y);
+        let base = if selection.is_open(body) {
             colors::SELECTION_RING
         } else {
             colors::NEUTRAL
         };
-        color.0 = base.with_alpha(mode.ring_strength());
+        color.0 = base.with_alpha(strength);
     }
+}
 
+/// MOT-05: string the hit targets round each active exposure ring.
+fn place_ring_hits(
+    camera_q: Query<(&Camera, &GlobalTransform)>,
+    bodies: RingBodies,
+    transforms: Query<&GlobalTransform>,
+    mut hits: Query<(&RingHitFor, &mut Node)>,
+) {
+    let Ok(camera) = camera_q.single() else {
+        return;
+    };
     for (hit_for, mut node) in &mut hits {
-        let entity = hit_for.0;
-        if !ring_active(entity) {
-            node.display = Display::None;
-            continue;
-        }
+        let body = hit_for.0;
         let angle = hit_for.1 as f32 / RING_HIT_SEGMENTS as f32 * std::f32::consts::TAU;
-        let Some(pos) = ring_point(entity, angle) else {
+        let pos = ring_strength(body, &bodies)
+            .and_then(|_| ring_point(body, angle, &bodies, &transforms, camera));
+        let Some(pos) = pos else {
             node.display = Display::None;
             continue;
         };
         node.display = Display::Flex;
         node.left = px(pos.x - RING_HIT_SIZE_PX * 0.5);
         node.top = px(pos.y - RING_HIT_SIZE_PX * 0.5);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// MOT-01: dot 15 is the newest sample, dot 0 the oldest, and a trail
+    /// still filling up leaves its oldest dots empty.
+    #[test]
+    fn mot_01_trail_dots_map_onto_samples_newest_last() {
+        assert_eq!(trail_sample_for_dot(15, 16, 16), Some(15));
+        assert_eq!(trail_sample_for_dot(0, 16, 16), Some(0));
+        assert_eq!(trail_sample_for_dot(15, 3, 16), Some(2));
+        assert_eq!(trail_sample_for_dot(13, 3, 16), Some(0));
+        assert_eq!(trail_sample_for_dot(12, 3, 16), None);
+        assert_eq!(trail_sample_for_dot(0, 0, 16), None);
+    }
+
+    /// MOT-01: the trail keeps the newest samples and drops the oldest.
+    #[test]
+    fn mot_01_trail_keeps_only_the_newest_samples() {
+        let mut samples = Vec::new();
+        for i in 0..20 {
+            push_trail_sample(&mut samples, Vec3::splat(i as f32), 16);
+        }
+        assert_eq!(samples.len(), 16);
+        assert_eq!(samples[0], Vec3::splat(4.0));
+        assert_eq!(samples[15], Vec3::splat(19.0));
     }
 }

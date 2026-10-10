@@ -96,9 +96,78 @@ pub fn next_folded(
     }
 }
 
+/// How close to its parent a folding satellite's slide must be to count as
+/// fully folded - the point at which it stops drawing at all.
+const FULLY_FOLDED_T: f32 = 0.001;
+
+/// GRP-01 / GRP-03: folded *and* finished sliding in. Until then the slide
+/// stays visible, in both directions.
+pub fn fully_folded(folded: bool, anim_t: f32) -> bool {
+    folded && anim_t <= FULLY_FOLDED_T
+}
+
+/// GRP-01: a satellite of a folded satellite stays hidden whatever its own
+/// test says. `satellites` maps each satellite to its parent and whether it
+/// is itself fully folded; the walk stops at a parent that isn't a
+/// satellite (a planet). Returns, per satellite, whether it is hidden.
+pub fn hidden_by_ancestry(satellites: &HashMap<Entity, (Entity, bool)>) -> HashMap<Entity, bool> {
+    fn walk(
+        entity: Entity,
+        satellites: &HashMap<Entity, (Entity, bool)>,
+        memo: &mut HashMap<Entity, bool>,
+    ) -> bool {
+        if let Some(&known) = memo.get(&entity) {
+            return known;
+        }
+        let hidden = match satellites.get(&entity) {
+            Some(&(parent, own)) => own || walk(parent, satellites, memo),
+            // Not a satellite: the walk ends here, visible.
+            None => false,
+        };
+        memo.insert(entity, hidden);
+        hidden
+    }
+    let mut memo = HashMap::new();
+    satellites
+        .keys()
+        .map(|&entity| (entity, walk(entity, satellites, &mut memo)))
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// GRP-01 / GRP-03: a satellite only stops drawing once it has folded
+    /// and slid all the way in.
+    #[test]
+    fn grp_03_fully_folded_waits_for_the_slide() {
+        assert!(fully_folded(true, 0.0));
+        assert!(!fully_folded(true, 0.4), "still sliding in");
+        assert!(!fully_folded(false, 0.0), "starting to slide out");
+    }
+
+    /// GRP-01: a moon of a folded moon is hidden even if its own orbit is
+    /// large enough to show; folding stops at a planet.
+    #[test]
+    fn grp_01_satellites_of_folded_satellites_stay_hidden() {
+        let mut world = World::new();
+        let [planet, moon, submoon, other] = [(); 4].map(|_| world.spawn_empty().id());
+        let mut satellites = HashMap::new();
+        satellites.insert(moon, (planet, true));
+        satellites.insert(submoon, (moon, false));
+        satellites.insert(other, (planet, false));
+        let hidden = hidden_by_ancestry(&satellites);
+        assert!(hidden[&moon]);
+        assert!(hidden[&submoon], "hidden by its folded parent");
+        assert!(!hidden[&other]);
+        assert!(!hidden.contains_key(&planet));
+    }
+
+    #[test]
+    fn grp_01_no_satellites_means_nothing_hidden() {
+        assert!(hidden_by_ancestry(&HashMap::new()).is_empty());
+    }
 
     const UNFOLD_AT: f32 = 24.0;
     const FOLD_BELOW: f32 = 20.0;

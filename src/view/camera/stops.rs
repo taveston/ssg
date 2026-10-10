@@ -39,10 +39,14 @@ impl ZoomStops {
 /// ellipse whose vertical semi-axis is `radius * sin(pitch)`; at typical
 /// window aspect ratios and this project's steep default pitch, that
 /// vertical extent is what binds, so it's what we fit against.
+/// The flattest a framed circle is allowed to look, as sin(pitch), so a
+/// near-edge-on view can't demand a zero (or absurdly small) distance.
+const MIN_PITCH_COMPRESSION: f32 = 0.2;
+
 pub fn distance_for_radius(radius: f32, fov_y: f32, pitch: f32, margin: f32) -> f32 {
     // Floor the compression so a near-edge-on view can't demand a
     // zero (or absurdly small) distance.
-    let vertical_extent = radius * pitch.sin().abs().max(0.2);
+    let vertical_extent = radius * pitch.sin().abs().max(MIN_PITCH_COMPRESSION);
     vertical_extent / (margin * (fov_y * 0.5).tan()).max(f32::EPSILON)
 }
 
@@ -65,7 +69,7 @@ pub fn frame_radii(planet_orbit_radii: &mut [f32]) -> (f32, f32) {
 
 /// The inverse: how much of the orbital plane fits at a given distance.
 pub fn radius_for_distance(distance: f32, fov_y: f32, pitch: f32, margin: f32) -> f32 {
-    distance * margin * (fov_y * 0.5).tan() / pitch.sin().abs().max(0.2)
+    distance * margin * (fov_y * 0.5).tan() / pitch.sin().abs().max(MIN_PITCH_COMPRESSION)
 }
 
 pub fn compute_stops(

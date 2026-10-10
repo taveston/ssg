@@ -87,11 +87,6 @@ fn draw_orbit_rings(
             .unwrap_or(Vec3::ZERO);
         let radius = km_to_render(orbit.radius_km);
 
-        // Drawn segment by segment rather than as one circle, so that the
-        // part of a ring that falls behind the camera is simply left out
-        // instead of taking the whole ring with it. Zooming in on a planet
-        // puts the camera on its own star orbit, and a whole-circle draw
-        // would either vanish or smear through the near plane.
         let dim = crate::view::colors::ORBIT_LINE.with_alpha(DIM_RING_ALPHA);
         let strength = motion.map(MotionModeState::ring_strength).unwrap_or(0.0);
         let bright = (strength > MIN_RING_STRENGTH).then(|| {
@@ -105,24 +100,36 @@ fn draw_orbit_rings(
             color.with_alpha(strength)
         });
 
-        let point_at = |i: usize| {
-            let angle = i as f32 / RING_SEGMENTS as f32 * std::f32::consts::TAU;
-            center + Vec3::new(radius * angle.cos(), 0.0, radius * angle.sin())
-        };
-        let in_front = |p: Vec3| (p - camera_pos).dot(camera_forward) > NEAR_EPSILON;
-
-        let mut previous = point_at(0);
-        for i in 1..=RING_SEGMENTS {
-            let current = point_at(i % RING_SEGMENTS);
-            if in_front(previous) && in_front(current) {
-                gizmos.line(previous, current, dim);
-                // MOT-02: the body is moving too fast to read as a
-                // position, so the ring itself carries it.
-                if let Some(bright) = bright {
-                    exposure.line(previous, current, bright);
-                }
+        for (from, to) in visible_ring_segments(center, radius, camera_pos, camera_forward) {
+            gizmos.line(from, to, dim);
+            // MOT-02: the body is moving too fast to read as a position, so
+            // the ring itself carries it.
+            if let Some(bright) = bright {
+                exposure.line(from, to, bright);
             }
-            previous = current;
         }
     }
+}
+
+/// The straight segments of a ring that lie in front of the camera.
+///
+/// Drawn segment by segment rather than as one circle, so that the part of
+/// a ring that falls behind the camera is simply left out instead of taking
+/// the whole ring with it. Zooming in on a planet puts the camera on its own
+/// star orbit, and a whole-circle draw would either vanish or smear through
+/// the near plane.
+fn visible_ring_segments(
+    center: Vec3,
+    radius: f32,
+    camera_pos: Vec3,
+    camera_forward: Vec3,
+) -> impl Iterator<Item = (Vec3, Vec3)> {
+    let point_at = move |i: usize| {
+        let angle = (i % RING_SEGMENTS) as f32 / RING_SEGMENTS as f32 * std::f32::consts::TAU;
+        center + Vec3::new(radius * angle.cos(), 0.0, radius * angle.sin())
+    };
+    let in_front = move |p: Vec3| (p - camera_pos).dot(camera_forward) > NEAR_EPSILON;
+    (0..RING_SEGMENTS)
+        .map(move |i| (point_at(i), point_at(i + 1)))
+        .filter(move |(from, to)| in_front(*from) && in_front(*to))
 }

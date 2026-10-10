@@ -17,10 +17,21 @@ use super::state::{
     ZoomAnim, camera_fov, focus_position, retarget,
 };
 use super::stops::{ZoomStops, distance_for_radius, radius_for_distance};
-use super::zoom::{first_stop_crossed, notches_from_scroll, step_duration_ms, stepped_distance};
+use super::zoom::{StepSettings, ZoomStep, anchored_centre, notches_from_scroll, plan_zoom_step};
 use crate::sim::body::BodyClass;
 use crate::view::selection::Selection;
 use crate::view::tunables::Tunables;
+
+/// Right drag: radians of yaw or pitch per pixel dragged (iteration 1
+/// behaviour; CAM-12 replaces it with `rotate_deg_per_px`).
+const DRAG_ROTATE_RAD_PER_PX: f32 = 0.005;
+/// Middle drag: plane distance per pixel dragged, as a fraction of the
+/// camera distance, so a pan feels the same at every zoom (iteration 1
+/// behaviour; CAM-10 replaces it with an exact cursor-locked pan).
+const DRAG_PAN_PER_PX: f32 = 0.0015;
+/// A body with no satellites still gets a sensible close-up when framed:
+/// this fraction of the region frame.
+const BARE_BODY_FRAME_FRACTION: f32 = 0.05;
 
 pub fn handle_orbit_input(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
@@ -31,8 +42,8 @@ pub fn handle_orbit_input(
         return;
     }
     let delta = mouse_motion.delta;
-    state.yaw -= delta.x * 0.005;
-    state.pitch = (state.pitch - delta.y * 0.005).clamp(-PITCH_LIMIT, PITCH_LIMIT);
+    state.yaw -= delta.x * DRAG_ROTATE_RAD_PER_PX;
+    state.pitch = (state.pitch - delta.y * DRAG_ROTATE_RAD_PER_PX).clamp(-PITCH_LIMIT, PITCH_LIMIT);
 }
 
 /// Where the world point under the cursor is, on the orbital plane.
@@ -46,61 +57,49 @@ fn cursor_anchor(
     ray.plane_intersection_point(Vec3::ZERO, InfinitePlane3d::new(Vec3::Y))
 }
 
-/// Every distance that counts as a stop, given what's selected.
+/// Every distance that counts as a stop, given what's selected: the system
+/// frame, the region frame and the selection's satellite frame. That is the
+/// withdrawn ZOOM-04's choice; ZOOM-15 moves it to focus (F4-13).
 fn stop_distances(
     stops: &ZoomStops,
-    tunables: &Tunables,
-    fov: f32,
-    pitch: f32,
     selected: Option<Entity>,
+    fit: impl Fn(f32) -> f32,
 ) -> Vec<f32> {
-    let to_distance =
-        |radius: f32| distance_for_radius(radius, fov, pitch, tunables.zoom_fit_margin);
-
-    let mut distances = vec![
-        to_distance(stops.system_radius),
-        to_distance(stops.inner_system_radius),
-    ];
+    let mut distances = vec![fit(stops.system_radius), fit(stops.inner_system_radius)];
     if let Some(radius) = selected.and_then(|entity| stops.satellite_radius(entity)) {
-        distances.push(to_distance(radius));
+        distances.push(fit(radius));
     }
     distances.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     distances
 }
 
 /// The innermost distance the player may reach: the satellite frame of the
-/// selected body, or of the body nearest the cursor when nothing is
-/// selected.
+/// selected body, or of the body nearest the anchor when nothing is
+/// selected. That is the withdrawn ZOOM-06; ZOOM-14 moves it to focus
+/// (F4-13).
 fn inner_limit(
     stops: &ZoomStops,
-    tunables: &Tunables,
-    fov: f32,
-    pitch: f32,
     selected: Option<Entity>,
     anchor: Option<Vec3>,
     transforms: &Query<&GlobalTransform>,
+    fit: impl Fn(f32) -> f32,
 ) -> f32 {
-    let radius = selected
+    let nearest_frame = || {
+        let anchor = anchor?;
+        stops
+            .per_body_satellite_radius
+            .iter()
+            .filter_map(|(entity, radius)| {
+                let position = transforms.get(*entity).ok()?.translation();
+                Some((position.distance(anchor), *radius))
+            })
+            .min_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(_, radius)| radius)
+    };
+    selected
         .and_then(|entity| stops.satellite_radius(entity))
-        .or_else(|| {
-            let anchor = anchor?;
-            stops
-                .per_body_satellite_radius
-                .iter()
-                .filter_map(|(entity, radius)| {
-                    let position = transforms.get(*entity).ok()?.translation();
-                    Some((position.distance(anchor), *radius))
-                })
-                .min_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal))
-                .map(|(_, radius)| radius)
-        });
-
-    match radius {
-        Some(radius) => {
-            distance_for_radius(radius, fov, pitch, tunables.zoom_fit_margin).max(MIN_DISTANCE)
-        }
-        None => MIN_DISTANCE,
-    }
+        .or_else(nearest_frame)
+        .map_or(MIN_DISTANCE, |radius| fit(radius).max(MIN_DISTANCE))
 }
 
 /// How far into the target frame a body has to be for a zoom to latch
@@ -118,6 +117,9 @@ fn nearest_body(anchor: Vec3, max_distance: f32, candidates: &[(Entity, Vec3)]) 
         .map(|(entity, _)| entity)
 }
 
+/// ZOOM-01, ZOOM-02, ZOOM-05: each wheel notch is one animated zoom step,
+/// retargeted from wherever the view is now. Gathers the inputs, plans the
+/// step (`zoom::plan_zoom_step`), picks the centre and starts the move.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_zoom_input(
     mouse_scroll: Res<AccumulatedMouseScroll>,
@@ -144,100 +146,118 @@ pub fn handle_zoom_input(
     if notches == 0.0 {
         return;
     }
-    let Ok((camera, camera_transform, projection)) = camera_q.single() else {
-        return;
-    };
-    let Ok(window) = windows.single() else {
+    let (Ok((camera, camera_transform, projection)), Ok(window)) =
+        (camera_q.single(), windows.single())
+    else {
         return;
     };
 
     let fov = camera_fov(projection);
     let selected = selection.primary;
-    let current_focus = focus_position(&focus, &transforms);
-
-    // Zoom towards the selected object if there is one, else the cursor.
+    // The withdrawn ZOOM-03: towards the selected object if there is one,
+    // else the cursor (F4-13).
     let anchor = selected
         .and_then(|entity| transforms.get(entity).ok())
         .map(GlobalTransform::translation)
         .or_else(|| cursor_anchor(camera, camera_transform, window));
+    let zoom = ZoomAnchoring { selected, anchor };
+    let step = plan_step(notches, fov, &state, &stops, &tunables, &zoom, &transforms);
 
-    // Anything the view can centre on. Gates are excluded: they're edge
-    // indicators sitting far out, not somewhere to fly to.
-    let followable: Vec<(Entity, Vec3)> = bodies
-        .iter()
-        .filter(|(_, _, class)| **class != BodyClass::Gate)
-        .map(|(entity, transform, _)| (entity, transform.translation()))
-        .collect();
-
-    // ZOOM-01: each notch multiplies the scale by the step factor.
-    let naive_target = stepped_distance(state.distance, notches, tunables.zoom_step_factor);
-
-    let outer = distance_for_radius(
-        stops.system_radius,
-        fov,
-        state.pitch,
-        tunables.zoom_fit_margin,
-    )
-    .min(MAX_DISTANCE);
-    let inner = inner_limit(
-        &stops,
-        &tunables,
-        fov,
-        state.pitch,
-        selected,
+    let current_focus = focus_position(&focus, &transforms);
+    let from = ZoomFrom {
         anchor,
-        &transforms,
-    );
-
-    // ZOOM-05: resist at any stop the step would skip over - settle exactly
-    // on it instead, and take a little longer doing it.
-    let crossed = first_stop_crossed(
-        state.distance,
-        naive_target,
-        &stop_distances(&stops, &tunables, fov, state.pitch, selected),
-    );
-    let duration = step_duration_ms(
-        tunables.zoom_anim_ms,
-        tunables.zoom_stop_resistance,
-        crossed.is_some(),
-    );
-    let target = crossed
-        .unwrap_or(naive_target)
-        .clamp(inner.min(outer), outer);
-
-    let target_focus = match anchor {
-        Some(anchor) if state.distance > f32::EPSILON => {
-            // Zooming in towards a body latches onto it. Bodies keep
-            // orbiting while you zoom, and at satellite scale a planet
-            // crosses the whole view in about a second - a fixed centre
-            // would simply lose it.
-            let zooming_in = target < state.distance;
-            let view_radius =
-                radius_for_distance(target, fov, state.pitch, tunables.zoom_fit_margin);
-            let latched = zooming_in
-                .then(|| nearest_body(anchor, view_radius * LATCH_FRACTION, &followable))
-                .flatten();
-
-            match latched {
-                Some(entity) => CameraFocus::Following(entity),
-                // Otherwise hold the anchor point still on screen as the
-                // distance changes.
-                None => CameraFocus::Fixed(
-                    anchor + (current_focus - anchor) * (target / state.distance),
-                ),
-            }
-        }
-        _ => *focus,
+        centre: current_focus,
+        focus: *focus,
+        distance: state.distance,
     };
-
+    let view_radius = radius_for_distance(step.target, fov, state.pitch, tunables.zoom_fit_margin);
+    let target_focus =
+        zoom_target_focus(from, step.target, view_radius, &followable_bodies(&bodies));
     retarget(
         &mut anim,
         &state,
         current_focus,
-        target,
+        step.target,
         target_focus,
-        duration,
+        step.duration_ms,
     );
+}
+
+/// What a zoom step is anchored on and limited by.
+struct ZoomAnchoring {
+    selected: Option<Entity>,
+    anchor: Option<Vec3>,
+}
+
+/// ZOOM-01 / ZOOM-05: the step from the current distance, with this
+/// system's stops and limits at the current pitch.
+fn plan_step(
+    notches: f32,
+    fov: f32,
+    state: &OrbitCameraState,
+    stops: &ZoomStops,
+    tunables: &Tunables,
+    zoom: &ZoomAnchoring,
+    transforms: &Query<&GlobalTransform>,
+) -> ZoomStep {
+    let fit = |radius: f32| distance_for_radius(radius, fov, state.pitch, tunables.zoom_fit_margin);
+    plan_zoom_step(
+        state.distance,
+        notches,
+        &stop_distances(stops, zoom.selected, fit),
+        inner_limit(stops, zoom.selected, zoom.anchor, transforms, fit),
+        fit(stops.system_radius).min(MAX_DISTANCE),
+        StepSettings {
+            step_factor: tunables.zoom_step_factor,
+            anim_ms: tunables.zoom_anim_ms,
+            stop_resistance: tunables.zoom_stop_resistance,
+        },
+    )
+}
+
+/// Anything the view can centre on. Gates are excluded: they're edge
+/// indicators sitting far out, not somewhere to fly to.
+fn followable_bodies(
+    bodies: &Query<(Entity, &GlobalTransform, &BodyClass)>,
+) -> Vec<(Entity, Vec3)> {
+    bodies
+        .iter()
+        .filter(|(_, _, class)| **class != BodyClass::Gate)
+        .map(|(entity, transform, _)| (entity, transform.translation()))
+        .collect()
+}
+
+/// Where a zoom step starts from.
+struct ZoomFrom {
+    anchor: Option<Vec3>,
+    centre: Vec3,
+    focus: CameraFocus,
+    distance: f32,
+}
+
+/// Where a zoom step centres the view. Zooming in towards a body latches
+/// onto it: bodies keep orbiting while you zoom, and at satellite scale a
+/// planet crosses the whole view in about a second, so a fixed centre would
+/// simply lose it. Otherwise the anchor holds still on screen. This is the
+/// iteration 3 behaviour, close to CAM-21; the camera iteration replaces it
+/// (F4-13).
+fn zoom_target_focus(
+    from: ZoomFrom,
+    target: f32,
+    target_view_radius: f32,
+    followable: &[(Entity, Vec3)],
+) -> CameraFocus {
+    let Some(anchor) = from.anchor.filter(|_| from.distance > f32::EPSILON) else {
+        return from.focus;
+    };
+    let zooming_in = target < from.distance;
+    let latched = zooming_in
+        .then(|| nearest_body(anchor, target_view_radius * LATCH_FRACTION, followable))
+        .flatten();
+    match latched {
+        Some(entity) => CameraFocus::Following(entity),
+        None => CameraFocus::Fixed(anchored_centre(anchor, from.centre, from.distance, target)),
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -305,7 +325,7 @@ pub fn handle_focus_jump(
     // nothing happening.
     let radius = stops
         .satellite_radius(body)
-        .unwrap_or(stops.inner_system_radius * 0.05);
+        .unwrap_or(stops.inner_system_radius * BARE_BODY_FRAME_FRACTION);
     let distance = distance_for_radius(
         radius,
         camera_fov(projection),
@@ -390,7 +410,76 @@ pub fn handle_pan_input(
     let yaw_rot = Quat::from_rotation_y(state.yaw);
     let right = yaw_rot * Vec3::X;
     let forward_flat = yaw_rot * Vec3::Z;
-    let pan_speed = state.distance * 0.0015;
+    let pan_speed = state.distance * DRAG_PAN_PER_PX;
     let pan = (-right * delta.x + forward_flat * delta.y) * pan_speed;
     *focus = CameraFocus::Fixed(current + pan);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn bodies() -> (Entity, Entity) {
+        let mut world = World::new();
+        (world.spawn_empty().id(), world.spawn_empty().id())
+    }
+
+    fn from(anchor: Option<Vec3>, centre: Vec3, distance: f32) -> ZoomFrom {
+        ZoomFrom {
+            anchor,
+            centre,
+            focus: CameraFocus::Fixed(centre),
+            distance,
+        }
+    }
+
+    /// Zooming in near a body latches onto it; out of the latch's reach,
+    /// the anchor holds still on screen instead.
+    #[test]
+    fn zoom_in_near_a_body_latches_onto_it() {
+        let (near, far) = bodies();
+        let followable = [
+            (near, Vec3::new(1.0, 0.0, 0.0)),
+            (far, Vec3::new(50.0, 0.0, 0.0)),
+        ];
+        let latched = zoom_target_focus(
+            from(Some(Vec3::ZERO), Vec3::ZERO, 100.0),
+            50.0,
+            10.0,
+            &followable,
+        );
+        assert!(matches!(latched, CameraFocus::Following(e) if e == near));
+        let held = zoom_target_focus(
+            from(Some(Vec3::ZERO), Vec3::ZERO, 100.0),
+            50.0,
+            1.0,
+            &followable,
+        );
+        assert!(matches!(held, CameraFocus::Fixed(_)));
+    }
+
+    /// Zooming out never latches, and with no anchor the focus is kept.
+    #[test]
+    fn zoom_out_never_latches_and_no_anchor_keeps_focus() {
+        let (near, _) = bodies();
+        let followable = [(near, Vec3::ZERO)];
+        let out = zoom_target_focus(
+            from(Some(Vec3::ZERO), Vec3::ONE, 50.0),
+            100.0,
+            100.0,
+            &followable,
+        );
+        assert!(matches!(out, CameraFocus::Fixed(_)));
+        let kept = zoom_target_focus(from(None, Vec3::ONE, 100.0), 50.0, 100.0, &followable);
+        assert!(matches!(kept, CameraFocus::Fixed(p) if p == Vec3::ONE));
+    }
+
+    #[test]
+    fn nearest_body_respects_the_reach() {
+        let (a, b) = bodies();
+        let candidates = [(a, Vec3::new(3.0, 0.0, 0.0)), (b, Vec3::new(1.0, 0.0, 0.0))];
+        assert_eq!(nearest_body(Vec3::ZERO, 5.0, &candidates), Some(b));
+        assert_eq!(nearest_body(Vec3::ZERO, 0.5, &candidates), None);
+        assert_eq!(nearest_body(Vec3::ZERO, 5.0, &[]), None);
+    }
 }

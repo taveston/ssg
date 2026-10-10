@@ -6,13 +6,16 @@
 //! systems that own the state read the clock, call these, and store the
 //! result.
 
+/// Milliseconds in a second, for the tunables given in ms.
+pub const MS_PER_SEC: f32 = 1000.0;
+
 /// How much of a `duration_ms` animation one frame of `delta_secs` covers,
 /// as a fraction of its full travel. A zero or negative duration means
 /// "instant", which is what a tunable set to 0 should do rather than
 /// dividing by zero.
 pub fn step_per_frame(delta_secs: f32, duration_ms: f32) -> f32 {
     if duration_ms > 0.0 {
-        delta_secs / (duration_ms / 1000.0)
+        delta_secs / (duration_ms / MS_PER_SEC)
     } else {
         1.0
     }
