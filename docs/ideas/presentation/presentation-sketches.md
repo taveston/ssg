@@ -31,7 +31,7 @@
 
 ## Board 2: Inspect in place, with a pinned comparison
 
-- Clicking Halden IV **dims the rest of the map** (Halden's own orbit stays bright) and **fans out its moons and station** in a small local bubble around the marker, each on its own orbit ring and labelled (IVa–IVd, station square). The clock keeps running. The bubble is the fan-out magnifier specified in *Presentation & Visual Style* (Satellites): true geometry, magnified, and subject to the motion rule (board 6 shows how fast moons look while running).
+- Clicking Halden IV **dims the rest of the map** (Halden's own orbit stays bright) and **fans out its moons and station** in a small local bubble around the marker, each on its own orbit ring and labelled (IVa–IVd, station square). The clock keeps running. The bubble became the fan-out magnifier, later rejected (2026-10-10, see *Presentation & Visual Style*, Camera); the inset's "In orbit" list replaces it.
 - **Inspection inset** anchored to the marker by a short leader line, to its right:
   - Header: name, "Cold terrestrial · own · capital world", Pin and Close buttons.
   - Image: lit globe render with surface overlays (settlement squares, labelled Port Arden; an extraction triangle) and a status line "SURVEYED · imaged 02 Feb 2341".
@@ -87,7 +87,7 @@ Added after the proof of concept showed moons drawn individually at whole-system
   1. Whole-system zoom: Halden IV with a "+5" pill; orange pill outline because a foreign contact is among the folded satellites, blue dot because own ships are parked there. No moons or moon orbits drawn.
   2. Mid zoom: the outer moons IVc and IVd have passed 24 px and unfold on their rings; IVa, IVb and the station remain folded as "+3".
   3. Close zoom: everything unfolded on true orbits, including the foreign contact K-3 in orbit; no magnifier needed.
-- **Bottom row, motion rule inside the magnifier** (Halden IV selected, magnifier labelled "×40"):
+- **Bottom row, motion rule inside the magnifier** (magnifier since rejected; the motion rule itself stands) (Halden IV selected, magnifier labelled "×40"):
   - Running at 1 day/s: Arden Highport (apparent period 0.1 s), IVa (1.5 s) and IVb (4.2 s) drawn as bright exposure rings with labels on the ring; IVc (31 s) and IVd (68 s) as dots with short trails. A table lists object, apparent period, and how it is drawn.
   - Paused: every satellite is a dot at its true position on faint rings; a convoy's transfer line ends at IVc's predicted arrival point.
 

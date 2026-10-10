@@ -27,7 +27,7 @@ Hard sci-fi space strategy game for PC. This repo holds the prototype and the wh
 
 None in progress. The next milestone is set after iteration 3 is validated and its findings triaged; it will be listed here as spec IDs in scope.
 
-**Placeholder for iteration 4 (not yet in scope; do not build until confirmed here):** the camera and the selection / focus model: ZOOM-13 to ZOOM-17, CAM-01 to CAM-22, MAG-08 and CLK-05. These replace the withdrawn ZOOM-03, ZOOM-04, ZOOM-06, ZOOM-08, ZOOM-09, ZOOM-12, MAG-06 and CLK-03, so existing code for those must be reworked, not kept alongside.
+**Placeholder for iteration 4 (not yet in scope; do not build until confirmed here):** the camera and the selection / focus model: ZOOM-13 to ZOOM-17, CAM-01 to CAM-22, INS-05, INS-06, MOT-08 and CLK-05. These replace the withdrawn ZOOM-03, ZOOM-04, ZOOM-06, ZOOM-08, ZOOM-09, ZOOM-12, CLK-03, MOT-06 and the whole magnifier (MAG-01 to MAG-08), so existing code for those must be reworked or removed (including the magnifier tunables), not kept alongside.
 
 ## How to work
 

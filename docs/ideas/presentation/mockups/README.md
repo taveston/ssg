@@ -14,6 +14,6 @@ PNG exports of the design canvas "Inspect & Planetary Transition" (exported 2026
 How to use them:
 
 - They are sketches: reference for look, layout, palette and type, not pixel specs. Everything in them is a candidate unless the spec (`docs/spec/`) says otherwise.
-- Where a mock-up and the spec (`docs/spec/system-view.md`) disagree, the spec wins. In particular, the bubble around Halden IV in board 2 predates the magnifier spec: the real magnifier uses true relative orbit radii (board 6 is closer).
+- Where a mock-up and the spec (`docs/spec/system-view.md`) disagree, the spec wins. In particular, the bubble around Halden IV in board 2 and the magnifier in board 6 are rejected (2026-10-10); satellites are reached by focus and the inset's "In orbit" list.
 - Fonts and colours in the images are the real ones (Barlow, JetBrains Mono, the palette in `../presentation-sketches.md`, specced as MRK-01 in `docs/spec/system-view.md`).
 - Planet images are CSS placeholder gradients, not art direction for renders.

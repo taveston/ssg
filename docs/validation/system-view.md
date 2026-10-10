@@ -9,7 +9,7 @@ Checks for every requirement in `docs/spec/system-view.md`. Run them at the end 
 - Run the app (`cargo run`). Default state: system frame, 1 d/s, nothing selected.
 - Keys (from CAM and CLK-05): Space pause · `.` / `,` rate · 1 d/s and 5 d/s buttons · wheel or + / − zoom · left or middle drag pan · WASD / arrows pan · right drag rotate · Q / E heading · Page Up / Down tilt · N level and north up · F focus selection · double-click focus, again for planetary view · Home · Ctrl+1–4 save bookmark · 1–4 recall · Esc close. Iteration 3 and earlier used + / − for rate, right drag for tilt only and middle drag for pan.
 - **Scene A, system frame:** start state.
-- **Scene B, Halden IV selected:** click Halden IV at the system frame.
+- **Scene B, Halden IV selected:** click Halden IV at the system frame (no magnifier since iteration 4).
 - **Scene C, Halden IV focused at its satellite frame:** double-click Halden IV (ZOOM-16). Before iteration 4, scene C was the satellite frame without focus.
 - Reference images: `docs/ideas/presentation/mockups/` (board 1 for scene A, board 6 for B and C). Look and layout only; the spec wins on behaviour.
 
@@ -38,6 +38,8 @@ Checks for every requirement in `docs/spec/system-view.md`. Run them at the end 
 | INS-02 | Inset has header, Focus, Pin, Close, image, key facts and a disabled "Open planetary view". | | |
 | INS-03 | Pin Halden IVc, then select Iver: both insets visible. Esc closes the unpinned one. | | |
 | INS-04 | Halden IV shows SURVEYED with date; IVc TELESCOPE FRAME · UNSURVEYED in orange with ranges; Lantern LAST IMAGED with date. | | |
+| INS-05 | Scene B: inset lists Arden Highport, IVa, IVb, IVc, IVd, K-3 (orange) and the parked ship (blue), inside out. Click IVc: its inset opens. Double-click IVd: focuses and frames it. | | – |
+| INS-06 | Scene A, select IVc from the list: leader line and white ring on Halden IV's pill. Zoom in until IVc unfolds: both move to IVc with no jump. | | – |
 | ZOOM-01 | One wheel notch = one ×2 step, animated with ease-out; a fast spin still moves one step per notch. | | |
 | ZOOM-02 | Scroll twice quickly: the second retargets smoothly with no stutter or queued delay. | | |
 | ~~ZOOM-03~~ | Withdrawn; see ZOOM-13. | | |
@@ -76,7 +78,7 @@ Checks for every requirement in `docs/spec/system-view.md`. Run them at the end 
 | CAM-19 | Pan hard in each direction at scene A, and pan far while focused: the view stops at the bound. Home always recovers. | Auto (clamp) | – |
 | CAM-20 | Double-click Halden IV and drag during the move: the camera takes over smoothly with no snap, and the move does not resume. | | – |
 | CAM-21 | Nothing focused, cursor on Halden IV, wheel in from the region frame: Halden IV becomes focused (brackets, chip) with no jump, and stays put at 5 d/s. Zoom back out to the system frame: focus ends. | | – |
-| CAM-22 | Scene C, select IVc in the magnifier: brackets on Halden IV, white ring on IVc. Select Halden IV: brackets and ring together, both readable. | | – |
+| CAM-22 | Scene C, select IVc: brackets on Halden IV, white ring on IVc. Select Halden IV: brackets and ring together, both readable. | | – |
 | GRP-01 | Step zoom in and out across a moon's threshold, and hold just inside the 20 to 24 px band: no flicker. | Auto (hysteresis) | |
 | GRP-02 | Zooming in from scene A, IVd and IVc unfold before IVa, IVb and the station (board 6, middle panel). | | |
 | GRP-03 | Satellites slide out of and back into Halden IV during zoom animations. | | |
@@ -85,20 +87,21 @@ Checks for every requirement in `docs/spec/system-view.md`. Run them at the end 
 | GRP-06 | Halden IV's pill has an orange outline (K-3) and a blue dot (parked own ship). | | |
 | GRP-07 | Hover the pill: list of folded satellites. Click it: same as clicking Halden IV. | | |
 | GRP-08 | No transit ships yet; check again when they exist. | | – |
-| MAG-01 | Scene B: magnifier and inset open together. Clicking the pill does the same. | | |
-| MAG-02 | Dashed circle ~80 px, "×N" label, map dimmed; it stays centred on Halden IV as it moves (run at 5 d/s). | | |
-| MAG-03 | Phases in the magnifier match the real positions seen in scene C at the same moment (pause, compare). | Auto (scale factor) | |
-| MAG-04 | Station, parked ship and K-3 always present; only moons of 200 km or more radius. | Auto | |
-| MAG-05 | With the inner-orbit test triggered (Morrow's moons), "+N outer" appears on the frame. | Auto | |
-| ~~MAG-06~~ | Withdrawn; see MAG-08. Iteration 3 check: hover a satellite in the magnifier: tooltip. Click: inset switches to it. Double-click: frames it. | | |
-| MAG-07 | Magnifier closes on selecting another body, on Esc, and when zooming in unfolds the satellites (no jump at hand-over). | | |
-| MAG-08 | Scene B: hover a satellite in the magnifier: tooltip. Click: inset switches to it and focus does not change. Double-click: focuses and frames it; double-click again: the planetary-view hook. | | – |
+| ~~MAG-01~~ | Withdrawn with the magnifier (F3-07). Iteration 3 check: Scene B: magnifier and inset open together. Clicking the pill does the same. |  |  |
+| ~~MAG-02~~ | Withdrawn with the magnifier (F3-07). Iteration 3 check: Dashed circle ~80 px, "×N" label, map dimmed; it stays centred on Halden IV as it moves (run at 5 d/s). |  |  |
+| ~~MAG-03~~ | Withdrawn with the magnifier (F3-07). Iteration 3 check: Phases in the magnifier match the real positions seen in scene C at the same moment (pause, compare). | Auto (scale factor) |  |
+| ~~MAG-04~~ | Withdrawn with the magnifier (F3-07). Iteration 3 check: Station, parked ship and K-3 always present; only moons of 200 km or more radius. | Auto |  |
+| ~~MAG-05~~ | Withdrawn with the magnifier (F3-07). Iteration 3 check: With the inner-orbit test triggered (Morrow's moons), "+N outer" appears on the frame. | Auto |  |
+| ~~MAG-06~~ | Withdrawn with the magnifier (F3-07). Iteration 3 check: hover a satellite in the magnifier: tooltip. Click: inset switches to it. Double-click: frames it. |  |  |
+| ~~MAG-07~~ | Withdrawn with the magnifier (F3-07). Iteration 3 check: Magnifier closes on selecting another body, on Esc, and when zooming in unfolds the satellites (no jump at hand-over). |  |  |
+| ~~MAG-08~~ | Withdrawn with the magnifier (F3-07). Iteration 3 check: Scene B: hover a satellite in the magnifier: tooltip. Click: inset switches to it and focus does not change. Double-click: focuses and frames it; double-click again: the planetary-view hook. |  | – |
 | MOT-01 | Scene C at 1 d/s: IVc and IVd are dots with ~30° fading trails. | | |
 | MOT-02 | Scene C at 1 d/s: Arden Highport, IVa and IVb are bright, thicker rings with labels fixed on the ring, no dot. | | |
 | MOT-03 | Switch 1 d/s ↔ 5 d/s: IVc (31 s → 6.2 s) changes mode with a cross-fade; nothing flickers near a threshold. | Auto (mode state machine) | |
 | MOT-04 | Pause: every satellite becomes a dot at its true position. | | |
 | MOT-05 | Hover and click an exposure ring: targets that satellite. | | |
-| MOT-06 | With the magnifier open, run at 1 d/s and 5 d/s: same modes inside the magnifier. Pell also follows the rule at high rates. | | |
+| ~~MOT-06~~ | Withdrawn; see MOT-08. Iteration 3 check: with the magnifier open, run at 1 d/s and 5 d/s: same modes inside the magnifier. Pell also follows the rule at high rates. | | |
+| MOT-08 | Pell, moons, stations and parked ships all follow the rule at 1 d/s and 5 d/s. | | – |
 | MOT-07 | Select IVa while it is in ring mode: ring stays highlighted; inset says position "shown when paused". | | suspect F3-04 |
 | TEST-01 | All listed bodies, sites and gates present. | | |
 | TEST-02 | Inspect or log periods: Highport ≈0.1 d, IVa ≈1.5, IVb ≈4.2, IVc ≈31, IVd ≈68. | Auto | |

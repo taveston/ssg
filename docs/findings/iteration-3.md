@@ -34,6 +34,11 @@
 - **Affects:** EDGE-01, ZOOM-04 · **Type:** idea
 - **Disposition:** open, linked to F3-05 and the open question on gate distance in `presentation.md` section 6.
 
+### F3-07 · Magnifier looks bad and is no longer needed
+- **Observation:** the magnifier looks bad on screen. With the iteration 4 focus model, one double-click focuses a planet and zooms to its satellites, so the magnifier only duplicates the same objects at a second scale.
+- **Affects:** MAG-01 to MAG-08, MOT-06 · **Type:** spec wrong
+- **Disposition:** amend spec: MAG-01 to MAG-08 and the magnifier tunables withdrawn; MOT-06 replaced by MOT-08; INS-05 ("In orbit" list) and INS-06 (selected folded satellite) added. Code to be removed in iteration 4. **Closed** (spec).
+
 <!-- Your playtest observations: copy this block.
 ### F3-07 · Short title
 - **Observation:**

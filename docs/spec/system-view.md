@@ -46,6 +46,8 @@
 | INS-02 | The inset shows: header (name, class and ownership line), Focus, Pin and Close buttons; an image for the knowledge state (INS-04); key facts; and an "Open planetary view" button, disabled until the planetary view exists. | it2 |
 | INS-03 | Pin keeps an inset open when the selection changes, so two objects can be compared; Esc closes the unpinned inset. | it2 |
 | INS-04 | The inset image follows knowledge: **surveyed** = clean render, status "SURVEYED · *date*"; **unsurveyed** = grainy telescope frame, "TELESCOPE FRAME · UNSURVEYED" in orange, estimates as ranges; **stale** = sepia image, "LAST IMAGED · *date*". | it2 |
+| INS-05 | The inset of a body with satellites has an "In orbit" list: one entry per satellite (class marker and name, own and foreign colours per MRK-01), in orbit order from the inside out. Clicking an entry selects that satellite (its inset replaces the parent's unless pinned); double-clicking it behaves as ZOOM-16 and ZOOM-17. | not built |
+| INS-06 | When the selected object is folded into its parent (GRP-01), its inset's leader line goes to the parent's pill, and the pill carries the white selection ring. When the object unfolds, both move to its own marker without a jump. | not built |
 
 ## 5. Navigation and zoom
 
@@ -71,7 +73,7 @@
 
 ## 5a. Camera
 
-The camera looks at a **pivot**, a point on the orbital plane, from a distance set by the zoom scale. Its orientation is a **heading** (rotation about the plane's normal) and a **tilt** (0° = looking straight down). **North** is a fixed direction in the orbital plane, the same for every system. There are two separate states. **Selection** (INS-01) is the object whose details are shown; it never moves the camera. **Focus** is the object the camera is locked onto: the camera tracks it as it moves. Selection and focus may be different objects (for example, focus on Halden IV while IVc is selected in the magnifier).
+The camera looks at a **pivot**, a point on the orbital plane, from a distance set by the zoom scale. Its orientation is a **heading** (rotation about the plane's normal) and a **tilt** (0° = looking straight down). **North** is a fixed direction in the orbital plane, the same for every system. There are two separate states. **Selection** (INS-01) is the object whose details are shown; it never moves the camera. **Focus** is the object the camera is locked onto: the camera tracks it as it moves. Selection and focus may be different objects (for example, focus on Halden IV while IVc is selected).
 
 | ID | Requirement | Since |
 |---|---|---|
@@ -113,18 +115,20 @@ A **satellite** is anything orbiting a body other than the star: moons, stations
 | GRP-07 | Hovering the pill lists the folded satellites; clicking it does exactly what clicking the parent does. | it3 |
 | GRP-08 | Ships in transit are never folded. | it3 (rule only; no transit ships yet) |
 
-## 7. Fan-out magnifier
+## 7. Fan-out magnifier (withdrawn)
+
+The whole section is withdrawn; IDs stay for reference. Satellites are reached by focus (ZOOM-16, CAM-21) or the inset's "In orbit" list (INS-05).
 
 | ID | Requirement | Since |
 |---|---|---|
-| MAG-01 | Selecting a body with folded satellites (marker or pill) opens the magnifier together with the inspection inset, as one selection. | it3 |
-| MAG-02 | Form: a circle of `magnifier_radius_px` with a dashed frame, centred on the parent and following it as it orbits, over the dimmed map; a label shows the magnification (for example "×40"). | it3 |
-| MAG-03 | Geometry inside is true: real phases and real relative radii, scaled so the outermost included orbit fills the frame. Radii are never compressed. | it3 |
-| MAG-04 | Contents: all stations and parked ships, and moons with radius at least `magnifier_moon_radius_threshold_km`. | it3 |
-| MAG-05 | If the innermost included orbit would fall within `magnifier_inner_min_px` of the centre, the outermost small moons are dropped and counted as "+N outer" on the frame. | it3 |
-| MAG-06 | ~~Satellites inside are interactive: hover shows the tooltip; click inspects that satellite (the inset switches); double-click follows ZOOM-08.~~ Withdrawn 2026-10-10: ZOOM-08 replaced; see MAG-08. | it3 |
-| MAG-07 | The magnifier closes when the selection changes, on Esc, or when zooming unfolds the satellites normally; in the last case the hand-over has no visual jump. | it3 |
-| MAG-08 | Satellites inside are interactive: hover shows the tooltip; click selects that satellite (the inset switches) without changing focus; double-click behaves as ZOOM-16 and ZOOM-17. | not built |
+| MAG-01 | ~~Selecting a body with folded satellites (marker or pill) opens the magnifier together with the inspection inset, as one selection.~~ Withdrawn 2026-10-10 with the magnifier (F3-07): focus now reaches a planet's satellites in one move, and the magnifier duplicated them at a second scale. | it3 |
+| MAG-02 | ~~Form: a circle of `magnifier_radius_px` with a dashed frame, centred on the parent and following it as it orbits, over the dimmed map; a label shows the magnification (for example "×40").~~ Withdrawn 2026-10-10 with the magnifier (F3-07): focus now reaches a planet's satellites in one move, and the magnifier duplicated them at a second scale. | it3 |
+| MAG-03 | ~~Geometry inside is true: real phases and real relative radii, scaled so the outermost included orbit fills the frame. Radii are never compressed.~~ Withdrawn 2026-10-10 with the magnifier (F3-07): focus now reaches a planet's satellites in one move, and the magnifier duplicated them at a second scale. | it3 |
+| MAG-04 | ~~Contents: all stations and parked ships, and moons with radius at least `magnifier_moon_radius_threshold_km`.~~ Withdrawn 2026-10-10 with the magnifier (F3-07): focus now reaches a planet's satellites in one move, and the magnifier duplicated them at a second scale. | it3 |
+| MAG-05 | ~~If the innermost included orbit would fall within `magnifier_inner_min_px` of the centre, the outermost small moons are dropped and counted as "+N outer" on the frame.~~ Withdrawn 2026-10-10 with the magnifier (F3-07): focus now reaches a planet's satellites in one move, and the magnifier duplicated them at a second scale. | it3 |
+| MAG-06 | ~~Satellites inside are interactive: hover shows the tooltip; click inspects that satellite (the inset switches); double-click follows ZOOM-08.~~ Withdrawn 2026-10-10 with the magnifier (F3-07): focus now reaches a planet's satellites in one move, and the magnifier duplicated them at a second scale. | it3 |
+| MAG-07 | ~~The magnifier closes when the selection changes, on Esc, or when zooming unfolds the satellites normally; in the last case the hand-over has no visual jump.~~ Withdrawn 2026-10-10 with the magnifier (F3-07): focus now reaches a planet's satellites in one move, and the magnifier duplicated them at a second scale. | it3 |
+| MAG-08 | ~~Satellites inside are interactive: hover shows the tooltip; click selects that satellite (the inset switches) without changing focus; double-click behaves as ZOOM-16 and ZOOM-17.~~ Withdrawn 2026-10-10 with the magnifier (F3-07): focus now reaches a planet's satellites in one move, and the magnifier duplicated them at a second scale. | not built |
 
 ## 8. Motion rule
 
@@ -137,8 +141,9 @@ The **apparent period** of an orbit is its orbital period divided by the time ra
 | MOT-03 | Between the two thresholds the current mode is kept; switching cross-fades over `motion_crossfade_ms`. | it3 |
 | MOT-04 | There is no special case for pause: an infinite apparent period gives dot mode. | it3 |
 | MOT-05 | Hover and click on an exposure ring target its object. | it3 |
-| MOT-06 | The rule applies to every orbiting object (moons, stations, parked ships, close-in planets), inside the magnifier too; ships in transit are ignored. | it3 |
+| MOT-06 | ~~The rule applies to every orbiting object (moons, stations, parked ships, close-in planets), inside the magnifier too; ships in transit are ignored.~~ Withdrawn 2026-10-10 with the magnifier: replaced by MOT-08. | it3 |
 | MOT-07 | A selected object in ring mode keeps its ring highlighted, and the inset gives its position as "shown when paused". | it3 |
+| MOT-08 | The rule applies to every orbiting object (moons, stations, parked ships, close-in planets); ships in transit are ignored. | it3 (as MOT-06) |
 
 ## 9. Test content: Corvane
 
@@ -165,9 +170,9 @@ All in `src/tunables.rs`. Defaults are starting values; changing one is a spec c
 | `motion_crossfade_ms` | 200 | MOT-03 |
 | `trail_arc_degrees` | 30 | MOT-01 |
 | `exposure_ring_width_px` | 3 | MOT-02 |
-| `magnifier_radius_px` | 80 | MAG-02 |
-| `magnifier_inner_min_px` | 12 | MAG-05 |
-| `magnifier_moon_radius_threshold_km` | 200 | MAG-04 |
+| ~~`magnifier_radius_px`~~ | ~~80~~ | MAG-02 (withdrawn) |
+| ~~`magnifier_inner_min_px`~~ | ~~12~~ | MAG-05 (withdrawn) |
+| ~~`magnifier_moon_radius_threshold_km`~~ | ~~200~~ | MAG-04 (withdrawn) |
 | `zoom_step_factor` | ×2 | ZOOM-01 |
 | `zoom_anim_ms` | 200 (range 150–250) | ZOOM-01 |
 | `zoom_stop_resistance` | 0.35 | ZOOM-05 |
