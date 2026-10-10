@@ -45,8 +45,7 @@ fn blank_image() -> Image {
 /// A deterministic pseudo-random value in [0, 1) - no `rand` dependency
 /// needed for a bit of static grain.
 fn hash01(x: u32, y: u32, seed: u32) -> f32 {
-    let mut h = x
-        .wrapping_mul(374_761_393)
+    let mut h = x.wrapping_mul(374_761_393)
         ^ y.wrapping_mul(668_265_263)
         ^ seed.wrapping_mul(2_246_822_519);
     h ^= h >> 13;
@@ -78,7 +77,9 @@ fn draw_globe(image: &mut Image, shadow: Color, highlight: Color, background: Co
                 let mixed = shadow.mix(&highlight, t);
                 if grain > 0.0 {
                     let n = (hash01(x, y, 11) - 0.5) * grain;
-                    mixed.mix(&Color::BLACK, n.max(0.0)).mix(&Color::WHITE, (-n).max(0.0))
+                    mixed
+                        .mix(&Color::BLACK, n.max(0.0))
+                        .mix(&Color::WHITE, (-n).max(0.0))
                 } else {
                     mixed
                 }

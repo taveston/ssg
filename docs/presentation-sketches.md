@@ -25,12 +25,13 @@
 - **Top bar:** breadcrumb (Cluster / Corvane system); date with pause, 1 day/s (active), 5 d/s; layer toggles (Ownership active, Resources, Salvage, Sensors); an Administration button that switches to the 2D administration view.
 - **Legend** top-left explaining marker shapes. **Alerts** top-right (orange-bordered "New contact near Halden IV"; neutral "Bid received: survey tender").
 - **Off-screen gate:** edge-of-screen arrow labelled "Gate → Ostra · off-screen · 41 d from Halden".
-- **Hover on Halden IV:** white ring on the marker, "+5" group pill, and a tooltip: "Halden IV · own · 4 moons, 1 station — Click: inspect · Double-click: planetary view".
+- **No moons are drawn individually at this zoom.** Every planet's moons, stations and parked ships are folded into its count marker (Halden IV "+5", Morrow "+11"), following the grouping rule in *Presentation & Visual Style* (Satellites).
+- **Hover on Halden IV:** white ring on the marker, "+5" group pill, and a tooltip: "Halden IV · own · 4 moons, 1 station — Click: inspect · Double-click: frame its moons · Double-click again: planetary view".
 - 1 AU scale bar bottom-left.
 
 ## Board 2: Inspect in place, with a pinned comparison
 
-- Clicking Halden IV **dims the rest of the map** (Halden's own orbit stays bright) and **fans out its moons and station** in a small local bubble around the marker, each on its own orbit ring and labelled (IVa–IVd, station square). The clock keeps running.
+- Clicking Halden IV **dims the rest of the map** (Halden's own orbit stays bright) and **fans out its moons and station** in a small local bubble around the marker, each on its own orbit ring and labelled (IVa–IVd, station square). The clock keeps running. The bubble is the fan-out magnifier specified in *Presentation & Visual Style* (Satellites): true geometry, magnified, and subject to the motion rule (board 6 shows how fast moons look while running).
 - **Inspection inset** anchored to the marker by a short leader line, to its right:
   - Header: name, "Cold terrestrial · own · capital world", Pin and Close buttons.
   - Image: lit globe render with surface overlays (settlement squares, labelled Port Arden; an extraction triangle) and a status line "SURVEYED · imaged 02 Feb 2341".
@@ -43,7 +44,7 @@
 
 About 600 ms; the clock keeps running; Esc or the breadcrumb plays it in reverse.
 
-- **A · 0 ms, Trigger:** "Open planetary view", double-clicking the marker, or scroll-zooming in on the inset.
+- **A · 0 ms, Trigger:** "Open planetary view" in the inset, or double-clicking a body that is already inspected. Scrolling never switches view.
 - **B · 200 ms, Detach:** the inset frame and text fade; the planet image lifts out of the inset and slides to the centre while the vector map zooms on Halden and fades back.
 - **C · 400 ms, Anchor:** the camera tilts; the moon and station orbits from the fan-out persist as rings around the globe, so the player keeps their bearings; surface overlays begin to draw on.
 - **D · 600 ms, Settle:** the globe moves left; the settlement panel and layer toggles slide in; the breadcrumb gains "Halden IV"; the last-selected settlement opens by default.
@@ -78,10 +79,22 @@ The same inset in four states of knowledge:
 3. **Stale** (Station Wreck "Lantern", salvage site): desaturated, sepia-tinted image with a date stamp "12 JUN 2338"; "LAST IMAGED · 2 Y 9 M AGO"; recoverable "then: 4–6 kt", since then "unknown".
 4. **Foreign contact** (Contact K-3): coarse, pixelated thermal blob; "THERMAL TRACK ONLY"; class "medium hauler?"; confidence low. Ships are imaged only as well as they have been observed.
 
+## Board 6: Satellite grouping and motion rule
+
+Added after the proof of concept showed moons drawn individually at whole-system zoom, orbiting too fast to read.
+
+- **Top row, grouping by zoom** (three panels):
+  1. Whole-system zoom: Halden IV with a "+5" pill; orange pill outline because a foreign contact is among the folded satellites, blue dot because own ships are parked there. No moons or moon orbits drawn.
+  2. Mid zoom: the outer moons IVc and IVd have passed 24 px and unfold on their rings; IVa, IVb and the station remain folded as "+3".
+  3. Close zoom: everything unfolded on true orbits, including the foreign contact K-3 in orbit; no magnifier needed.
+- **Bottom row, motion rule inside the magnifier** (Halden IV selected, magnifier labelled "×40"):
+  - Running at 1 day/s: Arden Highport (apparent period 0.1 s), IVa (1.5 s) and IVb (4.2 s) drawn as bright exposure rings with labels on the ring; IVc (31 s) and IVd (68 s) as dots with short trails. A table lists object, apparent period, and how it is drawn.
+  - Paused: every satellite is a dot at its true position on faint rings; a convoy's transfer line ends at IVc's predicted arrival point.
+
 ## UX choices proposed by the sketches (candidate)
 
-- Hover gives a tooltip; click inspects in place; double-click enters the planetary view.
-- Inspecting fans out a planet's grouped moons and stations locally rather than requiring a zoom.
+- Hover gives a tooltip; click inspects in place; the first double-click frames the body's satellites; a double-click on an already-inspected body enters the planetary view (direction).
+- Inspecting fans out a planet's grouped moons and stations locally rather than requiring a zoom (now specified as direction in *Presentation & Visual Style*, together with grouping and the motion rule).
 - The inspection inset is anchored by a leader line and can be pinned for side-by-side comparison.
 - The transition reuses the inset image and keeps moon orbits as anchoring rings; it is reversible and never pauses the clock.
 - Bodies without a full planetary view still appear in the body switcher but open the inspection view.

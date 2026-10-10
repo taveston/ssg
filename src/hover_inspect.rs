@@ -11,10 +11,12 @@
 
 use bevy::prelude::*;
 
-use crate::camera::CameraFocus;
+use crate::camera::{CameraFocus, FocusJumpRequest, PlanetaryViewRequest};
 use crate::colors;
 use crate::fidelity::FidelityImages;
 use crate::fonts::Fonts;
+use crate::grouping::FoldSummary;
+use crate::markers::GroupPillFor;
 use crate::markers::MarkerFor;
 use crate::system_data::{BodyClass, Description, DisplayName, KeyFacts, Knowledge, Ownership};
 
@@ -72,7 +74,12 @@ fn spawn_tooltip(mut commands: Commands, fonts: Res<Fonts>) {
             BorderColor::all(colors::PANEL_BORDER),
         ))
         .with_children(|p| {
-            p.spawn((TooltipLabel, Text::new(""), fonts.label(12.0), TextColor(colors::NEUTRAL)));
+            p.spawn((
+                TooltipLabel,
+                Text::new(""),
+                fonts.label(12.0),
+                TextColor(colors::NEUTRAL),
+            ));
         });
 }
 
@@ -131,7 +138,7 @@ pub fn on_marker_over(
 
     for mut text in &mut tooltip_labels {
         *text = Text::new(format!(
-            "{} · {}{} — Click: inspect",
+            "{} · {}{} — Click: inspect · Double-click: frame its moons · Double-click again: planetary view",
             name.0,
             ownership_label(*ownership),
             extra
@@ -156,19 +163,93 @@ pub fn on_marker_out(
     }
 }
 
+/// Open (or keep open) the inspection inset for a body. Shared by marker
+/// clicks and count-pill clicks - clicking a pill is the same action as
+/// clicking its parent.
+pub fn inspect_body(body: Entity, inspections: &mut Inspections) {
+    if inspections.is_open(body) {
+        return;
+    }
+    inspections.primary = Some(body);
+}
+
 pub fn on_marker_click(
     click: On<PointerClick>,
     markers: Query<&MarkerFor>,
     mut inspections: ResMut<Inspections>,
+    mut focus_jump: ResMut<FocusJumpRequest>,
+    mut planetary: ResMut<PlanetaryViewRequest>,
 ) {
     let Ok(marker_for) = markers.get(click.entity) else {
         return;
     };
     let body = marker_for.0;
-    if inspections.is_open(body) {
+
+    if click.count >= 2 {
+        if inspections.is_open(body) {
+            // Second double-click on an already-inspected body is the
+            // planetary-view trigger. That view doesn't exist yet, so this
+            // just records the request as the hook for it.
+            planetary.0 = Some(body);
+        } else {
+            inspect_body(body, &mut inspections);
+            focus_jump.0 = Some(body);
+        }
         return;
     }
-    inspections.primary = Some(body);
+
+    inspect_body(body, &mut inspections);
+}
+
+pub fn on_pill_click(
+    click: On<PointerClick>,
+    pills: Query<&GroupPillFor>,
+    mut inspections: ResMut<Inspections>,
+) {
+    let Ok(pill) = pills.get(click.entity) else {
+        return;
+    };
+    inspect_body(pill.0, &mut inspections);
+}
+
+/// Hovering a count pill lists what's folded into it.
+pub fn on_pill_over(
+    over: On<PointerOver>,
+    pills: Query<&GroupPillFor>,
+    names: Query<&DisplayName>,
+    folds: Res<FoldSummary>,
+    mut tooltip_nodes: Query<&mut Node, With<TooltipRoot>>,
+    mut tooltip_labels: Query<&mut Text, With<TooltipLabel>>,
+) {
+    let Ok(pill) = pills.get(over.entity) else {
+        return;
+    };
+    let Some(group) = folds.0.get(&pill.0) else {
+        return;
+    };
+    let parent_name = names
+        .get(pill.0)
+        .map(|name| name.0.clone())
+        .unwrap_or_default();
+    let listed = group
+        .members
+        .iter()
+        .filter_map(|entity| names.get(*entity).ok().map(|name| name.0.clone()))
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    for mut text in &mut tooltip_labels {
+        *text = Text::new(format!("In orbit of {parent_name}: {listed}"));
+    }
+    for mut node in &mut tooltip_nodes {
+        node.display = Display::Flex;
+    }
+}
+
+pub fn on_pill_out(_out: On<PointerOut>, mut tooltip_nodes: Query<&mut Node, With<TooltipRoot>>) {
+    for mut node in &mut tooltip_nodes {
+        node.display = Display::None;
+    }
 }
 
 fn handle_escape(keys: Res<ButtonInput<KeyCode>>, mut inspections: ResMut<Inspections>) {
@@ -213,7 +294,15 @@ fn rebuild_panels(
     }
 
     for (body, pinned) in open {
-        spawn_panel(&mut commands, &fonts, &fidelity, body, pinned, &bodies, &names);
+        spawn_panel(
+            &mut commands,
+            &fonts,
+            &fidelity,
+            body,
+            pinned,
+            &bodies,
+            &names,
+        );
         commands.spawn((
             LeaderFor(body),
             Node {
@@ -246,7 +335,8 @@ fn spawn_panel(
     )>,
     names: &Query<&DisplayName>,
 ) {
-    let Ok((name, description, facts, class, ownership, knowledge, children)) = bodies.get(body) else {
+    let Ok((name, description, facts, class, ownership, knowledge, children)) = bodies.get(body)
+    else {
         return;
     };
 
@@ -489,7 +579,8 @@ fn reposition_panels(
             node.display = Display::None;
             continue;
         };
-        let Ok(pos) = camera.world_to_viewport(camera_transform, body_transform.translation()) else {
+        let Ok(pos) = camera.world_to_viewport(camera_transform, body_transform.translation())
+        else {
             node.display = Display::None;
             continue;
         };
@@ -503,7 +594,8 @@ fn reposition_panels(
             node.display = Display::None;
             continue;
         };
-        let Ok(pos) = camera.world_to_viewport(camera_transform, body_transform.translation()) else {
+        let Ok(pos) = camera.world_to_viewport(camera_transform, body_transform.translation())
+        else {
             node.display = Display::None;
             continue;
         };

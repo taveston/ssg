@@ -7,11 +7,12 @@
 use bevy::color::palettes::css::SLATE_GRAY;
 use bevy::prelude::*;
 
+use crate::grouping::SatelliteFoldState;
 use crate::orbits::OrbitalBody;
 use crate::scale::{km_to_render, polar_km_to_render};
 use crate::system_data::{
-    period_days_for, BodyBlueprint, BodyClass, DisplayName, Description, KeyFacts, Knowledge,
-    Ownership, SystemData, SystemDataResource,
+    BodyBlueprint, BodyClass, BodyRadius, Description, DisplayName, KeyFacts, Knowledge, Ownership,
+    SystemData, SystemDataResource, period_days_for,
 };
 
 pub struct ScenePlugin;
@@ -82,8 +83,14 @@ pub fn spawn_system(
         commands.spawn((
             Name::new(gate.name),
             DisplayName(gate.name.to_string()),
-            Description(format!("A gate linking to the {} system.", gate.destination)),
-            KeyFacts(vec![("Destination".to_string(), gate.destination.to_string())]),
+            Description(format!(
+                "A gate linking to the {} system.",
+                gate.destination
+            )),
+            KeyFacts(vec![(
+                "Destination".to_string(),
+                gate.destination.to_string(),
+            )]),
             BodyClass::Gate,
             Ownership::Neutral,
             Knowledge::Surveyed { imaged_day: 0.0 },
@@ -105,6 +112,7 @@ fn spawn_body(
 ) -> Entity {
     let BodyBlueprint {
         name,
+        radius_km,
         class,
         ownership,
         description,
@@ -123,6 +131,7 @@ fn spawn_body(
     let mut entity_commands = commands.spawn((
         Name::new(name),
         DisplayName(name.to_string()),
+        BodyRadius(radius_km),
         Description(description.to_string()),
         KeyFacts(
             key_facts
@@ -141,7 +150,10 @@ fn spawn_body(
         },
     ));
     if let Some(parent) = parent {
-        entity_commands.insert(ChildOf(parent));
+        // Anything spawned under a parent is a satellite, and so subject to
+        // grouping. Everything starts folded - the opening view is the
+        // whole system, where no satellite is drawn individually.
+        entity_commands.insert((ChildOf(parent), SatelliteFoldState::default()));
     }
     let entity = entity_commands.id();
 

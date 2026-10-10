@@ -25,8 +25,10 @@ pub struct TopBarPlugin;
 
 impl Plugin for TopBarPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_top_bar)
-            .add_systems(Update, (update_date_text, update_button_styles, update_fps_text));
+        app.add_systems(Startup, spawn_top_bar).add_systems(
+            Update,
+            (update_date_text, update_button_styles, update_fps_text),
+        );
     }
 }
 
@@ -61,7 +63,12 @@ fn spawn_top_bar(mut commands: Commands, fonts: Res<Fonts>) {
                 TextColor(colors::NEUTRAL),
             ));
 
-            bar.spawn((DateText, Text::new(""), fonts.mono(14.0), TextColor(colors::NEUTRAL)));
+            bar.spawn((
+                DateText,
+                Text::new(""),
+                fonts.mono(14.0),
+                TextColor(colors::NEUTRAL),
+            ));
 
             bar.spawn((
                 PauseButton,
@@ -70,7 +77,11 @@ fn spawn_top_bar(mut commands: Commands, fonts: Res<Fonts>) {
                 BorderColor::all(colors::PANEL_BORDER),
             ))
             .with_children(|b| {
-                b.spawn((Text::new("Pause"), fonts.label(13.0), TextColor(colors::NEUTRAL)));
+                b.spawn((
+                    Text::new("Pause"),
+                    fonts.label(13.0),
+                    TextColor(colors::NEUTRAL),
+                ));
             })
             .observe(on_pause_clicked);
 
@@ -82,15 +93,26 @@ fn spawn_top_bar(mut commands: Commands, fonts: Res<Fonts>) {
                     BorderColor::all(colors::PANEL_BORDER),
                 ))
                 .with_children(|b| {
-                    b.spawn((Text::new(label), fonts.label(13.0), TextColor(colors::NEUTRAL)));
+                    b.spawn((
+                        Text::new(label),
+                        fonts.label(13.0),
+                        TextColor(colors::NEUTRAL),
+                    ));
                 })
-                .observe(move |_click: On<PointerClick>, mut clock: ResMut<GameClock>| {
-                    clock.paused = false;
-                    clock.speed_days_per_sec = speed;
-                });
+                .observe(
+                    move |_click: On<PointerClick>, mut clock: ResMut<GameClock>| {
+                        clock.paused = false;
+                        clock.speed_days_per_sec = speed;
+                    },
+                );
             }
 
-            bar.spawn((FpsText, Text::new(""), fonts.mono(13.0), TextColor(colors::PANEL_BORDER)));
+            bar.spawn((
+                FpsText,
+                Text::new(""),
+                fonts.mono(13.0),
+                TextColor(colors::PANEL_BORDER),
+            ));
         });
 }
 

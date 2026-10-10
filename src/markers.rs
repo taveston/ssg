@@ -1,17 +1,23 @@
-//! The vector-display overlay: one fixed-size UI marker per body, projected
-//! from its true-scale 3D position each frame, plus clutter grouping into
-//! count pills and fading trails for fast bodies.
+//! The vector-display overlay: one fixed-size UI marker per body,
+//! projected from its true-scale 3D position each frame.
+//!
+//! What's drawn is decided elsewhere - `grouping.rs` says whether a
+//! satellite is folded into its parent, and `motion.rs` says whether a body
+//! reads as a dot or as an exposure ring. This module just places and
+//! styles the nodes, carries the parent's "+N" count pill, and keeps
+//! off-screen gates pinned to the viewport edge.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use bevy::prelude::*;
 
+use crate::Stage;
 use crate::colors;
 use crate::fonts::Fonts;
-use crate::hover_inspect::{self, Inspections};
-use crate::orbits::OrbitalBody;
+use crate::grouping::{FoldSummary, SatelliteFoldState};
+use crate::hover_inspect;
+use crate::motion::MotionModeState;
 use crate::system_data::{BodyClass, DisplayName, Ownership};
-use crate::time_control::GameClock;
 
 /// Marker UI node -> the body entity it represents.
 #[derive(Component)]
@@ -22,47 +28,33 @@ pub struct MarkerFor(pub Entity);
 #[derive(Component)]
 pub struct MarkerHalfSize(pub Vec2);
 
-/// The group-count pill for a planet's clutter-eligible children.
+/// The marker's full-strength colour, so fading can be recomputed from it
+/// each frame rather than accumulating rounding.
+#[derive(Component)]
+pub struct MarkerBaseColor(pub Color);
+
+/// Where a marker's colour lives, so fading knows what to write to.
+#[derive(Component, Clone, Copy, PartialEq, Eq)]
+pub enum MarkerStyle {
+    /// Filled disc: colour on `BackgroundColor`.
+    Fill,
+    /// Hollow square or circle: colour on `BorderColor`.
+    Border,
+    /// Text glyph: colour on the child `TextColor`.
+    Glyph,
+}
+
+/// The count pill for a body's folded satellites.
 #[derive(Component)]
 pub struct GroupPillFor(pub Entity);
 
 #[derive(Component)]
 pub struct PillCountText;
 
-/// Trail of recent *world*-space positions for fast bodies (Pell, inner
-/// moons). Kept in world space, not screen space, and re-projected through
-/// the current camera every frame - otherwise a static camera makes the
-/// trail collapse to the body's own (often sub-pixel) motion, while any pan
-/// or zoom shows up as a spurious "trail" that's really camera movement.
-///
-/// Samples are spaced by simulated days (a fraction of the body's own
-/// orbital period), not render frames - a fixed frame count covers only a
-/// fraction of a real-time second at 1 day/s, far too little orbital motion
-/// to produce a visible arc. Spacing by a fraction of the period instead
-/// keeps the trail a sensible, visible length for both fast moons and
-/// slower planets, and scales with playback speed automatically since it's
-/// keyed off simulated days rather than wall-clock time.
+/// The small blue dot on a pill, shown when own ships are parked among the
+/// folded satellites.
 #[derive(Component)]
-pub struct FadingTrail {
-    pub positions: Vec<Vec3>,
-    pub last_sample_day: f64,
-}
-
-impl Default for FadingTrail {
-    fn default() -> Self {
-        Self {
-            positions: Vec::new(),
-            // So the first sample is taken immediately rather than after a
-            // full interval has passed.
-            last_sample_day: f64::NEG_INFINITY,
-        }
-    }
-}
-
-/// One of a fixed pool of small dot nodes used to draw a body's fading
-/// trail: index 0 is the oldest sample, `TRAIL_LENGTH - 1` the newest.
-#[derive(Component)]
-pub struct TrailDotFor(pub Entity, pub usize);
+pub struct PillOwnShipDot;
 
 /// Edge-of-screen arrowhead for a gate that's off-screen, rotated each
 /// frame to point toward it.
@@ -74,13 +66,10 @@ pub struct EdgeIndicatorFor(pub Entity);
 #[derive(Component)]
 pub struct EdgeLabelFor(pub Entity);
 
-const PILL_OVERLAP_PX: f32 = 26.0;
-const TRAIL_LENGTH: usize = 16;
 const EDGE_MARGIN_PX: f32 = 28.0;
-/// The trail covers this fraction of a body's own orbital period, so both
-/// fast moons and slow planets get a trail that's a sensible, visible
-/// length rather than a fixed (and often sub-pixel) number of frames.
-const TRAIL_SPAN_FRACTION_OF_PERIOD: f64 = 0.08;
+/// Below this combined strength a marker is simply not drawn - which also
+/// takes it out of picking, so a folded satellite can't be clicked.
+const MIN_VISIBLE_ALPHA: f32 = 0.02;
 
 fn marker_half_size(class: BodyClass) -> Vec2 {
     match class {
@@ -90,6 +79,7 @@ fn marker_half_size(class: BodyClass) -> Vec2 {
         BodyClass::Station => Vec2::splat(5.0),
         BodyClass::Gate => Vec2::splat(5.5),
         BodyClass::SalvageSite => Vec2::splat(7.0),
+        BodyClass::Ship => Vec2::splat(6.0),
     }
 }
 
@@ -97,11 +87,8 @@ pub struct MarkersPlugin;
 
 impl Plugin for MarkersPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Startup,
-            spawn_markers.after(crate::scene::spawn_system),
-        )
-        .add_systems(Update, (update_markers, update_trails).chain());
+        app.add_systems(Startup, spawn_markers.after(crate::scene::spawn_system))
+            .add_systems(Update, update_markers.in_set(Stage::Markers));
     }
 }
 
@@ -109,6 +96,7 @@ fn spawn_markers(
     mut commands: Commands,
     fonts: Res<Fonts>,
     bodies: Query<(Entity, &BodyClass, &Ownership, &DisplayName)>,
+    children: Query<&ChildOf>,
 ) {
     for (entity, class, ownership, name) in &bodies {
         let half = marker_half_size(*class);
@@ -121,82 +109,97 @@ fn spawn_markers(
             display: Display::None,
             ..default()
         };
+        let no_outline = Outline {
+            width: px(0),
+            offset: px(2),
+            color: Color::NONE,
+        };
 
-        let marker_entity = match class {
-            BodyClass::Star | BodyClass::Planet | BodyClass::Moon => commands
-                .spawn((
-                    MarkerFor(entity),
-                    MarkerHalfSize(half),
-                    Node {
-                        border_radius: BorderRadius::MAX,
-                        ..base_node.clone()
-                    },
-                    BackgroundColor(color),
-                    Outline {
-                        width: px(0),
-                        offset: px(2),
-                        color: Color::NONE,
-                    },
-                ))
-                .id(),
-            BodyClass::Station => commands
-                .spawn((
-                    MarkerFor(entity),
-                    MarkerHalfSize(half),
-                    Node {
-                        border: UiRect::all(px(1.5)),
-                        ..base_node.clone()
-                    },
-                    BackgroundColor(Color::NONE),
-                    BorderColor::all(color),
-                    Outline {
-                        width: px(0),
-                        offset: px(2),
-                        color: Color::NONE,
-                    },
-                ))
-                .id(),
-            BodyClass::Gate => commands
-                .spawn((
-                    MarkerFor(entity),
-                    MarkerHalfSize(half),
-                    Node {
-                        border: UiRect::all(px(1.5)),
-                        border_radius: BorderRadius::MAX,
-                        ..base_node.clone()
-                    },
-                    BackgroundColor(Color::NONE),
-                    BorderColor::all(color),
-                    Outline {
-                        width: px(0),
-                        offset: px(2),
-                        color: Color::NONE,
-                    },
-                ))
-                .id(),
-            BodyClass::SalvageSite => {
+        let (marker_entity, style) = match class {
+            BodyClass::Star | BodyClass::Planet | BodyClass::Moon => (
+                commands
+                    .spawn((
+                        MarkerFor(entity),
+                        MarkerHalfSize(half),
+                        MarkerBaseColor(color),
+                        MarkerStyle::Fill,
+                        Node {
+                            border_radius: BorderRadius::MAX,
+                            ..base_node.clone()
+                        },
+                        BackgroundColor(color),
+                        no_outline,
+                    ))
+                    .id(),
+                MarkerStyle::Fill,
+            ),
+            BodyClass::Station => (
+                commands
+                    .spawn((
+                        MarkerFor(entity),
+                        MarkerHalfSize(half),
+                        MarkerBaseColor(color),
+                        MarkerStyle::Border,
+                        Node {
+                            border: UiRect::all(px(1.5)),
+                            ..base_node.clone()
+                        },
+                        BackgroundColor(Color::NONE),
+                        BorderColor::all(color),
+                        no_outline,
+                    ))
+                    .id(),
+                MarkerStyle::Border,
+            ),
+            BodyClass::Gate => (
+                commands
+                    .spawn((
+                        MarkerFor(entity),
+                        MarkerHalfSize(half),
+                        MarkerBaseColor(color),
+                        MarkerStyle::Border,
+                        Node {
+                            border: UiRect::all(px(1.5)),
+                            border_radius: BorderRadius::MAX,
+                            ..base_node.clone()
+                        },
+                        BackgroundColor(Color::NONE),
+                        BorderColor::all(color),
+                        no_outline,
+                    ))
+                    .id(),
+                MarkerStyle::Border,
+            ),
+            BodyClass::SalvageSite | BodyClass::Ship => {
+                // Drawn as a glyph: X for a site, and per the sketches'
+                // marker language, a triangle for an own ship and a
+                // diamond for a foreign contact.
+                let glyph = match (class, ownership) {
+                    (BodyClass::SalvageSite, _) => "X",
+                    (_, Ownership::Foreign) => "<>",
+                    _ => "^",
+                };
                 let marker_entity = commands
                     .spawn((
                         MarkerFor(entity),
                         MarkerHalfSize(half),
+                        MarkerBaseColor(color),
+                        MarkerStyle::Glyph,
                         base_node.clone(),
-                        Outline {
-                            width: px(0),
-                            offset: px(2),
-                            color: Color::NONE,
-                        },
+                        no_outline,
                     ))
                     .id();
                 commands.entity(marker_entity).with_children(|parent| {
                     parent.spawn((
-                        Text::new("X"),
+                        Text::new(glyph),
                         fonts.label(half.x * 1.8),
                         TextColor(color),
                     ));
                 });
-                marker_entity
+                (marker_entity, MarkerStyle::Glyph)
             }
         };
+        let _ = style;
 
         commands
             .entity(marker_entity)
@@ -253,39 +256,52 @@ fn spawn_markers(
                 TextColor(color),
             ));
         }
+    }
 
-        if matches!(class, BodyClass::Planet) {
-            commands.spawn((
-                GroupPillFor(entity),
+    // A count pill for every body that has satellites - which includes
+    // moons with moons of their own, not just planets.
+    let mut parents: Vec<Entity> = children.iter().map(ChildOf::parent).collect();
+    parents.sort();
+    parents.dedup();
+    for parent in parents {
+        commands
+            .spawn((
+                GroupPillFor(parent),
                 Node {
                     position_type: PositionType::Absolute,
                     display: Display::None,
+                    align_items: AlignItems::Center,
+                    column_gap: px(4),
                     padding: UiRect::axes(px(5), px(1)),
+                    border: UiRect::all(px(1)),
                     border_radius: BorderRadius::MAX,
                     ..default()
                 },
                 BackgroundColor(Color::srgba(0.07, 0.09, 0.11, 0.9)),
-                children![(PillCountText, Text::new(""), fonts.mono(11.0), TextColor(colors::NEUTRAL))],
-            ));
-        }
-
-        if matches!(name.0.as_str(), "Pell" | "Halden IVa" | "Halden IVb") {
-            commands.entity(entity).insert(FadingTrail::default());
-            for i in 0..TRAIL_LENGTH {
-                commands.spawn((
-                    TrailDotFor(entity, i),
-                    Node {
-                        position_type: PositionType::Absolute,
-                        width: px(3),
-                        height: px(3),
-                        display: Display::None,
-                        border_radius: BorderRadius::MAX,
-                        ..default()
-                    },
-                    BackgroundColor(color.with_alpha(0.0)),
-                ));
-            }
-        }
+                BorderColor::all(Color::NONE),
+                children![
+                    (
+                        PillCountText,
+                        Text::new(""),
+                        fonts.mono(11.0),
+                        TextColor(colors::NEUTRAL)
+                    ),
+                    (
+                        PillOwnShipDot,
+                        Node {
+                            width: px(5),
+                            height: px(5),
+                            display: Display::None,
+                            border_radius: BorderRadius::MAX,
+                            ..default()
+                        },
+                        BackgroundColor(colors::OWN),
+                    )
+                ],
+            ))
+            .observe(hover_inspect::on_pill_over)
+            .observe(hover_inspect::on_pill_out)
+            .observe(hover_inspect::on_pill_click);
     }
 }
 
@@ -293,17 +309,80 @@ fn spawn_markers(
 fn update_markers(
     camera_q: Query<(&Camera, &GlobalTransform)>,
     windows: Query<&Window>,
-    bodies: Query<(Entity, &GlobalTransform, &BodyClass)>,
-    parent_of: Query<&ChildOf>,
-    inspections: Res<Inspections>,
-    mut markers: Query<(&MarkerFor, &MarkerHalfSize, &mut Node)>,
-    mut pills: Query<(&GroupPillFor, &mut Node, &Children), (Without<MarkerFor>, Without<EdgeIndicatorFor>)>,
-    mut pill_texts: Query<&mut Text, With<PillCountText>>,
-    mut edge_indicators: Query<
-        (&EdgeIndicatorFor, &MarkerHalfSize, &mut Node, &mut UiTransform),
-        (Without<MarkerFor>, Without<GroupPillFor>),
+    bodies: Query<(
+        Entity,
+        &GlobalTransform,
+        &BodyClass,
+        Option<&ChildOf>,
+        Option<&SatelliteFoldState>,
+        Option<&MotionModeState>,
+    )>,
+    folds: Res<FoldSummary>,
+    // These five all write `Node`, and Bevy needs each pair proven
+    // disjoint by an explicit `Without` - requiring a distinct marker
+    // component isn't enough on its own.
+    mut markers: Query<
+        (
+            &MarkerFor,
+            &MarkerHalfSize,
+            &MarkerBaseColor,
+            &MarkerStyle,
+            &mut Node,
+            Option<&mut BackgroundColor>,
+            Option<&mut BorderColor>,
+            Option<&Children>,
+        ),
+        (
+            Without<GroupPillFor>,
+            Without<PillOwnShipDot>,
+            Without<EdgeIndicatorFor>,
+            Without<EdgeLabelFor>,
+        ),
     >,
-    mut edge_labels: Query<(&EdgeLabelFor, &mut Node), (Without<MarkerFor>, Without<GroupPillFor>, Without<EdgeIndicatorFor>)>,
+    mut pills: Query<
+        (&GroupPillFor, &mut Node, &mut BorderColor, &Children),
+        (
+            Without<MarkerFor>,
+            Without<PillOwnShipDot>,
+            Without<EdgeIndicatorFor>,
+            Without<EdgeLabelFor>,
+        ),
+    >,
+    mut pill_texts: Query<&mut Text, With<PillCountText>>,
+    mut pill_dots: Query<
+        &mut Node,
+        (
+            With<PillOwnShipDot>,
+            Without<MarkerFor>,
+            Without<GroupPillFor>,
+            Without<EdgeIndicatorFor>,
+            Without<EdgeLabelFor>,
+        ),
+    >,
+    mut text_colors: Query<&mut TextColor>,
+    mut edge_indicators: Query<
+        (
+            &EdgeIndicatorFor,
+            &MarkerHalfSize,
+            &mut Node,
+            &mut UiTransform,
+        ),
+        (
+            Without<MarkerFor>,
+            Without<GroupPillFor>,
+            Without<PillOwnShipDot>,
+            Without<EdgeLabelFor>,
+        ),
+    >,
+    mut edge_labels: Query<
+        (&EdgeLabelFor, &mut Node),
+        (
+            Without<MarkerFor>,
+            Without<GroupPillFor>,
+            Without<PillOwnShipDot>,
+            Without<EdgeIndicatorFor>,
+        ),
+    >,
 ) {
     let Ok((camera, camera_transform)) = camera_q.single() else {
         return;
@@ -314,61 +393,21 @@ fn update_markers(
     let viewport = Vec2::new(window.width(), window.height());
 
     let mut screen_pos: HashMap<Entity, Vec2> = HashMap::new();
-    for (entity, transform, _) in &bodies {
+    for (entity, transform, _, _, _, _) in &bodies {
         if let Ok(pos) = camera.world_to_viewport(camera_transform, transform.translation()) {
             screen_pos.insert(entity, pos);
         }
     }
 
-    // Group clutter-eligible children by parent when they overlap on screen.
-    let mut candidates: HashMap<Entity, Vec<Entity>> = HashMap::new();
-    for (entity, _, class) in &bodies {
-        if !matches!(class, BodyClass::Moon | BodyClass::Station) {
-            continue;
-        }
-        let Ok(child_of) = parent_of.get(entity) else {
-            continue;
-        };
-        let parent = child_of.parent();
-        let Ok((_, _, parent_class)) = bodies.get(parent) else {
-            continue;
-        };
-        if *parent_class != BodyClass::Planet {
-            continue;
-        }
-        if inspections.is_open(parent) {
-            // An inspected planet's children un-group so they can be
-            // clicked individually.
-            continue;
-        }
-        let (Some(&child_pos), Some(&parent_pos)) = (screen_pos.get(&entity), screen_pos.get(&parent))
-        else {
-            continue;
-        };
-        if child_pos.distance(parent_pos) < PILL_OVERLAP_PX {
-            candidates.entry(parent).or_default().push(entity);
-        }
-    }
-
-    let mut hidden: HashSet<Entity> = HashSet::new();
-    let mut pill_counts: HashMap<Entity, u32> = HashMap::new();
-    for (parent, children) in &candidates {
-        if children.len() >= 2 {
-            for &child in children {
-                hidden.insert(child);
-            }
-            pill_counts.insert(*parent, children.len() as u32);
-        }
-    }
-
-    let in_viewport = |pos: Vec2| pos.x >= 0.0 && pos.y >= 0.0 && pos.x <= viewport.x && pos.y <= viewport.y;
+    let in_viewport =
+        |pos: Vec2| pos.x >= 0.0 && pos.y >= 0.0 && pos.x <= viewport.x && pos.y <= viewport.y;
 
     // Gates that fall outside a small margin get clamped to the viewport
     // edge instead of being hidden outright.
     let center = viewport / 2.0;
     let half_extent = viewport / 2.0 - Vec2::splat(EDGE_MARGIN_PX);
     let mut gate_edge_targets: HashMap<Entity, Vec2> = HashMap::new();
-    for (entity, _, class) in &bodies {
+    for (entity, _, class, _, _, _) in &bodies {
         if *class != BodyClass::Gate {
             continue;
         }
@@ -392,24 +431,76 @@ fn update_markers(
         }
     }
 
-    for (marker_for, half, mut node) in &mut markers {
+    for (marker_for, half, base_color, style, mut node, background, border, children) in
+        &mut markers
+    {
         let body = marker_for.0;
-        let visible = !hidden.contains(&body)
+        let Ok((_, _, _, child_of, fold, motion)) = bodies.get(body) else {
+            node.display = Display::None;
+            continue;
+        };
+
+        // A folded satellite draws nothing; a body in exposure-ring mode
+        // has no dot, because the ring is carrying it instead.
+        let fold_alpha = fold.map(|f| f.anim_t).unwrap_or(1.0);
+        let fully_hidden = fold.map(|f| f.effective_hidden).unwrap_or(false);
+        let dot_strength = motion.map(MotionModeState::dot_strength).unwrap_or(1.0);
+        let alpha = if fully_hidden {
+            0.0
+        } else {
+            fold_alpha * dot_strength
+        };
+
+        let on_screen = screen_pos.get(&body).copied();
+        let visible = alpha > MIN_VISIBLE_ALPHA
             && !gate_edge_targets.contains_key(&body)
-            && screen_pos.get(&body).is_some_and(|&pos| in_viewport(pos));
+            && on_screen.is_some_and(in_viewport);
         if !visible {
             node.display = Display::None;
             continue;
         }
-        let pos = screen_pos[&body];
+        let mut pos = on_screen.unwrap_or_default();
+
+        // While folding or unfolding, slide between the parent's marker and
+        // the satellite's true position.
+        if let (Some(child_of), Some(fold)) = (child_of, fold)
+            && fold.anim_t < 1.0
+            && let Some(&parent_pos) = screen_pos.get(&child_of.parent())
+        {
+            pos = parent_pos.lerp(pos, fold.anim_t);
+        }
+
         node.display = Display::Flex;
         node.left = px(pos.x - half.0.x);
         node.top = px(pos.y - half.0.y);
+
+        let color = base_color.0.with_alpha(alpha);
+        match style {
+            MarkerStyle::Fill => {
+                if let Some(mut background) = background {
+                    background.0 = color;
+                }
+            }
+            MarkerStyle::Border => {
+                if let Some(mut border) = border {
+                    border.set_all(color);
+                }
+            }
+            MarkerStyle::Glyph => {}
+        }
+        // Labels (and glyph markers) carry their colour on child text.
+        if let Some(children) = children {
+            for child in children.iter() {
+                if let Ok(mut text_color) = text_colors.get_mut(child) {
+                    text_color.0 = base_color.0.with_alpha(alpha);
+                }
+            }
+        }
     }
 
-    for (pill_for, mut node, children) in &mut pills {
+    for (pill_for, mut node, mut border, children) in &mut pills {
         let parent = pill_for.0;
-        let Some(&count) = pill_counts.get(&parent) else {
+        let Some(group) = folds.0.get(&parent) else {
             node.display = Display::None;
             continue;
         };
@@ -417,13 +508,36 @@ fn update_markers(
             node.display = Display::None;
             continue;
         };
+        if group.members.is_empty() || !in_viewport(pos) {
+            node.display = Display::None;
+            continue;
+        }
+
         node.display = Display::Flex;
         node.left = px(pos.x + 10.0);
-        node.top = px(pos.y + 10.0);
-        if let Some(&text_entity) = children.first()
+        node.top = px(pos.y + 8.0);
+        // Orange outline when a foreign contact is among the folded.
+        border.set_all(if group.has_foreign {
+            colors::FOREIGN
+        } else {
+            Color::NONE
+        });
+
+        let mut children_iter = children.iter();
+        if let Some(text_entity) = children_iter.next()
             && let Ok(mut text) = pill_texts.get_mut(text_entity)
         {
-            *text = Text::new(format!("+{count}"));
+            *text = Text::new(format!("+{}", group.members.len()));
+        }
+        // Blue dot when own ships are parked there.
+        if let Some(dot_entity) = children_iter.next()
+            && let Ok(mut dot) = pill_dots.get_mut(dot_entity)
+        {
+            dot.display = if group.has_own_ship {
+                Display::Flex
+            } else {
+                Display::None
+            };
         }
     }
 
@@ -450,54 +564,5 @@ fn update_markers(
         node.display = Display::Flex;
         node.left = px(pos.x + 10.0);
         node.top = px(pos.y + 10.0);
-    }
-}
-
-fn update_trails(
-    clock: Res<GameClock>,
-    camera_q: Query<(&Camera, &GlobalTransform)>,
-    mut bodies: Query<(Entity, &GlobalTransform, &OrbitalBody, &mut FadingTrail)>,
-    mut dots: Query<(&TrailDotFor, &mut Node, &mut BackgroundColor)>,
-) {
-    let Ok((camera, camera_transform)) = camera_q.single() else {
-        return;
-    };
-
-    let mut trails: HashMap<Entity, Vec<Vec3>> = HashMap::new();
-    for (entity, transform, orbital_body, mut trail) in &mut bodies {
-        let span_days = orbital_body.period_days * TRAIL_SPAN_FRACTION_OF_PERIOD;
-        let interval_days = span_days / TRAIL_LENGTH as f64;
-        if clock.elapsed_days - trail.last_sample_day >= interval_days {
-            trail.last_sample_day = clock.elapsed_days;
-            trail.positions.push(transform.translation());
-            if trail.positions.len() > TRAIL_LENGTH {
-                trail.positions.remove(0);
-            }
-        }
-        trails.insert(entity, trail.positions.clone());
-    }
-
-    for (dot_for, mut node, mut background) in &mut dots {
-        let Some(positions) = trails.get(&dot_for.0) else {
-            node.display = Display::None;
-            continue;
-        };
-        // Index 0 is the oldest slot; map it to the oldest *available* sample.
-        let age_from_newest = TRAIL_LENGTH - 1 - dot_for.1;
-        let Some(world_pos) = positions.len().checked_sub(age_from_newest + 1).map(|i| positions[i]) else {
-            node.display = Display::None;
-            continue;
-        };
-        // Re-project through the *current* camera every frame, so the trail
-        // reflects the body's own motion rather than any camera movement.
-        let Ok(pos) = camera.world_to_viewport(camera_transform, world_pos) else {
-            node.display = Display::None;
-            continue;
-        };
-        node.display = Display::Flex;
-        node.left = px(pos.x - 1.5);
-        node.top = px(pos.y - 1.5);
-        let fade = 1.0 - age_from_newest as f32 / TRAIL_LENGTH as f32;
-        background.0 = background.0.with_alpha(fade * 0.5);
     }
 }

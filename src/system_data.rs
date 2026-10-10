@@ -18,13 +18,14 @@ pub enum BodyClass {
     Station,
     Gate,
     SalvageSite,
+    /// A ship or contact. Shape follows ownership, per the sketches'
+    /// marker language: triangle for own, diamond for foreign.
+    Ship,
 }
 
 #[derive(Component, Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Ownership {
     Own,
-    // No foreign-owned objects in this iteration's Corvane data yet.
-    #[allow(dead_code)]
     Foreign,
     Neutral,
 }
@@ -38,6 +39,11 @@ pub enum Knowledge {
 
 #[derive(Component, Clone, Debug, Default)]
 pub struct DisplayName(pub String);
+
+/// Physical radius in km. Never used for marker size - only for the
+/// magnifier's size threshold and for inspect facts.
+#[derive(Component, Clone, Copy, Debug, Default)]
+pub struct BodyRadius(pub f64);
 
 #[derive(Component, Clone, Debug, Default)]
 pub struct Description(pub String);
@@ -60,6 +66,9 @@ fn kepler_period_days(radius_km: f64, central_mass_kg: f64) -> f64 {
 /// out of sync with the radius.
 pub struct BodyBlueprint {
     pub name: &'static str,
+    /// Physical radius. Marker size never derives from this - it's for
+    /// the magnifier's size threshold, and for inspect facts later.
+    pub radius_km: f64,
     pub class: BodyClass,
     pub ownership: Ownership,
     pub description: &'static str,
@@ -109,6 +118,7 @@ pub fn hand_made_system() -> SystemData {
         planets: vec![
             BodyBlueprint {
                 name: "Pell",
+                radius_km: 2900.0,
                 class: BodyClass::Planet,
                 ownership: Ownership::Own,
                 description: "A scorched inner rock, too hot for anything but automated survey gear.",
@@ -121,6 +131,7 @@ pub fn hand_made_system() -> SystemData {
             },
             BodyBlueprint {
                 name: "Iver",
+                radius_km: 6050.0,
                 class: BodyClass::Planet,
                 ownership: Ownership::Own,
                 description: "A tidally-locked world whose pre-collapse orbital yard has sat dormant for a generation.",
@@ -131,6 +142,7 @@ pub fn hand_made_system() -> SystemData {
                 mass_kg: 0.9 * EARTH_MASS_KG,
                 children: vec![BodyBlueprint {
                     name: "Iver Yard",
+                    radius_km: 0.6,
                     class: BodyClass::Station,
                     ownership: Ownership::Own,
                     description: "A dormant pre-collapse shipyard, barely maintained.",
@@ -144,6 +156,7 @@ pub fn hand_made_system() -> SystemData {
             },
             BodyBlueprint {
                 name: "Halden IV",
+                radius_km: 6700.0,
                 class: BodyClass::Planet,
                 ownership: Ownership::Own,
                 description: "Cold terrestrial capital world: three settlements under a thin nitrogen sky.",
@@ -161,30 +174,38 @@ pub fn hand_made_system() -> SystemData {
                 children: vec![
                     BodyBlueprint {
                         name: "Halden IVa",
+                        radius_km: 380.0,
                         class: BodyClass::Moon,
                         ownership: Ownership::Own,
                         description: "The innermost of Halden IV's four moons.",
                         key_facts: vec![("Class", "Moon")],
                         knowledge: surveyed_today(),
-                        orbit_radius_km: 18_000.0,
+                        // Radii below are set from target periods via the
+                        // inverse of Kepler's third law, so the motion rule
+                        // has both modes visible at 1 day/s (board 6):
+                        // IVa 1.5 d, IVb 4.2 d, IVc 31 d, IVd 68 d,
+                        // Arden Highport 0.1 d.
+                        orbit_radius_km: 57_137.0,
                         phase0_rad: 0.0,
                         mass_kg: 0.0,
                         children: vec![],
                     },
                     BodyBlueprint {
                         name: "Halden IVb",
+                        radius_km: 1100.0,
                         class: BodyClass::Moon,
                         ownership: Ownership::Own,
                         description: "The second of Halden IV's four moons.",
                         key_facts: vec![("Class", "Moon")],
                         knowledge: surveyed_today(),
-                        orbit_radius_km: 32_000.0,
+                        orbit_radius_km: 113_507.0,
                         phase0_rad: 1.7,
                         mass_kg: 0.0,
                         children: vec![],
                     },
                     BodyBlueprint {
                         name: "Halden IVc",
+                        radius_km: 1600.0,
                         class: BodyClass::Moon,
                         ownership: Ownership::Own,
                         description: "An ice moon the state has not yet surveyed up close.",
@@ -193,32 +214,67 @@ pub fn hand_made_system() -> SystemData {
                             ("Surface sites", "unknown"),
                         ],
                         knowledge: Knowledge::Unsurveyed,
-                        orbit_radius_km: 52_000.0,
+                        orbit_radius_km: 430_292.0,
                         phase0_rad: 3.3,
                         mass_kg: 0.0,
                         children: vec![],
                     },
                     BodyBlueprint {
                         name: "Halden IVd",
+                        radius_km: 700.0,
                         class: BodyClass::Moon,
                         ownership: Ownership::Own,
                         description: "The outermost of Halden IV's four moons.",
                         key_facts: vec![("Class", "Moon")],
                         knowledge: surveyed_today(),
-                        orbit_radius_km: 78_000.0,
+                        orbit_radius_km: 726_432.0,
                         phase0_rad: 5.0,
                         mass_kg: 0.0,
                         children: vec![],
                     },
                     BodyBlueprint {
                         name: "Arden Highport",
+                        radius_km: 0.9,
                         class: BodyClass::Station,
                         ownership: Ownership::Own,
                         description: "Halden IV's primary orbital station.",
                         key_facts: vec![("Status", "Active"), ("Owner", "State")],
                         knowledge: surveyed_today(),
-                        orbit_radius_km: 12_000.0,
+                        orbit_radius_km: 9_394.0,
                         phase0_rad: 2.4,
+                        mass_kg: 0.0,
+                        children: vec![],
+                    },
+                    // Placeholder contacts so the count pill's indicators
+                    // have something to report. Both are plain orbiting
+                    // objects; there's no ship simulation behind them yet.
+                    BodyBlueprint {
+                        name: "K-3",
+                        radius_km: 0.2,
+                        class: BodyClass::Ship,
+                        ownership: Ownership::Foreign,
+                        description: "An unidentified contact holding a slow parking orbit.",
+                        key_facts: vec![("Class", "Unidentified contact"), ("Track", "weak")],
+                        knowledge: Knowledge::Unsurveyed,
+                        // Between IVc and IVd, as board 6 shows it: far
+                        // enough out to read as a slow orbit (~45 d, so it
+                        // stays a dot and reads as a diamond), but not so
+                        // far that it stretches the satellite frame.
+                        orbit_radius_km: 550_000.0,
+                        phase0_rad: 2.6,
+                        mass_kg: 0.0,
+                        children: vec![],
+                    },
+                    BodyBlueprint {
+                        name: "Orison",
+                        radius_km: 0.15,
+                        class: BodyClass::Ship,
+                        ownership: Ownership::Own,
+                        description: "A state vessel parked in orbit over Halden IV.",
+                        key_facts: vec![("Class", "Parked ship"), ("Owner", "State")],
+                        knowledge: surveyed_today(),
+                        orbit_radius_km: 25_000.0,
+                        phase0_rad: 1.0,
                         mass_kg: 0.0,
                         children: vec![],
                     },
@@ -232,6 +288,7 @@ pub fn hand_made_system() -> SystemData {
             salvage_sites: vec![
                 BodyBlueprint {
                     name: "Wreck Field",
+                    radius_km: 4.0,
                     class: BodyClass::SalvageSite,
                     ownership: Ownership::Neutral,
                     description: "An unsurveyed debris field scattered across the belt.",
@@ -244,6 +301,7 @@ pub fn hand_made_system() -> SystemData {
                 },
                 BodyBlueprint {
                     name: "Lantern",
+                    radius_km: 0.5,
                     class: BodyClass::SalvageSite,
                     ownership: Ownership::Neutral,
                     description: "The wreck of the station Lantern, last imaged years ago.",
@@ -287,6 +345,7 @@ fn morrow() -> BodyBlueprint {
             let name = MORROW_MOON_NAMES[i];
             BodyBlueprint {
                 name,
+                radius_km: 120.0 + i as f64 * 45.0,
                 class: BodyClass::Moon,
                 ownership: Ownership::Own,
                 description: "One of Morrow's eleven moons.",
@@ -302,6 +361,7 @@ fn morrow() -> BodyBlueprint {
 
     BodyBlueprint {
         name: "Morrow",
+        radius_km: 28000.0,
         class: BodyClass::Planet,
         ownership: Ownership::Own,
         description: "An outer giant with a retinue of eleven moons.",

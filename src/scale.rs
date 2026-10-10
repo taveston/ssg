@@ -19,5 +19,9 @@ pub fn km_to_render(km: f64) -> f32 {
 pub fn polar_km_to_render(distance_km: f64, angle_deg: f64) -> Vec3 {
     let angle = angle_deg.to_radians();
     let distance = km_to_render(distance_km);
-    Vec3::new(distance * angle.cos() as f32, 0.0, distance * angle.sin() as f32)
+    Vec3::new(
+        distance * angle.cos() as f32,
+        0.0,
+        distance * angle.sin() as f32,
+    )
 }
