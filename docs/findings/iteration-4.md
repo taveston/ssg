@@ -156,7 +156,7 @@ Each was checked against the iteration 3 code (`3c91a59`); none was introduced b
 ### F4-30 · Zooming in hops focus between satellites
 - **Observation:** changing zoom inside a planet's satellite system switches the followed body unpredictably between satellites. Cause: each zoom-in step latches onto whichever body is nearest the anchor within a quarter of the new frame, satellites included, so successive steps can pick different moons. The playtester's view: zooming to focus is poor UX.
 - **Affects:** CAM-21 · **Type:** spec wrong (suspected)
-- **Disposition:** open for triage. As specced, CAM-21 would behave differently: it focuses only when nothing is focused, only the body whose satellite frame is the inner limit, and later steps anchor on that body, so it wouldn't hop between moons. The question is whether zoom should set focus at all, or focus only comes from double-click, F and the Focus button (CAM-06).
+- **Disposition:** deferred (2026-10-11): CAM-21 stays as specced for now. As specced, CAM-21 would behave differently: it focuses only when nothing is focused, only the body whose satellite frame is the inner limit, and later steps anchor on that body, so it wouldn't hop between moons. The question is whether zoom should set focus at all, or focus only comes from double-click, F and the Focus button (CAM-06).
 
 ### F4-31 · Left drag doesn't pan
 - **Observation:** left-click drag does nothing; middle drag pans (iteration 1).
