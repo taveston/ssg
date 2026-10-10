@@ -408,3 +408,123 @@ fn hand_made_system_resource() -> SystemDataResource {
 pub fn period_days_for(radius_km: f64, central_mass_kg: f64) -> f64 {
     kepler_period_days(radius_km, central_mass_kg)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Halden IV's mass, which its satellites' periods are derived from.
+    const HALDEN_IV_MASS_KG: f64 = 1.1 * EARTH_MASS_KG;
+
+    fn planet(name: &str) -> BodyBlueprint {
+        hand_made_system()
+            .planets
+            .into_iter()
+            .find(|planet| planet.name == name)
+            .unwrap_or_else(|| panic!("{name} missing from the test system"))
+    }
+
+    fn satellite_period_days(parent: &BodyBlueprint, name: &str) -> f64 {
+        let child = parent
+            .children
+            .iter()
+            .find(|child| child.name == name)
+            .unwrap_or_else(|| panic!("{name} missing from {}", parent.name));
+        period_days_for(child.orbit_radius_km, parent.mass_kg)
+    }
+
+    /// SCL-04: Kepler's third law - the period squared goes as the radius
+    /// cubed, so quadrupling the radius multiplies the period by eight.
+    #[test]
+    fn scl_04_period_follows_keplers_third_law() {
+        let base = period_days_for(10_000.0, HALDEN_IV_MASS_KG);
+        let quadrupled = period_days_for(40_000.0, HALDEN_IV_MASS_KG);
+        assert!(
+            (quadrupled / base - 8.0).abs() < 1e-6,
+            "expected 8x, got {}",
+            quadrupled / base
+        );
+    }
+
+    /// SCL-04: and against the closed form, so a wrong constant would show.
+    #[test]
+    fn scl_04_period_matches_the_closed_form() {
+        let radius_km: f64 = 384_400.0;
+        let mass_kg: f64 = 5.972e24;
+        let radius_m = radius_km * 1000.0;
+        let expected = std::f64::consts::TAU
+            * (radius_m.powi(3) / (GRAVITATIONAL_CONSTANT * mass_kg)).sqrt()
+            / 86_400.0;
+        let actual = period_days_for(radius_km, mass_kg);
+        assert!((actual - expected).abs() < 1e-9);
+    }
+
+    /// SCL-04: a heavier parent pulls its satellites round faster.
+    #[test]
+    fn scl_04_heavier_parent_means_shorter_period() {
+        let light = period_days_for(50_000.0, EARTH_MASS_KG);
+        let heavy = period_days_for(50_000.0, 4.0 * EARTH_MASS_KG);
+        assert!(heavy < light);
+        assert!((light / heavy - 2.0).abs() < 1e-6, "period goes as 1/sqrt(M)");
+    }
+
+    /// TEST-02: the satellite periods the motion rule is tuned against, so
+    /// both modes are visible at 1 d/s.
+    #[test]
+    fn test_02_halden_iv_satellite_periods() {
+        let halden = planet("Halden IV");
+        for (name, expected) in [
+            ("Arden Highport", 0.1),
+            ("Halden IVa", 1.5),
+            ("Halden IVb", 4.2),
+            ("Halden IVc", 31.0),
+            ("Halden IVd", 68.0),
+        ] {
+            let actual = satellite_period_days(&halden, name);
+            let tolerance = expected * 0.02;
+            assert!(
+                (actual - expected).abs() < tolerance,
+                "{name}: expected about {expected} d, got {actual:.3} d"
+            );
+        }
+    }
+
+    /// TEST-02: radii follow Kepler from Halden IV's mass, and the spread
+    /// straddles both motion thresholds at 1 d/s (ring under 20 s, dot at
+    /// or over 25 s), which is the whole point of these values.
+    #[test]
+    fn test_02_periods_straddle_both_motion_modes_at_one_day_per_second() {
+        let halden = planet("Halden IV");
+        assert!(satellite_period_days(&halden, "Arden Highport") < 20.0);
+        assert!(satellite_period_days(&halden, "Halden IVa") < 20.0);
+        assert!(satellite_period_days(&halden, "Halden IVb") < 20.0);
+        assert!(satellite_period_days(&halden, "Halden IVc") >= 25.0);
+        assert!(satellite_period_days(&halden, "Halden IVd") >= 25.0);
+    }
+
+    /// TEST-01 / TEST-03: the bodies the other checks lean on are present.
+    #[test]
+    fn test_01_and_03_corvane_contains_the_required_bodies() {
+        let system = hand_made_system();
+        let planet_names: Vec<&str> = system.planets.iter().map(|p| p.name).collect();
+        for name in ["Pell", "Iver", "Halden IV", "Morrow"] {
+            assert!(planet_names.contains(&name), "{name} missing");
+        }
+
+        let site_names: Vec<&str> = system.belt.salvage_sites.iter().map(|s| s.name).collect();
+        assert!(site_names.contains(&"Wreck Field"));
+        assert!(site_names.contains(&"Lantern"));
+        assert!(!system.gates.is_empty());
+
+        let halden = planet("Halden IV");
+        let k3 = halden.children.iter().find(|c| c.name == "K-3").unwrap();
+        assert_eq!(k3.class, BodyClass::Ship);
+        assert_eq!(k3.ownership, Ownership::Foreign);
+
+        let parked = halden
+            .children
+            .iter()
+            .find(|c| c.class == BodyClass::Ship && c.ownership == Ownership::Own);
+        assert!(parked.is_some(), "an own ship should be parked at Halden IV");
+    }
+}

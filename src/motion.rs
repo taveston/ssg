@@ -163,6 +163,27 @@ fn spawn_motion_visuals(
     }
 }
 
+/// MOT-02 / MOT-01 / MOT-03: below `t_ring_secs` an object is an exposure
+/// ring, at or above `t_dot_secs` it is a dot, and between the two it keeps
+/// whichever mode it is already in.
+///
+/// MOT-04 falls out rather than being special-cased: pause gives an
+/// infinite apparent period, which lands in the dot branch on its own.
+pub fn next_ring_mode(
+    apparent_secs: f64,
+    currently_ring: bool,
+    t_ring_secs: f32,
+    t_dot_secs: f32,
+) -> bool {
+    if apparent_secs < t_ring_secs as f64 {
+        true
+    } else if apparent_secs >= t_dot_secs as f64 {
+        false
+    } else {
+        currently_ring
+    }
+}
+
 /// Apparent period in real seconds: how long one orbit takes to watch.
 fn apparent_period_secs(period_days: f64, clock: &crate::time_control::GameClock) -> f64 {
     if clock.paused || clock.speed_days_per_sec <= 0.0 {
@@ -187,15 +208,12 @@ fn update_motion_modes(
     for (orbital, mut state) in &mut bodies {
         let apparent = apparent_period_secs(orbital.period_days, &clock);
 
-        // Paused means an infinite apparent period, which lands in the dot
-        // branch on its own - no special case needed.
-        let target_ring = if apparent < tunables.t_ring_secs as f64 {
-            true
-        } else if apparent >= tunables.t_dot_secs as f64 {
-            false
-        } else {
-            state.ring_mode
-        };
+        let target_ring = next_ring_mode(
+            apparent,
+            state.ring_mode,
+            tunables.t_ring_secs,
+            tunables.t_dot_secs,
+        );
 
         if target_ring != state.ring_mode {
             state.ring_mode = target_ring;
@@ -411,5 +429,64 @@ fn update_ring_visuals(
         node.display = Display::Flex;
         node.left = px(pos.x - RING_HIT_SIZE_PX * 0.5);
         node.top = px(pos.y - RING_HIT_SIZE_PX * 0.5);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const T_RING: f32 = 20.0;
+    const T_DOT: f32 = 25.0;
+
+    #[test]
+    fn mot_03_ring_below_t_ring_and_dot_above_t_dot() {
+        assert!(next_ring_mode(19.9, false, T_RING, T_DOT));
+        assert!(next_ring_mode(0.1, false, T_RING, T_DOT));
+        assert!(!next_ring_mode(25.0, true, T_RING, T_DOT));
+        assert!(!next_ring_mode(68.0, true, T_RING, T_DOT));
+    }
+
+    /// Between the thresholds the mode is kept, so an object drifting
+    /// across the band doesn't switch back and forth.
+    #[test]
+    fn mot_03_keeps_mode_between_thresholds() {
+        for apparent in [20.0_f64, 22.5, 24.9] {
+            assert!(next_ring_mode(apparent, true, T_RING, T_DOT));
+            assert!(!next_ring_mode(apparent, false, T_RING, T_DOT));
+        }
+    }
+
+    #[test]
+    fn mot_03_no_flicker_on_a_round_trip_through_the_band() {
+        let mut ring = false;
+        for apparent in [30.0_f64, 25.0, 24.0, 21.0, 20.0] {
+            ring = next_ring_mode(apparent, ring, T_RING, T_DOT);
+            assert!(!ring, "still a dot at {apparent}s");
+        }
+        ring = next_ring_mode(19.5, ring, T_RING, T_DOT);
+        assert!(ring);
+        for apparent in [20.0_f64, 22.0, 24.9] {
+            ring = next_ring_mode(apparent, ring, T_RING, T_DOT);
+            assert!(ring, "still a ring at {apparent}s");
+        }
+        ring = next_ring_mode(25.0, ring, T_RING, T_DOT);
+        assert!(!ring);
+    }
+
+    /// MOT-04: pause is an infinite apparent period, which must fall out of
+    /// the same rule rather than needing a special case.
+    #[test]
+    fn mot_04_pause_gives_dot_mode() {
+        assert!(!next_ring_mode(f64::INFINITY, true, T_RING, T_DOT));
+    }
+
+    /// MOT-03 against the real test content: IVc flips mode between the two
+    /// rates the validation checklist calls for (31 s at 1 d/s, 6.2 s at 5).
+    #[test]
+    fn mot_03_ivc_changes_mode_between_rates() {
+        let period_days = 31.0;
+        assert!(!next_ring_mode(period_days / 1.0, false, T_RING, T_DOT));
+        assert!(next_ring_mode(period_days / 5.0, false, T_RING, T_DOT));
     }
 }

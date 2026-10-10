@@ -4,6 +4,8 @@ Checks for every requirement in `docs/spec/system-view.md`. Run them at the end 
 
 **Auto** marks checks that should become `cargo test` cases named after the ID (for example `fn grp_01_hysteresis()`); until they exist, check them by hand.
 
+"✓ auto" means the `cargo test` case passes. Where a row's Auto note names only part of the check, the rest still needs an eye on the running app. ZOOM-15's stop-radii tests exist (`zoom_15_*`) but its row stays `–`: the focus model it is written against is not built yet.
+
 ## Setup
 
 - Run the app (`cargo run`). Default state: system frame, 1 d/s, nothing selected.
@@ -20,7 +22,7 @@ Checks for every requirement in `docs/spec/system-view.md`. Run them at the end 
 | SCL-01 | Code read: body data in km/kg/days as `f64`; one conversion function in `scale.rs`. | | |
 | SCL-02 | Scene C: moon orbit radii look proportionally right next to each other and to Halden IV's orbit when zooming out. | | |
 | SCL-03 | Code read: Corvane is built only from `system_data.rs` records. | | |
-| SCL-04 | Computed periods match Kepler for each body (and TEST-02 values). | Auto | |
+| SCL-04 | Computed periods match Kepler for each body (and TEST-02 values). | Auto |  ✓ auto |
 | CLK-01 | At 1 d/s the date advances one day per second. | | |
 | CLK-02 | Top bar shows breadcrumb, date, Pause, 1 d/s, 5 d/s; active rate highlighted. | | |
 | ~~CLK-03~~ | Withdrawn; see CLK-05. | | |
@@ -79,7 +81,7 @@ Checks for every requirement in `docs/spec/system-view.md`. Run them at the end 
 | CAM-20 | Double-click Halden IV and drag during the move: the camera takes over smoothly with no snap, and the move does not resume. | | – |
 | CAM-21 | Nothing focused, cursor on Halden IV, wheel in from the region frame: Halden IV becomes focused (brackets, chip) with no jump, and stays put at 5 d/s. Zoom back out to the system frame: focus ends. | | – |
 | CAM-22 | Scene C, select IVc: brackets on Halden IV, white ring on IVc. Select Halden IV: brackets and ring together, both readable. | | – |
-| GRP-01 | Step zoom in and out across a moon's threshold, and hold just inside the 20 to 24 px band: no flicker. | Auto (hysteresis) | |
+| GRP-01 | Step zoom in and out across a moon's threshold, and hold just inside the 20 to 24 px band: no flicker. | Auto (hysteresis) |  ✓ auto |
 | GRP-02 | Zooming in from scene A, IVd and IVc unfold before IVa, IVb and the station (board 6, middle panel). | | |
 | GRP-03 | Satellites slide out of and back into Halden IV during zoom animations. | | |
 | GRP-04 | Scene A: no moon, station or parked ship drawn anywhere; only pills. | | |
@@ -97,13 +99,13 @@ Checks for every requirement in `docs/spec/system-view.md`. Run them at the end 
 | ~~MAG-08~~ | Withdrawn with the magnifier (F3-07). Iteration 3 check: Scene B: hover a satellite in the magnifier: tooltip. Click: inset switches to it and focus does not change. Double-click: focuses and frames it; double-click again: the planetary-view hook. |  | – |
 | MOT-01 | Scene C at 1 d/s: IVc and IVd are dots with ~30° fading trails. | | |
 | MOT-02 | Scene C at 1 d/s: Arden Highport, IVa and IVb are bright, thicker rings with labels fixed on the ring, no dot. | | |
-| MOT-03 | Switch 1 d/s ↔ 5 d/s: IVc (31 s → 6.2 s) changes mode with a cross-fade; nothing flickers near a threshold. | Auto (mode state machine) | |
+| MOT-03 | Switch 1 d/s ↔ 5 d/s: IVc (31 s → 6.2 s) changes mode with a cross-fade; nothing flickers near a threshold. | Auto (mode state machine) |  ✓ auto |
 | MOT-04 | Pause: every satellite becomes a dot at its true position. | | |
 | MOT-05 | Hover and click an exposure ring: targets that satellite. | | |
 | ~~MOT-06~~ | Withdrawn; see MOT-08. Iteration 3 check: with the magnifier open, run at 1 d/s and 5 d/s: same modes inside the magnifier. Pell also follows the rule at high rates. | | |
 | MOT-08 | Pell, moons, stations and parked ships all follow the rule at 1 d/s and 5 d/s. | | – |
 | MOT-07 | Select IVa while it is in ring mode: ring stays highlighted; inset says position "shown when paused". | | suspect F3-04 |
 | TEST-01 | All listed bodies, sites and gates present. | | |
-| TEST-02 | Inspect or log periods: Highport ≈0.1 d, IVa ≈1.5, IVb ≈4.2, IVc ≈31, IVd ≈68. | Auto | |
+| TEST-02 | Inspect or log periods: Highport ≈0.1 d, IVa ≈1.5, IVb ≈4.2, IVc ≈31, IVd ≈68. | Auto |  ✓ auto |
 | TEST-03 | K-3 (diamond, slow orbit) and one own parked ship (triangle) orbit Halden IV. | | |
 | TEST-04 | See INS-04. | | |

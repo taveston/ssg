@@ -53,6 +53,25 @@ pub struct FoldedGroup {
 #[derive(Resource, Default)]
 pub struct FoldSummary(pub HashMap<Entity, FoldedGroup>);
 
+/// GRP-01: a satellite is drawn individually only while its orbit's
+/// on-screen radius is at least `unfold_at_px`; below `fold_below_px` it
+/// folds into its parent. Between the two it keeps its current state -
+/// that band is the hysteresis that stops it flickering at the boundary.
+pub fn next_folded(
+    on_screen_radius: f32,
+    currently_folded: bool,
+    unfold_at_px: f32,
+    fold_below_px: f32,
+) -> bool {
+    if on_screen_radius >= unfold_at_px {
+        false
+    } else if on_screen_radius < fold_below_px {
+        true
+    } else {
+        currently_folded
+    }
+}
+
 pub struct GroupingPlugin;
 
 impl Plugin for GroupingPlugin {
@@ -111,11 +130,12 @@ fn update_grouping(
             }
         };
 
-        if on_screen_radius >= tunables.unfold_at_px {
-            fold.folded = false;
-        } else if on_screen_radius < tunables.fold_below_px {
-            fold.folded = true;
-        }
+        fold.folded = next_folded(
+            on_screen_radius,
+            fold.folded,
+            tunables.unfold_at_px,
+            tunables.fold_below_px,
+        );
 
         let target = if fold.folded { 0.0 } else { 1.0 };
         if fold.anim_t < target {
@@ -197,4 +217,61 @@ fn ancestor_hidden(
         };
     cache.insert(entity, hidden);
     hidden
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const UNFOLD_AT: f32 = 24.0;
+    const FOLD_BELOW: f32 = 20.0;
+
+    #[test]
+    fn grp_01_unfolds_at_or_above_r_show() {
+        assert!(!next_folded(UNFOLD_AT, true, UNFOLD_AT, FOLD_BELOW));
+        assert!(!next_folded(100.0, true, UNFOLD_AT, FOLD_BELOW));
+    }
+
+    #[test]
+    fn grp_01_folds_below_fold_threshold() {
+        assert!(next_folded(FOLD_BELOW - 0.01, false, UNFOLD_AT, FOLD_BELOW));
+        assert!(next_folded(0.0, false, UNFOLD_AT, FOLD_BELOW));
+    }
+
+    /// The whole point of the band: inside it, neither threshold fires, so
+    /// a satellite sitting there keeps whatever state it arrived with.
+    #[test]
+    fn grp_01_hysteresis_keeps_state_inside_the_band() {
+        for radius in [20.0_f32, 22.0, 23.99] {
+            assert!(
+                next_folded(radius, true, UNFOLD_AT, FOLD_BELOW),
+                "{radius}px should stay folded"
+            );
+            assert!(
+                !next_folded(radius, false, UNFOLD_AT, FOLD_BELOW),
+                "{radius}px should stay unfolded"
+            );
+        }
+    }
+
+    /// Crossing the band and coming back must not flicker: it takes a full
+    /// traverse to flip, in either direction.
+    #[test]
+    fn grp_01_hysteresis_no_flicker_on_a_round_trip() {
+        let mut folded = true;
+        // Drifting up through the band changes nothing until R_show.
+        for radius in [19.0_f32, 20.0, 22.0, 23.9] {
+            folded = next_folded(radius, folded, UNFOLD_AT, FOLD_BELOW);
+            assert!(folded, "still folded at {radius}px");
+        }
+        folded = next_folded(24.0, folded, UNFOLD_AT, FOLD_BELOW);
+        assert!(!folded);
+        // And back down: it stays unfolded until it drops under fold_below.
+        for radius in [23.9_f32, 22.0, 20.0] {
+            folded = next_folded(radius, folded, UNFOLD_AT, FOLD_BELOW);
+            assert!(!folded, "still unfolded at {radius}px");
+        }
+        folded = next_folded(19.9, folded, UNFOLD_AT, FOLD_BELOW);
+        assert!(folded);
+    }
 }
