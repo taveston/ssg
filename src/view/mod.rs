@@ -18,6 +18,7 @@ pub mod colors;
 pub mod date;
 pub mod edge;
 pub mod fidelity;
+pub mod focus;
 pub mod fold;
 pub mod fonts;
 pub mod grouping;
@@ -42,9 +43,11 @@ pub struct ViewPlugin;
 
 impl Plugin for ViewPlugin {
     fn build(&self, app: &mut App) {
-        // Shared state with no single owner: written by clicks in `hover`
-        // and by the inset's buttons, read across the view.
+        // Shared state with no single owner: selection is written by clicks
+        // and the inset's buttons, focus by the camera and the inset, and
+        // both are read across the view.
         app.init_resource::<selection::Selection>()
+            .init_resource::<focus::Focus>()
             .add_plugins((
                 tunables::TunablesPlugin,
                 bindings::BindingsPlugin,

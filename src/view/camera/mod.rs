@@ -18,6 +18,7 @@ use crate::{Boot, Stage};
 pub mod input;
 pub mod requests;
 pub mod rig;
+pub mod rules;
 pub mod state;
 pub mod stops;
 pub mod zoom;
@@ -27,9 +28,8 @@ pub struct CameraPlugin;
 impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(stops::StopsPlugin)
-            .init_resource::<state::CameraFocus>()
-            .init_resource::<state::OrbitCameraState>()
-            .init_resource::<state::ZoomAnim>()
+            .init_resource::<state::CameraRig>()
+            .init_resource::<state::ActiveMove>()
             .init_resource::<state::Bookmarks>()
             .init_resource::<requests::FocusJumpRequest>()
             .init_resource::<requests::PlanetaryViewRequest>()
@@ -48,8 +48,9 @@ impl Plugin for CameraPlugin {
                     input::handle_focus_jump,
                     input::handle_bookmarks,
                     input::handle_pan_input,
-                    rig::advance_zoom_anim,
-                    rig::update_camera_transform,
+                    rig::advance_move,
+                    rig::follow_focus,
+                    rig::place_camera,
                 )
                     .chain()
                     .in_set(Stage::Camera),

@@ -15,10 +15,10 @@
 use bevy::prelude::*;
 
 use super::bindings::{Bindings, pressed};
-use super::camera::state::CameraFocus;
 use super::colors;
 use super::date::{date_from_elapsed_days, format_date, format_time_ago};
 use super::fidelity::FidelityImages;
+use super::focus::Focus;
 use super::fonts::Fonts;
 use super::hover::ownership_label;
 use super::motion_mode::MotionModeState;
@@ -394,11 +394,9 @@ fn spawn_actions(actions: &mut ChildSpawnerCommands, fonts: &Fonts, body: Entity
     let font = || fonts.label(BODY_FONT_PX);
     actions
         .spawn((Text::new("Focus"), font(), TextColor(colors::OWN)))
-        .observe(
-            move |_click: On<PointerClick>, mut focus: ResMut<CameraFocus>| {
-                *focus = CameraFocus::Following(body);
-            },
-        );
+        .observe(move |_click: On<PointerClick>, mut focus: ResMut<Focus>| {
+            *focus = Focus::on(body);
+        });
     // INS-03: Pin keeps the inset open through a new selection.
     actions
         .spawn((

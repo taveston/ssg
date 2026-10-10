@@ -71,8 +71,7 @@ pub struct Tunables {
 
     // --- Camera (section 5a). Tilt is measured from straight down. ---
     /// The steepest tilt from straight down, in degrees: the camera never
-    /// goes below the orbital plane. Waits for CAM-01.
-    #[allow(dead_code)]
+    /// goes below the orbital plane (CAM-01).
     pub max_pitch_deg: f32,
     /// A press and release that moves less than this is a click, never a
     /// drag. Waits for CAM-10 and CAM-13.
@@ -106,9 +105,8 @@ pub struct Tunables {
     /// for CAM-17.
     #[allow(dead_code)]
     pub edge_scroll_px: f32,
-    /// The pivot stays within this many system-frame radii of the star.
-    /// Waits for CAM-19.
-    #[allow(dead_code)]
+    /// The pivot stays within this many system-frame radii of the star
+    /// (CAM-19).
     pub pan_bound_factor: f32,
     /// Side of the box the focused marker's corner brackets outline. Waits
     /// for CAM-22.
