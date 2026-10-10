@@ -49,6 +49,37 @@ pub struct FoldedGroup {
     pub has_own_ship: bool,
 }
 
+/// GRP-06: what the "+N" pill has to show besides the count - an orange
+/// outline if any folded satellite is foreign, and a blue dot if own ships
+/// are parked there.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct PillFlags {
+    pub has_foreign: bool,
+    pub has_own_ship: bool,
+}
+
+/// GRP-06, as a plain function over the folded satellites' class and
+/// ownership. "Own ships parked there" is an own *ship*, not any own
+/// satellite: a state-owned moon is not a parked ship.
+pub fn pill_flags(folded: &[(BodyClass, Ownership)]) -> PillFlags {
+    PillFlags {
+        has_foreign: folded
+            .iter()
+            .any(|(_, ownership)| *ownership == Ownership::Foreign),
+        has_own_ship: folded
+            .iter()
+            .any(|(class, ownership)| *ownership == Ownership::Own && *class == BodyClass::Ship),
+    }
+}
+
+/// GRP-03: a satellite slides out to its true position when it unfolds and
+/// back onto its parent when it folds, over `fold_unfold_anim_ms`. 0.0 sits
+/// on the parent, 1.0 is the true position; `step` is one frame's travel.
+pub fn advance_fold_anim(anim_t: f32, folded: bool, step: f32) -> f32 {
+    let target = if folded { 0.0 } else { 1.0 };
+    crate::anim::advance_towards(anim_t, target, step)
+}
+
 /// What each parent currently has folded into it, rebuilt every frame.
 #[derive(Resource, Default)]
 pub struct FoldSummary(pub HashMap<Entity, FoldedGroup>);
@@ -103,11 +134,7 @@ fn update_grouping(
     let right = camera_transform.right().as_vec3();
     let right_flat = Vec3::new(right.x, 0.0, right.z).normalize_or_zero();
 
-    let step = if tunables.fold_unfold_anim_ms > 0.0 {
-        time.delta_secs() / (tunables.fold_unfold_anim_ms / 1000.0)
-    } else {
-        1.0
-    };
+    let step = crate::anim::step_per_frame(time.delta_secs(), tunables.fold_unfold_anim_ms);
 
     for (entity, orbital, child_of, mut fold) in &mut satellites {
         let Ok(parent_transform) = transforms.get(child_of.parent()) else {
@@ -137,12 +164,7 @@ fn update_grouping(
             tunables.fold_below_px,
         );
 
-        let target = if fold.folded { 0.0 } else { 1.0 };
-        if fold.anim_t < target {
-            fold.anim_t = (fold.anim_t + step).min(target);
-        } else if fold.anim_t > target {
-            fold.anim_t = (fold.anim_t - step).max(target);
-        }
+        fold.anim_t = advance_fold_anim(fold.anim_t, fold.folded, step);
     }
 
     // A satellite of a folded satellite stays hidden no matter what its own
@@ -185,12 +207,12 @@ fn update_grouping(
         let group = summary.0.entry(parent).or_default();
         group.members.push(entity);
         if let Ok((class, ownership)) = classes.get(entity) {
-            if *ownership == Ownership::Foreign {
-                group.has_foreign = true;
-            }
-            if *ownership == Ownership::Own && *class == BodyClass::Ship {
-                group.has_own_ship = true;
-            }
+            // GRP-06, one member at a time: the flags are a disjunction, so
+            // folding each member's own flags in is the same as asking
+            // `pill_flags` about the whole group.
+            let flags = pill_flags(&[(*class, *ownership)]);
+            group.has_foreign |= flags.has_foreign;
+            group.has_own_ship |= flags.has_own_ship;
         }
     }
 }
@@ -273,5 +295,101 @@ mod tests {
         }
         folded = next_folded(19.9, folded, UNFOLD_AT, FOLD_BELOW);
         assert!(folded);
+    }
+
+    /// GRP-03: unfolding slides out to the true position, folding slides
+    /// back onto the parent, and neither overshoots.
+    #[test]
+    fn grp_03_fold_anim_travels_to_the_right_end() {
+        assert!((advance_fold_anim(0.0, false, 0.25) - 0.25).abs() < 1e-6);
+        assert!((advance_fold_anim(1.0, true, 0.25) - 0.75).abs() < 1e-6);
+        assert_eq!(advance_fold_anim(0.9, false, 0.25), 1.0);
+        assert_eq!(advance_fold_anim(0.1, true, 0.25), 0.0);
+        assert_eq!(advance_fold_anim(1.0, false, 0.25), 1.0);
+        assert_eq!(advance_fold_anim(0.0, true, 0.25), 0.0);
+    }
+
+    /// GRP-03: a satellite that flips state part-way through the animation
+    /// turns round from where it is, so the slide never jumps.
+    #[test]
+    fn grp_03_fold_anim_reverses_from_where_it_is() {
+        let mut t = 0.0;
+        for _ in 0..2 {
+            t = advance_fold_anim(t, false, 0.25);
+        }
+        assert!((t - 0.5).abs() < 1e-6);
+        // Folds again from half way out.
+        t = advance_fold_anim(t, true, 0.25);
+        assert!((t - 0.25).abs() < 1e-6);
+    }
+
+    /// GRP-03: a whole animation takes `fold_unfold_anim_ms`, however the
+    /// frames fall.
+    #[test]
+    fn grp_03_fold_anim_takes_the_tunable_duration() {
+        let anim_ms = 200.0;
+        let mut t = 0.0;
+        let mut elapsed = 0.0;
+        while t < 1.0 && elapsed < 1.0 {
+            t = advance_fold_anim(t, false, crate::anim::step_per_frame(1.0 / 60.0, anim_ms));
+            elapsed += 1.0 / 60.0;
+        }
+        assert_eq!(t, 1.0);
+        assert!(
+            (elapsed - anim_ms / 1000.0).abs() < 2.0 / 60.0,
+            "took {elapsed}s"
+        );
+    }
+
+    /// GRP-06: the pill's orange outline tracks any foreign satellite, and
+    /// the blue dot only an own *ship*.
+    #[test]
+    fn grp_06_pill_flags_follow_the_folded_satellites() {
+        let halden = [
+            (BodyClass::Moon, Ownership::Own),
+            (BodyClass::Station, Ownership::Own),
+            (BodyClass::Ship, Ownership::Foreign),
+            (BodyClass::Ship, Ownership::Own),
+        ];
+        assert_eq!(
+            pill_flags(&halden),
+            PillFlags {
+                has_foreign: true,
+                has_own_ship: true
+            }
+        );
+    }
+
+    /// GRP-06: own moons are not parked ships, and a foreign moon still
+    /// raises the outline.
+    #[test]
+    fn grp_06_pill_flags_distinguish_ships_from_other_satellites() {
+        assert_eq!(
+            pill_flags(&[(BodyClass::Moon, Ownership::Own)]),
+            PillFlags {
+                has_foreign: false,
+                has_own_ship: false
+            }
+        );
+        assert_eq!(
+            pill_flags(&[(BodyClass::Moon, Ownership::Foreign)]),
+            PillFlags {
+                has_foreign: true,
+                has_own_ship: false
+            }
+        );
+        assert_eq!(
+            pill_flags(&[(BodyClass::Ship, Ownership::Foreign)]),
+            PillFlags {
+                has_foreign: true,
+                has_own_ship: false
+            }
+        );
+    }
+
+    /// GRP-06: a group with nothing in it raises neither flag.
+    #[test]
+    fn grp_06_pill_flags_of_an_empty_group_are_clear() {
+        assert_eq!(pill_flags(&[]), PillFlags::default());
     }
 }

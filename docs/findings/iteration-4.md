@@ -79,6 +79,11 @@
 - **Affects:** MAG-01 to MAG-08, ARCH-33 · **Type:** bug
 - **Disposition:** remove in iteration 4 (step 2), with its tunables.
 
+### F4-16 · Physical body radii removed with the magnifier
+- **Observation:** `BodyRadius` and the blueprints' `radius_km` had exactly one reader, the magnifier's size threshold (MAG-04). With the magnifier gone they were dead data, which ARCH-33 does not allow outside tunables, so both were removed in step 2. No current ID needs a body's physical radius: marker size is a presentation choice (MRK-03) and the inset's facts are authored text (INS-02). The authored values are in git history at `3c91a59` if they are wanted again.
+- **Affects:** ARCH-33, SCL-03, INS-02 · **Type:** spec gap
+- **Disposition:** removed in iteration 4. Re-add `radius_km` to the body records when a spec ID uses it (physical facts in the inset, or a generator that derives mass from radius).
+
 <!-- Findings from the build: copy this block.
 ### F4-16 · Short title
 - **Observation:**

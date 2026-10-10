@@ -11,8 +11,8 @@ use crate::grouping::SatelliteFoldState;
 use crate::orbits::OrbitalBody;
 use crate::scale::{km_to_render, polar_km_to_render};
 use crate::system_data::{
-    BodyBlueprint, BodyClass, BodyRadius, Description, DisplayName, KeyFacts, Knowledge, Ownership,
-    SystemData, SystemDataResource, period_days_for,
+    BodyBlueprint, BodyClass, Description, DisplayName, KeyFacts, Knowledge, Ownership, SystemData,
+    SystemDataResource, period_days_for,
 };
 
 pub struct ScenePlugin;
@@ -112,7 +112,6 @@ fn spawn_body(
 ) -> Entity {
     let BodyBlueprint {
         name,
-        radius_km,
         class,
         ownership,
         description,
@@ -131,7 +130,6 @@ fn spawn_body(
     let mut entity_commands = commands.spawn((
         Name::new(name),
         DisplayName(name.to_string()),
-        BodyRadius(radius_km),
         Description(description.to_string()),
         KeyFacts(
             key_facts

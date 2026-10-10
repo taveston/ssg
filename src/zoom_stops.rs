@@ -152,7 +152,10 @@ mod tests {
     fn zoom_15_region_frame_is_the_inner_system() {
         let mut radii = corvane_planet_radii();
         let (system, inner) = frame_radii(&mut radii);
-        assert!(inner < system, "the region frame is tighter than the system");
+        assert!(
+            inner < system,
+            "the region frame is tighter than the system"
+        );
         // Halden IV at 2 AU is the outermost of the inner planets.
         assert!((inner - km_to_render(2.0 * KM_PER_AU)).abs() < 0.01);
     }

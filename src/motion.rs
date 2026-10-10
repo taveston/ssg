@@ -79,6 +79,9 @@ pub struct RingLabelFor(pub Entity);
 pub struct RingHitFor(pub Entity, pub usize);
 
 pub const TRAIL_LENGTH: usize = 16;
+/// Alpha of the newest trail dot. The trail is a hint of where the body has
+/// just been, so even its brightest sample sits well under the marker's.
+const TRAIL_PEAK_ALPHA: f32 = 0.5;
 const RING_HIT_SEGMENTS: usize = 16;
 const RING_HIT_SIZE_PX: f32 = 14.0;
 
@@ -184,13 +187,51 @@ pub fn next_ring_mode(
     }
 }
 
-/// Apparent period in real seconds: how long one orbit takes to watch.
-fn apparent_period_secs(period_days: f64, clock: &crate::time_control::GameClock) -> f64 {
-    if clock.paused || clock.speed_days_per_sec <= 0.0 {
+/// MOT-01 / MOT-04: the apparent period in real seconds - how long one
+/// orbit takes to watch - is the orbital period divided by the time rate,
+/// and infinite when paused.
+pub fn apparent_period_secs(period_days: f64, rate_days_per_sec: f64, paused: bool) -> f64 {
+    if paused || rate_days_per_sec <= 0.0 {
         f64::INFINITY
     } else {
-        period_days / clock.speed_days_per_sec
+        period_days / rate_days_per_sec
     }
+}
+
+/// MOT-03: the cross-fade runs from 0 to 1 and stops there; `step` comes
+/// from `motion_crossfade_ms`.
+pub fn advance_crossfade(crossfade_t: f32, step: f32) -> f32 {
+    (crossfade_t + step.abs()).min(1.0)
+}
+
+/// MOT-01: a dot's trail covers `arc_degrees` of its own orbit, so it reads
+/// as the same shape at every time rate and frame rate. Sampling by
+/// simulated days rather than by frames is what makes that true.
+pub fn trail_span_days(period_days: f64, arc_degrees: f32) -> f64 {
+    period_days * (arc_degrees as f64 / 360.0)
+}
+
+/// MOT-01: the gap between trail samples, for a trail of `samples` dots.
+pub fn trail_sample_interval_days(period_days: f64, arc_degrees: f32, samples: usize) -> f64 {
+    if samples == 0 {
+        return f64::INFINITY;
+    }
+    trail_span_days(period_days, arc_degrees) / samples as f64
+}
+
+/// MOT-01: whether enough simulated time has passed for the next sample.
+/// Paused time never advances, so a paused trail simply stops growing.
+pub fn should_sample(elapsed_days: f64, last_sample_day: f64, interval_days: f64) -> bool {
+    elapsed_days - last_sample_day >= interval_days
+}
+
+/// MOT-01: how strongly a trail dot is drawn, oldest faintest. `age` is 0
+/// for the newest sample.
+pub fn trail_dot_fade(age: usize, length: usize) -> f32 {
+    if length == 0 {
+        return 0.0;
+    }
+    1.0 - age as f32 / length as f32
 }
 
 fn update_motion_modes(
@@ -199,14 +240,11 @@ fn update_motion_modes(
     tunables: Res<Tunables>,
     mut bodies: Query<(&OrbitalBody, &mut MotionModeState)>,
 ) {
-    let step = if tunables.motion_crossfade_ms > 0.0 {
-        time.delta_secs() / (tunables.motion_crossfade_ms / 1000.0)
-    } else {
-        1.0
-    };
+    let step = crate::anim::step_per_frame(time.delta_secs(), tunables.motion_crossfade_ms);
 
     for (orbital, mut state) in &mut bodies {
-        let apparent = apparent_period_secs(orbital.period_days, &clock);
+        let apparent =
+            apparent_period_secs(orbital.period_days, clock.speed_days_per_sec, clock.paused);
 
         let target_ring = next_ring_mode(
             apparent,
@@ -219,7 +257,7 @@ fn update_motion_modes(
             state.ring_mode = target_ring;
             state.crossfade_t = 0.0;
         }
-        state.crossfade_t = (state.crossfade_t + step).min(1.0);
+        state.crossfade_t = advance_crossfade(state.crossfade_t, step);
     }
 }
 
@@ -269,9 +307,12 @@ fn update_trails(
 
         // Sample by simulated days so the trail covers a fixed arc of the
         // orbit, independent of frame rate and time rate.
-        let span_days = orbital.period_days * (tunables.trail_arc_degrees as f64 / 360.0);
-        let interval_days = span_days / TRAIL_LENGTH as f64;
-        if clock.elapsed_days - trail.last_sample_day >= interval_days {
+        let interval_days = trail_sample_interval_days(
+            orbital.period_days,
+            tunables.trail_arc_degrees,
+            TRAIL_LENGTH,
+        );
+        if should_sample(clock.elapsed_days, trail.last_sample_day, interval_days) {
             trail.last_sample_day = clock.elapsed_days;
             // Store relative to the parent, so the trail traces the orbit
             // rather than the parent's path through the system.
@@ -330,8 +371,10 @@ fn update_trails(
         node.display = Display::Flex;
         node.left = px(pos.x - 1.5);
         node.top = px(pos.y - 1.5);
-        let fade = 1.0 - age_from_newest as f32 / TRAIL_LENGTH as f32;
-        background.0 = view.color.with_alpha(fade * 0.5 * view.strength);
+        let fade = trail_dot_fade(age_from_newest, TRAIL_LENGTH);
+        background.0 = view
+            .color
+            .with_alpha(fade * TRAIL_PEAK_ALPHA * view.strength);
     }
 }
 
@@ -488,5 +531,88 @@ mod tests {
         let period_days = 31.0;
         assert!(!next_ring_mode(period_days / 1.0, false, T_RING, T_DOT));
         assert!(next_ring_mode(period_days / 5.0, false, T_RING, T_DOT));
+    }
+
+    /// MOT-01: the apparent period is the orbital period divided by the
+    /// rate, so the same orbit reads differently at 1 d/s and 5 d/s.
+    #[test]
+    fn mot_01_apparent_period_divides_by_the_time_rate() {
+        assert_eq!(apparent_period_secs(31.0, 1.0, false), 31.0);
+        assert_eq!(apparent_period_secs(31.0, 5.0, false), 6.2);
+        assert_eq!(apparent_period_secs(0.1, 1.0, false), 0.1);
+    }
+
+    /// MOT-04: pause (and a rate of zero, which is the same thing) gives an
+    /// infinite apparent period - the dot branch, with no special case.
+    #[test]
+    fn mot_04_paused_time_gives_an_infinite_apparent_period() {
+        assert!(apparent_period_secs(31.0, 1.0, true).is_infinite());
+        assert!(apparent_period_secs(31.0, 0.0, false).is_infinite());
+        assert!(!next_ring_mode(
+            apparent_period_secs(0.1, 1.0, true),
+            true,
+            T_RING,
+            T_DOT
+        ));
+    }
+
+    /// MOT-03: the cross-fade climbs to 1 and stays there.
+    #[test]
+    fn mot_03_crossfade_runs_to_one_and_stops() {
+        assert!((advance_crossfade(0.0, 0.25) - 0.25).abs() < 1e-6);
+        assert_eq!(advance_crossfade(0.9, 0.25), 1.0);
+        assert_eq!(advance_crossfade(1.0, 0.25), 1.0);
+    }
+
+    /// MOT-01: the trail covers `trail_arc_degrees` of arc whatever the
+    /// period, which is what makes it read the same on a 0.1 d station orbit
+    /// and a 68 d moon orbit.
+    #[test]
+    fn mot_01_trail_covers_a_fixed_arc_of_the_orbit() {
+        for period in [0.1_f64, 1.5, 31.0, 68.0] {
+            let span = trail_span_days(period, 30.0);
+            assert!(
+                (span / period - 30.0 / 360.0).abs() < 1e-9,
+                "{period} d orbit sampled over {span} d"
+            );
+        }
+    }
+
+    /// MOT-01: the samples divide that arc evenly, and a longer orbit is
+    /// sampled proportionally less often.
+    #[test]
+    fn mot_01_trail_samples_divide_the_arc_evenly() {
+        let interval = trail_sample_interval_days(36.0, 30.0, 16);
+        assert!((interval - 3.0 / 16.0).abs() < 1e-9);
+        assert_eq!(
+            trail_sample_interval_days(72.0, 30.0, 16),
+            2.0 * interval,
+            "twice the period, twice the gap"
+        );
+    }
+
+    /// MOT-01: sampling is driven by simulated days, so a paused clock (no
+    /// elapsed days) never takes another sample, and an empty trail pool
+    /// can't divide by zero.
+    #[test]
+    fn mot_01_trail_sampling_is_driven_by_simulated_days() {
+        let interval = trail_sample_interval_days(31.0, 30.0, 16);
+        assert!(
+            !should_sample(10.0, 10.0, interval),
+            "paused: no new sample"
+        );
+        assert!(!should_sample(10.0 + interval * 0.5, 10.0, interval));
+        assert!(should_sample(10.0 + interval, 10.0, interval));
+        assert!(trail_sample_interval_days(31.0, 30.0, 0).is_infinite());
+        assert!(!should_sample(1e9, 0.0, f64::INFINITY));
+    }
+
+    /// MOT-01: the trail fades from the body backwards.
+    #[test]
+    fn mot_01_trail_fades_from_newest_to_oldest() {
+        assert_eq!(trail_dot_fade(0, 16), 1.0);
+        assert!(trail_dot_fade(8, 16) < trail_dot_fade(4, 16));
+        assert!(trail_dot_fade(15, 16) > 0.0, "the oldest dot still shows");
+        assert_eq!(trail_dot_fade(0, 0), 0.0);
     }
 }

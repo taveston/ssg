@@ -11,9 +11,6 @@
 
 use bevy::prelude::*;
 
-// Some fields are spec tunables whose feature lands in a later step of this
-// milestone; they are deliberately present and documented up front.
-#[allow(dead_code)]
 #[derive(Resource, Debug, Clone)]
 pub struct Tunables {
     // --- Satellite grouping ---
@@ -44,16 +41,6 @@ pub struct Tunables {
     /// Line width of an exposure ring. The ordinary dim orbit ring is 1px.
     pub exposure_ring_width_px: f32,
 
-    // --- Fan-out magnifier (step 5, not yet wired) ---
-    /// Radius of the circular magnifier frame.
-    pub magnifier_radius_px: f32,
-    /// If true scale would put the innermost included orbit closer than
-    /// this to the centre, outermost small moons are dropped instead.
-    pub magnifier_inner_min_px: f32,
-    /// Moons below this physical radius are left out of the magnifier.
-    /// Stations and parked ships are always included regardless.
-    pub magnifier_moon_radius_threshold_km: f64,
-
     // --- Zoom and navigation ---
     /// Each wheel notch multiplies the view scale by this factor.
     pub zoom_step_factor: f32,
@@ -63,8 +50,10 @@ pub struct Tunables {
     /// stop, so the stop reads as slight resistance rather than a snag.
     pub zoom_stop_resistance: f32,
     /// On release, a continuous (trackpad) zoom settles to the nearest stop
-    /// if it is within this many zoom steps. Not yet wired: continuous
-    /// pinch input is deferred until there's hardware to test it on.
+    /// if it is within this many zoom steps. Waits for ZOOM-07, which is not
+    /// built: continuous pinch input is deferred until there's hardware to
+    /// test it on.
+    #[allow(dead_code)]
     pub pinch_settle_steps: f32,
     /// Duration of the combined pan-and-zoom when framing a body's
     /// satellites (double-click, or the focus key).
@@ -74,7 +63,9 @@ pub struct Tunables {
     /// screen edge.
     pub zoom_fit_margin: f32,
     /// Fallback double-click window, used only if the picking backend's own
-    /// click-count proves unreliable.
+    /// click-count proves unreliable. Waits for ZOOM-16 and ZOOM-17, which
+    /// are not built; the current code reads the backend's click count.
+    #[allow(dead_code)]
     pub double_click_window_ms: f32,
 }
 
@@ -90,10 +81,6 @@ impl Default for Tunables {
             motion_crossfade_ms: 200.0,
             trail_arc_degrees: 30.0,
             exposure_ring_width_px: 3.0,
-
-            magnifier_radius_px: 80.0,
-            magnifier_inner_min_px: 12.0,
-            magnifier_moon_radius_threshold_km: 200.0,
 
             zoom_step_factor: 2.0,
             zoom_anim_ms: 200.0,

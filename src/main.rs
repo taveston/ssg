@@ -1,6 +1,7 @@
 use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
 use bevy::prelude::*;
 
+mod anim;
 mod camera;
 mod colors;
 mod date;
@@ -8,7 +9,6 @@ mod fidelity;
 mod fonts;
 mod grouping;
 mod hover_inspect;
-mod magnifier;
 mod markers;
 mod motion;
 mod orbits;
@@ -18,6 +18,7 @@ mod system_data;
 mod time_control;
 mod topbar;
 mod tunables;
+mod zoom;
 mod zoom_stops;
 
 use camera::CameraPlugin;
@@ -25,7 +26,6 @@ use fidelity::FidelityPlugin;
 use fonts::FontsPlugin;
 use grouping::GroupingPlugin;
 use hover_inspect::HoverInspectPlugin;
-use magnifier::MagnifierPlugin;
 use markers::MarkersPlugin;
 use motion::MotionPlugin;
 use orbits::OrbitsPlugin;
@@ -47,7 +47,6 @@ pub enum Stage {
     Grouping,
     Motion,
     Markers,
-    Magnifier,
 }
 
 fn main() {
@@ -68,7 +67,6 @@ fn main() {
                 Stage::Grouping,
                 Stage::Motion,
                 Stage::Markers,
-                Stage::Magnifier,
             )
                 .chain(),
         )
@@ -85,7 +83,6 @@ fn main() {
         .add_plugins(MotionPlugin)
         .add_plugins(HoverInspectPlugin)
         .add_plugins(MarkersPlugin)
-        .add_plugins(MagnifierPlugin)
         .add_plugins(CameraPlugin)
         .add_plugins(TopBarPlugin)
         .run();

@@ -8,13 +8,16 @@
 //!
 //! Tilt (right drag) and pan (middle drag) are unchanged from iteration 1.
 
-use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
+use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll, MouseScrollUnit};
 use bevy::prelude::*;
 
 use crate::Stage;
 use crate::hover_inspect::Inspections;
 use crate::system_data::BodyClass;
 use crate::tunables::Tunables;
+use crate::zoom::{
+    animated_distance, first_stop_crossed, notches_from_scroll, step_duration_ms, stepped_distance,
+};
 use crate::zoom_stops::{ZoomStops, distance_for_radius, radius_for_distance};
 
 #[derive(Resource, Clone, Copy)]
@@ -302,10 +305,15 @@ fn handle_zoom_input(
     focus: Res<CameraFocus>,
     mut anim: ResMut<ZoomAnim>,
 ) {
-    // Wheel notches only. Continuous (trackpad pinch) input would hook in
-    // here, reading raw pixel-unit scroll events and settling to the
-    // nearest stop on release - deferred until there's hardware to test on.
-    let notches = mouse_scroll.delta.y;
+    // ZOOM-01: whole notches only, converted from the device's own units -
+    // a raw pixel-unit delta would zoom by many steps per event. Continuous
+    // (trackpad pinch) input would hook in here instead, settling to the
+    // nearest stop on release; deferred (ZOOM-07) until there's hardware to
+    // test on.
+    let notches = notches_from_scroll(
+        mouse_scroll.delta.y,
+        mouse_scroll.unit == MouseScrollUnit::Pixel,
+    );
     if notches == 0.0 {
         return;
     }
@@ -334,9 +342,8 @@ fn handle_zoom_input(
         .map(|(entity, transform, _)| (entity, transform.translation()))
         .collect();
 
-    // Each notch multiplies the scale by the step factor.
-    let step = tunables.zoom_step_factor.powf(-notches);
-    let naive_target = state.distance * step;
+    // ZOOM-01: each notch multiplies the scale by the step factor.
+    let naive_target = stepped_distance(state.distance, notches, tunables.zoom_step_factor);
 
     let outer = distance_for_radius(
         stops.system_radius,
@@ -355,32 +362,21 @@ fn handle_zoom_input(
         &transforms,
     );
 
-    // Resist at any stop the step would skip over: settle exactly on it
-    // instead, and take a little longer doing it.
-    let mut target = naive_target;
-    let mut duration = tunables.zoom_anim_ms;
-    let crossed = stop_distances(&stops, &tunables, fov, state.pitch, selected)
-        .into_iter()
-        .filter(|stop| {
-            let (low, high) = if naive_target < state.distance {
-                (naive_target, state.distance)
-            } else {
-                (state.distance, naive_target)
-            };
-            *stop > low && *stop < high
-        })
-        // The first stop encountered in the direction of travel.
-        .min_by(|a, b| {
-            let da = (a - state.distance).abs();
-            let db = (b - state.distance).abs();
-            da.partial_cmp(&db).unwrap_or(std::cmp::Ordering::Equal)
-        });
-    if let Some(stop) = crossed {
-        target = stop;
-        duration = tunables.zoom_anim_ms * (1.0 + tunables.zoom_stop_resistance);
-    }
-
-    let target = target.clamp(inner.min(outer), outer);
+    // ZOOM-05: resist at any stop the step would skip over - settle exactly
+    // on it instead, and take a little longer doing it.
+    let crossed = first_stop_crossed(
+        state.distance,
+        naive_target,
+        &stop_distances(&stops, &tunables, fov, state.pitch, selected),
+    );
+    let duration = step_duration_ms(
+        tunables.zoom_anim_ms,
+        tunables.zoom_stop_resistance,
+        crossed.is_some(),
+    );
+    let target = crossed
+        .unwrap_or(naive_target)
+        .clamp(inner.min(outer), outer);
 
     let target_focus = match anchor {
         Some(anchor) if state.distance > f32::EPSILON => {
@@ -551,13 +547,16 @@ fn advance_zoom_anim(
     }
     anim.elapsed += time.delta_secs();
     let t = (anim.elapsed / anim.duration).clamp(0.0, 1.0);
-    // Ease-out cubic.
-    let eased = 1.0 - (1.0 - t).powi(3);
+    let eased = crate::anim::ease_out_cubic(t);
 
-    state.distance = anim
-        .start_distance
-        .lerp(anim.target_distance, eased)
-        .clamp(MIN_DISTANCE, MAX_DISTANCE);
+    // ZOOM-01: the step eases out onto its target distance.
+    state.distance = animated_distance(
+        anim.start_distance,
+        anim.target_distance,
+        anim.elapsed,
+        anim.duration,
+    )
+    .clamp(MIN_DISTANCE, MAX_DISTANCE);
 
     // Blend towards where the target focus is *now*, so following a moving
     // body works, then hand over the real focus once we arrive.

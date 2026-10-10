@@ -71,6 +71,42 @@ const EDGE_MARGIN_PX: f32 = 28.0;
 /// takes it out of picking, so a folded satellite can't be clicked.
 const MIN_VISIBLE_ALPHA: f32 = 0.02;
 
+/// EDGE-01: where a gate's arrow sits when the gate itself is off-screen.
+///
+/// The arrow is pinned to the viewport edge, `margin_px` inside it, on the
+/// line from the viewport centre towards the gate's projected position -
+/// which is what makes it read as "that way". `None` means the gate is
+/// comfortably on screen and gets its ordinary marker instead.
+pub fn clamp_to_viewport_edge(pos: Vec2, viewport: Vec2, margin_px: f32) -> Option<Vec2> {
+    let centre = viewport / 2.0;
+    let half_extent = (centre - Vec2::splat(margin_px)).max(Vec2::ZERO);
+    let delta = pos - centre;
+
+    // How far along `delta` the first edge is crossed. A component of zero
+    // never crosses its edge, so it puts no limit on the scale.
+    let axis_scale = |delta: f32, extent: f32| {
+        if delta.abs() > f32::EPSILON {
+            extent / delta.abs()
+        } else {
+            f32::INFINITY
+        }
+    };
+    let scale = axis_scale(delta.x, half_extent.x).min(axis_scale(delta.y, half_extent.y));
+    // At or inside the margin: not an edge case at all.
+    if scale >= 1.0 {
+        return None;
+    }
+    Some(centre + delta * scale.max(0.0))
+}
+
+/// EDGE-01: the rotation that turns the arrowhead glyph - which points up
+/// when unrotated - towards the gate.
+pub fn edge_arrow_angle(edge_pos: Vec2, viewport: Vec2) -> f32 {
+    let dir = edge_pos - viewport / 2.0;
+    // Screen y grows downwards, so "up" is -y.
+    dir.x.atan2(-dir.y)
+}
+
 fn marker_half_size(class: BodyClass) -> Vec2 {
     match class {
         BodyClass::Star => Vec2::splat(9.0),
@@ -402,10 +438,8 @@ fn update_markers(
     let in_viewport =
         |pos: Vec2| pos.x >= 0.0 && pos.y >= 0.0 && pos.x <= viewport.x && pos.y <= viewport.y;
 
-    // Gates that fall outside a small margin get clamped to the viewport
-    // edge instead of being hidden outright.
-    let center = viewport / 2.0;
-    let half_extent = viewport / 2.0 - Vec2::splat(EDGE_MARGIN_PX);
+    // EDGE-01: gates that fall outside a small margin get clamped to the
+    // viewport edge instead of being hidden outright.
     let mut gate_edge_targets: HashMap<Entity, Vec2> = HashMap::new();
     for (entity, _, class, _, _, _) in &bodies {
         if *class != BodyClass::Gate {
@@ -414,20 +448,8 @@ fn update_markers(
         let Some(&pos) = screen_pos.get(&entity) else {
             continue;
         };
-        let delta = pos - center;
-        let sx = if delta.x.abs() > f32::EPSILON {
-            half_extent.x / delta.x.abs()
-        } else {
-            f32::INFINITY
-        };
-        let sy = if delta.y.abs() > f32::EPSILON {
-            half_extent.y / delta.y.abs()
-        } else {
-            f32::INFINITY
-        };
-        let scale = sx.min(sy);
-        if scale < 1.0 {
-            gate_edge_targets.insert(entity, center + delta * scale.max(0.0));
+        if let Some(edge) = clamp_to_viewport_edge(pos, viewport, EDGE_MARGIN_PX) {
+            gate_edge_targets.insert(entity, edge);
         }
     }
 
@@ -551,9 +573,7 @@ fn update_markers(
         node.top = px(pos.y - half.0.y);
         // The glyph points up by default; rotate it (clockwise) to point
         // from the viewport centre toward the gate's true direction.
-        let dir = pos - center;
-        let angle = dir.x.atan2(-dir.y);
-        transform.rotation = Rot2::radians(angle);
+        transform.rotation = Rot2::radians(edge_arrow_angle(pos, viewport));
     }
 
     for (label_for, mut node) in &mut edge_labels {
@@ -564,5 +584,98 @@ fn update_markers(
         node.display = Display::Flex;
         node.left = px(pos.x + 10.0);
         node.top = px(pos.y + 10.0);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const VIEWPORT: Vec2 = Vec2::new(1600.0, 900.0);
+    const MARGIN: f32 = 28.0;
+
+    /// EDGE-01: a gate comfortably on screen is not an edge indicator.
+    #[test]
+    fn edge_01_on_screen_gates_are_not_clamped() {
+        assert_eq!(
+            clamp_to_viewport_edge(Vec2::new(800.0, 450.0), VIEWPORT, MARGIN),
+            None
+        );
+        assert_eq!(
+            clamp_to_viewport_edge(Vec2::new(100.0, 100.0), VIEWPORT, MARGIN),
+            None
+        );
+    }
+
+    /// EDGE-01: an off-screen gate is pinned to the edge, inside the
+    /// margin, in its own direction.
+    #[test]
+    fn edge_01_off_screen_gates_are_pinned_inside_the_margin() {
+        for target in [
+            Vec2::new(4000.0, 450.0),
+            Vec2::new(-4000.0, 450.0),
+            Vec2::new(800.0, -3000.0),
+            Vec2::new(800.0, 3000.0),
+            Vec2::new(9000.0, -9000.0),
+        ] {
+            let clamped = clamp_to_viewport_edge(target, VIEWPORT, MARGIN)
+                .unwrap_or_else(|| panic!("{target} is off screen and needs an arrow"));
+            assert!(
+                clamped.x >= MARGIN - 0.01
+                    && clamped.x <= VIEWPORT.x - MARGIN + 0.01
+                    && clamped.y >= MARGIN - 0.01
+                    && clamped.y <= VIEWPORT.y - MARGIN + 0.01,
+                "{target} clamped to {clamped}, outside the margin"
+            );
+            // Still on the ray from the centre towards the gate.
+            let centre = VIEWPORT / 2.0;
+            let to_gate = (target - centre).normalize();
+            let to_arrow = (clamped - centre).normalize();
+            assert!(
+                to_gate.dot(to_arrow) > 0.999,
+                "{target}: arrow at {clamped} is not in the gate's direction"
+            );
+        }
+    }
+
+    /// EDGE-01: the clamp touches exactly one edge - it slides along the
+    /// nearer one rather than cutting the corner.
+    #[test]
+    fn edge_01_clamp_lands_on_the_first_edge_crossed() {
+        // Far right, slightly up: the right edge binds.
+        let clamped = clamp_to_viewport_edge(Vec2::new(5000.0, 400.0), VIEWPORT, MARGIN).unwrap();
+        assert!((clamped.x - (VIEWPORT.x - MARGIN)).abs() < 0.01);
+        // Far up, slightly right: the top edge binds.
+        let clamped = clamp_to_viewport_edge(Vec2::new(850.0, -5000.0), VIEWPORT, MARGIN).unwrap();
+        assert!((clamped.y - MARGIN).abs() < 0.01);
+    }
+
+    /// EDGE-01: a gate straight above or beside the centre is a degenerate
+    /// direction on one axis and must not divide by zero.
+    #[test]
+    fn edge_01_axis_aligned_gates_clamp_cleanly() {
+        let centre = VIEWPORT / 2.0;
+        let above = clamp_to_viewport_edge(Vec2::new(centre.x, -2000.0), VIEWPORT, MARGIN).unwrap();
+        assert!((above.x - centre.x).abs() < 0.01);
+        assert!((above.y - MARGIN).abs() < 0.01);
+        let beside =
+            clamp_to_viewport_edge(Vec2::new(-2000.0, centre.y), VIEWPORT, MARGIN).unwrap();
+        assert!((beside.y - centre.y).abs() < 0.01);
+        assert!((beside.x - MARGIN).abs() < 0.01);
+    }
+
+    /// EDGE-01: the arrow points away from the centre, towards the gate -
+    /// 0 is up, and the angle turns clockwise with the glyph.
+    #[test]
+    fn edge_01_arrow_points_towards_the_gate() {
+        let centre = VIEWPORT / 2.0;
+        let up = edge_arrow_angle(Vec2::new(centre.x, MARGIN), VIEWPORT);
+        assert!(up.abs() < 1e-6);
+        let right = edge_arrow_angle(Vec2::new(VIEWPORT.x - MARGIN, centre.y), VIEWPORT);
+        assert!((right - std::f32::consts::FRAC_PI_2).abs() < 1e-6);
+        let down = edge_arrow_angle(Vec2::new(centre.x, VIEWPORT.y - MARGIN), VIEWPORT);
+        assert!((down.abs() - std::f32::consts::PI).abs() < 1e-6);
+        let left = edge_arrow_angle(Vec2::new(MARGIN, centre.y), VIEWPORT);
+        assert!((left + std::f32::consts::FRAC_PI_2).abs() < 1e-6);
     }
 }
