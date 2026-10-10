@@ -1,155 +1,161 @@
-//! Circular orbital motion and the orbit rings.
+//! Circular orbital motion, in real units (SCL-01, SCL-04, ARCH-10).
 //!
-//! `OrbitalBody` positions its entity directly: for a root-level body (a
-//! planet) that is a world position around the star at the origin; for a
-//! body spawned as a child of another orbital body (a moon, parented to its
-//! planet) it is a local offset, and Bevy's own transform propagation adds
-//! the parent's current world position on top - so planets and moons use
-//! the exact same update logic.
+//! `Orbit` holds the orbital elements in km, days and radians, and a
+//! simulation system writes each body's position in km into
+//! `OrbitPositionKm` from the clock alone (ARCH-11). A separate *view*
+//! system converts those km to render space and writes `Transform`, so the
+//! render transform is never the simulation's source of truth.
 //!
-//! Rings are drawn for planets and for any *unfolded* satellite. A body in
-//! exposure-ring mode (see `motion.rs`) gets a second, brighter and thicker
-//! ring drawn over the dim one.
+//! Positions are relative to whatever the body orbits: the star at the
+//! origin for a planet, the parent body for a satellite. Bevy's transform
+//! propagation adds the parent's world position on top of a satellite's
+//! local offset, so planets and moons share the same update logic.
 
+use bevy::math::DVec3;
 use bevy::prelude::*;
 use std::f64::consts::TAU;
 
 use crate::Stage;
-use crate::grouping::SatelliteFoldState;
-use crate::motion::MotionModeState;
-use crate::system_data::BodyClass;
+use crate::scale::km_to_render_vec3;
 use crate::time_control::GameClock;
-use crate::tunables::Tunables;
 
-#[derive(Component)]
-pub struct OrbitalBody {
-    pub orbit_radius: f32,
+/// Orbital elements in real units: a circular, coplanar orbit (SCL-04).
+#[derive(Component, Debug, Clone, Copy)]
+pub struct Orbit {
+    pub radius_km: f64,
     pub period_days: f64,
     pub phase0_rad: f64,
 }
 
-/// How many straight segments make up a drawn orbit ring.
-const RING_SEGMENTS: usize = 128;
-/// A point must be at least this far in front of the camera to be drawn.
-const NEAR_EPSILON: f32 = 0.01;
+/// A body's position in km, relative to the body it orbits. The
+/// simulation's source of truth for where things are (ARCH-11).
+#[derive(Component, Debug, Clone, Copy, Default)]
+pub struct OrbitPositionKm(pub DVec3);
 
-/// Its own gizmo group so exposure rings can carry a thicker line width
-/// than the ordinary orbit rings.
-#[derive(Default, Reflect, GizmoConfigGroup)]
-pub struct ExposureRingGizmos;
+/// SCL-04 / ARCH-11: where a body on a circular orbit is after
+/// `elapsed_days`, in km relative to what it orbits. The orbital plane is
+/// XZ, so y is always zero.
+pub fn orbit_position_km(orbit: &Orbit, elapsed_days: f64) -> DVec3 {
+    let angle = orbit.phase0_rad + orbital_fraction(orbit.period_days, elapsed_days) * TAU;
+    let (sin, cos) = angle.sin_cos();
+    DVec3::new(orbit.radius_km * cos, 0.0, orbit.radius_km * sin)
+}
+
+/// How many orbits a body has completed in `elapsed_days`. A zero or
+/// non-finite period would otherwise divide by zero; such a body simply
+/// sits at its start phase.
+fn orbital_fraction(period_days: f64, elapsed_days: f64) -> f64 {
+    if period_days.is_finite() && period_days != 0.0 {
+        elapsed_days / period_days
+    } else {
+        0.0
+    }
+}
 
 pub struct OrbitsPlugin;
 
 impl Plugin for OrbitsPlugin {
     fn build(&self, app: &mut App) {
-        app.init_gizmo_group::<ExposureRingGizmos>()
-            .add_systems(Startup, configure_exposure_gizmos)
-            .add_systems(
-                Update,
-                (update_orbital_positions, draw_orbit_paths)
-                    .chain()
-                    .in_set(Stage::Orbits),
-            );
-    }
-}
-
-fn configure_exposure_gizmos(mut config_store: ResMut<GizmoConfigStore>, tunables: Res<Tunables>) {
-    let (config, _) = config_store.config_mut::<ExposureRingGizmos>();
-    config.line.width = tunables.exposure_ring_width_px;
-}
-
-fn update_orbital_positions(
-    clock: Res<GameClock>,
-    mut query: Query<(&OrbitalBody, &mut Transform)>,
-) {
-    for (body, mut transform) in &mut query {
-        let angle = body.phase0_rad + (clock.elapsed_days / body.period_days) * TAU;
-        let (sin, cos) = angle.sin_cos();
-        transform.translation = Vec3::new(
-            body.orbit_radius * cos as f32,
-            0.0,
-            body.orbit_radius * sin as f32,
+        app.add_systems(
+            Update,
+            (update_orbit_positions, project_orbit_positions)
+                .chain()
+                .in_set(Stage::Orbits),
         );
     }
 }
 
-#[allow(clippy::type_complexity)]
-fn draw_orbit_paths(
-    mut gizmos: Gizmos,
-    mut exposure: Gizmos<ExposureRingGizmos>,
-    inspections: Res<crate::hover_inspect::Inspections>,
-    camera_q: Query<(&Camera, &GlobalTransform)>,
-    bodies: Query<(
-        Entity,
-        &OrbitalBody,
-        &BodyClass,
-        Option<&ChildOf>,
-        Option<&SatelliteFoldState>,
-        Option<&MotionModeState>,
-    )>,
-    transforms: Query<&GlobalTransform>,
+/// ARCH-11: simulation. Clock and orbital elements in, km out.
+fn update_orbit_positions(
+    clock: Res<GameClock>,
+    mut bodies: Query<(&Orbit, &mut OrbitPositionKm)>,
 ) {
-    let Ok((_, camera_transform)) = camera_q.single() else {
-        return;
+    let elapsed_days = clock.elapsed_days();
+    for (orbit, mut position) in &mut bodies {
+        position.0 = orbit_position_km(orbit, elapsed_days);
+    }
+}
+
+/// ARCH-11 / ARCH-12: view. The one place a simulated position becomes a
+/// `Transform`, through `scale.rs`.
+fn project_orbit_positions(mut bodies: Query<(&OrbitPositionKm, &mut Transform)>) {
+    for (position, mut transform) in &mut bodies {
+        transform.translation = km_to_render_vec3(position.0);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const MOON: Orbit = Orbit {
+        radius_km: 400_000.0,
+        period_days: 20.0,
+        phase0_rad: 0.0,
     };
-    let camera_pos = camera_transform.translation();
-    let camera_forward = camera_transform.forward().as_vec3();
 
-    for (entity, body, class, child_of, fold, motion) in &bodies {
-        // Gates and salvage sites sit on star orbits that would just add
-        // clutter; gates have their own edge indicators instead.
-        if matches!(class, BodyClass::Gate | BodyClass::SalvageSite) {
-            continue;
+    /// ARCH-11 / SCL-01: the position is in km, straight from the elements
+    /// and the elapsed days - no transform anywhere.
+    #[test]
+    fn arch_11_position_starts_at_the_start_phase() {
+        let position = orbit_position_km(&MOON, 0.0);
+        assert!((position.x - 400_000.0).abs() < 1e-6);
+        assert!(position.y.abs() < 1e-12, "orbits are coplanar in XZ");
+        assert!(position.z.abs() < 1e-6);
+    }
+
+    /// SCL-04: a circular orbit keeps its radius, whatever the phase.
+    #[test]
+    fn scl_04_radius_is_constant_round_the_orbit() {
+        for days in [0.0_f64, 1.3, 5.0, 10.0, 17.7, 100.0] {
+            let position = orbit_position_km(&MOON, days);
+            let radius = (position.x * position.x + position.z * position.z).sqrt();
+            assert!(
+                (radius - MOON.radius_km).abs() < 1e-6,
+                "at {days} d the radius was {radius}"
+            );
         }
-        // A folded satellite draws nothing: no marker, label, ring, trail.
-        if fold.map(|f| f.effective_hidden).unwrap_or(false) {
-            continue;
-        }
+    }
 
-        let center = child_of
-            .and_then(|c| transforms.get(c.parent()).ok())
-            .map(GlobalTransform::translation)
-            .unwrap_or(Vec3::ZERO);
+    /// ARCH-11: one period brings a body back to where it started, and half
+    /// a period puts it on the far side.
+    #[test]
+    fn arch_11_one_period_is_one_full_turn() {
+        let start = orbit_position_km(&MOON, 0.0);
+        let full = orbit_position_km(&MOON, MOON.period_days);
+        assert!((full - start).length() < 1e-6);
 
-        // Drawn segment by segment rather than as one circle, so that the
-        // part of a ring that falls behind the camera is simply left out
-        // instead of taking the whole ring with it. Zooming in on a planet
-        // puts the camera on its own star orbit, and a whole-circle draw
-        // would either vanish or smear through the near plane.
-        let dim = crate::colors::ORBIT_LINE.with_alpha(0.35);
-        let strength = motion.map(MotionModeState::ring_strength).unwrap_or(0.0);
-        let bright = (strength > 0.01).then(|| {
-            let color = if inspections.is_open(entity) {
-                crate::colors::SELECTION_RING
-            } else {
-                crate::colors::NEUTRAL
-            };
-            color.with_alpha(strength)
-        });
+        let half = orbit_position_km(&MOON, MOON.period_days / 2.0);
+        assert!((half + start).length() < 1e-6, "half a period is opposite");
 
-        let point_at = |i: usize| {
-            let angle = i as f32 / RING_SEGMENTS as f32 * std::f32::consts::TAU;
-            center
-                + Vec3::new(
-                    body.orbit_radius * angle.cos(),
-                    0.0,
-                    body.orbit_radius * angle.sin(),
-                )
+        let quarter = orbit_position_km(&MOON, MOON.period_days / 4.0);
+        assert!(quarter.dot(start).abs() < 1e-3, "a quarter turn is square");
+    }
+
+    /// ARCH-11: the start phase offsets the whole orbit, so two bodies on
+    /// the same orbit at different phases never coincide.
+    #[test]
+    fn arch_11_start_phase_offsets_the_orbit() {
+        let other = Orbit {
+            phase0_rad: std::f64::consts::PI,
+            ..MOON
         };
-        let in_front = |p: Vec3| (p - camera_pos).dot(camera_forward) > NEAR_EPSILON;
+        let a = orbit_position_km(&MOON, 3.0);
+        let b = orbit_position_km(&other, 3.0);
+        assert!((a + b).length() < 1e-6);
+    }
 
-        let mut previous = point_at(0);
-        for i in 1..=RING_SEGMENTS {
-            let current = point_at(i % RING_SEGMENTS);
-            if in_front(previous) && in_front(current) {
-                gizmos.line(previous, current, dim);
-                // Exposure-ring mode: the body is moving too fast to read
-                // as a position, so the ring itself carries it.
-                if let Some(bright) = bright {
-                    exposure.line(previous, current, bright);
-                }
-            }
-            previous = current;
-        }
+    /// A body with no period (a degenerate record) sits still rather than
+    /// dividing by zero.
+    #[test]
+    fn arch_11_a_zero_period_body_sits_at_its_start_phase() {
+        let still = Orbit {
+            period_days: 0.0,
+            ..MOON
+        };
+        assert_eq!(
+            orbit_position_km(&still, 0.0),
+            orbit_position_km(&still, 99.0)
+        );
     }
 }

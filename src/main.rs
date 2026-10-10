@@ -12,6 +12,7 @@ mod hover_inspect;
 mod markers;
 mod motion;
 mod orbits;
+mod rings;
 mod scale;
 mod scene;
 mod system_data;
@@ -29,6 +30,7 @@ use hover_inspect::HoverInspectPlugin;
 use markers::MarkersPlugin;
 use motion::MotionPlugin;
 use orbits::OrbitsPlugin;
+use rings::RingsPlugin;
 use scene::ScenePlugin;
 use system_data::SystemDataPlugin;
 use time_control::TimeControlPlugin;
@@ -79,6 +81,7 @@ fn main() {
         .add_plugins(ScenePlugin)
         .add_plugins(ZoomStopsPlugin)
         .add_plugins(OrbitsPlugin)
+        .add_plugins(RingsPlugin)
         .add_plugins(GroupingPlugin)
         .add_plugins(MotionPlugin)
         .add_plugins(HoverInspectPlugin)

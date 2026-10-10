@@ -10,7 +10,8 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
-use crate::orbits::OrbitalBody;
+use crate::orbits::Orbit;
+use crate::scale::km_to_render;
 use crate::system_data::BodyClass;
 
 #[derive(Resource, Default, Debug)]
@@ -78,7 +79,7 @@ impl Plugin for ZoomStopsPlugin {
 
 pub fn compute_stops(
     mut stops: ResMut<ZoomStops>,
-    bodies: Query<(Entity, &OrbitalBody, &BodyClass, Option<&ChildOf>)>,
+    bodies: Query<(Entity, &Orbit, &BodyClass, Option<&ChildOf>)>,
 ) {
     let mut planet_radii: Vec<f32> = Vec::new();
     let mut per_parent: HashMap<Entity, f32> = HashMap::new();
@@ -87,11 +88,11 @@ pub fn compute_stops(
         match child_of {
             Some(child_of) => {
                 let entry = per_parent.entry(child_of.parent()).or_insert(0.0);
-                *entry = entry.max(orbital.orbit_radius);
+                *entry = entry.max(km_to_render(orbital.radius_km));
             }
             None => {
                 if *class == BodyClass::Planet {
-                    planet_radii.push(orbital.orbit_radius);
+                    planet_radii.push(km_to_render(orbital.radius_km));
                 }
             }
         }
@@ -107,7 +108,6 @@ pub fn compute_stops(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scale::km_to_render;
     use crate::system_data::{KM_PER_AU, hand_made_system};
 
     /// The planetary orbit radii of the real test system, in render units.

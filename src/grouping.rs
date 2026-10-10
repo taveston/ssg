@@ -6,7 +6,7 @@
 //! parent and the parent carries a "+N" count pill instead.
 //!
 //! Satellites are identified structurally: `scene.rs` only ever inserts
-//! `ChildOf` for bodies spawned under a parent, so "has `OrbitalBody` and
+//! `ChildOf` for bodies spawned under a parent, so "has `Orbit` and
 //! `ChildOf`" is exactly the set of satellites, with no class matching and
 //! no special case for future ship types.
 
@@ -15,7 +15,8 @@ use std::collections::HashMap;
 use bevy::prelude::*;
 
 use crate::Stage;
-use crate::orbits::OrbitalBody;
+use crate::orbits::Orbit;
+use crate::scale::km_to_render;
 use crate::system_data::{BodyClass, Ownership};
 use crate::tunables::Tunables;
 
@@ -120,7 +121,7 @@ fn update_grouping(
     transforms: Query<&GlobalTransform>,
     parents: Query<&ChildOf>,
     classes: Query<(&BodyClass, &Ownership)>,
-    mut satellites: Query<(Entity, &OrbitalBody, &ChildOf, &mut SatelliteFoldState)>,
+    mut satellites: Query<(Entity, &Orbit, &ChildOf, &mut SatelliteFoldState)>,
     mut summary: ResMut<FoldSummary>,
 ) {
     let Ok((camera, camera_transform)) = camera_q.single() else {
@@ -146,7 +147,7 @@ fn update_grouping(
             camera.world_to_viewport(camera_transform, parent_world),
             camera.world_to_viewport(
                 camera_transform,
-                parent_world + right_flat * orbital.orbit_radius,
+                parent_world + right_flat * km_to_render(orbital.radius_km),
             ),
         ) {
             (Ok(centre), Ok(edge)) => centre.distance(edge),

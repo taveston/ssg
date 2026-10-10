@@ -8,8 +8,8 @@ use bevy::color::palettes::css::SLATE_GRAY;
 use bevy::prelude::*;
 
 use crate::grouping::SatelliteFoldState;
-use crate::orbits::OrbitalBody;
-use crate::scale::{km_to_render, polar_km_to_render};
+use crate::orbits::{Orbit, OrbitPositionKm, orbit_position_km};
+use crate::scale::{km_to_render, km_to_render_vec3};
 use crate::system_data::{
     BodyBlueprint, BodyClass, Description, DisplayName, KeyFacts, Knowledge, Ownership, SystemData,
     SystemDataResource, period_days_for,
@@ -76,10 +76,11 @@ pub fn spawn_system(
     ));
 
     for gate in gates {
-        let orbit_radius = km_to_render(gate.distance_km);
-        let period_days = period_days_for(gate.distance_km, star_mass_kg);
-        let phase0_rad = gate.angle_deg.to_radians();
-        let position = polar_km_to_render(gate.distance_km, gate.angle_deg);
+        let orbit = Orbit {
+            radius_km: gate.distance_km,
+            period_days: period_days_for(gate.distance_km, star_mass_kg),
+            phase0_rad: gate.angle_deg.to_radians(),
+        };
         commands.spawn((
             Name::new(gate.name),
             DisplayName(gate.name.to_string()),
@@ -94,14 +95,21 @@ pub fn spawn_system(
             BodyClass::Gate,
             Ownership::Neutral,
             Knowledge::Surveyed { imaged_day: 0.0 },
-            Transform::from_translation(position),
-            OrbitalBody {
-                orbit_radius,
-                period_days,
-                phase0_rad,
-            },
+            orbit_components(orbit),
         ));
     }
+}
+
+/// An orbiting body's simulation state at the epoch, plus a `Transform`
+/// already matching it so the first frame draws everything in place rather
+/// than at the origin.
+fn orbit_components(orbit: Orbit) -> (Orbit, OrbitPositionKm, Transform) {
+    let position = orbit_position_km(&orbit, 0.0);
+    (
+        orbit,
+        OrbitPositionKm(position),
+        Transform::from_translation(km_to_render_vec3(position)),
+    )
 }
 
 fn spawn_body(
@@ -123,9 +131,11 @@ fn spawn_body(
         children,
     } = blueprint;
 
-    let orbit_radius = km_to_render(orbit_radius_km);
-    let period_days = period_days_for(orbit_radius_km, central_mass_kg);
-    let (sin, cos) = phase0_rad.sin_cos();
+    let orbit = Orbit {
+        radius_km: orbit_radius_km,
+        period_days: period_days_for(orbit_radius_km, central_mass_kg),
+        phase0_rad,
+    };
 
     let mut entity_commands = commands.spawn((
         Name::new(name),
@@ -140,12 +150,7 @@ fn spawn_body(
         class,
         ownership,
         knowledge,
-        Transform::from_xyz(orbit_radius * cos as f32, 0.0, orbit_radius * sin as f32),
-        OrbitalBody {
-            orbit_radius,
-            period_days,
-            phase0_rad,
-        },
+        orbit_components(orbit),
     ));
     if let Some(parent) = parent {
         // Anything spawned under a parent is a satellite, and so subject to

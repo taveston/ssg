@@ -101,8 +101,7 @@ fn spawn_top_bar(mut commands: Commands, fonts: Res<Fonts>) {
                 })
                 .observe(
                     move |_click: On<PointerClick>, mut clock: ResMut<GameClock>| {
-                        clock.paused = false;
-                        clock.speed_days_per_sec = speed;
+                        clock.run_at(speed);
                     },
                 );
             }
@@ -117,12 +116,12 @@ fn spawn_top_bar(mut commands: Commands, fonts: Res<Fonts>) {
 }
 
 fn on_pause_clicked(_click: On<PointerClick>, mut clock: ResMut<GameClock>) {
-    clock.paused = !clock.paused;
+    clock.toggle_pause();
 }
 
 fn update_date_text(clock: Res<GameClock>, mut query: Query<&mut Text, With<DateText>>) {
     for mut text in &mut query {
-        let date = date_from_elapsed_days(clock.elapsed_days);
+        let date = date_from_elapsed_days(clock.elapsed_days());
         *text = Text::new(format_date(&date));
     }
 }
@@ -145,14 +144,15 @@ fn update_button_styles(
     mut speed_buttons: Query<(&SpeedButton, &mut BackgroundColor), Without<PauseButton>>,
 ) {
     for mut background in &mut pause_buttons {
-        background.0 = if clock.paused {
+        background.0 = if clock.is_paused() {
             colors::OWN.with_alpha(0.3)
         } else {
             Color::NONE
         };
     }
     for (speed_button, mut background) in &mut speed_buttons {
-        let active = !clock.paused && (clock.speed_days_per_sec - speed_button.0).abs() < 0.01;
+        let active =
+            !clock.is_paused() && (clock.rate_days_per_sec() - speed_button.0).abs() < 0.01;
         background.0 = if active {
             colors::OWN.with_alpha(0.3)
         } else {

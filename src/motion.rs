@@ -20,7 +20,8 @@ use crate::fonts::Fonts;
 use crate::grouping::SatelliteFoldState;
 use crate::hover_inspect::{self, Inspections};
 use crate::markers::MarkerFor;
-use crate::orbits::OrbitalBody;
+use crate::orbits::Orbit;
+use crate::scale::km_to_render;
 use crate::system_data::{BodyClass, DisplayName};
 use crate::tunables::Tunables;
 
@@ -107,7 +108,7 @@ impl Plugin for MotionPlugin {
 fn spawn_motion_visuals(
     mut commands: Commands,
     fonts: Res<Fonts>,
-    bodies: Query<(Entity, &BodyClass, &DisplayName), With<OrbitalBody>>,
+    bodies: Query<(Entity, &BodyClass, &DisplayName), With<Orbit>>,
 ) {
     for (entity, class, name) in &bodies {
         if *class == BodyClass::Gate {
@@ -238,13 +239,16 @@ fn update_motion_modes(
     time: Res<Time>,
     clock: Res<crate::time_control::GameClock>,
     tunables: Res<Tunables>,
-    mut bodies: Query<(&OrbitalBody, &mut MotionModeState)>,
+    mut bodies: Query<(&Orbit, &mut MotionModeState)>,
 ) {
     let step = crate::anim::step_per_frame(time.delta_secs(), tunables.motion_crossfade_ms);
 
     for (orbital, mut state) in &mut bodies {
-        let apparent =
-            apparent_period_secs(orbital.period_days, clock.speed_days_per_sec, clock.paused);
+        let apparent = apparent_period_secs(
+            orbital.period_days,
+            clock.rate_days_per_sec(),
+            clock.is_paused(),
+        );
 
         let target_ring = next_ring_mode(
             apparent,
@@ -269,7 +273,7 @@ fn update_trails(
     mut bodies: Query<(
         Entity,
         &GlobalTransform,
-        &OrbitalBody,
+        &Orbit,
         &MotionModeState,
         Option<&SatelliteFoldState>,
         Option<&ChildOf>,
@@ -312,8 +316,8 @@ fn update_trails(
             tunables.trail_arc_degrees,
             TRAIL_LENGTH,
         );
-        if should_sample(clock.elapsed_days, trail.last_sample_day, interval_days) {
-            trail.last_sample_day = clock.elapsed_days;
+        if should_sample(clock.elapsed_days(), trail.last_sample_day, interval_days) {
+            trail.last_sample_day = clock.elapsed_days();
             // Store relative to the parent, so the trail traces the orbit
             // rather than the parent's path through the system.
             trail.positions.push(transform.translation() - parent_pos);
@@ -386,7 +390,7 @@ fn update_ring_visuals(
     windows: Query<&Window>,
     inspections: Res<Inspections>,
     bodies: Query<(
-        &OrbitalBody,
+        &Orbit,
         &MotionModeState,
         Option<&ChildOf>,
         Option<&SatelliteFoldState>,
@@ -412,9 +416,9 @@ fn update_ring_visuals(
         };
         let world = centre
             + Vec3::new(
-                orbital.orbit_radius * angle.cos(),
+                km_to_render(orbital.radius_km) * angle.cos(),
                 0.0,
-                orbital.orbit_radius * angle.sin(),
+                km_to_render(orbital.radius_km) * angle.sin(),
             );
         camera.world_to_viewport(camera_transform, world).ok()
     };
