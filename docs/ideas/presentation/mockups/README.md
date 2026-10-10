@@ -1,0 +1,19 @@
+# Mock-ups
+
+PNG exports of the design canvas "Inspect & Planetary Transition" (exported 2026-10-09), one image per board. `../presentation-sketches.md` describes the same boards in words.
+
+| File | Board |
+|---|---|
+| `1-system-view-hover.png` | 1 · System view, hovering Halden IV |
+| `2-inspect-in-place.png` | 2 · Inspect in place, with a pinned comparison |
+| `3-transition-storyboard.png` | 3 · Transition from inspect to planetary view |
+| `4-planetary-view.png` | 4 · Planetary view |
+| `5-inspection-fidelity.png` | 5 · Inspection fidelity follows knowledge |
+| `6-satellite-grouping-and-motion.png` | 6 · Satellite grouping by zoom, and the motion rule |
+
+How to use them:
+
+- They are sketches: reference for look, layout, palette and type, not pixel specs. Everything in them is a candidate unless the spec (`docs/spec/`) says otherwise.
+- Where a mock-up and the spec (`docs/spec/system-view.md`) disagree, the spec wins. In particular, the bubble around Halden IV in board 2 predates the magnifier spec: the real magnifier uses true relative orbit radii (board 6 is closer).
+- Fonts and colours in the images are the real ones (Barlow, JetBrains Mono, the palette in `../presentation-sketches.md`, specced as MRK-01 in `docs/spec/system-view.md`).
+- Planet images are CSS placeholder gradients, not art direction for renders.

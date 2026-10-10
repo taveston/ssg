@@ -1,4 +1,4 @@
-//! The motion rule (`docs/presentation.md` section 2, "Satellites").
+//! The motion rule (`docs/spec/system-view.md`, MOT-01 to MOT-07).
 //!
 //! Apparent period = orbital period / time rate, in real seconds, and
 //! infinite when paused. Above T_dot an orbiting body reads as a dot at its

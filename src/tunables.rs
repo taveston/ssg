@@ -1,9 +1,10 @@
 //! Every number the presentation spec marks *tunable*, in one place.
 //!
-//! `docs/presentation.md` section 2 calls these "starting values for the
-//! proof of concept", and section 6 lists several of them as still-open
-//! design questions. They live here, documented field by field, so they can
-//! be changed without hunting through the systems that consume them.
+//! The tunables table in `docs/spec/system-view.md` lists them with the
+//! spec IDs that use them; `docs/ideas/presentation/presentation.md`
+//! section 6 lists several as still-open design questions. They live
+//! here, documented field by field, so they can be changed without hunting
+//! through the systems that consume them.
 //!
 //! Consumed as an ordinary `Res<Tunables>` system parameter, the same way
 //! `GameClock` and `Fonts` are.

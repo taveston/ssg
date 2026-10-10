@@ -1,7 +1,7 @@
 //! Hand-rolled orbit/zoom/pan camera.
 //!
-//! Zoom is stepped and animated (`docs/presentation.md` section 2,
-//! "Navigation and zoom"): each wheel notch multiplies the view scale by a
+//! Zoom is stepped and animated (`docs/spec/system-view.md`, ZOOM-01 to
+//! ZOOM-12): each wheel notch multiplies the view scale by a
 //! fixed factor over an ease-out animation, anchored on the cursor (or on
 //! the selection), resisting slightly at stops that frame something
 //! meaningful and refusing to go past the system or satellite frames.

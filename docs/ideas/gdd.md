@@ -2,7 +2,7 @@
 
 *Hard sci-fi space strategy for PC*  |  *Last updated:* 2026-10-09  |  *Status:* Concept
 
-Status tags: **Decided** = settled. **Direction** = settled in principle, details open. **Candidate** = under consideration. Open questions are in section 9, shelved ideas in section 8. Companion documents: *Faction History Options*, *Component Catalogue*, *Presentation & Visual Style*, *ideology-triangle.svg* (diagram).
+Status tags: **Decided** = settled. **Direction** = settled in principle, details open. **Candidate** = under consideration. Open questions are in section 9, shelved ideas in section 8. Companion documents (paths under `docs/ideas/`): *Setting & Back Story* (`world/setting.md`), *Faction History Options*, *Component Catalogue*, *Component Stats & Ship Assembly*, *Requirements & Bids*, *Drives & Transit*, *World Generator* (all in `mechanics/`), *Presentation & Visual Style* and *Reference Sketches* (`presentation/`), *ideology-triangle.svg* (diagram, `mechanics/`). What is committed for building is in `docs/spec/`; see `docs/README.md`.
 
 ---
 
@@ -108,6 +108,7 @@ Combat is a small part of play; most time goes to running the state.
 ### 4.7 Factions
 
 - **Differentiation (direction):** mechanical, not hand-crafted backstory. Other differentiators (candidate): geography and gates, starting organisations, seeded designs and understanding, government form, leader traits.
+- **Specced:** the ideology profile (pool of 12, labels, events) is in `docs/spec/ideology.md`.
 - **Popular ideology (direction):** a position in a triangle of three forces: **Cohesion** (shared ownership and burdens), **Authority** (central direction), **Autonomy** (private initiative). See *ideology-triangle.svg*.
   - **Representation (decided):** the three scores always add up to 12, so the numbers are the position ("Coh 6 · Auth 4 · Auto 2"). Shown to one decimal; stored as integers 0 to 120. Starting scores come from faction history (each option distributes 4 points).
   - **Events (decided):** an event changes one score and the other two absorb the change in proportion to their size, so the faction moves in a straight line towards or away from that corner. Events may also name both sides ("Autonomy → Authority 2").
@@ -131,13 +132,7 @@ Combat is a small part of play; most time goes to running the state.
 
 ## 5. Setting & Narrative (decided)
 
-- **Tone:** hard sci-fi tilt, human-focused.
-- **Premise:** Earth, heart of a galaxy-spanning gate network, is presumed destroyed. After major turmoil, scattered colonies forged successor states. Earth is backstory only.
-- **Timeline:** collapse → turmoil → restoration of social and political order on the ground → game start. At game start factions are just venturing back into space: no interplanetary fleets or trade exist yet, and pre-collapse orbital yards and stations sit dormant or barely maintained.
-- **Mystery:** the cause of Earth's destruction is uncovered through ruins and records; the truth is probably fixed across games, with clue placement varying by map.
-- **Driver:** the main game is about human factions; hints of a great external threat provide a driver and possible end-game.
-- **Candidates:** gates relied on central coordination from Earth (explaining decay); re-opening gates may let the threat in.
-- **Technology:** interplanetary travel takes weeks to months; inter-system travel via non-intrusive FTL gates. Advanced fields are reproduced, not invented; no terraforming. Propulsion families: chemical and solar thermal (local), nuclear thermal (reproducible workhorse), nuclear-electric (slow efficient haulers), pulsed fission/fusion (fast military), relic tiers (fusion torch, antimatter-catalysed), beamed sails (fixed infrastructure).
+Moved to `world/setting.md`: tone, premise, timeline, the Earth mystery, the external threat and the technology baseline.
 
 ## 6. Not Yet Started
 

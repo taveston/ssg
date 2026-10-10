@@ -1,4 +1,4 @@
-//! The fan-out magnifier (`docs/presentation.md` section 2, "Satellites").
+//! The fan-out magnifier (`docs/spec/system-view.md`, MAG-01 to MAG-07).
 //!
 //! Selecting a body that has folded satellites opens a circular magnifier
 //! centred on it: a dashed frame over the dimmed map, showing the folded

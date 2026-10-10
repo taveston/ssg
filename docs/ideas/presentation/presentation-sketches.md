@@ -1,6 +1,6 @@
 # Orphan Worlds: Reference Sketches (Inspect & Planetary Transition)
 
-*Status:* Reference sketches, 2026-10-09. Everything shown is **candidate** unless *Presentation & Visual Style* marks it otherwise. Canvas: [Inspect & Planetary Transition](https://claude.ai/artifact/E8U8j7d2HdB5gGd1S1W5WR). This document describes the canvas in words so it can be used as context without opening it.
+*Status:* Reference sketches, 2026-10-09. Everything shown is **candidate** unless *Presentation & Visual Style* marks it otherwise. Canvas: [Inspect & Planetary Transition](https://claude.ai/artifact/E8U8j7d2HdB5gGd1S1W5WR). This document describes the canvas in words so it can be used as context without opening it. The parts that have been built are specced in `docs/spec/system-view.md`; where a sketch and the spec disagree, the spec wins. PNG exports are in `mockups/`.
 
 ---
 

@@ -1,5 +1,5 @@
 //! Zoom stops, computed per system from its actual orbits rather than from
-//! fixed scales (`docs/presentation.md` section 2, "Navigation and zoom").
+//! fixed scales (`docs/spec/system-view.md`, ZOOM-04).
 //!
 //! Stops are stored as *render-space radii*, not camera distances: the
 //! conversion depends on the camera's current pitch, which the player can

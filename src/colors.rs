@@ -1,4 +1,4 @@
-//! The shared palette from `docs/presentation-sketches.md`.
+//! The shared palette from `docs/spec/system-view.md` (MRK-01).
 
 use bevy::prelude::Color;
 

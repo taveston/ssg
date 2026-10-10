@@ -14,25 +14,17 @@ A faction's profile emerges from three history choices: **origins** (what the se
 
 Design goals: readable at a glance, similar magnitude to the other profile numbers, and the effect of any event obvious.
 
-- **Fixed pool of 12.** **Cohesion**, **Authority**, and **Autonomy** always add up to 12, so the three numbers are the position in the triangle. "Coh 6 · Auth 4 · Auto 2" is the whole picture; 4 / 4 / 4 is the exact centre.
-- **One decimal place for display; integers internally.** Scores are stored as integers from 0 to 120 (tenths) and shown divided by 10. Thresholds are 70 and 30 internally.
-- **Ideology label** (section 8):
-  - any score of **7 or more** gives that corner's label;
-  - otherwise, if the lowest score is **3 or less**, the faction sits on the edge opposite that corner (if two scores are 3 or less, the lowest decides);
-  - otherwise **Pluralist**.
-  - Region sizes: each corner about 17% of the triangle, each edge about 14%, Pluralist about 6%. The thresholds are chosen so that random histories give an even spread of labels (section 7).
-- **Events change one score; the other two absorb the change in proportion to their size.** "+3 Authority" adds 3 to Authority and removes 3 from the others, keeping their ratio. Geometrically, the faction moves in a straight line towards that corner (or away from it for a negative change).
-  - Example: Coh 6 · Auth 1 · Auto 5, then +3 Authority, gives Coh 4.4 · Auth 4 · Auto 3.6 (Mutualist to Pluralist).
-  - Rounding (internal): split the change proportionally, round down, and give any leftover tenths to the score with the largest remainder, so the total stays exactly 120.
-  - Limits: no score goes below 0 or above 12; a negative change is capped at the current score; if both other scores are 0 when gaining back, the points are split equally.
-  - Events may also name both sides ("Autonomy → Authority 2"), moving the faction along one edge.
-- **Outlook:** Insular (−) to Outward (+), capped at −6 to +6, starting at 0.
-- **Militancy:** Pacifist (−) to Militant (+), capped at −6 to +6, starting at 0.
-- All five profile numbers therefore span 12 points: "Coh 6 · Auth 4 · Auto 2 | Outward +3 | Militant +1".
-- **Summary line:** ideology label, then Outlook and Militancy (±1 to 2 leaning, ±3+ strongly, 0 neutral). Example: "Meritocratic, outward, strongly militant".
-- **Characters** can use the same pool, thresholds, and labels.
+> **Specced** in `docs/spec/ideology.md` (IDEO-01 to IDEO-31) on 2026-10-10. The exact rules (storage in tenths, label thresholds, the event and rounding rules, summary line) live there; this section keeps the shape and the reasoning.
+
+- **Fixed pool of 12** shared by **Cohesion**, **Authority** and **Autonomy**, so the three numbers *are* the position in the triangle: "Coh 6 · Auth 4 · Auto 2" is the whole picture; 4 / 4 / 4 is the exact centre.
+- **Labels** by thresholds of 7 (corner) and 3 (edge), Pluralist otherwise; thresholds chosen so random histories give an even spread (section 7). Labels and reasoning in section 8.
+- **Events change one score and the other two absorb it in proportion**, so the faction moves in a straight line towards or away from a corner; the effect of any event is obvious at a glance. Two-sided events ("Autonomy → Authority 2") move along an edge.
+- **Outlook** (Insular/Outward) and **Militancy** (Pacifist/Militant), each −6 to +6, so all five profile numbers span 12 points.
+- **Characters** can use the same pool, thresholds and labels.
 
 ## 2. How the history modifiers work
+
+> The 4-points-per-option rule and loading options from data are specced as IDEO-30 and IDEO-31; the option tables below remain placeholders.
 
 - **Ideology:** each option distributes exactly **4 points** across the three forces, so three choices add up to the pool of 12. No baseline or scaling.
 - **Design pattern:** in each phase, three options lean firmly to one force and three blend two forces, and each phase's options total 8 / 8 / 8, so no force is favoured.
@@ -118,6 +110,8 @@ The first row as prose: a trading faction with dormant yards and a vibrant priva
 - Outlook −4 to +5 and Militancy −4 to +6, within the ±6 caps; a slight outward and militant skew that AI weighting can offset.
 
 ## 8. Ideology labels (decided)
+
+> **Settled 2026-10-09; specced** as IDEO-10 to IDEO-13.
 
 **Corner names:** Cohesion / Authority / Autonomy name the three forces (the axes of the triangle). Chosen for neutrality. Rejected alternatives: Communal/Command/Enterprise, Stewardship/Authority/Initiative, Commons/Directorate/Market, Commonwealth/Directorate/Company, Shared/Directed/Free.
 

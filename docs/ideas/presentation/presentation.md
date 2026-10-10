@@ -1,0 +1,81 @@
+# Orphan Worlds: Presentation & Visual Style
+
+*Status:* Draft. Companion to the design document. Status tags as in the design document: **Decided**, **Direction**, **Candidate**. Reference sketches: [Inspect & Planetary Transition](https://claude.ai/artifact/E8U8j7d2HdB5gGd1S1W5WR) (design canvas: system view, inspect in place, transition storyboard, planetary view, inspection fidelity states), described in words in *Reference Sketches*.
+
+---
+
+## 1. View Layers (decided)
+
+| Layer | Purpose | Style |
+|---|---|---|
+| Cluster | Gate network, systems, inter-system movement | Vector display (section 2) |
+| System | Bodies, orbits, ships, stations, gates within one system | Vector display (section 2) |
+| Planetary | Settlement administration and ground combat on one body | See section 3 |
+| Faction administration | High-level management, collated reports, character interactions | Fully 2D UI (direction; section 4) |
+
+- The first three are spatial layers, nested from cluster down to planet. Faction administration runs in parallel to them rather than being a level of zoom.
+
+## 2. Spatial Display
+
+- **The problem (context):** at true scale, planets are far smaller than a pixel in a whole-system view, and ships are invisible at any zoom that shows more than one of them. Engagements span thousands of kilometres, so a close-up of any single ship tells the player little about what is happening.
+- **Strategic display (decided):** the system and cluster views are a vector plotting display: orbits as faint lines, bodies and ships as solid markers, trajectories as lines. System, cluster, and combat views share one visual language; combat is the same display with the clock slowed (design document, 4.6). The look reads as the government's own instruments, which suits a head of state rather than a pilot.
+- **Scale (direction):** positions and orbits are drawn at true scale; markers are drawn at a fixed screen size by class, never at physical size. Only the marker is stylised, never the geometry. (Specced for the system view: SCL-02, MRK-03, MRK-04.)
+  - Marker shape and weight encode type: planet, moon, station, gate, ship, salvage site.
+  - Navigation by stepped zoom with stops, focus jumps, and bookmarks (specced: `docs/spec/system-view.md`, ZOOM); edge-of-screen indicators for important off-screen objects (candidate; specced for gates as EDGE-01).
+  - How gate distance is handled on screen is deliberately left open until gate placement is tuned (section 6).
+- **Inspection view (decided):** highlighting any object expands it into a semi-photorealistic view. This applies to everything: bodies, stations, gates, sites, and ships. Ships appear as blips because of the distances involved, not because they are kept abstract.
+  - **Presentation (candidate):** the view expands in place as an inset anchored to the marker, with the vector display still visible around it. Insets can be pinned to compare objects side by side. (Specced: INS-01 to INS-03.)
+  - **Fidelity follows knowledge (candidate):** the view shows the best image the state holds. An unsurveyed body is a grainy telescope frame; a surveyed one is a clean render with overlays (ice, ruins, settlements); an old observation shows the last image with its date. Own ships and stations render fully; foreign contacts only as well as they have been observed. Ties the visuals to the uncertainty pillar and to partly known salvage sites (design document, 4.5). (Specced for bodies and sites: INS-04; foreign contacts not yet.)
+  - **Renders from designs (candidate):** ship and station renders are assembled from their component designs, so two bids for the same requirements look visibly different, and as-built variants and refits show.
+- **Information model (decided):** the player has a semi-omniscient view. Signal propagation delay is not modelled: what the state knows, the player sees at once, in every system.
+- **Abstract uncertainty (candidate):** limits on knowledge are modelled in abstract ways rather than through physics:
+  - Undetected contacts are not shown. Thermal detection (see *Component Catalogue*, sensors) decides what appears.
+  - Tracked contacts carry an uncertainty region reflecting tracking quality: sensor coverage, the contact's emission control, time since a good detection.
+  - Salvage contents, foreign designs, and unsurveyed bodies are known only as well as they have been observed (see the inspection view above).
+- **Clutter (candidate):**
+  - Moons, stations, and ships in orbit around a body fold into one count marker on that body (specced: `docs/spec/system-view.md`, GRP).
+  - Asteroid belts and debris fields appear as density shading; surveyed, claimed, or active sites are promoted to individual markers.
+  - Information layers can be switched on and off: ownership, resources, salvage, traffic, sensor coverage.
+- **Motion (candidate):** ship paths are drawn as their actual arcs, including burns. Transfer planning shows a fan of alternative paths, each labelled with transit time and delta-v (design document, 4.2). How fast-orbiting objects are drawn is set by the motion rule (specced: `docs/spec/system-view.md`, MOT).
+- **Cluster view (decided):** same style as the system view: systems as nodes, gates as links. Gate throughput, reliability, and ownership as line weight, line style, and colour (candidate).
+
+### Navigation, satellites and motion
+
+> **Specced** in `docs/spec/system-view.md`: navigation and zoom as ZOOM-01 to ZOOM-12, satellite grouping as GRP-01 to GRP-08, the fan-out magnifier as MAG-01 to MAG-07, the motion rule as MOT-01 to MOT-07, with the tunables table. The rules moved there on 2026-10-10; this section keeps only the reasoning and the parts not yet specced.
+
+- **Why (settled 2026-10-09, after iteration 2):** the proof of concept drew every moon at whole-system zoom, moons orbited too fast to read at 1 day/s, and fully continuous zoom felt odd. Hence logarithmic stepped zoom with stops computed from each system's real orbits; folding satellites into a "+N" count marker on their parent below a screen-radius threshold; a true-geometry magnifier for a selected body's folded satellites, instead of compressing radii; and a motion rule that shows fast orbits as bright "exposure rings" rather than smeared dots, based on apparent period (orbital period ÷ time rate), so pausing or slowing time brings dots back with no special case.
+- **Not yet specced (direction):**
+  - Changing layer, to the cluster view or a planetary view, is always deliberate: breadcrumb, double-click on an already-inspected body, or the inset button. Scrolling never changes layer.
+  - The motion rule also applies to the orbital layer of the planetary view.
+  - A trajectory whose target is in exposure-ring mode ends on the ring; with a dot, it ends at the predicted arrival position.
+  - The cluster view uses the same navigation rules where they fit.
+
+## 3. Planetary View
+
+- **Purpose (decided):** where settlements are administered and ground combat takes place.
+- **Entry (direction):** reached from the system view by the inset's "Open planetary view" button or by double-clicking an already-inspected body; never by scrolling. The inspection view is a look at a body, the planetary view is where the player acts on it.
+- **Style (candidate):** a globe using the body's photoreal render as its surface, with vector overlays for settlements, infrastructure, extraction sites, ground formations, landing sites, and orbital assets overhead. This joins the two visual styles in one view.
+- **Ground combat (candidate):** delegated and lightly simulated like space combat (design document, 4.6): the player sets objectives and posture, and watches formations move on the overlay.
+- **Coverage (candidate):** a full planetary view only for bodies with settlements, surface sites, or fighting; small moons and asteroids use the inspection view alone.
+
+## 4. Faction Administration View
+
+- **Purpose (decided):** the faction managed at a high level: policy, budget, appointments, organisations, collated reports, and character interactions.
+- **Style (direction):** a fully 2D UI, separate from the spatial layers.
+- **Links to the map (candidate):** reports, requests, and alerts link to the place they concern, and spatial objects link back to their owners, staff, and records.
+- **Characters (candidate):** shown with what the state knows about them, keeping "average" and "unknown" visibly distinct (design document, 4.3).
+
+## 5. Art Scope (direction)
+
+- The vector layer is cheap to produce. Photoreal work is needed for generated body types and surfaces, stations, gates, ruins, and ship components. The administration view needs portraits and 2D interface art. Keeps art cost in line with the scope risk (design document, section 7).
+
+## 6. Open Questions
+
+- How gate distance appears on screen once placement is settled (true scale, compressed, or an optional overview scaling).
+- Which limits on knowledge to model abstractly, and how; how sensor coverage is shown.
+- Inspection view in place or as a panel; how much survey detail is needed for each fidelity level.
+- Colour palette and faction colours.
+- Zoom: step factor, animation timing, how strong the resistance at stops is, and whether a region frame is needed in small systems.
+- Motion rule: switch abruptly between dot and exposure ring, or fade gradually across a band of speeds; final values for R_show, T_dot, T_ring, and the magnifier size after testing.
+- Planetary view as a globe or flat map, and how much surface detail is modelled.
+- How the administration view is organised (screens, panels, an inbox of reports), and how the player moves between it and the spatial layers.

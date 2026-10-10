@@ -1,4 +1,4 @@
-//! Satellite grouping (`docs/presentation.md` section 2, "Satellites").
+//! Satellite grouping (`docs/spec/system-view.md`, GRP-01 to GRP-08).
 //!
 //! A satellite is anything orbiting a body other than the star - moons,
 //! stations, ships parked in orbit. It is drawn individually only while its
