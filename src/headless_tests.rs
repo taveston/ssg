@@ -12,6 +12,7 @@ use std::time::Duration;
 use bevy::camera::RenderTargetInfo;
 use bevy::prelude::*;
 use bevy::time::TimeUpdateStrategy;
+use bevy::window::WindowResolution;
 
 use crate::content::ContentPlugin;
 use crate::sim::SimPlugin;
@@ -20,6 +21,7 @@ use crate::sim::clock::GameClock;
 use crate::sim::orbit::{Orbit, OrbitPositionKm, orbit_position_km};
 use crate::sim::units::KM_PER_AU;
 use crate::view::camera::stops::{StopsPlugin, ZoomStops, distance_for_radius};
+use crate::view::edge::{EdgePlugin, GateEdgeTargets};
 use crate::view::fold::SatelliteFoldState;
 use crate::view::fonts::Fonts;
 use crate::view::grouping::GroupingPlugin;
@@ -27,6 +29,7 @@ use crate::view::motion::MotionPlugin;
 use crate::view::motion_mode::MotionModeState;
 use crate::view::projection::ProjectionPlugin;
 use crate::view::scale::km_to_render;
+use crate::view::screen::{ScreenPlugin, ScreenPositions};
 use crate::view::selection::Selection;
 use crate::view::tunables::{Tunables, TunablesPlugin};
 use crate::{Boot, Stage};
@@ -94,6 +97,15 @@ fn test_camera(target: Vec3, distance: f32) -> (Camera, Projection, Transform) {
     let offset = Vec3::new(0.0, distance * PITCH.sin(), distance * PITCH.cos());
     let transform = Transform::from_translation(target + offset).looking_at(target, Vec3::Y);
     (camera, projection, transform)
+}
+
+/// Font handles for plugins that spawn text; nothing is rendered.
+fn placeholder_fonts() -> Fonts {
+    Fonts {
+        label: Handle::default(),
+        label_semibold: Handle::default(),
+        mono: Handle::default(),
+    }
 }
 
 fn fov() -> f32 {
@@ -241,11 +253,7 @@ fn arch_31_motion_mode_after_a_rate_change() {
         .add_plugins((TunablesPlugin, MotionPlugin))
         // Shared view state the ring labels read; `ViewPlugin` owns it.
         .init_resource::<Selection>()
-        .insert_resource(Fonts {
-            label: Handle::default(),
-            label_semibold: Handle::default(),
-            mono: Handle::default(),
-        });
+        .insert_resource(placeholder_fonts());
     let ring = |app: &mut App, name: &str| {
         let entity = body(app, name);
         app.world()
@@ -311,4 +319,53 @@ fn arch_31_zoom_stops_for_corvane() {
         !satellite_frames.contains_key(&pell),
         "Pell has no satellites"
     );
+}
+
+/// EDGE-01 (F4-08): zoomed in and tilted, every gate still has an arrow on
+/// the screen edge - including gates behind the camera, which have no
+/// projected position at all.
+#[test]
+fn edge_01_every_gate_has_an_arrow_when_zoomed_in() {
+    let mut app = headless_app(FRAME);
+    app.add_plugins((ContentPlugin, SimPlugin))
+        .add_plugins((TunablesPlugin, ProjectionPlugin, StopsPlugin))
+        .add_plugins((ScreenPlugin, EdgePlugin))
+        .insert_resource(placeholder_fonts());
+    app.world_mut().spawn(Window {
+        resolution: WindowResolution::new(VIEWPORT.x, VIEWPORT.y),
+        ..default()
+    });
+    run(&mut app, 2);
+    app.world_mut().resource_mut::<GameClock>().toggle_pause();
+    run(&mut app, 2);
+
+    let halden = body(&mut app, "Halden IV");
+    let margin = app.world().resource::<Tunables>().zoom_fit_margin;
+    let radius = app
+        .world()
+        .resource::<ZoomStops>()
+        .satellite_radius(halden)
+        .unwrap();
+    let distance = distance_for_radius(radius, fov(), PITCH, margin);
+    let halden_pos = app
+        .world()
+        .get::<GlobalTransform>(halden)
+        .unwrap()
+        .translation();
+    app.world_mut().spawn(test_camera(halden_pos, distance));
+    run(&mut app, 4);
+
+    let gates: Vec<Entity> = ["Gate Ostra", "Gate Brenn", "Gate Soll"]
+        .into_iter()
+        .map(|name| body(&mut app, name))
+        .collect();
+    let screen = app.world().resource::<ScreenPositions>();
+    let pinned = app.world().resource::<GateEdgeTargets>();
+    for gate in gates {
+        let on_screen = screen.get(gate).is_some_and(|pos| screen.in_viewport(pos));
+        assert!(
+            on_screen || pinned.is_pinned(gate),
+            "a gate has neither a marker nor an edge arrow"
+        );
+    }
 }

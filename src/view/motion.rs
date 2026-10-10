@@ -1,7 +1,8 @@
-//! The motion rule on screen (MOT-01 to MOT-03, MOT-05, MOT-08): keeps each
+//! The motion rule on screen (MOT-01 to MOT-03, MOT-08): keeps each
 //! orbiting body's motion mode current, and draws dot-mode trails and the
-//! labels and hit targets of exposure rings. The rings themselves are drawn
-//! in `rings.rs`; the rules are in `motion_mode.rs`.
+//! labels of exposure rings. The rings themselves are drawn in `rings.rs`,
+//! hit-tested in `ring_picking.rs` (MOT-05); the rules are in
+//! `motion_mode.rs`.
 //!
 //! MOT-08: applies to everything that orbits, not just satellites -
 //! close-in planets get it too. Gates keep their edge-indicator treatment.
@@ -19,11 +20,9 @@ use crate::view::anim::step_per_frame;
 use crate::view::colors;
 use crate::view::fold::SatelliteFoldState;
 use crate::view::fonts::Fonts;
-use crate::view::hover;
 use crate::view::scale::km_to_render;
 use crate::view::screen::in_viewport;
 use crate::view::selection::Selection;
-use crate::view::targets::MarkerFor;
 use crate::view::tunables::Tunables;
 use crate::{Boot, Stage};
 
@@ -50,20 +49,12 @@ pub struct TrailDotFor(pub Entity, pub usize);
 #[derive(Component)]
 pub struct RingLabelFor(pub Entity);
 
-/// One of a necklace of invisible hit targets strung around an exposure
-/// ring, so hovering or clicking the ring itself hits the satellite
-/// (MOT-05). Gizmo-drawn rings aren't pickable on their own.
-#[derive(Component)]
-pub struct RingHitFor(pub Entity, pub usize);
-
 /// MOT-01: how many dots a trail is drawn with.
 pub const TRAIL_LENGTH: usize = 16;
 /// Alpha of the newest trail dot. The trail is a hint of where the body has
 /// just been, so even its brightest sample sits well under the marker's.
 const TRAIL_PEAK_ALPHA: f32 = 0.5;
 const TRAIL_DOT_PX: f32 = 3.0;
-const RING_HIT_SEGMENTS: usize = 16;
-const RING_HIT_SIZE_PX: f32 = 14.0;
 /// Below this strength an exposure ring's label and hit targets are off.
 const MIN_RING_STRENGTH: f32 = 0.05;
 /// Where a ring's label sits relative to its fixed spot on the ring.
@@ -98,7 +89,6 @@ impl Plugin for MotionPlugin {
                     sample_trails,
                     draw_trails,
                     place_ring_labels,
-                    place_ring_hits,
                 )
                     .chain()
                     .in_set(Stage::Motion),
@@ -106,8 +96,8 @@ impl Plugin for MotionPlugin {
     }
 }
 
-/// Every orbiting body gets motion state, a trail pool, a ring label and a
-/// ring hit necklace. Gates keep their edge-indicator treatment instead.
+/// Every orbiting body gets motion state, a trail pool and a ring label
+/// (its ring's hit target is `ring_picking.rs`'s). Gates keep their edge-indicator treatment instead.
 fn spawn_motion_visuals(
     mut commands: Commands,
     fonts: Res<Fonts>,
@@ -122,7 +112,6 @@ fn spawn_motion_visuals(
             .insert((MotionModeState::default(), FadingTrail::default()));
         spawn_trail_dots(&mut commands, entity);
         spawn_ring_label(&mut commands, &fonts, entity, name);
-        spawn_ring_hits(&mut commands, entity);
     }
 }
 
@@ -155,28 +144,6 @@ fn spawn_ring_label(commands: &mut Commands, fonts: &Fonts, body: Entity, name: 
         fonts.label(RING_LABEL_FONT_PX),
         TextColor(colors::NEUTRAL),
     ));
-}
-
-fn spawn_ring_hits(commands: &mut Commands, body: Entity) {
-    for index in 0..RING_HIT_SEGMENTS {
-        commands
-            .spawn((
-                RingHitFor(body, index),
-                MarkerFor(body),
-                Node {
-                    position_type: PositionType::Absolute,
-                    width: px(RING_HIT_SIZE_PX),
-                    height: px(RING_HIT_SIZE_PX),
-                    display: Display::None,
-                    ..default()
-                },
-                BackgroundColor(Color::NONE),
-            ))
-            // MOT-05: hover and click on the ring target its object.
-            .observe(hover::on_marker_over)
-            .observe(hover::on_marker_out)
-            .observe(hover::on_marker_click);
-    }
 }
 
 /// MOT-01 to MOT-04: each body's mode follows its apparent period, with a
@@ -287,7 +254,8 @@ fn draw_trails(
     }
 }
 
-type RingBodies<'w, 's> = Query<
+/// Orbiting bodies, with what decides whether their exposure ring shows.
+pub type RingBodies<'w, 's> = Query<
     'w,
     's,
     (
@@ -299,7 +267,7 @@ type RingBodies<'w, 's> = Query<
 >;
 
 /// Where the point at `angle` on a body's orbit lands on screen.
-fn ring_point(
+pub fn ring_point(
     body: Entity,
     angle: f32,
     bodies: &RingBodies,
@@ -317,7 +285,7 @@ fn ring_point(
 }
 
 /// MOT-02: how strongly a body's exposure ring shows, if at all.
-fn ring_strength(body: Entity, bodies: &RingBodies) -> Option<f32> {
+pub fn ring_strength(body: Entity, bodies: &RingBodies) -> Option<f32> {
     let (_, mode, _, fold) = bodies.get(body).ok()?;
     let hidden = fold.is_some_and(|f| f.effective_hidden);
     let strength = mode.ring_strength();
@@ -359,31 +327,6 @@ fn place_ring_labels(
             colors::NEUTRAL
         };
         color.0 = base.with_alpha(strength);
-    }
-}
-
-/// MOT-05: string the hit targets round each active exposure ring.
-fn place_ring_hits(
-    camera_q: Query<(&Camera, &GlobalTransform)>,
-    bodies: RingBodies,
-    transforms: Query<&GlobalTransform>,
-    mut hits: Query<(&RingHitFor, &mut Node)>,
-) {
-    let Ok(camera) = camera_q.single() else {
-        return;
-    };
-    for (hit_for, mut node) in &mut hits {
-        let body = hit_for.0;
-        let angle = hit_for.1 as f32 / RING_HIT_SEGMENTS as f32 * std::f32::consts::TAU;
-        let pos = ring_strength(body, &bodies)
-            .and_then(|_| ring_point(body, angle, &bodies, &transforms, camera));
-        let Some(pos) = pos else {
-            node.display = Display::None;
-            continue;
-        };
-        node.display = Display::Flex;
-        node.left = px(pos.x - RING_HIT_SIZE_PX * 0.5);
-        node.top = px(pos.y - RING_HIT_SIZE_PX * 0.5);
     }
 }
 

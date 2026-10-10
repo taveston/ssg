@@ -74,6 +74,24 @@ pub fn clamp_to_viewport_edge(pos: Vec2, viewport: Vec2, margin_px: f32) -> Opti
     Some(centre + delta * scale.max(0.0))
 }
 
+/// EDGE-01 (F4-08): which way on screen a point lies, from the camera's own
+/// axes. Used for a gate the camera can't project because it is behind it:
+/// its direction is still well defined - a gate behind a steeply tilted
+/// camera reads as "down" - even though it has no screen position.
+pub fn screen_direction(to_target: Vec3, camera_right: Vec3, camera_up: Vec3) -> Vec2 {
+    // Screen y grows downwards.
+    Vec2::new(to_target.dot(camera_right), -to_target.dot(camera_up))
+}
+
+/// EDGE-01 (F4-08): pin an arrow on the edge in a screen direction from the
+/// centre. `None` for no direction at all (a point dead behind the lens).
+pub fn pin_direction_to_edge(direction: Vec2, viewport: Vec2, margin_px: f32) -> Option<Vec2> {
+    let direction = direction.try_normalize()?;
+    // Any point well past the viewport along the direction clamps the same.
+    let beyond = viewport / 2.0 + direction * viewport.length();
+    clamp_to_viewport_edge(beyond, viewport, margin_px)
+}
+
 /// EDGE-01: the rotation that turns the arrowhead glyph - which points up
 /// when unrotated - towards the gate.
 pub fn edge_arrow_angle(edge_pos: Vec2, viewport: Vec2) -> f32 {
@@ -145,21 +163,30 @@ fn spawn_edge_indicators(
 }
 
 /// EDGE-01: gates that fall outside a small margin get clamped to the
-/// viewport edge instead of being hidden outright.
+/// viewport edge instead of being hidden outright. A gate behind the camera
+/// has no projected position; it is pinned in its direction instead (F4-08).
 fn update_edge_targets(
     screen: Res<ScreenPositions>,
-    gates: Query<(Entity, &BodyClass)>,
+    camera_q: Query<&GlobalTransform, With<Camera>>,
+    gates: Query<(Entity, &BodyClass, &GlobalTransform)>,
     mut targets: ResMut<GateEdgeTargets>,
 ) {
     targets.0.clear();
-    for (entity, class) in &gates {
+    let camera = camera_q.single().ok();
+    for (entity, class, transform) in &gates {
         if *class != BodyClass::Gate {
             continue;
         }
-        let Some(pos) = screen.get(entity) else {
-            continue;
+        let edge = match (screen.get(entity), camera) {
+            (Some(pos), _) => clamp_to_viewport_edge(pos, screen.viewport, EDGE_MARGIN_PX),
+            (None, Some(camera)) => {
+                let to_gate = transform.translation() - camera.translation();
+                let direction = screen_direction(to_gate, *camera.right(), *camera.up());
+                pin_direction_to_edge(direction, screen.viewport, EDGE_MARGIN_PX)
+            }
+            (None, None) => None,
         };
-        if let Some(edge) = clamp_to_viewport_edge(pos, screen.viewport, EDGE_MARGIN_PX) {
+        if let Some(edge) = edge {
             targets.0.insert(entity, edge);
         }
     }
@@ -274,6 +301,30 @@ mod tests {
             clamp_to_viewport_edge(Vec2::new(-2000.0, centre.y), VIEWPORT, MARGIN).unwrap();
         assert!((beside.y - centre.y).abs() < 0.01);
         assert!((beside.x - MARGIN).abs() < 0.01);
+    }
+
+    /// EDGE-01 (F4-08): a point behind a camera looking down and forward
+    /// reads as "down the screen", and to the right of it as "right".
+    #[test]
+    fn edge_01_points_behind_the_camera_still_have_a_direction() {
+        let (right, up) = (Vec3::X, Vec3::new(0.0, 0.4, -0.9).normalize());
+        // Behind and on the near side of a steeply tilted camera.
+        let behind = screen_direction(Vec3::new(0.0, -0.2, 5.0), right, up);
+        assert!(behind.y > 0.0, "down the screen");
+        let behind_right = screen_direction(Vec3::new(3.0, -0.2, 5.0), right, up);
+        assert!(behind_right.x > 0.0 && behind_right.y > 0.0);
+    }
+
+    /// EDGE-01 (F4-08): a direction pins to the edge, inside the margin;
+    /// no direction pins nowhere.
+    #[test]
+    fn edge_01_directions_pin_to_the_edge() {
+        let down = pin_direction_to_edge(Vec2::Y, VIEWPORT, MARGIN).unwrap();
+        assert!((down.y - (VIEWPORT.y - MARGIN)).abs() < 0.01);
+        assert!((down.x - VIEWPORT.x / 2.0).abs() < 0.01);
+        let left = pin_direction_to_edge(Vec2::new(-1.0, 0.0), VIEWPORT, MARGIN).unwrap();
+        assert!((left.x - MARGIN).abs() < 0.01);
+        assert_eq!(pin_direction_to_edge(Vec2::ZERO, VIEWPORT, MARGIN), None);
     }
 
     /// EDGE-01: the arrow points away from the centre, towards the gate -

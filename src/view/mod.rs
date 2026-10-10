@@ -22,11 +22,13 @@ pub mod fonts;
 pub mod grouping;
 pub mod hover;
 pub mod inspect;
+pub mod marker_images;
 pub mod markers;
 pub mod motion;
 pub mod motion_mode;
 pub mod pills;
 pub mod projection;
+pub mod ring_picking;
 pub mod rings;
 pub mod scale;
 pub mod screen;
@@ -54,8 +56,10 @@ impl Plugin for ViewPlugin {
                 grouping::GroupingPlugin,
                 motion::MotionPlugin,
                 rings::RingsPlugin,
+                ring_picking::RingPickingPlugin,
                 screen::ScreenPlugin,
                 edge::EdgePlugin,
+                marker_images::MarkerImagesPlugin,
                 markers::MarkersPlugin,
                 pills::PillsPlugin,
                 hover::HoverPlugin,

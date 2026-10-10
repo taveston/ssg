@@ -17,6 +17,7 @@ use super::edge::GateEdgeTargets;
 use super::fold::SatelliteFoldState;
 use super::fonts::Fonts;
 use super::hover;
+use super::marker_images::MarkerImages;
 use super::motion_mode::MotionModeState;
 use super::screen::ScreenPositions;
 use super::targets::MarkerFor;
@@ -42,6 +43,8 @@ pub enum MarkerStyle {
     Border,
     /// Text glyph: colour on the child `TextColor`.
     Glyph,
+    /// Generated shape image: colour on the `ImageNode`'s tint.
+    Image,
 }
 
 /// MRK-04: the shape a body's marker takes.
@@ -50,6 +53,10 @@ pub enum MarkerShape {
     Disc,
     HollowSquare,
     HollowCircle,
+    /// Filled triangle pointing up, from `MarkerImages`.
+    FilledTriangle,
+    /// Filled diamond, from `MarkerImages`.
+    FilledDiamond,
     Glyph(&'static str),
 }
 
@@ -58,6 +65,7 @@ impl MarkerShape {
         match self {
             MarkerShape::Disc => MarkerStyle::Fill,
             MarkerShape::HollowSquare | MarkerShape::HollowCircle => MarkerStyle::Border,
+            MarkerShape::FilledTriangle | MarkerShape::FilledDiamond => MarkerStyle::Image,
             MarkerShape::Glyph(_) => MarkerStyle::Glyph,
         }
     }
@@ -93,16 +101,16 @@ fn marker_half_size(class: BodyClass) -> Vec2 {
 
 /// MRK-04: filled disc = body; hollow square = station; triangle = own
 /// ship; diamond = foreign contact; X = salvage site. A gate on screen is a
-/// hollow circle (its edge arrow is EDGE-01). Ships are text glyphs for now
-/// (F4-07).
+/// hollow circle (its edge arrow is EDGE-01). The filled triangle and
+/// diamond are generated images (F4-07).
 pub fn marker_shape(class: BodyClass, ownership: Ownership) -> MarkerShape {
     match (class, ownership) {
         (BodyClass::Star | BodyClass::Planet | BodyClass::Moon, _) => MarkerShape::Disc,
         (BodyClass::Station, _) => MarkerShape::HollowSquare,
         (BodyClass::Gate, _) => MarkerShape::HollowCircle,
         (BodyClass::SalvageSite, _) => MarkerShape::Glyph("X"),
-        (BodyClass::Ship, Ownership::Foreign) => MarkerShape::Glyph("<>"),
-        (BodyClass::Ship, _) => MarkerShape::Glyph("^"),
+        (BodyClass::Ship, Ownership::Foreign) => MarkerShape::FilledDiamond,
+        (BodyClass::Ship, _) => MarkerShape::FilledTriangle,
     }
 }
 
@@ -138,10 +146,12 @@ impl Plugin for MarkersPlugin {
 fn spawn_markers(
     mut commands: Commands,
     fonts: Res<Fonts>,
+    images: Res<MarkerImages>,
     bodies: Query<(Entity, &BodyClass, &Ownership, &DisplayName)>,
 ) {
     for (entity, class, ownership, name) in &bodies {
-        spawn_marker(&mut commands, &fonts, entity, *class, *ownership, name);
+        let look = (*class, *ownership);
+        spawn_marker(&mut commands, &fonts, &images, entity, look, name);
     }
 }
 
@@ -167,9 +177,9 @@ fn marker_node(shape: MarkerShape, half: Vec2) -> Node {
 fn spawn_marker(
     commands: &mut Commands,
     fonts: &Fonts,
+    images: &MarkerImages,
     body: Entity,
-    class: BodyClass,
-    ownership: Ownership,
+    (class, ownership): (BodyClass, Ownership),
     name: &DisplayName,
 ) {
     let half = marker_half_size(class);
@@ -196,6 +206,13 @@ fn spawn_marker(
         }
         MarkerStyle::Border => {
             marker.insert((BackgroundColor(Color::NONE), BorderColor::all(color)));
+        }
+        MarkerStyle::Image => {
+            let image = match shape {
+                MarkerShape::FilledTriangle => images.triangle.clone(),
+                _ => images.diamond.clone(),
+            };
+            marker.insert(ImageNode::new(image).with_color(color));
         }
         MarkerStyle::Glyph => {}
     }
@@ -260,6 +277,7 @@ type MarkerNodes<'w, 's> = Query<
         &'static mut Node,
         Option<&'static mut BackgroundColor>,
         Option<&'static mut BorderColor>,
+        Option<&'static mut ImageNode>,
         Option<&'static Children>,
     ),
 >;
@@ -272,7 +290,7 @@ fn update_markers(
     mut markers: MarkerNodes,
     mut text_colors: Query<&mut TextColor>,
 ) {
-    for (marker_for, half, base_color, style, mut node, background, border, children) in
+    for (marker_for, half, base_color, style, mut node, background, border, image, children) in
         &mut markers
     {
         let body = marker_for.0;
@@ -303,11 +321,12 @@ fn update_markers(
         node.top = px(pos.y - half.0.y);
 
         let color = base_color.0.with_alpha(alpha);
-        match (style, background, border) {
-            (MarkerStyle::Fill, Some(mut background), _) => background.0 = color,
-            (MarkerStyle::Border, _, Some(mut border)) => {
+        match (style, background, border, image) {
+            (MarkerStyle::Fill, Some(mut background), _, _) => background.0 = color,
+            (MarkerStyle::Border, _, Some(mut border), _) => {
                 border.set_all(color);
             }
+            (MarkerStyle::Image, _, _, Some(mut image)) => image.color = color,
             _ => {}
         }
         // Labels (and glyph markers) carry their colour on child text.
@@ -334,7 +353,9 @@ mod tests {
         assert_eq!(marker_shape(Star, Neutral), MarkerShape::Disc);
         assert_eq!(marker_shape(Station, Own), MarkerShape::HollowSquare);
         assert_eq!(marker_shape(SalvageSite, Neutral), MarkerShape::Glyph("X"));
-        assert_ne!(marker_shape(Ship, Own), marker_shape(Ship, Foreign));
+        assert_eq!(marker_shape(Ship, Own), MarkerShape::FilledTriangle);
+        assert_eq!(marker_shape(Ship, Foreign), MarkerShape::FilledDiamond);
+        assert_eq!(MarkerShape::FilledTriangle.style(), MarkerStyle::Image);
     }
 
     /// MRK-03: marker size depends on class only.

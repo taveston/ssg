@@ -84,6 +84,51 @@
 - **Affects:** ARCH-33, SCL-03, INS-02 · **Type:** spec gap
 - **Disposition:** removed in iteration 4. Re-add `radius_km` to the body records when a spec ID uses it (physical facts in the inset, or a generator that derives mass from radius).
 
+### F4-17 · Pixel-unit scroll converted at 20 px per notch
+- **Observation:** F4-11 was fixed in step 2, earlier than planned, because the pure zoom-stepping function it needed was being written anyway. ZOOM-01 says raw deltas are never used but not how a pixel-unit device maps to notches. I chose a fixed 20 px per notch (the figure Bevy's examples use), truncated towards zero so a slow trackpad drag doesn't creep (`notches_from_scroll`, tested). Line-unit wheels are unchanged.
+- **Affects:** ZOOM-01, ZOOM-07 · **Type:** spec gap
+- **Disposition:** fixed in iteration 4. When ZOOM-07 (pinch) is built, pixel-unit input should become continuous instead.
+
+### F4-18 · Authored body text sits in the simulation
+- **Observation:** F4-05 asked for display text components to leave `system_data.rs`, but ARCH-02 only lets content and view depend on sim. `DisplayName`, `Description` and `KeyFacts` are what the player's records say about a body, read by the view and written by content, so I put them in `sim/body.rs` with ownership and knowledge. The alternative, a view-owned text component filled by content, would need content to depend on the view.
+- **Affects:** ARCH-01, ARCH-02, F4-05 · **Type:** spec gap
+- **Disposition:** done this way in iteration 4. Revisit when knowledge becomes simulated (what is known changes over time), when this text may want to be derived rather than stored.
+
+### F4-19 · Test layout: bin crate, headless tests in `src/`, a strict length check
+- **Observation:** integration tests in `tests/` need a library crate, and a library exports every `pub` item, which silences the dead-code lint ARCH-33 relies on. So the crate stays a binary: the headless tests are `#[cfg(test)]` apps in `src/headless_tests.rs` (ARCH-31 allows this), and only the text scans, which need no crate access, are in `tests/architecture.rs`. The ARCH-21 check fails the build above 60 lines rather than warning, because a test can't warn; content data and tests are exempt. Grouping needs a camera that can project, which normally needs the renderer, so the headless fold test fills the camera's computed projection in by hand, as Bevy's own camera tests do.
+- **Affects:** ARCH-21, ARCH-31, ARCH-33 · **Type:** spec gap
+- **Disposition:** done this way in iteration 4.
+
+### F4-20 · Gates behind the camera now pinned by direction
+- **Observation:** F4-08 confirmed by a headless test before fixing: at Halden IV's satellite frame with the default tilt, two of the three gates are behind the camera, have no projected position, and got no arrow. A gate that can't be projected is now pinned in the direction given by the camera's own right and up axes (`screen_direction`, `pin_direction_to_edge`), so a gate behind a steeply tilted camera sits on the bottom edge. Gates the camera can project are unchanged.
+- **Affects:** EDGE-01 · **Type:** bug
+- **Disposition:** fixed in iteration 4, test `edge_01_every_gate_has_an_arrow_when_zoomed_in`. Check the arrows' feel in the playtest: a gate passing from behind the camera to in front of it may jump along the edge.
+
+### F4-21 · Gate edge labels show the gate's name
+- **Observation:** EDGE-01 says the arrow is "labelled with its destination"; the label is the gate's display name, "Gate Ostra". The name contains the destination, so it reads correctly, but it isn't literally the destination.
+- **Affects:** EDGE-01 · **Type:** conflict
+- **Disposition:** open for triage: accept the name, or label with the destination alone. Not changed in iteration 4.
+
+### F4-22 · Exposure rings hit-tested by a picking backend
+- **Observation:** for F4-14, the 16 hit squares per ring are replaced by a small Bevy picking backend (`ring_picking.rs`): each active ring is traced on screen every frame, and a pointer within 7 px of it (the old squares' half-width, not a spec tunable) hits an invisible target entity carrying the ordinary marker observers, so tooltip, select and double-click work as before. Ring hits are reported below the UI's order, so a marker, pill, label or panel over the ring wins, and where two rings are in reach the nearer wins.
+- **Affects:** MOT-05 · **Type:** bug
+- **Disposition:** fixed in iteration 4. Check in the playtest that the 7 px reach feels right; promote it to a tunable if it needs tuning.
+
+### F4-23 · Filled ship shapes are generated images
+- **Observation:** for F4-07, Bevy UI has no triangle primitive, so the own-ship triangle and the foreign diamond are small white images generated at startup (antialiased by supersampling) and tinted per marker, which keeps fading and colour identical to the other markers. Box sizes are unchanged (12 px). The salvage-site X stays a glyph, as specced.
+- **Affects:** MRK-04 · **Type:** bug
+- **Disposition:** fixed in iteration 4; MRK-04 needs re-checking by eye.
+
+### F4-24 · "Shown when paused" wording and timing
+- **Observation:** for F3-04, MOT-07 asks that the inset give a ring-mode object's position as "shown when paused" without saying where or in what words. The inset now has a line "Position: shown when paused", in the facts' style, shown while the body's latched motion mode is ring (so it appears and disappears at the mode switch, not part-way through the cross-fade).
+- **Affects:** MOT-07 · **Type:** spec gap
+- **Disposition:** done in iteration 4. Check the wording in the playtest.
+
+### F4-25 · One-frame ordering changes from the restructure
+- **Observation:** ARCH-04's "simulation before view" puts the clock tick and orbit positions first in each frame; before, the clock tick was unordered and the camera ran before orbits. Ring drawing moved from the orbit stage to the overlay stage, so rings now use this frame's fold and motion state rather than last frame's. Count pills are spawned only for bodies with orbiting children, where before any `ChildOf` counted. None of these should be visible; listed because ARCH-35 asks that a refactor change no behaviour.
+- **Affects:** ARCH-04, ARCH-35 · **Type:** spec gap
+- **Disposition:** accepted in iteration 4; confirm nothing looks different in the playtest.
+
 <!-- Findings from the build: copy this block.
 ### F4-16 · Short title
 - **Observation:**

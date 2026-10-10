@@ -20,6 +20,7 @@ use super::date::{date_from_elapsed_days, format_date, format_time_ago};
 use super::fidelity::FidelityImages;
 use super::fonts::Fonts;
 use super::hover::ownership_label;
+use super::motion_mode::MotionModeState;
 use super::selection::Selection;
 use crate::Stage;
 use crate::sim::body::{BodyClass, Description, DisplayName, KeyFacts, Knowledge, Ownership};
@@ -30,6 +31,12 @@ struct InspectPanelFor {
 }
 #[derive(Component)]
 struct LeaderFor(Entity);
+/// The inset line MOT-07 asks for, for the body it describes.
+#[derive(Component)]
+struct PositionNote(Entity);
+
+/// MOT-07: what an inset says for the position of a body in ring mode.
+const POSITION_SHOWN_WHEN_PAUSED: &str = "Position: shown when paused";
 
 const PANEL_WIDTH: f32 = 240.0;
 const PANEL_PADDING_PX: f32 = 10.0;
@@ -57,6 +64,19 @@ const STALE_TONE: Color = Color::srgb(0.65, 0.55, 0.4);
 /// INS-02: "Open planetary view" is disabled until that view exists.
 const DISABLED_ALPHA: f32 = 0.4;
 const DISABLED_BORDER_ALPHA: f32 = 0.3;
+
+/// INS-02 (F4-09): the class line's readable class name.
+pub fn class_label(class: BodyClass) -> &'static str {
+    match class {
+        BodyClass::Star => "Star",
+        BodyClass::Planet => "Planet",
+        BodyClass::Moon => "Moon",
+        BodyClass::Station => "Station",
+        BodyClass::Gate => "Gate",
+        BodyClass::SalvageSite => "Salvage site",
+        BodyClass::Ship => "Ship",
+    }
+}
 
 /// INS-04: which image an inset shows, by knowledge state.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -148,7 +168,12 @@ impl Plugin for InspectPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (handle_escape, rebuild_panels, reposition_panels)
+            (
+                handle_escape,
+                rebuild_panels,
+                update_position_notes,
+                reposition_panels,
+            )
                 .chain()
                 .in_set(Stage::Overlay),
         );
@@ -213,7 +238,7 @@ fn gather_content(
         body,
         pinned,
         name: name.0.clone(),
-        class_line: format!("{:?} · {}", class, ownership_label(*ownership)),
+        class_line: format!("{} · {}", class_label(*class), ownership_label(*ownership)),
         status,
         tone,
         image,
@@ -296,9 +321,37 @@ fn spawn_panel(
                 let line = format!("{key}: {value}");
                 spawn_text(panel, &line, fonts.mono(BODY_FONT_PX), colors::NEUTRAL);
             }
+            spawn_position_note(panel, fonts, content.body);
             spawn_satellite_chips(panel, fonts, &content.satellites);
             spawn_planetary_view_button(panel, fonts);
         });
+}
+
+/// MOT-07: the line that stands in for a position while the body is an
+/// exposure ring. Shown and hidden by `update_position_notes`.
+fn spawn_position_note(panel: &mut ChildSpawnerCommands, fonts: &Fonts, body: Entity) {
+    panel.spawn((
+        PositionNote(body),
+        Node {
+            display: Display::None,
+            ..default()
+        },
+        Text::new(POSITION_SHOWN_WHEN_PAUSED),
+        fonts.mono(BODY_FONT_PX),
+        TextColor(colors::NEUTRAL),
+    ));
+}
+
+/// MOT-07: a body in exposure-ring mode has no readable position, so its
+/// inset says where to get one.
+fn update_position_notes(
+    modes: Query<&MotionModeState>,
+    mut notes: Query<(&PositionNote, &mut Node)>,
+) {
+    for (note, mut node) in &mut notes {
+        let ring = modes.get(note.0).is_ok_and(|mode| mode.ring_mode);
+        node.display = if ring { Display::Flex } else { Display::None };
+    }
 }
 
 fn spawn_text(parent: &mut ChildSpawnerCommands, text: &str, font: TextFont, color: Color) {
@@ -527,6 +580,18 @@ fn place(node: &mut Node, anchor: Option<Vec2>, offset: Vec2) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// INS-02 (F4-09): classes read as words, not enum names.
+    #[test]
+    fn ins_02_class_names_are_readable() {
+        assert_eq!(class_label(BodyClass::SalvageSite), "Salvage site");
+        assert_eq!(class_label(BodyClass::Planet), "Planet");
+        assert!(
+            class_label(BodyClass::Ship)
+                .chars()
+                .all(|c| c.is_alphabetic() || c == ' ')
+        );
+    }
 
     /// INS-04: surveyed is a clean render with the survey date.
     #[test]
