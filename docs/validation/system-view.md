@@ -59,7 +59,7 @@ Checks for every requirement in `docs/spec/system-view.md`. Run them at the end 
 | CAM-05 | Scene D at 5 d/s: Halden IV stays fixed on screen; moons orbit around it. | Auto (pivot = position + offset) | – |
 | CAM-06 | Focus via double-click, F and the inset's Focus button: each starts following. Ctrl+1 in scene D after panning and tilting, Home, then 1: following resumes with the same offset, heading and tilt. | | – |
 | CAM-07 | Scene D: pan away from Halden IV, then run at 5 d/s: Halden IV keeps its new screen position. | | – |
-| CAM-08 | Scene D: select IVc, zoom, rotate: still following. Then each of Home, double-click Iver, a bookmark saved without following, and the chip's ×: following ends (or moves to Iver). | | – |
+| CAM-08 | Scene D: select IVc, zoom, rotate: still following. Then each of Home, zooming out to the system frame, double-click Iver, a bookmark saved without following, and the chip's ×: following ends (or moves to Iver). | | – |
 | CAM-09 | Scene D: chip under the breadcrumb reads "Following Halden IV"; × ends following and the chip disappears. | | – |
 | CAM-10 | Left drag on empty space and from a marker: the map moves exactly with the cursor, also when tilted; release stops dead. A tiny jitter on click still selects. Shift+left drag does nothing. | Auto (threshold) | – |
 | CAM-11 | Middle drag behaves as CAM-10. | | – |

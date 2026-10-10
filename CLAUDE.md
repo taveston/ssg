@@ -27,6 +27,8 @@ Hard sci-fi space strategy game for PC. This repo holds the prototype and the wh
 
 None in progress. The next milestone is set after iteration 3 is validated and its findings triaged; it will be listed here as spec IDs in scope.
 
+**Placeholder for iteration 4 (not yet in scope; do not build until confirmed here):** the camera, ZOOM-13, CAM-01 to CAM-20 and CLK-05, replacing the withdrawn ZOOM-03, ZOOM-12 and CLK-03. The select / focus / follow model is still under discussion, so these IDs may be amended first.
+
 ## How to work
 
 - Implement the spec IDs listed for the milestone, as written. Cite the ID in a comment where a rule is implemented (`// GRP-01`) and in test names (`fn grp_01_hysteresis()`).

@@ -78,7 +78,7 @@ The camera looks at a **pivot**, a point on the orbital plane, from a distance s
 | CAM-05 | While an object is followed, the pivot is recomputed every frame as the object's position plus a pan offset, so the object keeps its place on screen at any time rate. The offset does not rotate with the object's orbit. | not built |
 | CAM-06 | Focus (ZOOM-08, F, and the inset's Focus button) follows the focused object with zero offset. A bookmark (ZOOM-11) also stores heading, tilt and any followed object with its offset; recalling it restores all of them. | not built |
 | CAM-07 | Panning while following changes the offset and does not end following. | not built |
-| CAM-08 | Following ends only on: Home; focusing another object (which is followed instead); recalling a bookmark saved without a followed object; or the × on the follow chip (CAM-09). Selecting another object, zooming and rotating do not end it. | not built |
+| CAM-08 | Following ends only on: Home; a zoom that reaches the system frame (ZOOM-04); focusing another object (which is followed instead); recalling a bookmark saved without a followed object; or the × on the follow chip (CAM-09). Selecting another object, rotating and zooming that stays inside the system frame do not end it. | not built |
 | CAM-09 | While following, a chip under the breadcrumb reads "Following *name*" with a × that ends following. | not built |
 | CAM-10 | Left drag pans: the point on the orbital plane under the cursor when the drag starts stays under the cursor throughout, with no inertia after release. A press and release that moves less than `drag_threshold_px` is a click, never a pan. Shift+left drag is reserved and does nothing. | not built |
 | CAM-11 | Middle drag pans exactly as CAM-10. | not built |
@@ -181,7 +181,6 @@ All in `src/tunables.rs`. Defaults are starting values; changing one is a spec c
 
 ## Open points
 
-- Whether following should end on zooming out to the system frame (CAM-08 currently says no).
 - ZOOM-06's inner limit uses the selected body; when the followed and selected objects differ, which should set it?
 - Per-system camera memory, a frame that rotates with the followed body, selection cycling (Tab), and gamepad and touch input: in `docs/ideas/presentation/presentation.md` (Camera), not yet specced.
 
