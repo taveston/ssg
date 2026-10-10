@@ -21,7 +21,8 @@
 |---|---|---|
 | CLK-01 | The game clock runs continuously at a default of 1 game day per real second. | it1 |
 | CLK-02 | The top bar shows the breadcrumb ("Cluster / Corvane system"), the calendar date, and Pause, 1 d/s and 5 d/s buttons; the active rate is highlighted. | it2 |
-| CLK-03 | Space toggles pause; + doubles and − halves the rate (minimum 1/16 d/s). | it1 |
+| CLK-03 | ~~Space toggles pause; + doubles and − halves the rate (minimum 1/16 d/s).~~ Withdrawn 2026-10-10: + and − now zoom (CAM-16); replaced by CLK-05. | it1 |
+| CLK-05 | Space toggles pause; `.` doubles and `,` halves the rate (minimum 1/16 d/s). | not built |
 | CLK-04 | Pausing stops all orbital motion; every view stays fully interactive while paused. | it1 |
 
 ## 3. Markers and palette
@@ -52,7 +53,7 @@
 |---|---|---|
 | ZOOM-01 | Each wheel notch multiplies the view scale by `zoom_step_factor`, animated over `zoom_anim_ms` with ease-out. Raw wheel deltas are never used. | it3 |
 | ZOOM-02 | New input during a zoom animation retargets from the current scale; it is not queued. | it3 |
-| ZOOM-03 | Zoom is anchored on the cursor, or on the selected object when there is one. | it3 |
+| ZOOM-03 | ~~Zoom is anchored on the cursor, or on the selected object when there is one.~~ Withdrawn 2026-10-10: replaced by ZOOM-13, which adds the followed object and tilt. | it3 |
 | ZOOM-04 | Stops are computed per system from its real orbits: **system frame** (all planetary orbits fit; gates stay as edge indicators), **region frame** (the inner system, or around the selected planet's orbit), **satellite frame** (the selected planet's satellites fit). | it3 |
 | ZOOM-05 | A zoom step that lands on a stop takes longer by `zoom_stop_resistance`, then settles exactly on the stop. | it3 |
 | ZOOM-06 | Hard limits: outer = system frame; inner = satellite frame of the selected body, or of the body nearest the cursor when nothing is selected. Scrolling past a limit does nothing and never changes layer. | it3 |
@@ -61,7 +62,35 @@
 | ZOOM-09 | A double-click on an already-inspected body is the planetary-view trigger. Until that view exists it calls a clearly named hook and does nothing visible. | it3 |
 | ZOOM-10 | Home returns to the system frame with the same animated move. | it3 |
 | ZOOM-11 | Ctrl+1 to Ctrl+4 save a bookmark (scale and centre, or the followed object); 1 to 4 recall it with the same animated move. | it3 |
-| ZOOM-12 | Right drag tilts the camera; middle drag pans. | it1 |
+| ZOOM-12 | ~~Right drag tilts the camera; middle drag pans.~~ Withdrawn 2026-10-10: replaced by section 5a, CAM-10 to CAM-13. | it1 |
+| ZOOM-13 | Zoom is anchored on the followed object when there is one (CAM-05); otherwise on the selected object; otherwise on the point where the cursor's ray meets the orbital plane, or the screen centre for keyboard zoom (CAM-16). The anchor keeps its screen position through the zoom. | not built |
+
+## 5a. Camera
+
+The camera looks at a **pivot**, a point on the orbital plane, from a distance set by the zoom scale. Its orientation is a **heading** (rotation about the plane's normal) and a **tilt** (0° = looking straight down). **North** is a fixed direction in the orbital plane, the same for every system. **Following** an object means the camera tracks it as it moves. Selection (INS-01), focus (ZOOM-08) and following are separate states.
+
+| ID | Requirement | Since |
+|---|---|---|
+| CAM-01 | Heading is unlimited. Tilt is clamped between 0° and `max_pitch_deg`; the camera never goes below the orbital plane. | not built |
+| CAM-02 | The start state is tilt 0° with north at the top of the screen. | not built |
+| CAM-03 | N animates to tilt 0° and north up over `focus_jump_ms`, keeping the pivot and the scale. | not built |
+| CAM-04 | Home (ZOOM-10) also returns to tilt 0° and north up, in the same animated move. | not built |
+| CAM-05 | While an object is followed, the pivot is recomputed every frame as the object's position plus a pan offset, so the object keeps its place on screen at any time rate. The offset does not rotate with the object's orbit. | not built |
+| CAM-06 | Focus (ZOOM-08, F, and the inset's Focus button) follows the focused object with zero offset. A bookmark (ZOOM-11) also stores heading, tilt and any followed object with its offset; recalling it restores all of them. | not built |
+| CAM-07 | Panning while following changes the offset and does not end following. | not built |
+| CAM-08 | Following ends only on: Home; focusing another object (which is followed instead); recalling a bookmark saved without a followed object; or the × on the follow chip (CAM-09). Selecting another object, zooming and rotating do not end it. | not built |
+| CAM-09 | While following, a chip under the breadcrumb reads "Following *name*" with a × that ends following. | not built |
+| CAM-10 | Left drag pans: the point on the orbital plane under the cursor when the drag starts stays under the cursor throughout, with no inertia after release. A press and release that moves less than `drag_threshold_px` is a click, never a pan. Shift+left drag is reserved and does nothing. | not built |
+| CAM-11 | Middle drag pans exactly as CAM-10. | not built |
+| CAM-12 | Right drag rotates about the pivot: horizontal movement changes heading and vertical movement changes tilt, both at `rotate_deg_per_px`, with tilt clamped (CAM-01). | not built |
+| CAM-13 | A right press and release that moves less than `drag_threshold_px` is a right-click. It is reserved for context menus and orders: until those exist it calls a clearly named hook and does nothing visible. | not built |
+| CAM-14 | W, A, S, D and the arrow keys pan relative to the screen (up = towards the top of the screen, along the plane) at `key_pan_screen_per_s` of the visible height at the pivot per second, so the speed looks the same at every zoom and tilt. Movement ramps up and down over `key_pan_ramp_ms`. Holding Shift multiplies the speed by `key_pan_fast_factor`. | not built |
+| CAM-15 | Q and E change heading, Page Up tilts towards the horizon and Page Down towards straight down, all at `key_rotate_deg_per_s`, with tilt clamped (CAM-01). | not built |
+| CAM-16 | + (also = and numpad +) zooms in one step and − (also numpad −) zooms out one step, exactly as a wheel notch (ZOOM-01, ZOOM-02, ZOOM-05, ZOOM-06), anchored per ZOOM-13. | not built |
+| CAM-17 | Edge scrolling: when `edge_scroll_enabled` is true, a cursor within `edge_scroll_px` of a window edge pans that way at the CAM-14 speed. The default is off. | not built |
+| CAM-18 | Every camera and clock key and mouse button is read from one bindings resource; no system hard-codes a key. (A rebinding screen is not yet specced.) | not built |
+| CAM-19 | The pivot never moves further than `pan_bound_factor` × the system frame radius from the star, whether panning freely or by offset while following. | not built |
+| CAM-20 | Pan or rotate input during an animated move (ZOOM-08, ZOOM-10, ZOOM-11, CAM-03) ends the move and takes over from the camera's current state, with no jump. | not built |
 
 ## 6. Satellite grouping
 
@@ -139,6 +168,22 @@ All in `src/tunables.rs`. Defaults are starting values; changing one is a spec c
 | `focus_jump_ms` | 400 | ZOOM-08, ZOOM-10, ZOOM-11 |
 | `zoom_fit_margin` | 0.8 | ZOOM-04 (added in it3; not in the original ideas) |
 | `double_click_window_ms` | 350 | ZOOM-08 (fallback only) |
+| `max_pitch_deg` | 65° | CAM-01, CAM-12, CAM-15 |
+| `drag_threshold_px` | 4 px | CAM-10, CAM-13 |
+| `rotate_deg_per_px` | 0.25 | CAM-12 |
+| `key_pan_screen_per_s` | 0.6 | CAM-14, CAM-17 |
+| `key_pan_ramp_ms` | 120 | CAM-14 |
+| `key_pan_fast_factor` | 3 | CAM-14 |
+| `key_rotate_deg_per_s` | 90 | CAM-15 |
+| `edge_scroll_enabled` | false | CAM-17 |
+| `edge_scroll_px` | 8 px | CAM-17 |
+| `pan_bound_factor` | 1.5 | CAM-19 |
+
+## Open points
+
+- Whether following should end on zooming out to the system frame (CAM-08 currently says no).
+- ZOOM-06's inner limit uses the selected body; when the followed and selected objects differ, which should set it?
+- Per-system camera memory, a frame that rotates with the followed body, selection cycling (Tab), and gamepad and touch input: in `docs/ideas/presentation/presentation.md` (Camera), not yet specced.
 
 ## Not yet specced
 

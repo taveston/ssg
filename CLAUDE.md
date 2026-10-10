@@ -5,7 +5,7 @@ Hard sci-fi space strategy game for PC. This repo holds the prototype and the wh
 ## Where things are
 
 - `docs/spec/`: **the only basis for code.** Each requirement has a stable ID (`ZOOM-03`). Build what the current milestone lists; nothing else.
-  - `system-view.md`: the system view (prefixes SCL, CLK, MRK, EDGE, HOV, INS, ZOOM, GRP, MAG, MOT, TEST) and its tunables table.
+  - `system-view.md`: the system view (prefixes SCL, CLK, MRK, EDGE, HOV, INS, ZOOM, CAM, GRP, MAG, MOT, TEST) and its tunables table.
   - `ideology.md`: the ideology profile (IDEO). Specced, not yet scheduled.
 - `docs/ideas/`: design thinking, back story and open questions. Read it for context and intent, but never implement from it. If something you need is only in `ideas/`, stop and say so.
 - `docs/ideas/presentation/mockups/`: reference images (open them with your image reader). Look and layout only; where an image and the spec disagree, the spec wins.

@@ -50,6 +50,22 @@
   - A trajectory whose target is in exposure-ring mode ends on the ring; with a dot, it ends at the predicted arrival position.
   - The cluster view uses the same navigation rules where they fit.
 
+### Camera
+
+> **Specced** in `docs/spec/system-view.md` as CAM-01 to CAM-20, with ZOOM-13 (zoom anchor) and CLK-05 (time-rate keys); ZOOM-03, ZOOM-12 and CLK-03 are withdrawn in their favour. Settled 2026-10-10. Optimised for keyboard and mouse; gamepad and touch are kept possible but not specified.
+
+- **Camera model (decided): a map camera with constrained tilt.** The camera always looks at a pivot on the orbital plane. Rotation about the plane's normal is free; tilt runs from straight down to a limit well short of the horizon, and the camera never goes below the plane. The default is top-down, north up. *Why:* orbits are coplanar and markers are fixed-size, so a free 3D camera adds little except ways to get lost, while some tilt gives depth and matches the planetary-view transition. A pure top-down view was considered and rejected for that reason.
+- **Rotation (decided): free, with a one-key reset** to level and north up; Home resets it too. A fixed north would help spatial memory, but free rotation lets the player look across the system from any side, and the reset gives the memory aid back on demand.
+- **Following (decided): persists through panning.** At the satellite frame a planet crosses the screen in well under a second, so a framing on a moving body is useless unless the camera tracks it. Focus starts following; panning moves an offset in the followed body's frame instead of cancelling; following ends only on Home, focusing something else, a bookmark without a followed object, or the × on a "Following …" chip. Selection (the inset), focus (the one-off framing move) and follow (persistent tracking) are three separate things. When something is followed it is the zoom anchor.
+- **Mouse (decided):** left drag and middle drag pan 1:1 under the cursor with no inertia; right drag rotates (horizontal = heading, vertical = tilt); **right-click is reserved** for context menus and orders, told apart from right drag by a small movement threshold. Shift+left drag is kept free for a possible box-select.
+- **Keyboard (decided):** WASD and arrows pan at a speed relative to the screen, so it feels the same at every zoom; Q/E rotate; Page Up/Down tilt; + and − zoom one step. **The time rate moves to `.` (faster) and `,` (slower)** so + and − can zoom (common in strategy games). Edge scrolling exists but is off by default. All bindings live in one table so they can be rebound later.
+- **Bounds (decided):** the pivot cannot leave the system's neighbourhood, so the player can't get lost in empty space; Home is always the recovery.
+- **Per-system camera memory (direction):** leaving a system for the cluster or a planetary view and coming back restores the camera, including the followed object. Not specced until there is more than one system.
+- **Rotating frame (candidate):** while following, optionally rotate the camera with the followed body's orbit so the star stays in one direction; useful for planning transfers.
+- **Selection cycling (candidate):** Tab / Shift+Tab step the selection through bodies in orbit order. Useful on the keyboard and the main way to navigate with a gamepad.
+- **Cluster view camera (direction):** the cluster map is 3D, but shallow in depth. The same camera model applies, with the pivot on the cluster's mean plane; tilt there carries real information rather than flourish, so it may want a wider range. Because depth is shallow, drop lines from each system to the mean plane (or a faint plane grid) could make height readable at a glance; candidate.
+- **Gamepad and touch (candidate):** keep every camera action reachable without a mouse. Gamepad: left stick pans, right stick rotates and tilts, triggers step zoom, shoulders cycle selection, a virtual cursor for picking. Touch: one-finger drag pans, pinch zooms (ZOOM-07), two-finger twist rotates, two-finger vertical drag tilts, double-tap stands in for double-click. Nothing should be reachable only by hover: HOV-01's tooltip content also needs a home in the inset.
+
 ## 3. Planetary View
 
 - **Purpose (decided):** where settlements are administered and ground combat takes place.
@@ -76,6 +92,7 @@
 - Inspection view in place or as a panel; how much survey detail is needed for each fidelity level.
 - Colour palette and faction colours.
 - Zoom: step factor, animation timing, how strong the resistance at stops is, and whether a region frame is needed in small systems.
+- Camera: whether following should end on zooming out to the system frame; which body sets the inner zoom limit (ZOOM-06) when the followed and selected objects differ; final tilt limit and pan and rotate speeds after testing; the tilt range for the cluster view.
 - Motion rule: switch abruptly between dot and exposure ring, or fade gradually across a band of speeds; final values for R_show, T_dot, T_ring, and the magnifier size after testing.
 - Planetary view as a globe or flat map, and how much surface detail is modelled.
 - How the administration view is organised (screens, panels, an inbox of reports), and how the player moves between it and the spatial layers.
