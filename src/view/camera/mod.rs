@@ -26,14 +26,13 @@ pub struct CameraPlugin;
 
 impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<state::CameraFocus>()
+        app.add_plugins(stops::StopsPlugin)
+            .init_resource::<state::CameraFocus>()
             .init_resource::<state::OrbitCameraState>()
             .init_resource::<state::ZoomAnim>()
             .init_resource::<state::Bookmarks>()
             .init_resource::<requests::FocusJumpRequest>()
             .init_resource::<requests::PlanetaryViewRequest>()
-            .init_resource::<stops::ZoomStops>()
-            .add_systems(Startup, stops::compute_stops.in_set(Boot::Derive))
             .add_systems(
                 Startup,
                 (rig::spawn_camera, rig::start_at_system_frame)

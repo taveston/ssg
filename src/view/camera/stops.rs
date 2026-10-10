@@ -10,6 +10,7 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
+use crate::Boot;
 use crate::sim::body::BodyClass;
 use crate::sim::orbit::Orbit;
 use crate::view::scale::km_to_render;
@@ -72,7 +73,17 @@ pub fn radius_for_distance(distance: f32, fov_y: f32, pitch: f32, margin: f32) -
     distance * margin * (fov_y * 0.5).tan() / pitch.sin().abs().max(MIN_PITCH_COMPRESSION)
 }
 
-pub fn compute_stops(
+pub struct StopsPlugin;
+
+impl Plugin for StopsPlugin {
+    fn build(&self, app: &mut App) {
+        app.init_resource::<ZoomStops>()
+            .add_systems(Startup, compute_stops.in_set(Boot::Derive));
+    }
+}
+
+/// ZOOM-15: the stops for this system, from its real orbits.
+fn compute_stops(
     mut stops: ResMut<ZoomStops>,
     bodies: Query<(Entity, &Orbit, &BodyClass, Option<&ChildOf>)>,
 ) {

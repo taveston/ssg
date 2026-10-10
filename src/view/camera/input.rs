@@ -134,11 +134,8 @@ pub fn handle_zoom_input(
     focus: Res<CameraFocus>,
     mut anim: ResMut<ZoomAnim>,
 ) {
-    // ZOOM-01: whole notches only, converted from the device's own units -
-    // a raw pixel-unit delta would zoom by many steps per event. Continuous
-    // (trackpad pinch) input would hook in here instead, settling to the
-    // nearest stop on release; deferred (ZOOM-07) until there's hardware to
-    // test on.
+    // ZOOM-01: whole notches only, never the raw delta (ZOOM-07's pinch
+    // would hook in here).
     let notches = notches_from_scroll(
         mouse_scroll.delta.y,
         mouse_scroll.unit == MouseScrollUnit::Pixel,

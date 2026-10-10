@@ -9,6 +9,9 @@ mod content;
 mod sim;
 mod view;
 
+#[cfg(test)]
+mod headless_tests;
+
 /// The startup order: the world is spawned from content, then the view
 /// derives what it needs from it (transforms, fold state, zoom stops), then
 /// the overlay is built on top.

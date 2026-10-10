@@ -199,59 +199,77 @@ fn spawn_marker(
         }
         MarkerStyle::Glyph => {}
     }
-    if let MarkerShape::Glyph(glyph) = shape {
-        marker.with_children(|parent| {
-            parent.spawn((
-                Text::new(glyph),
-                fonts.label(half.x * GLYPH_SCALE),
-                TextColor(color),
-            ));
-        });
-    }
-
     marker
         .observe(hover::on_marker_over)
         .observe(hover::on_marker_out)
-        .observe(hover::on_marker_click);
-
-    // Label, just right of the marker.
-    marker.with_children(|parent| {
-        parent.spawn((
-            Node {
-                position_type: PositionType::Absolute,
-                left: px(half.x * 2.0 + LABEL_GAP_PX),
-                top: px(0),
-                ..default()
-            },
-            Text::new(name.0.clone()),
-            fonts.label(LABEL_FONT_PX),
-            TextColor(color),
-        ));
-    });
+        .observe(hover::on_marker_click)
+        .with_children(|parent| spawn_marker_text(parent, fonts, shape, half, color, name));
 }
 
-#[allow(clippy::type_complexity)]
+/// A glyph marker's glyph, and every marker's label just right of it. Both
+/// are child text, coloured with the marker.
+fn spawn_marker_text(
+    parent: &mut ChildSpawnerCommands,
+    fonts: &Fonts,
+    shape: MarkerShape,
+    half: Vec2,
+    color: Color,
+    name: &DisplayName,
+) {
+    if let MarkerShape::Glyph(glyph) = shape {
+        parent.spawn((
+            Text::new(glyph),
+            fonts.label(half.x * GLYPH_SCALE),
+            TextColor(color),
+        ));
+    }
+    parent.spawn((
+        Node {
+            position_type: PositionType::Absolute,
+            left: px(half.x * 2.0 + LABEL_GAP_PX),
+            top: px(0),
+            ..default()
+        },
+        Text::new(name.0.clone()),
+        fonts.label(LABEL_FONT_PX),
+        TextColor(color),
+    ));
+}
+
+/// What a marker's look depends on, from its body.
+type MarkerBodies<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Option<&'static ChildOf>,
+        Option<&'static SatelliteFoldState>,
+        Option<&'static MotionModeState>,
+    ),
+    With<BodyClass>,
+>;
+
+/// The marker nodes themselves.
+type MarkerNodes<'w, 's> = Query<
+    'w,
+    's,
+    (
+        &'static MarkerFor,
+        &'static MarkerHalfSize,
+        &'static MarkerBaseColor,
+        &'static MarkerStyle,
+        &'static mut Node,
+        Option<&'static mut BackgroundColor>,
+        Option<&'static mut BorderColor>,
+        Option<&'static Children>,
+    ),
+>;
+
+/// MRK-03: place, fade and colour every marker for this frame.
 fn update_markers(
     screen: Res<ScreenPositions>,
     edges: Res<GateEdgeTargets>,
-    bodies: Query<
-        (
-            Option<&ChildOf>,
-            Option<&SatelliteFoldState>,
-            Option<&MotionModeState>,
-        ),
-        With<BodyClass>,
-    >,
-    mut markers: Query<(
-        &MarkerFor,
-        &MarkerHalfSize,
-        &MarkerBaseColor,
-        &MarkerStyle,
-        &mut Node,
-        Option<&mut BackgroundColor>,
-        Option<&mut BorderColor>,
-        Option<&Children>,
-    )>,
+    bodies: MarkerBodies,
+    mut markers: MarkerNodes,
     mut text_colors: Query<&mut TextColor>,
 ) {
     for (marker_for, half, base_color, style, mut node, background, border, children) in

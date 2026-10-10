@@ -47,20 +47,28 @@ fn configure_exposure_gizmos(mut config_store: ResMut<GizmoConfigStore>, tunable
     config.line.width = tunables.exposure_ring_width_px;
 }
 
-#[allow(clippy::type_complexity)]
+/// Everything orbiting, with what decides how its ring is drawn.
+type RingBodies<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static Orbit,
+        &'static BodyClass,
+        Option<&'static ChildOf>,
+        Option<&'static SatelliteFoldState>,
+        Option<&'static MotionModeState>,
+    ),
+>;
+
+/// MRK-05 / MOT-02: every visible orbit's faint ring, and the bright one
+/// over it in exposure-ring mode.
 fn draw_orbit_rings(
     mut gizmos: Gizmos,
     mut exposure: Gizmos<ExposureRingGizmos>,
     selection: Res<crate::view::selection::Selection>,
     camera_q: Query<(&Camera, &GlobalTransform)>,
-    bodies: Query<(
-        Entity,
-        &Orbit,
-        &BodyClass,
-        Option<&ChildOf>,
-        Option<&SatelliteFoldState>,
-        Option<&MotionModeState>,
-    )>,
+    bodies: RingBodies,
     transforms: Query<&GlobalTransform>,
 ) {
     let Ok((_, camera_transform)) = camera_q.single() else {
