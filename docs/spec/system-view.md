@@ -117,7 +117,7 @@ The prototype system, kept as data (SCL-03). It exists to exercise the rules abo
 
 ## Tunables
 
-All in `src/tunables.rs`. Defaults are starting values; changing one is a spec change only if the default is being settled.
+All in the `Tunables` resource (`src/tunables.rs`; `src/view/tunables.rs` from iteration 4). Defaults are starting values; changing one is a spec change only if the default is being settled.
 
 | Tunable | Default | Used by |
 |---|---|---|
