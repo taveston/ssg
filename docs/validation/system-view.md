@@ -7,11 +7,10 @@ Checks for every requirement in `docs/spec/system-view.md`. Run them at the end 
 ## Setup
 
 - Run the app (`cargo run`). Default state: system frame, 1 d/s, nothing selected.
-- Keys (from CAM and CLK-05): Space pause · `.` / `,` rate · 1 d/s and 5 d/s buttons · wheel or + / − zoom · left or middle drag pan · WASD / arrows pan · right drag rotate · Q / E heading · Page Up / Down tilt · N level and north up · F focus · Home · Ctrl+1–4 save bookmark · 1–4 recall · Esc close. Iteration 3 and earlier used + / − for rate, right drag for tilt only and middle drag for pan.
+- Keys (from CAM and CLK-05): Space pause · `.` / `,` rate · 1 d/s and 5 d/s buttons · wheel or + / − zoom · left or middle drag pan · WASD / arrows pan · right drag rotate · Q / E heading · Page Up / Down tilt · N level and north up · F focus selection · double-click focus, again for planetary view · Home · Ctrl+1–4 save bookmark · 1–4 recall · Esc close. Iteration 3 and earlier used + / − for rate, right drag for tilt only and middle drag for pan.
 - **Scene A, system frame:** start state.
 - **Scene B, Halden IV selected:** click Halden IV at the system frame.
-- **Scene C, Halden IV satellite frame:** double-click Halden IV.
-- **Scene D, following Halden IV:** scene C (from CAM-06, focus also follows).
+- **Scene C, Halden IV focused at its satellite frame:** double-click Halden IV (ZOOM-16). Before iteration 4, scene C was the satellite frame without focus.
 - Reference images: `docs/ideas/presentation/mockups/` (board 1 for scene A, board 6 for B and C). Look and layout only; the spec wins on behaviour.
 
 ## Checks
@@ -42,36 +41,42 @@ Checks for every requirement in `docs/spec/system-view.md`. Run them at the end 
 | ZOOM-01 | One wheel notch = one ×2 step, animated with ease-out; a fast spin still moves one step per notch. | | |
 | ZOOM-02 | Scroll twice quickly: the second retargets smoothly with no stutter or queued delay. | | |
 | ~~ZOOM-03~~ | Withdrawn; see ZOOM-13. | | |
-| ZOOM-04 | Stops land at system frame, region frame and Halden IV satellite frame, each framing its contents with a margin. | Auto (stop radii from orbits) | |
+| ~~ZOOM-04~~ | Withdrawn; see ZOOM-15. Iteration 3 check: stops land at system frame, region frame and Halden IV satellite frame, each framing its contents with a margin. | Auto (stop radii from orbits) | |
 | ZOOM-05 | The step landing on a stop is visibly slightly slower and ends exactly on it. | | |
-| ZOOM-06 | Scroll out past the system frame and in past the satellite frame: nothing happens; no layer change. | | |
+| ~~ZOOM-06~~ | Withdrawn; see ZOOM-14. Iteration 3 check: scroll out past the system frame and in past the satellite frame: nothing happens; no layer change. | | |
 | ZOOM-07 | Pinch on a trackpad; release near a stop: it settles on the stop. | | – F3-01 |
-| ZOOM-08 | Double-click Halden IV at system frame: one ~400 ms pan-and-zoom to scene C, inspected. F on a selection does the same. | | |
-| ZOOM-09 | Double-click Halden IV again: nothing visible happens; hook named in `camera.rs`. | | |
+| ~~ZOOM-08~~ | Withdrawn; see ZOOM-16. Iteration 3 check: double-click Halden IV at system frame: one ~400 ms pan-and-zoom to its satellite frame, inspected. F on a selection does the same. | | |
+| ~~ZOOM-09~~ | Withdrawn; see ZOOM-17. Iteration 3 check: double-click Halden IV again: nothing visible happens; hook named in `camera.rs`. | | |
 | ZOOM-10 | From scene C, Home returns to the system frame with an animated move. | | |
-| ZOOM-11 | Ctrl+1 at scene C, Home, then 1: returns to scene C, following Halden IV. | | |
+| ZOOM-11 | Ctrl+1 at scene C, Home, then 1: returns to scene C, focused on Halden IV. | | |
 | ~~ZOOM-12~~ | Withdrawn; see CAM-10 to CAM-13. | | |
-| ZOOM-13 | Nothing selected or followed, tilted to ~45°: the plane point under the cursor stays under it while wheel-zooming. With a selection: zoom anchors on it. Scene D, cursor elsewhere and IVc selected: zoom anchors on Halden IV. | | – |
+| ZOOM-13 | Nothing focused, tilted to ~45°: the plane point under the cursor stays under it while wheel-zooming, even with a body selected elsewhere. Scene C, cursor elsewhere and IVc selected: zoom anchors on Halden IV. | | – |
+| ZOOM-14 | Scroll out past the system frame: nothing happens. Nothing focused, cursor near Iver: zooming in stops at Iver's satellite frame. Scene C with the cursor near another body: the limit is still Halden IV's. No layer change either way. | | – |
+| ZOOM-15 | Stops land at system frame, region frame and the focused (or nearest) body's satellite frame, each framing its contents with a margin. | Auto (stop radii from orbits) | – |
+| ZOOM-16 | Double-click Halden IV at system frame: one ~400 ms move to scene C; Halden IV selected and focused (brackets, chip). F on a selection and the inset's Focus button do the same. | | – |
+| ZOOM-17 | Scene C, double-click Halden IV: nothing visible; hook named in the camera module. Single-click Halden IV first, unfocused, then double-click: it focuses (ZOOM-16), not the hook. | | – |
 | CAM-01 | Right drag fully up and down: tilt stops at the limit, never passes the plane. Heading turns past 360° without stopping. | Auto (clamp) | – |
 | CAM-02 | Fresh start: straight down, north up. | | – |
 | CAM-03 | Tilt and rotate, then N: ~400 ms move to straight down, north up; centre and scale unchanged. | | – |
 | CAM-04 | Tilt and rotate at scene C, then Home: one move to the system frame, level and north up. | | – |
-| CAM-05 | Scene D at 5 d/s: Halden IV stays fixed on screen; moons orbit around it. | Auto (pivot = position + offset) | – |
-| CAM-06 | Focus via double-click, F and the inset's Focus button: each starts following. Ctrl+1 in scene D after panning and tilting, Home, then 1: following resumes with the same offset, heading and tilt. | | – |
-| CAM-07 | Scene D: pan away from Halden IV, then run at 5 d/s: Halden IV keeps its new screen position. | | – |
-| CAM-08 | Scene D: select IVc, zoom, rotate: still following. Then each of Home, zooming out to the system frame, double-click Iver, a bookmark saved without following, and the chip's ×: following ends (or moves to Iver). | | – |
-| CAM-09 | Scene D: chip under the breadcrumb reads "Following Halden IV"; × ends following and the chip disappears. | | – |
+| CAM-05 | Scene C at 5 d/s: Halden IV stays fixed on screen; moons orbit around it. | Auto (pivot = position + offset) | – |
+| CAM-06 | Focus via double-click, F and the inset's Focus button: each focuses. Ctrl+1 in scene C after panning and tilting, Home, then 1: focus resumes with the same offset, heading and tilt. | | – |
+| CAM-07 | Scene C: pan away from Halden IV, then run at 5 d/s: Halden IV keeps its new screen position. | | – |
+| CAM-08 | Scene C: select IVc, zoom, rotate: still focused. Esc closes the inset but keeps focus. Then each of Home, zooming out to the system frame, double-click Iver, a bookmark saved without focus, and the chip's ×: focus ends (or moves to Iver). | | – |
+| CAM-09 | Scene C: chip under the breadcrumb reads "Focus: Halden IV"; × ends focus and the chip disappears. | | – |
 | CAM-10 | Left drag on empty space and from a marker: the map moves exactly with the cursor, also when tilted; release stops dead. A tiny jitter on click still selects. Shift+left drag does nothing. | Auto (threshold) | – |
 | CAM-11 | Middle drag behaves as CAM-10. | | – |
-| CAM-12 | Right drag: horizontal turns, vertical tilts, about the screen centre (or the followed object). | | – |
+| CAM-12 | Right drag: horizontal turns, vertical tilts, about the screen centre (or the focused object). | | – |
 | CAM-13 | Right-click a marker and empty space: nothing visible; hook named in the camera module. A right drag never triggers it. | | – |
 | CAM-14 | WASD and arrows at scene A and scene C, level and tilted: the same apparent speed; short ease in and out; Shift is about 3× faster. Up always moves towards the top of the screen. | | – |
 | CAM-15 | Q / E turn; Page Up tilts towards the horizon, Page Down back; tilt stops at the limits. | | – |
-| CAM-16 | + / = / numpad + and − / numpad − step zoom exactly like the wheel, including stops, limits and retargeting. Nothing selected: anchored on the screen centre. | | – |
+| CAM-16 | + / = / numpad + and − / numpad − step zoom exactly like the wheel, including stops, limits and retargeting. Nothing focused: anchored on the screen centre. | | – |
 | CAM-17 | Default: cursor at the window edge does nothing. With `edge_scroll_enabled` = true: it pans at keyboard speed. | | – |
 | CAM-18 | Code read: all camera and clock keys come from one bindings resource. | | – |
-| CAM-19 | Pan hard in each direction at scene A, and pan far while following: the view stops at the bound. Home always recovers. | Auto (clamp) | – |
+| CAM-19 | Pan hard in each direction at scene A, and pan far while focused: the view stops at the bound. Home always recovers. | Auto (clamp) | – |
 | CAM-20 | Double-click Halden IV and drag during the move: the camera takes over smoothly with no snap, and the move does not resume. | | – |
+| CAM-21 | Nothing focused, cursor on Halden IV, wheel in from the region frame: Halden IV becomes focused (brackets, chip) with no jump, and stays put at 5 d/s. Zoom back out to the system frame: focus ends. | | – |
+| CAM-22 | Scene C, select IVc in the magnifier: brackets on Halden IV, white ring on IVc. Select Halden IV: brackets and ring together, both readable. | | – |
 | GRP-01 | Step zoom in and out across a moon's threshold, and hold just inside the 20 to 24 px band: no flicker. | Auto (hysteresis) | |
 | GRP-02 | Zooming in from scene A, IVd and IVc unfold before IVa, IVb and the station (board 6, middle panel). | | |
 | GRP-03 | Satellites slide out of and back into Halden IV during zoom animations. | | |
@@ -85,8 +90,9 @@ Checks for every requirement in `docs/spec/system-view.md`. Run them at the end 
 | MAG-03 | Phases in the magnifier match the real positions seen in scene C at the same moment (pause, compare). | Auto (scale factor) | |
 | MAG-04 | Station, parked ship and K-3 always present; only moons of 200 km or more radius. | Auto | |
 | MAG-05 | With the inner-orbit test triggered (Morrow's moons), "+N outer" appears on the frame. | Auto | |
-| MAG-06 | Hover a satellite in the magnifier: tooltip. Click: inset switches to it. Double-click: frames it. | | |
+| ~~MAG-06~~ | Withdrawn; see MAG-08. Iteration 3 check: hover a satellite in the magnifier: tooltip. Click: inset switches to it. Double-click: frames it. | | |
 | MAG-07 | Magnifier closes on selecting another body, on Esc, and when zooming in unfolds the satellites (no jump at hand-over). | | |
+| MAG-08 | Scene B: hover a satellite in the magnifier: tooltip. Click: inset switches to it and focus does not change. Double-click: focuses and frames it; double-click again: the planetary-view hook. | | – |
 | MOT-01 | Scene C at 1 d/s: IVc and IVd are dots with ~30° fading trails. | | |
 | MOT-02 | Scene C at 1 d/s: Arden Highport, IVa and IVb are bright, thicker rings with labels fixed on the ring, no dot. | | |
 | MOT-03 | Switch 1 d/s ↔ 5 d/s: IVc (31 s → 6.2 s) changes mode with a cross-fade; nothing flickers near a threshold. | Auto (mode state machine) | |
