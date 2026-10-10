@@ -49,7 +49,7 @@ pub fn start_at_system_frame(
     state.distance = distance_for_radius(
         stops.system_radius,
         camera_fov(projection),
-        state.pitch,
+        state.tilt,
         tunables.zoom_fit_margin,
     );
 }
@@ -97,10 +97,13 @@ pub fn update_camera_transform(
         return;
     };
     let target = focus_position(&focus, &transforms);
+    // The one place tilt (from straight down) becomes an elevation above
+    // the plane.
+    let elevation = std::f32::consts::FRAC_PI_2 - state.tilt;
     let offset = Vec3::new(
-        state.distance * state.pitch.cos() * state.yaw.sin(),
-        state.distance * state.pitch.sin(),
-        state.distance * state.pitch.cos() * state.yaw.cos(),
+        state.distance * elevation.cos() * state.heading.sin(),
+        state.distance * elevation.sin(),
+        state.distance * elevation.cos() * state.heading.cos(),
     );
     camera_transform.translation = target + offset;
     camera_transform.look_at(target, Vec3::Y);

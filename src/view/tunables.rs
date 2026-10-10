@@ -68,6 +68,52 @@ pub struct Tunables {
     /// are not built; the current code reads the backend's click count.
     #[allow(dead_code)]
     pub double_click_window_ms: f32,
+
+    // --- Camera (section 5a). Tilt is measured from straight down. ---
+    /// The steepest tilt from straight down, in degrees: the camera never
+    /// goes below the orbital plane. Waits for CAM-01.
+    #[allow(dead_code)]
+    pub max_pitch_deg: f32,
+    /// A press and release that moves less than this is a click, never a
+    /// drag. Waits for CAM-10 and CAM-13.
+    #[allow(dead_code)]
+    pub drag_threshold_px: f32,
+    /// Degrees of heading or tilt per pixel of right drag. Waits for CAM-12.
+    #[allow(dead_code)]
+    pub rotate_deg_per_px: f32,
+    /// Key panning speed, as a fraction of the visible height at the pivot
+    /// per second, so it looks the same at every zoom and tilt. Waits for
+    /// CAM-14 and CAM-17.
+    #[allow(dead_code)]
+    pub key_pan_screen_per_s: f32,
+    /// Time for key panning to ramp up to speed, and back down. Waits for
+    /// CAM-14.
+    #[allow(dead_code)]
+    pub key_pan_ramp_ms: f32,
+    /// Holding Shift multiplies the key panning speed by this. Waits for
+    /// CAM-14.
+    #[allow(dead_code)]
+    pub key_pan_fast_factor: f32,
+    /// Heading and tilt speed for the rotate keys, in degrees per second.
+    /// Waits for CAM-15.
+    #[allow(dead_code)]
+    pub key_rotate_deg_per_s: f32,
+    /// Whether a cursor at the window edge pans the view. Off by default.
+    /// Waits for CAM-17.
+    #[allow(dead_code)]
+    pub edge_scroll_enabled: bool,
+    /// How close to a window edge the cursor must be to edge-scroll. Waits
+    /// for CAM-17.
+    #[allow(dead_code)]
+    pub edge_scroll_px: f32,
+    /// The pivot stays within this many system-frame radii of the star.
+    /// Waits for CAM-19.
+    #[allow(dead_code)]
+    pub pan_bound_factor: f32,
+    /// Side of the box the focused marker's corner brackets outline. Waits
+    /// for CAM-22.
+    #[allow(dead_code)]
+    pub focus_bracket_px: f32,
 }
 
 impl Default for Tunables {
@@ -90,6 +136,18 @@ impl Default for Tunables {
             focus_jump_ms: 400.0,
             zoom_fit_margin: 0.8,
             double_click_window_ms: 350.0,
+
+            max_pitch_deg: 65.0,
+            drag_threshold_px: 4.0,
+            rotate_deg_per_px: 0.25,
+            key_pan_screen_per_s: 0.6,
+            key_pan_ramp_ms: 120.0,
+            key_pan_fast_factor: 3.0,
+            key_rotate_deg_per_s: 90.0,
+            edge_scroll_enabled: false,
+            edge_scroll_px: 8.0,
+            pan_bound_factor: 1.5,
+            focus_bracket_px: 14.0,
         }
     }
 }

@@ -18,19 +18,22 @@ impl Default for CameraFocus {
     }
 }
 
+/// The camera's orientation and zoom. **Tilt** is the spec's: 0 looks
+/// straight down at the orbital plane. **Heading** turns the view about
+/// the plane's normal. Both in radians.
 #[derive(Resource)]
 pub struct OrbitCameraState {
-    pub yaw: f32,
-    pub pitch: f32,
+    pub heading: f32,
+    pub tilt: f32,
     pub distance: f32,
 }
 
 /// The opening heading, from iteration 1. CAM-02 (not built) makes it
 /// north up.
-const START_YAW: f32 = 0.6;
-/// Steep, near-top-down by default. CAM-02 (not built) makes it straight
-/// down.
-const START_PITCH: f32 = 1.15;
+const START_HEADING: f32 = 0.6;
+/// Steep, near-top-down by default (about 24 degrees from straight down).
+/// CAM-02 (not built) makes it straight down.
+const START_TILT: f32 = 0.42;
 /// Replaced at startup by the system frame, once the stops have been
 /// computed from the real orbits.
 const PLACEHOLDER_DISTANCE: f32 = 300.0;
@@ -38,8 +41,8 @@ const PLACEHOLDER_DISTANCE: f32 = 300.0;
 impl Default for OrbitCameraState {
     fn default() -> Self {
         Self {
-            yaw: START_YAW,
-            pitch: START_PITCH,
+            heading: START_HEADING,
+            tilt: START_TILT,
             distance: PLACEHOLDER_DISTANCE,
         }
     }
@@ -47,7 +50,10 @@ impl Default for OrbitCameraState {
 
 /// Saved views: scale plus centre (or followed body), per the spec.
 #[derive(Resource, Default)]
-pub struct Bookmarks(pub [Option<(f32, CameraFocus)>; 4]);
+pub struct Bookmarks(pub [Option<(f32, CameraFocus)>; BOOKMARK_SLOTS]);
+
+/// ZOOM-11: Ctrl+1 to Ctrl+4.
+pub const BOOKMARK_SLOTS: usize = 4;
 
 /// An in-flight zoom (or focus jump). New input retargets this from the
 /// *current* interpolated values rather than queueing behind it.
@@ -70,7 +76,10 @@ impl ZoomAnim {
 /// Absolute safety rails, independent of the computed stops.
 pub const MIN_DISTANCE: f32 = 0.002;
 pub const MAX_DISTANCE: f32 = 5_000.0;
-pub const PITCH_LIMIT: f32 = 1.55;
+/// The iteration 1 tilt limits, which let the camera below the plane.
+/// CAM-01 (not built) replaces them with 0 to `max_pitch_deg`.
+pub const MIN_TILT: f32 = 0.02;
+pub const MAX_TILT: f32 = 3.12;
 
 #[derive(Component)]
 pub struct OrbitCamera;

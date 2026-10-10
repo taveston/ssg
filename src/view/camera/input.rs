@@ -13,16 +13,17 @@ use bevy::prelude::*;
 
 use super::requests::FocusJumpRequest;
 use super::state::{
-    Bookmarks, CameraFocus, MAX_DISTANCE, MIN_DISTANCE, OrbitCamera, OrbitCameraState, PITCH_LIMIT,
-    ZoomAnim, camera_fov, focus_position, retarget,
+    BOOKMARK_SLOTS, Bookmarks, CameraFocus, MAX_DISTANCE, MAX_TILT, MIN_DISTANCE, MIN_TILT,
+    OrbitCamera, OrbitCameraState, ZoomAnim, camera_fov, focus_position, retarget,
 };
 use super::stops::{ZoomStops, distance_for_radius, radius_for_distance};
 use super::zoom::{StepSettings, ZoomStep, anchored_centre, notches_from_scroll, plan_zoom_step};
 use crate::sim::body::BodyClass;
+use crate::view::bindings::{Bindings, held, pressed};
 use crate::view::selection::Selection;
 use crate::view::tunables::Tunables;
 
-/// Right drag: radians of yaw or pitch per pixel dragged (iteration 1
+/// Right drag: radians of heading or tilt per pixel dragged (iteration 1
 /// behaviour; CAM-12 replaces it with `rotate_deg_per_px`).
 const DRAG_ROTATE_RAD_PER_PX: f32 = 0.005;
 /// Middle drag: plane distance per pixel dragged, as a fraction of the
@@ -35,15 +36,16 @@ const BARE_BODY_FRAME_FRACTION: f32 = 0.05;
 
 pub fn handle_orbit_input(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
+    bindings: Res<Bindings>,
     mouse_motion: Res<AccumulatedMouseMotion>,
     mut state: ResMut<OrbitCameraState>,
 ) {
-    if !mouse_buttons.pressed(MouseButton::Right) {
+    if !held(&mouse_buttons, &[bindings.rotate_button]) {
         return;
     }
     let delta = mouse_motion.delta;
-    state.yaw -= delta.x * DRAG_ROTATE_RAD_PER_PX;
-    state.pitch = (state.pitch - delta.y * DRAG_ROTATE_RAD_PER_PX).clamp(-PITCH_LIMIT, PITCH_LIMIT);
+    state.heading -= delta.x * DRAG_ROTATE_RAD_PER_PX;
+    state.tilt = (state.tilt + delta.y * DRAG_ROTATE_RAD_PER_PX).clamp(MIN_TILT, MAX_TILT);
 }
 
 /// Where the world point under the cursor is, on the orbital plane.
@@ -167,7 +169,7 @@ pub fn handle_zoom_input(
         focus: *focus,
         distance: state.distance,
     };
-    let view_radius = radius_for_distance(step.target, fov, state.pitch, tunables.zoom_fit_margin);
+    let view_radius = radius_for_distance(step.target, fov, state.tilt, tunables.zoom_fit_margin);
     let target_focus =
         zoom_target_focus(from, step.target, view_radius, &followable_bodies(&bodies));
     retarget(
@@ -187,7 +189,7 @@ struct ZoomAnchoring {
 }
 
 /// ZOOM-01 / ZOOM-05: the step from the current distance, with this
-/// system's stops and limits at the current pitch.
+/// system's stops and limits at the current tilt.
 fn plan_step(
     notches: f32,
     fov: f32,
@@ -197,7 +199,7 @@ fn plan_step(
     zoom: &ZoomAnchoring,
     transforms: &Query<&GlobalTransform>,
 ) -> ZoomStep {
-    let fit = |radius: f32| distance_for_radius(radius, fov, state.pitch, tunables.zoom_fit_margin);
+    let fit = |radius: f32| distance_for_radius(radius, fov, state.tilt, tunables.zoom_fit_margin);
     plan_zoom_step(
         state.distance,
         notches,
@@ -260,6 +262,7 @@ fn zoom_target_focus(
 #[allow(clippy::too_many_arguments)]
 pub fn handle_navigation_keys(
     keys: Res<ButtonInput<KeyCode>>,
+    bindings: Res<Bindings>,
     tunables: Res<Tunables>,
     stops: Res<ZoomStops>,
     camera_q: Query<&Projection, With<OrbitCamera>>,
@@ -268,7 +271,7 @@ pub fn handle_navigation_keys(
     focus: Res<CameraFocus>,
     mut anim: ResMut<ZoomAnim>,
 ) {
-    if !keys.just_pressed(KeyCode::Home) {
+    if !pressed(&keys, &bindings.home) {
         return;
     }
     let Ok(projection) = camera_q.single() else {
@@ -277,7 +280,7 @@ pub fn handle_navigation_keys(
     let target = distance_for_radius(
         stops.system_radius,
         camera_fov(projection),
-        state.pitch,
+        state.tilt,
         tunables.zoom_fit_margin,
     );
     retarget(
@@ -295,6 +298,7 @@ pub fn handle_navigation_keys(
 #[allow(clippy::too_many_arguments)]
 pub fn handle_focus_jump(
     keys: Res<ButtonInput<KeyCode>>,
+    bindings: Res<Bindings>,
     tunables: Res<Tunables>,
     stops: Res<ZoomStops>,
     selection: Res<Selection>,
@@ -307,7 +311,7 @@ pub fn handle_focus_jump(
 ) {
     // The focus key does the same thing for whatever's selected.
     let target_body = request.0.take().or_else(|| {
-        keys.just_pressed(KeyCode::KeyF)
+        pressed(&keys, &bindings.focus_selection)
             .then_some(selection.primary)
             .flatten()
     });
@@ -326,7 +330,7 @@ pub fn handle_focus_jump(
     let distance = distance_for_radius(
         radius,
         camera_fov(projection),
-        state.pitch,
+        state.tilt,
         tunables.zoom_fit_margin,
     );
 
@@ -344,6 +348,7 @@ pub fn handle_focus_jump(
 #[allow(clippy::too_many_arguments)]
 pub fn handle_bookmarks(
     keys: Res<ButtonInput<KeyCode>>,
+    bindings: Res<Bindings>,
     tunables: Res<Tunables>,
     transforms: Query<&GlobalTransform>,
     state: Res<OrbitCameraState>,
@@ -351,15 +356,14 @@ pub fn handle_bookmarks(
     mut bookmarks: ResMut<Bookmarks>,
     mut anim: ResMut<ZoomAnim>,
 ) {
-    const SLOTS: [KeyCode; 4] = [
-        KeyCode::Digit1,
-        KeyCode::Digit2,
-        KeyCode::Digit3,
-        KeyCode::Digit4,
-    ];
-    let saving = keys.pressed(KeyCode::ControlLeft) || keys.pressed(KeyCode::ControlRight);
+    let saving = held(&keys, &bindings.bookmark_save);
 
-    for (index, key) in SLOTS.iter().enumerate() {
+    for (index, key) in bindings
+        .bookmark_slots
+        .iter()
+        .enumerate()
+        .take(BOOKMARK_SLOTS)
+    {
         if !keys.just_pressed(*key) {
             continue;
         }
@@ -381,13 +385,14 @@ pub fn handle_bookmarks(
 
 pub fn handle_pan_input(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
+    bindings: Res<Bindings>,
     mouse_motion: Res<AccumulatedMouseMotion>,
     state: Res<OrbitCameraState>,
     mut focus: ResMut<CameraFocus>,
     mut anim: ResMut<ZoomAnim>,
     transforms: Query<&GlobalTransform>,
 ) {
-    if !mouse_buttons.pressed(MouseButton::Middle) {
+    if !held(&mouse_buttons, &bindings.pan_buttons) {
         return;
     }
     let current = focus_position(&focus, &transforms);
@@ -404,9 +409,9 @@ pub fn handle_pan_input(
     anim.target_focus = CameraFocus::Fixed(current);
     anim.start_focus = current;
 
-    let yaw_rot = Quat::from_rotation_y(state.yaw);
-    let right = yaw_rot * Vec3::X;
-    let forward_flat = yaw_rot * Vec3::Z;
+    let heading_rot = Quat::from_rotation_y(state.heading);
+    let right = heading_rot * Vec3::X;
+    let forward_flat = heading_rot * Vec3::Z;
     let pan_speed = state.distance * DRAG_PAN_PER_PX;
     let pan = (-right * delta.x + forward_flat * delta.y) * pan_speed;
     *focus = CameraFocus::Fixed(current + pan);

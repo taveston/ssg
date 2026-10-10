@@ -14,6 +14,7 @@
 
 use bevy::prelude::*;
 
+use super::bindings::{Bindings, pressed};
 use super::camera::state::CameraFocus;
 use super::colors;
 use super::date::{date_from_elapsed_days, format_date, format_time_ago};
@@ -181,8 +182,12 @@ impl Plugin for InspectPlugin {
 }
 
 /// INS-03: Esc closes the unpinned inset.
-fn handle_escape(keys: Res<ButtonInput<KeyCode>>, mut selection: ResMut<Selection>) {
-    if keys.just_pressed(KeyCode::Escape) {
+fn handle_escape(
+    keys: Res<ButtonInput<KeyCode>>,
+    bindings: Res<Bindings>,
+    mut selection: ResMut<Selection>,
+) {
+    if pressed(&keys, &bindings.close_inset) {
         selection.close_unpinned();
     }
 }

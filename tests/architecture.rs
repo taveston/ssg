@@ -338,12 +338,16 @@ fn arch_33_dead_code_allowed_only_on_waiting_tunables() {
                 "src/{path}:{}: dead code allowed outside the tunables",
                 number + 1
             );
-            let doc: String = lines[..number]
+            // The doc comment above, as one line of words (it was gathered
+            // bottom-up, so put it back in order).
+            let mut doc_lines: Vec<&str> = lines[..number]
                 .iter()
                 .rev()
                 .take_while(|l| l.trim_start().starts_with("///"))
-                .copied()
+                .map(|l| l.trim_start().trim_start_matches('/').trim())
                 .collect();
+            doc_lines.reverse();
+            let doc = doc_lines.join(" ");
             let names_an_id = doc.split_whitespace().any(|word| {
                 word.trim_matches(|c: char| !c.is_alphanumeric() && c != '-')
                     .split_once('-')
@@ -384,6 +388,33 @@ fn arch_34_every_module_has_a_header_naming_its_ids() {
                 })
             });
         assert!(names_an_id, "src/{path}'s header names no spec ID");
+    }
+}
+
+/// CAM-18: every key and mouse button is read through the bindings
+/// resource, so no other module names a `KeyCode` or `MouseButton`.
+#[test]
+fn cam_18_keys_and_buttons_only_in_the_bindings() {
+    for (path, text) in sources() {
+        if path == "view/bindings.rs" {
+            continue;
+        }
+        for (number, line) in non_test(&text).lines().enumerate() {
+            let code = code_of(line);
+            for word in ["KeyCode", "MouseButton"] {
+                let typed = code.match_indices(word).any(|(at, _)| {
+                    // `ButtonInput<KeyCode>` is reading the input resource,
+                    // not binding a key; a variant (`KeyCode::KeyF`) or a
+                    // key list is.
+                    !code[..at].ends_with("ButtonInput<")
+                });
+                assert!(
+                    !typed,
+                    "src/{path}:{}: names {word} outside the bindings",
+                    number + 1
+                );
+            }
+        }
     }
 }
 

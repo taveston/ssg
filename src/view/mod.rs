@@ -12,6 +12,7 @@ use bevy::prelude::*;
 
 pub mod anim;
 pub mod belt;
+pub mod bindings;
 pub mod camera;
 pub mod colors;
 pub mod date;
@@ -46,6 +47,7 @@ impl Plugin for ViewPlugin {
         app.init_resource::<selection::Selection>()
             .add_plugins((
                 tunables::TunablesPlugin,
+                bindings::BindingsPlugin,
                 fonts::FontsPlugin,
                 fidelity::FidelityPlugin,
                 projection::ProjectionPlugin,

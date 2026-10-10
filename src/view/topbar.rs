@@ -1,6 +1,6 @@
-//! The top bar and the clock controls (CLK-02, CLK-03): breadcrumb, date,
+//! The top bar and the clock controls (CLK-02, CLK-05): breadcrumb, date,
 //! the Pause, 1 d/s and 5 d/s buttons with the active rate highlighted, and
-//! the clock keys (Space, + and -). Every change goes through the clock's
+//! the clock keys (CLK-05: Space, `.` and `,`). Every change goes through the clock's
 //! own API (ARCH-14).
 //!
 //! The FPS readout is not specced (F4-12) and stays until triaged.
@@ -9,6 +9,7 @@ use bevy::diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin};
 use bevy::prelude::*;
 
 use crate::sim::clock::GameClock;
+use crate::view::bindings::{Bindings, pressed};
 use crate::view::colors;
 use crate::view::date::{date_from_elapsed_days, format_date};
 use crate::view::fonts::Fonts;
@@ -123,17 +124,20 @@ fn spawn_top_bar(mut commands: Commands, fonts: Res<Fonts>) {
         });
 }
 
-/// CLK-03, the iteration 1 to 3 bindings: Space pauses, + and - change the
-/// rate. CLK-05 moves the rate onto `.` and `,` and gives + and - to zoom;
-/// that is the camera iteration's job, not this refactor's.
-fn handle_clock_keys(keys: Res<ButtonInput<KeyCode>>, mut clock: ResMut<GameClock>) {
-    if keys.just_pressed(KeyCode::Space) {
+/// CLK-05: Space pauses and resumes, `.` doubles the rate and `,` halves it
+/// (down to 1/16 d/s), through the bindings (CAM-18).
+fn handle_clock_keys(
+    keys: Res<ButtonInput<KeyCode>>,
+    bindings: Res<Bindings>,
+    mut clock: ResMut<GameClock>,
+) {
+    if pressed(&keys, &bindings.pause) {
         clock.toggle_pause();
     }
-    if keys.just_pressed(KeyCode::Equal) {
+    if pressed(&keys, &bindings.rate_up) {
         clock.double_rate();
     }
-    if keys.just_pressed(KeyCode::Minus) {
+    if pressed(&keys, &bindings.rate_down) {
         clock.halve_rate();
     }
 }

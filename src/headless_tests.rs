@@ -40,8 +40,8 @@ const FRAME: Duration = Duration::from_micros(16_667);
 /// cross-fade to finish.
 const SETTLE_FRAMES: usize = 30;
 const VIEWPORT: UVec2 = UVec2::new(1600, 900);
-/// The camera's default steep tilt (see `camera/state.rs`).
-const PITCH: f32 = 1.15;
+/// A steep tilt from straight down, like the iteration 1 to 4 default.
+const TILT: f32 = 0.42;
 
 /// A headless app with the same set ordering as `main`, stepping time by a
 /// fixed frame so results don't depend on how fast the test runs.
@@ -94,7 +94,8 @@ fn test_camera(target: Vec3, distance: f32) -> (Camera, Projection, Transform) {
         scale_factor: 1.0,
     });
     camera.computed.clip_from_view = projection.get_clip_from_view();
-    let offset = Vec3::new(0.0, distance * PITCH.sin(), distance * PITCH.cos());
+    let elevation = std::f32::consts::FRAC_PI_2 - TILT;
+    let offset = Vec3::new(0.0, distance * elevation.sin(), distance * elevation.cos());
     let transform = Transform::from_translation(target + offset).looking_at(target, Vec3::Y);
     (camera, projection, transform)
 }
@@ -186,14 +187,14 @@ fn arch_31_fold_state_after_a_scale_change() {
 
     let margin = app.world().resource::<Tunables>().zoom_fit_margin;
     let system_radius = app.world().resource::<ZoomStops>().system_radius;
-    let system_distance = distance_for_radius(system_radius, fov(), PITCH, margin);
+    let system_distance = distance_for_radius(system_radius, fov(), TILT, margin);
     let halden = body(&mut app, "Halden IV");
     let satellite_radius = app
         .world()
         .resource::<ZoomStops>()
         .satellite_radius(halden)
         .unwrap();
-    let satellite_distance = distance_for_radius(satellite_radius, fov(), PITCH, margin);
+    let satellite_distance = distance_for_radius(satellite_radius, fov(), TILT, margin);
     let halden_pos = app
         .world()
         .get::<GlobalTransform>(halden)
@@ -346,7 +347,7 @@ fn edge_01_every_gate_has_an_arrow_when_zoomed_in() {
         .resource::<ZoomStops>()
         .satellite_radius(halden)
         .unwrap();
-    let distance = distance_for_radius(radius, fov(), PITCH, margin);
+    let distance = distance_for_radius(radius, fov(), TILT, margin);
     let halden_pos = app
         .world()
         .get::<GlobalTransform>(halden)

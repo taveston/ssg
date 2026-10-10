@@ -2,7 +2,7 @@
 //! fixed scales (`docs/spec/system-view.md`, ZOOM-15).
 //!
 //! Stops are stored as *render-space radii*, not camera distances: the
-//! conversion depends on the camera's current pitch, which the player can
+//! conversion depends on the camera's current tilt, which the player can
 //! change by right-dragging, so it has to happen at the moment a stop is
 //! used.
 
@@ -36,18 +36,18 @@ impl ZoomStops {
 /// The camera distance at which a flat circle of `radius` centred on the
 /// focus point just fits the viewport.
 ///
-/// A circle in the XZ plane seen at elevation `pitch` projects to an
-/// ellipse whose vertical semi-axis is `radius * sin(pitch)`; at typical
-/// window aspect ratios and this project's steep default pitch, that
+/// A circle in the XZ plane seen at `tilt` from straight down projects to
+/// an ellipse whose vertical semi-axis is `radius * cos(tilt)`; at typical
+/// window aspect ratios and this project's steep views, that
 /// vertical extent is what binds, so it's what we fit against.
-/// The flattest a framed circle is allowed to look, as sin(pitch), so a
+/// The flattest a framed circle is allowed to look, as cos(tilt), so a
 /// near-edge-on view can't demand a zero (or absurdly small) distance.
-const MIN_PITCH_COMPRESSION: f32 = 0.2;
+const MIN_TILT_COMPRESSION: f32 = 0.2;
 
-pub fn distance_for_radius(radius: f32, fov_y: f32, pitch: f32, margin: f32) -> f32 {
+pub fn distance_for_radius(radius: f32, fov_y: f32, tilt: f32, margin: f32) -> f32 {
     // Floor the compression so a near-edge-on view can't demand a
     // zero (or absurdly small) distance.
-    let vertical_extent = radius * pitch.sin().abs().max(MIN_PITCH_COMPRESSION);
+    let vertical_extent = radius * tilt.cos().abs().max(MIN_TILT_COMPRESSION);
     vertical_extent / (margin * (fov_y * 0.5).tan()).max(f32::EPSILON)
 }
 
@@ -69,8 +69,8 @@ pub fn frame_radii(planet_orbit_radii: &mut [f32]) -> (f32, f32) {
 }
 
 /// The inverse: how much of the orbital plane fits at a given distance.
-pub fn radius_for_distance(distance: f32, fov_y: f32, pitch: f32, margin: f32) -> f32 {
-    distance * margin * (fov_y * 0.5).tan() / pitch.sin().abs().max(MIN_PITCH_COMPRESSION)
+pub fn radius_for_distance(distance: f32, fov_y: f32, tilt: f32, margin: f32) -> f32 {
+    distance * margin * (fov_y * 0.5).tan() / tilt.cos().abs().max(MIN_TILT_COMPRESSION)
 }
 
 pub struct StopsPlugin;
@@ -178,11 +178,11 @@ mod tests {
     #[test]
     fn zoom_15_distance_and_radius_round_trip() {
         let fov = std::f32::consts::FRAC_PI_4;
-        let pitch = 1.15;
+        let tilt = 0.42;
         let margin = 0.8;
         for radius in [0.4_f32, 12.0, 180.0, 387.0] {
-            let distance = distance_for_radius(radius, fov, pitch, margin);
-            let back = radius_for_distance(distance, fov, pitch, margin);
+            let distance = distance_for_radius(radius, fov, tilt, margin);
+            let back = radius_for_distance(distance, fov, tilt, margin);
             assert!(
                 (back - radius).abs() < radius * 1e-4,
                 "{radius} -> {distance} -> {back}"
