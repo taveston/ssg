@@ -54,7 +54,7 @@ Checks for every requirement in `docs/spec/system-view.md`. Run them at the end 
 | ZOOM-14 | Scroll out past the system frame: nothing happens. Nothing focused, cursor near Iver: zooming in stops at Iver's satellite frame. Scene C with the cursor near another body: the limit is still Halden IV's. No layer change either way. | | – |
 | ZOOM-15 | Stops land at system frame, region frame and the focused (or nearest) body's satellite frame, each framing its contents with a margin. | Auto (stop radii from orbits) | – |
 | ZOOM-16 | Double-click Halden IV at system frame: one ~400 ms move to scene C; Halden IV selected and focused (brackets, chip). F on a selection and the inset's Focus button do the same. | | – |
-| ZOOM-17 | Scene C, double-click Halden IV: nothing visible; hook named in the camera module. Single-click Halden IV first, unfocused, then double-click: it focuses (ZOOM-16), not the hook. | | – |
+| ZOOM-17 | Scene C with IVc selected, double-click Halden IV: Halden IV becomes selected; otherwise nothing visible; hook named in the camera module. Single-click Halden IV first, unfocused, then double-click: it focuses (ZOOM-16), not the hook. | | – |
 | CAM-01 | Right drag fully up and down: tilt stops at the limit, never passes the plane. Heading turns past 360° without stopping. | Auto (clamp) | – |
 | CAM-02 | Fresh start: straight down, north up. | | – |
 | CAM-03 | Tilt and rotate, then N: ~400 ms move to straight down, north up; centre and scale unchanged. | | – |

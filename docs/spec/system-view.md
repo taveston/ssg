@@ -67,7 +67,7 @@
 | ZOOM-14 | Hard limits: outer = system frame; inner = satellite frame of the focused body, or of the body nearest the zoom anchor when nothing is focused. Scrolling past a limit does nothing and never changes layer. | not built |
 | ZOOM-15 | Stops are computed per system from its real orbits: **system frame** (all planetary orbits fit; gates stay as edge indicators), **region frame** (the inner system, or around the focused planet's orbit), **satellite frame** (the focused planet's satellites fit, or those of the body nearest the zoom anchor when nothing is focused). | not built |
 | ZOOM-16 | Double-click on a body that is not focused selects it, focuses it (CAM-06) and frames its satellites in one pan-and-zoom of `focus_jump_ms`. F does the same for the current selection, and the inset's Focus button for the inset's object. | not built |
-| ZOOM-17 | Double-click on the focused body is the planetary-view trigger. Until that view exists it calls a clearly named hook and does nothing visible. | not built |
+| ZOOM-17 | Double-click on the focused body selects it and is the planetary-view trigger. Until that view exists it calls a clearly named hook and does nothing visible. | not built |
 
 ## 5a. Camera
 
