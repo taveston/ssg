@@ -1,100 +1,13 @@
-//! The Corvane system for iteration 2, in real units (km, kg, days). This is
-//! the seam a future system generator replaces: anything that builds a tree
-//! of `BodyBlueprint`s the same shape can drop in here.
+//! Corvane, the prototype system (TEST-01 to TEST-04), as records in real
+//! units (km, kg, days). Its values serve the system-view rules first: see
+//! the TEST IDs in `docs/spec/system-view.md`.
+//!
+//! This is the seam a generator replaces (SCL-03): anything that builds a
+//! `SystemData` the same shape can stand in for `hand_made_system`.
 
-use bevy::prelude::*;
-
-pub const KM_PER_AU: f64 = 149_597_870.7;
-const EARTH_MASS_KG: f64 = 5.972e24;
-const SOLAR_MASS_KG: f64 = 1.989e30;
-const GRAVITATIONAL_CONSTANT: f64 = 6.674e-11;
-
-/// What a marker looks like and how clutter/inspection treat it.
-#[derive(Component, Clone, Copy, PartialEq, Eq, Debug)]
-pub enum BodyClass {
-    Star,
-    Planet,
-    Moon,
-    Station,
-    Gate,
-    SalvageSite,
-    /// A ship or contact. Shape follows ownership, per the sketches'
-    /// marker language: triangle for own, diamond for foreign.
-    Ship,
-}
-
-#[derive(Component, Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Ownership {
-    Own,
-    Foreign,
-    Neutral,
-}
-
-#[derive(Component, Clone, Debug)]
-pub enum Knowledge {
-    Surveyed { imaged_day: f64 },
-    Unsurveyed,
-    Stale { last_imaged_day: f64 },
-}
-
-#[derive(Component, Clone, Debug, Default)]
-pub struct DisplayName(pub String);
-
-#[derive(Component, Clone, Debug, Default)]
-pub struct Description(pub String);
-
-#[derive(Component, Clone, Debug, Default)]
-pub struct KeyFacts(pub Vec<(String, String)>);
-
-/// Kepler's third law: the orbital period of a body at `radius_km` around a
-/// `central_mass_kg` point mass. Used uniformly for planets around the star
-/// and moons/stations around their planet.
-fn kepler_period_days(radius_km: f64, central_mass_kg: f64) -> f64 {
-    let radius_m = radius_km * 1000.0;
-    let seconds = std::f64::consts::TAU
-        * (radius_m.powi(3) / (GRAVITATIONAL_CONSTANT * central_mass_kg)).sqrt();
-    seconds / 86_400.0
-}
-
-/// A node in the hand-made system tree. Periods are derived from
-/// `orbit_radius_km` and the parent's mass, not stored, so they can't drift
-/// out of sync with the radius.
-pub struct BodyBlueprint {
-    pub name: &'static str,
-    pub class: BodyClass,
-    pub ownership: Ownership,
-    pub description: &'static str,
-    pub key_facts: Vec<(&'static str, &'static str)>,
-    pub knowledge: Knowledge,
-    pub orbit_radius_km: f64,
-    pub phase0_rad: f64,
-    /// This body's own mass, used to compute its children's periods. Leave
-    /// at 0.0 for bodies with no children.
-    pub mass_kg: f64,
-    pub children: Vec<BodyBlueprint>,
-}
-
-pub struct BeltBlueprint {
-    pub inner_radius_km: f64,
-    pub outer_radius_km: f64,
-    pub salvage_sites: Vec<BodyBlueprint>,
-}
-
-pub struct GateBlueprint {
-    pub name: &'static str,
-    pub destination: &'static str,
-    pub distance_km: f64,
-    pub angle_deg: f64,
-}
-
-pub struct SystemData {
-    pub star_name: &'static str,
-    pub star_mass_kg: f64,
-    pub star_knowledge: Knowledge,
-    pub planets: Vec<BodyBlueprint>,
-    pub belt: BeltBlueprint,
-    pub gates: Vec<GateBlueprint>,
-}
+use crate::sim::body::{BodyClass, Knowledge, Ownership};
+use crate::sim::system::{BeltBlueprint, BodyBlueprint, GateBlueprint, SystemData};
+use crate::sim::units::{EARTH_MASS_KG, KM_PER_AU, SOLAR_MASS_KG};
 
 fn surveyed_today() -> Knowledge {
     Knowledge::Surveyed { imaged_day: 0.0 }
@@ -105,6 +18,7 @@ pub fn hand_made_system() -> SystemData {
 
     SystemData {
         star_name: "Corvane",
+        star_class: "K2V",
         star_mass_kg,
         star_knowledge: surveyed_today(),
         planets: vec![
@@ -365,33 +279,10 @@ const MORROW_MOON_NAMES: [&str; 11] = [
     "Morrow XI",
 ];
 
-pub struct SystemDataPlugin;
-
-impl Plugin for SystemDataPlugin {
-    fn build(&self, app: &mut App) {
-        app.insert_resource(hand_made_system_resource());
-    }
-}
-
-/// `SystemData` isn't `Resource` itself (it owns borrow-unfriendly data used
-/// only at spawn time); wrap it so `ScenePlugin` can consume it once.
-#[derive(Resource)]
-pub struct SystemDataResource(pub Option<SystemData>);
-
-fn hand_made_system_resource() -> SystemDataResource {
-    SystemDataResource(Some(hand_made_system()))
-}
-
-pub fn period_days_for(radius_km: f64, central_mass_kg: f64) -> f64 {
-    kepler_period_days(radius_km, central_mass_kg)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// Halden IV's mass, which its satellites' periods are derived from.
-    const HALDEN_IV_MASS_KG: f64 = 1.1 * EARTH_MASS_KG;
+    use crate::sim::orbit::kepler_period_days;
 
     fn planet(name: &str) -> BodyBlueprint {
         hand_made_system()
@@ -407,45 +298,7 @@ mod tests {
             .iter()
             .find(|child| child.name == name)
             .unwrap_or_else(|| panic!("{name} missing from {}", parent.name));
-        period_days_for(child.orbit_radius_km, parent.mass_kg)
-    }
-
-    /// SCL-04: Kepler's third law - the period squared goes as the radius
-    /// cubed, so quadrupling the radius multiplies the period by eight.
-    #[test]
-    fn scl_04_period_follows_keplers_third_law() {
-        let base = period_days_for(10_000.0, HALDEN_IV_MASS_KG);
-        let quadrupled = period_days_for(40_000.0, HALDEN_IV_MASS_KG);
-        assert!(
-            (quadrupled / base - 8.0).abs() < 1e-6,
-            "expected 8x, got {}",
-            quadrupled / base
-        );
-    }
-
-    /// SCL-04: and against the closed form, so a wrong constant would show.
-    #[test]
-    fn scl_04_period_matches_the_closed_form() {
-        let radius_km: f64 = 384_400.0;
-        let mass_kg: f64 = 5.972e24;
-        let radius_m = radius_km * 1000.0;
-        let expected = std::f64::consts::TAU
-            * (radius_m.powi(3) / (GRAVITATIONAL_CONSTANT * mass_kg)).sqrt()
-            / 86_400.0;
-        let actual = period_days_for(radius_km, mass_kg);
-        assert!((actual - expected).abs() < 1e-9);
-    }
-
-    /// SCL-04: a heavier parent pulls its satellites round faster.
-    #[test]
-    fn scl_04_heavier_parent_means_shorter_period() {
-        let light = period_days_for(50_000.0, EARTH_MASS_KG);
-        let heavy = period_days_for(50_000.0, 4.0 * EARTH_MASS_KG);
-        assert!(heavy < light);
-        assert!(
-            (light / heavy - 2.0).abs() < 1e-6,
-            "period goes as 1/sqrt(M)"
-        );
+        kepler_period_days(child.orbit_radius_km, parent.mass_kg)
     }
 
     /// TEST-02: the satellite periods the motion rule is tuned against, so

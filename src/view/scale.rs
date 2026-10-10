@@ -6,7 +6,7 @@
 //! *size* is a fixed pixel size by class (see `markers.rs`), never derived
 //! from physical size.
 
-use crate::system_data::KM_PER_AU;
+use crate::sim::units::KM_PER_AU;
 use bevy::math::DVec3;
 use bevy::prelude::Vec3;
 

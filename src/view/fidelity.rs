@@ -8,7 +8,7 @@ use bevy::asset::RenderAssetUsages;
 use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 
-use crate::colors;
+use crate::view::colors;
 
 const IMAGE_WIDTH: u32 = 160;
 const IMAGE_HEIGHT: u32 = 64;

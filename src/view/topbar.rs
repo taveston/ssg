@@ -1,13 +1,17 @@
-//! Breadcrumb, date, and pause/speed buttons. Replaces iteration 1's debug
-//! readout; the keyboard shortcuts (Space, +, -) still work alongside these.
+//! The top bar and the clock controls (CLK-02, CLK-03): breadcrumb, date,
+//! the Pause, 1 d/s and 5 d/s buttons with the active rate highlighted, and
+//! the clock keys (Space, + and -). Every change goes through the clock's
+//! own API (ARCH-14).
+//!
+//! The FPS readout is not specced (F4-12) and stays until triaged.
 
 use bevy::diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin};
 use bevy::prelude::*;
 
-use crate::colors;
-use crate::date::{date_from_elapsed_days, format_date};
-use crate::fonts::Fonts;
-use crate::time_control::GameClock;
+use crate::sim::clock::GameClock;
+use crate::view::colors;
+use crate::view::date::{date_from_elapsed_days, format_date};
+use crate::view::fonts::Fonts;
 
 #[derive(Component)]
 struct DateText;
@@ -27,7 +31,12 @@ impl Plugin for TopBarPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, spawn_top_bar).add_systems(
             Update,
-            (update_date_text, update_button_styles, update_fps_text),
+            (
+                handle_clock_keys,
+                update_date_text,
+                update_button_styles,
+                update_fps_text,
+            ),
         );
     }
 }
@@ -113,6 +122,21 @@ fn spawn_top_bar(mut commands: Commands, fonts: Res<Fonts>) {
                 TextColor(colors::PANEL_BORDER),
             ));
         });
+}
+
+/// CLK-03, the iteration 1 to 3 bindings: Space pauses, + and - change the
+/// rate. CLK-05 moves the rate onto `.` and `,` and gives + and - to zoom;
+/// that is the camera iteration's job, not this refactor's.
+fn handle_clock_keys(keys: Res<ButtonInput<KeyCode>>, mut clock: ResMut<GameClock>) {
+    if keys.just_pressed(KeyCode::Space) {
+        clock.toggle_pause();
+    }
+    if keys.just_pressed(KeyCode::Equal) {
+        clock.double_rate();
+    }
+    if keys.just_pressed(KeyCode::Minus) {
+        clock.halve_rate();
+    }
 }
 
 fn on_pause_clicked(_click: On<PointerClick>, mut clock: ResMut<GameClock>) {

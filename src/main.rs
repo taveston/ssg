@@ -1,54 +1,39 @@
+//! Orphan Worlds: assembles the domain plugins and orders them (ARCH-01,
+//! ARCH-04). Simulation in `sim/`, content in `content/`, everything drawn
+//! in `view/`; nothing else lives here.
+
 use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
 use bevy::prelude::*;
 
-mod anim;
-mod camera;
-mod colors;
-mod date;
-mod fidelity;
-mod fonts;
-mod grouping;
-mod hover_inspect;
-mod markers;
-mod motion;
-mod orbits;
-mod rings;
-mod scale;
-mod scene;
-mod system_data;
-mod time_control;
-mod topbar;
-mod tunables;
-mod zoom;
-mod zoom_stops;
+mod content;
+mod sim;
+mod view;
 
-use camera::CameraPlugin;
-use fidelity::FidelityPlugin;
-use fonts::FontsPlugin;
-use grouping::GroupingPlugin;
-use hover_inspect::HoverInspectPlugin;
-use markers::MarkersPlugin;
-use motion::MotionPlugin;
-use orbits::OrbitsPlugin;
-use rings::RingsPlugin;
-use scene::ScenePlugin;
-use system_data::SystemDataPlugin;
-use time_control::TimeControlPlugin;
-use topbar::TopBarPlugin;
-use tunables::TunablesPlugin;
-use zoom_stops::ZoomStopsPlugin;
+/// The startup order: the world is spawned from content, then the view
+/// derives what it needs from it (transforms, fold state, zoom stops), then
+/// the overlay is built on top.
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Boot {
+    World,
+    Derive,
+    Overlay,
+}
 
-/// The per-frame pipeline. Grouping needs the camera settled and bodies
-/// moved; motion needs to know what's folded; the marker overlay needs
-/// both. Plugins tag their `Update` systems with these instead of reaching
-/// across module boundaries with `.after()`.
+/// The per-frame pipeline. The simulation runs first; then the camera
+/// settles, simulated positions become transforms, grouping decides what is
+/// folded, motion what is a ring, and the overlay is laid out and drawn on
+/// top. Plugins tag their systems with these instead of reaching across
+/// module boundaries with `.after()`.
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Stage {
+    Simulation,
     Camera,
-    Orbits,
+    Projection,
     Grouping,
     Motion,
-    Markers,
+    Screen,
+    Layout,
+    Overlay,
 }
 
 fn main() {
@@ -60,33 +45,23 @@ fn main() {
             }),
             ..default()
         }))
-        .insert_resource(ClearColor(colors::GROUND))
+        .insert_resource(ClearColor(view::colors::GROUND))
+        .configure_sets(Startup, (Boot::World, Boot::Derive, Boot::Overlay).chain())
         .configure_sets(
             Update,
             (
+                Stage::Simulation,
                 Stage::Camera,
-                Stage::Orbits,
+                Stage::Projection,
                 Stage::Grouping,
                 Stage::Motion,
-                Stage::Markers,
+                Stage::Screen,
+                Stage::Layout,
+                Stage::Overlay,
             )
                 .chain(),
         )
         .add_plugins(FrameTimeDiagnosticsPlugin::default())
-        .add_plugins(TunablesPlugin)
-        .add_plugins(FontsPlugin)
-        .add_plugins(FidelityPlugin)
-        .add_plugins(SystemDataPlugin)
-        .add_plugins(TimeControlPlugin)
-        .add_plugins(ScenePlugin)
-        .add_plugins(ZoomStopsPlugin)
-        .add_plugins(OrbitsPlugin)
-        .add_plugins(RingsPlugin)
-        .add_plugins(GroupingPlugin)
-        .add_plugins(MotionPlugin)
-        .add_plugins(HoverInspectPlugin)
-        .add_plugins(MarkersPlugin)
-        .add_plugins(CameraPlugin)
-        .add_plugins(TopBarPlugin)
+        .add_plugins((content::ContentPlugin, sim::SimPlugin, view::ViewPlugin))
         .run();
 }

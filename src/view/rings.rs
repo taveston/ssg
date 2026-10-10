@@ -8,12 +8,12 @@
 use bevy::prelude::*;
 
 use crate::Stage;
-use crate::grouping::SatelliteFoldState;
-use crate::motion::MotionModeState;
-use crate::orbits::Orbit;
-use crate::scale::km_to_render;
-use crate::system_data::BodyClass;
-use crate::tunables::Tunables;
+use crate::sim::body::BodyClass;
+use crate::sim::orbit::Orbit;
+use crate::view::fold::SatelliteFoldState;
+use crate::view::motion_mode::MotionModeState;
+use crate::view::scale::km_to_render;
+use crate::view::tunables::Tunables;
 
 /// How many straight segments make up a drawn orbit ring.
 const RING_SEGMENTS: usize = 128;
@@ -37,7 +37,7 @@ impl Plugin for RingsPlugin {
             .add_systems(Startup, configure_exposure_gizmos)
             // Drawn with the rest of the overlay, once grouping and motion
             // have decided what shows.
-            .add_systems(Update, draw_orbit_rings.in_set(Stage::Markers));
+            .add_systems(Update, draw_orbit_rings.in_set(Stage::Overlay));
     }
 }
 
@@ -51,7 +51,7 @@ fn configure_exposure_gizmos(mut config_store: ResMut<GizmoConfigStore>, tunable
 fn draw_orbit_rings(
     mut gizmos: Gizmos,
     mut exposure: Gizmos<ExposureRingGizmos>,
-    inspections: Res<crate::hover_inspect::Inspections>,
+    selection: Res<crate::view::selection::Selection>,
     camera_q: Query<(&Camera, &GlobalTransform)>,
     bodies: Query<(
         Entity,
@@ -92,15 +92,15 @@ fn draw_orbit_rings(
         // instead of taking the whole ring with it. Zooming in on a planet
         // puts the camera on its own star orbit, and a whole-circle draw
         // would either vanish or smear through the near plane.
-        let dim = crate::colors::ORBIT_LINE.with_alpha(DIM_RING_ALPHA);
+        let dim = crate::view::colors::ORBIT_LINE.with_alpha(DIM_RING_ALPHA);
         let strength = motion.map(MotionModeState::ring_strength).unwrap_or(0.0);
         let bright = (strength > MIN_RING_STRENGTH).then(|| {
             // MOT-07: a selected object in ring mode keeps its ring
             // highlighted.
-            let color = if inspections.is_open(entity) {
-                crate::colors::SELECTION_RING
+            let color = if selection.is_open(entity) {
+                crate::view::colors::SELECTION_RING
             } else {
-                crate::colors::NEUTRAL
+                crate::view::colors::NEUTRAL
             };
             color.with_alpha(strength)
         });

@@ -5,9 +5,9 @@
 //! inversely proportional to the view scale: one notch in multiplies the
 //! scale by `zoom_step_factor`, which is the same as dividing the distance
 //! by it. Everything here is therefore phrased in distances, and the
-//! conversion to and from a framed radius lives in `zoom_stops.rs`.
+//! conversion to and from a framed radius lives in `stops.rs`.
 
-use crate::anim::ease_out_cubic;
+use crate::view::anim::ease_out_cubic;
 
 /// ZOOM-01: each wheel notch multiplies the view scale by
 /// `step_factor`, i.e. divides the camera distance by it. Positive

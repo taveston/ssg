@@ -10,9 +10,9 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
-use crate::orbits::Orbit;
-use crate::scale::km_to_render;
-use crate::system_data::BodyClass;
+use crate::sim::body::BodyClass;
+use crate::sim::orbit::Orbit;
+use crate::view::scale::km_to_render;
 
 #[derive(Resource, Default, Debug)]
 pub struct ZoomStops {
@@ -68,15 +68,6 @@ pub fn radius_for_distance(distance: f32, fov_y: f32, pitch: f32, margin: f32) -
     distance * margin * (fov_y * 0.5).tan() / pitch.sin().abs().max(0.2)
 }
 
-pub struct ZoomStopsPlugin;
-
-impl Plugin for ZoomStopsPlugin {
-    fn build(&self, app: &mut App) {
-        app.init_resource::<ZoomStops>()
-            .add_systems(Startup, compute_stops.after(crate::scene::spawn_system));
-    }
-}
-
 pub fn compute_stops(
     mut stops: ResMut<ZoomStops>,
     bodies: Query<(Entity, &Orbit, &BodyClass, Option<&ChildOf>)>,
@@ -108,7 +99,8 @@ pub fn compute_stops(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::system_data::{KM_PER_AU, hand_made_system};
+    use crate::content::corvane::hand_made_system;
+    use crate::sim::units::KM_PER_AU;
 
     /// The planetary orbit radii of the real test system, in render units.
     fn corvane_planet_radii() -> Vec<f32> {

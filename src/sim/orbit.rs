@@ -1,23 +1,21 @@
-//! Circular orbital motion, in real units (SCL-01, SCL-04, ARCH-10).
+//! Circular orbital motion, in real units (SCL-01, SCL-04, ARCH-10,
+//! ARCH-11).
 //!
-//! `Orbit` holds the orbital elements in km, days and radians, and a
-//! simulation system writes each body's position in km into
-//! `OrbitPositionKm` from the clock alone (ARCH-11). A separate *view*
-//! system converts those km to render space and writes `Transform`, so the
-//! render transform is never the simulation's source of truth.
+//! `Orbit` holds the orbital elements in km, days and radians, and
+//! `update_orbit_positions` writes each body's position in km into
+//! `OrbitPositionKm` from the clock alone. Turning that into something on
+//! screen is the view's job (`view/projection.rs`); nothing here knows a
+//! render unit exists.
 //!
 //! Positions are relative to whatever the body orbits: the star at the
-//! origin for a planet, the parent body for a satellite. Bevy's transform
-//! propagation adds the parent's world position on top of a satellite's
-//! local offset, so planets and moons share the same update logic.
+//! origin for a planet, the parent body (`ChildOf`) for a satellite.
 
 use bevy::math::DVec3;
 use bevy::prelude::*;
 use std::f64::consts::TAU;
 
-use crate::Stage;
-use crate::scale::km_to_render_vec3;
-use crate::time_control::GameClock;
+use super::clock::GameClock;
+use super::units::{GRAVITATIONAL_CONSTANT, M_PER_KM, SECS_PER_DAY};
 
 /// Orbital elements in real units: a circular, coplanar orbit (SCL-04).
 #[derive(Component, Debug, Clone, Copy)]
@@ -31,6 +29,15 @@ pub struct Orbit {
 /// simulation's source of truth for where things are (ARCH-11).
 #[derive(Component, Debug, Clone, Copy, Default)]
 pub struct OrbitPositionKm(pub DVec3);
+
+/// SCL-04: Kepler's third law - the period of a circular orbit of
+/// `radius_km` round a point mass of `central_mass_kg`, in days. Used
+/// uniformly for planets round the star and satellites round their parent.
+pub fn kepler_period_days(radius_km: f64, central_mass_kg: f64) -> f64 {
+    let radius_m = radius_km * M_PER_KM;
+    let seconds = TAU * (radius_m.powi(3) / (GRAVITATIONAL_CONSTANT * central_mass_kg)).sqrt();
+    seconds / SECS_PER_DAY
+}
 
 /// SCL-04 / ARCH-11: where a body on a circular orbit is after
 /// `elapsed_days`, in km relative to what it orbits. The orbital plane is
@@ -52,21 +59,8 @@ fn orbital_fraction(period_days: f64, elapsed_days: f64) -> f64 {
     }
 }
 
-pub struct OrbitsPlugin;
-
-impl Plugin for OrbitsPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            (update_orbit_positions, project_orbit_positions)
-                .chain()
-                .in_set(Stage::Orbits),
-        );
-    }
-}
-
-/// ARCH-11: simulation. Clock and orbital elements in, km out.
-fn update_orbit_positions(
+/// ARCH-11: clock and orbital elements in, km out.
+pub fn update_orbit_positions(
     clock: Res<GameClock>,
     mut bodies: Query<(&Orbit, &mut OrbitPositionKm)>,
 ) {
@@ -76,17 +70,44 @@ fn update_orbit_positions(
     }
 }
 
-/// ARCH-11 / ARCH-12: view. The one place a simulated position becomes a
-/// `Transform`, through `scale.rs`.
-fn project_orbit_positions(mut bodies: Query<(&OrbitPositionKm, &mut Transform)>) {
-    for (position, mut transform) in &mut bodies {
-        transform.translation = km_to_render_vec3(position.0);
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use crate::sim::units::EARTH_MASS_KG;
+
+    /// SCL-04: Kepler's third law - the period squared goes as the radius
+    /// cubed, so quadrupling the radius multiplies the period by eight.
+    #[test]
+    fn scl_04_period_follows_keplers_third_law() {
+        let base = kepler_period_days(10_000.0, EARTH_MASS_KG);
+        let quadrupled = kepler_period_days(40_000.0, EARTH_MASS_KG);
+        assert!(
+            (quadrupled / base - 8.0).abs() < 1e-6,
+            "expected 8x, got {}",
+            quadrupled / base
+        );
+    }
+
+    /// SCL-04: and against a known orbit, so a wrong constant would show:
+    /// the Moon's sidereal month is about 27.4 days round a lone Earth.
+    #[test]
+    fn scl_04_period_matches_the_moon() {
+        let days = kepler_period_days(384_400.0, EARTH_MASS_KG);
+        assert!((days - 27.4).abs() < 0.1, "got {days} d");
+    }
+
+    /// SCL-04: a heavier parent pulls its satellites round faster.
+    #[test]
+    fn scl_04_heavier_parent_means_shorter_period() {
+        let light = kepler_period_days(50_000.0, EARTH_MASS_KG);
+        let heavy = kepler_period_days(50_000.0, 4.0 * EARTH_MASS_KG);
+        assert!(heavy < light);
+        assert!(
+            (light / heavy - 2.0).abs() < 1e-6,
+            "period goes as 1/sqrt(M)"
+        );
+    }
 
     const MOON: Orbit = Orbit {
         radius_km: 400_000.0,

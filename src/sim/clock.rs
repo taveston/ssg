@@ -1,9 +1,9 @@
-//! The game clock (CLK-01, CLK-04) and the keys that drive it.
+//! The game clock (CLK-01, CLK-04).
 //!
 //! The clock owns its own state: its fields are private and every change
 //! goes through a method on it (ARCH-14), so no view module can set a rate
-//! or a pause flag behind its back. The on-screen readout lives in
-//! `topbar.rs`.
+//! or a pause flag behind its back. The readout, the rate buttons and the
+//! keys live in `view/topbar.rs`.
 
 use bevy::prelude::*;
 
@@ -70,32 +70,9 @@ impl GameClock {
     }
 }
 
-pub struct TimeControlPlugin;
-
-impl Plugin for TimeControlPlugin {
-    fn build(&self, app: &mut App) {
-        app.init_resource::<GameClock>()
-            .add_systems(Update, (tick_clock, handle_time_input));
-    }
-}
-
-fn tick_clock(time: Res<Time>, mut clock: ResMut<GameClock>) {
+/// CLK-01 / CLK-04: the clock advances with real time, unless paused.
+pub fn tick_clock(time: Res<Time>, mut clock: ResMut<GameClock>) {
     clock.advance(time.delta_secs() as f64);
-}
-
-/// The iteration 1 to 3 bindings: Space pauses, + and - change the rate.
-/// CLK-05 moves the rate onto `.` and `,` and gives + and - to zoom; that
-/// is the camera iteration's job, not this refactor's.
-fn handle_time_input(keys: Res<ButtonInput<KeyCode>>, mut clock: ResMut<GameClock>) {
-    if keys.just_pressed(KeyCode::Space) {
-        clock.toggle_pause();
-    }
-    if keys.just_pressed(KeyCode::Equal) {
-        clock.double_rate();
-    }
-    if keys.just_pressed(KeyCode::Minus) {
-        clock.halve_rate();
-    }
 }
 
 #[cfg(test)]

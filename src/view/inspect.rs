@@ -1,41 +1,22 @@
-//! Hover tooltip and click-to-inspect panels. Inspecting is separate from
-//! the camera: the camera only follows a body via the panel's explicit
-//! Focus action.
+//! Inspection insets (INS-01 to INS-04, MOT-07): one panel per open
+//! selection, anchored to its marker by a leader line, rebuilt whenever the
+//! selection changes.
 //!
-//! Simplifications made for this pass (noted rather than silently
-//! skipped): the leader "line" is a short straight connector rather than a
-//! drawn diagonal line; an inspected planet's children un-group instead of
-//! fanning out into a laid-out bubble; the rest of the map isn't dimmed
-//! yet; "click empty space to close" isn't wired up (Esc closes the
-//! unpinned inspection).
+//! Simplifications carried from iteration 2: the leader "line" is a short
+//! straight connector rather than a drawn diagonal; the rest of the map
+//! isn't dimmed; Esc closes the unpinned inset (INS-03), and clicking empty
+//! space does nothing.
 
 use bevy::prelude::*;
 
-use crate::camera::{CameraFocus, FocusJumpRequest, PlanetaryViewRequest};
-use crate::colors;
-use crate::fidelity::FidelityImages;
-use crate::fonts::Fonts;
-use crate::grouping::FoldSummary;
-use crate::markers::GroupPillFor;
-use crate::markers::MarkerFor;
-use crate::system_data::{BodyClass, Description, DisplayName, KeyFacts, Knowledge, Ownership};
-
-#[derive(Resource, Default)]
-pub struct Inspections {
-    pub primary: Option<Entity>,
-    pub pinned: Vec<Entity>,
-}
-
-impl Inspections {
-    pub fn is_open(&self, entity: Entity) -> bool {
-        self.primary == Some(entity) || self.pinned.contains(&entity)
-    }
-}
-
-#[derive(Component)]
-pub(crate) struct TooltipRoot;
-#[derive(Component)]
-pub(crate) struct TooltipLabel;
+use super::camera::state::CameraFocus;
+use super::colors;
+use super::fidelity::FidelityImages;
+use super::fonts::Fonts;
+use super::hover::ownership_label;
+use super::selection::Selection;
+use crate::Stage;
+use crate::sim::body::{BodyClass, Description, DisplayName, KeyFacts, Knowledge, Ownership};
 
 #[derive(Component)]
 struct InspectPanelFor {
@@ -46,221 +27,29 @@ struct LeaderFor(Entity);
 
 const PANEL_WIDTH: f32 = 240.0;
 const LEADER_LENGTH: f32 = 28.0;
+pub struct InspectPlugin;
 
-pub struct HoverInspectPlugin;
-
-impl Plugin for HoverInspectPlugin {
+impl Plugin for InspectPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<Inspections>()
-            .add_systems(Startup, spawn_tooltip)
-            .add_systems(
-                Update,
-                (handle_escape, rebuild_panels, reposition_panels).chain(),
-            );
+        app.add_systems(
+            Update,
+            (handle_escape, rebuild_panels, reposition_panels)
+                .chain()
+                .in_set(Stage::Overlay),
+        );
     }
 }
 
-fn spawn_tooltip(mut commands: Commands, fonts: Res<Fonts>) {
-    commands
-        .spawn((
-            TooltipRoot,
-            Node {
-                position_type: PositionType::Absolute,
-                padding: UiRect::axes(px(8), px(4)),
-                display: Display::None,
-                ..default()
-            },
-            BackgroundColor(colors::PANEL),
-            BorderColor::all(colors::PANEL_BORDER),
-        ))
-        .with_children(|p| {
-            p.spawn((
-                TooltipLabel,
-                Text::new(""),
-                fonts.label(12.0),
-                TextColor(colors::NEUTRAL),
-            ));
-        });
-}
-
-fn child_counts(children: &Children, classes: &Query<&BodyClass>) -> (usize, usize) {
-    let mut moons = 0;
-    let mut stations = 0;
-    for child in children.iter() {
-        match classes.get(child) {
-            Ok(BodyClass::Moon) => moons += 1,
-            Ok(BodyClass::Station) => stations += 1,
-            _ => {}
-        }
-    }
-    (moons, stations)
-}
-
-fn ownership_label(ownership: Ownership) -> &'static str {
-    match ownership {
-        Ownership::Own => "own",
-        Ownership::Foreign => "foreign",
-        Ownership::Neutral => "neutral",
-    }
-}
-
-pub fn on_marker_over(
-    over: On<PointerOver>,
-    markers: Query<&MarkerFor>,
-    bodies: Query<(&DisplayName, &Ownership, Option<&Children>)>,
-    classes: Query<&BodyClass>,
-    mut outlines: Query<&mut Outline>,
-    mut tooltip_nodes: Query<&mut Node, With<TooltipRoot>>,
-    mut tooltip_labels: Query<&mut Text, With<TooltipLabel>>,
-) {
-    if let Ok(mut outline) = outlines.get_mut(over.entity) {
-        outline.width = px(2);
-        outline.color = colors::SELECTION_RING;
-    }
-    let Ok(marker_for) = markers.get(over.entity) else {
-        return;
-    };
-    let Ok((name, ownership, children)) = bodies.get(marker_for.0) else {
-        return;
-    };
-    let extra = match children {
-        Some(children) => {
-            let (moons, stations) = child_counts(children, &classes);
-            match (moons, stations) {
-                (0, 0) => String::new(),
-                (m, 0) => format!(" · {m} moons"),
-                (0, s) => format!(" · {s} stations"),
-                (m, s) => format!(" · {m} moons, {s} stations"),
-            }
-        }
-        None => String::new(),
-    };
-
-    for mut text in &mut tooltip_labels {
-        *text = Text::new(format!(
-            "{} · {}{} — Click: inspect · Double-click: frame its moons · Double-click again: planetary view",
-            name.0,
-            ownership_label(*ownership),
-            extra
-        ));
-    }
-    for mut node in &mut tooltip_nodes {
-        node.display = Display::Flex;
-    }
-}
-
-pub fn on_marker_out(
-    out: On<PointerOut>,
-    mut outlines: Query<&mut Outline>,
-    mut tooltip_nodes: Query<&mut Node, With<TooltipRoot>>,
-) {
-    if let Ok(mut outline) = outlines.get_mut(out.entity) {
-        outline.width = px(0);
-        outline.color = Color::NONE;
-    }
-    for mut node in &mut tooltip_nodes {
-        node.display = Display::None;
-    }
-}
-
-/// Open (or keep open) the inspection inset for a body. Shared by marker
-/// clicks and count-pill clicks - clicking a pill is the same action as
-/// clicking its parent.
-pub fn inspect_body(body: Entity, inspections: &mut Inspections) {
-    if inspections.is_open(body) {
-        return;
-    }
-    inspections.primary = Some(body);
-}
-
-pub fn on_marker_click(
-    click: On<PointerClick>,
-    markers: Query<&MarkerFor>,
-    mut inspections: ResMut<Inspections>,
-    mut focus_jump: ResMut<FocusJumpRequest>,
-    mut planetary: ResMut<PlanetaryViewRequest>,
-) {
-    let Ok(marker_for) = markers.get(click.entity) else {
-        return;
-    };
-    let body = marker_for.0;
-
-    if click.count >= 2 {
-        if inspections.is_open(body) {
-            // Second double-click on an already-inspected body is the
-            // planetary-view trigger. That view doesn't exist yet, so this
-            // just records the request as the hook for it.
-            planetary.0 = Some(body);
-        } else {
-            inspect_body(body, &mut inspections);
-            focus_jump.0 = Some(body);
-        }
-        return;
-    }
-
-    inspect_body(body, &mut inspections);
-}
-
-pub fn on_pill_click(
-    click: On<PointerClick>,
-    pills: Query<&GroupPillFor>,
-    mut inspections: ResMut<Inspections>,
-) {
-    let Ok(pill) = pills.get(click.entity) else {
-        return;
-    };
-    inspect_body(pill.0, &mut inspections);
-}
-
-/// Hovering a count pill lists what's folded into it.
-pub fn on_pill_over(
-    over: On<PointerOver>,
-    pills: Query<&GroupPillFor>,
-    names: Query<&DisplayName>,
-    folds: Res<FoldSummary>,
-    mut tooltip_nodes: Query<&mut Node, With<TooltipRoot>>,
-    mut tooltip_labels: Query<&mut Text, With<TooltipLabel>>,
-) {
-    let Ok(pill) = pills.get(over.entity) else {
-        return;
-    };
-    let Some(group) = folds.0.get(&pill.0) else {
-        return;
-    };
-    let parent_name = names
-        .get(pill.0)
-        .map(|name| name.0.clone())
-        .unwrap_or_default();
-    let listed = group
-        .members
-        .iter()
-        .filter_map(|entity| names.get(*entity).ok().map(|name| name.0.clone()))
-        .collect::<Vec<_>>()
-        .join(", ");
-
-    for mut text in &mut tooltip_labels {
-        *text = Text::new(format!("In orbit of {parent_name}: {listed}"));
-    }
-    for mut node in &mut tooltip_nodes {
-        node.display = Display::Flex;
-    }
-}
-
-pub fn on_pill_out(_out: On<PointerOut>, mut tooltip_nodes: Query<&mut Node, With<TooltipRoot>>) {
-    for mut node in &mut tooltip_nodes {
-        node.display = Display::None;
-    }
-}
-
-fn handle_escape(keys: Res<ButtonInput<KeyCode>>, mut inspections: ResMut<Inspections>) {
+/// INS-03: Esc closes the unpinned inset.
+fn handle_escape(keys: Res<ButtonInput<KeyCode>>, mut selection: ResMut<Selection>) {
     if keys.just_pressed(KeyCode::Escape) {
-        inspections.primary = None;
+        selection.close_unpinned();
     }
 }
 
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
 fn rebuild_panels(
-    inspections: Res<Inspections>,
+    selection: Res<Selection>,
     mut commands: Commands,
     fonts: Res<Fonts>,
     fidelity: Res<FidelityImages>,
@@ -277,7 +66,7 @@ fn rebuild_panels(
     )>,
     names: Query<&DisplayName>,
 ) {
-    if !inspections.is_changed() {
+    if !selection.is_changed() {
         return;
     }
 
@@ -288,8 +77,8 @@ fn rebuild_panels(
         commands.entity(entity).despawn();
     }
 
-    let mut open: Vec<(Entity, bool)> = inspections.pinned.iter().map(|&e| (e, true)).collect();
-    if let Some(primary) = inspections.primary {
+    let mut open: Vec<(Entity, bool)> = selection.pinned.iter().map(|&e| (e, true)).collect();
+    if let Some(primary) = selection.primary {
         open.push((primary, false));
     }
 
@@ -345,7 +134,9 @@ fn spawn_panel(
         Knowledge::Surveyed { imaged_day } => (
             format!(
                 "SURVEYED · {}",
-                crate::date::format_date(&crate::date::date_from_elapsed_days(*imaged_day))
+                crate::view::date::format_date(&crate::view::date::date_from_elapsed_days(
+                    *imaged_day
+                ))
             ),
             colors::OWN,
             fidelity.surveyed.clone(),
@@ -360,7 +151,7 @@ fn spawn_panel(
         Knowledge::Stale { last_imaged_day } => (
             format!(
                 "LAST IMAGED · {}",
-                crate::date::format_time_ago(-*last_imaged_day)
+                crate::view::date::format_time_ago(-*last_imaged_day)
             ),
             Color::srgb(0.65, 0.55, 0.4),
             fidelity.stale.clone(),
@@ -424,25 +215,17 @@ fn spawn_panel(
                                 fonts.label(11.0),
                                 TextColor(colors::NEUTRAL),
                             ))
-                            .observe(move |_click: On<PointerClick>, mut inspections: ResMut<Inspections>| {
+                            .observe(move |_click: On<PointerClick>, mut selection: ResMut<Selection>| {
                                 if pinned {
-                                    inspections.pinned.retain(|&e| e != body);
+                                    selection.unpin(body);
                                 } else {
-                                    if inspections.primary == Some(body) {
-                                        inspections.primary = None;
-                                    }
-                                    if !inspections.pinned.contains(&body) {
-                                        inspections.pinned.push(body);
-                                    }
+                                    selection.pin(body);
                                 }
                             });
                         actions
                             .spawn((Text::new("Close"), fonts.label(11.0), TextColor(colors::FOREIGN)))
-                            .observe(move |_click: On<PointerClick>, mut inspections: ResMut<Inspections>| {
-                                if inspections.primary == Some(body) {
-                                    inspections.primary = None;
-                                }
-                                inspections.pinned.retain(|&e| e != body);
+                            .observe(move |_click: On<PointerClick>, mut selection: ResMut<Selection>| {
+                                selection.close(body);
                             });
                     });
             });
@@ -539,8 +322,8 @@ fn spawn_panel(
                                     TextColor(colors::NEUTRAL),
                                 ));
                             })
-                            .observe(move |_click: On<PointerClick>, mut inspections: ResMut<Inspections>| {
-                                inspections.primary = Some(child);
+                            .observe(move |_click: On<PointerClick>, mut selection: ResMut<Selection>| {
+                                selection.primary = Some(child);
                             });
                     }
                 });

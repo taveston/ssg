@@ -2,7 +2,7 @@
 
 use bevy::prelude::Color;
 
-use crate::system_data::Ownership;
+use crate::sim::body::Ownership;
 
 pub const GROUND: Color = Color::srgb(
     0x07 as f32 / 255.0,
