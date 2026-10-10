@@ -22,7 +22,7 @@
 ### F3-04 · "Shown when paused" text may be missing
 - **Observation:** while writing the spec, no "shown when paused" text was found in the source.
 - **Affects:** MOT-07 · **Type:** bug (suspected)
-- **Disposition:** confirmed by code review in iteration 4 (the ring highlight is there, the text is not). Fix in iteration 4, step 7.
+- **Disposition:** confirmed by code review in iteration 4 (the ring highlight is there, the text is not). Fix in iteration 4, step 7. **Closed** in iteration 4 step 7 (`1659df5`), see F4-24.
 
 ### F3-05 · Prototype Corvane doesn't match the reference layout
 - **Observation:** the prototype has a 0.78 solar-mass star with Pell 0.35 AU, Iver 0.7 AU, Halden IV 2.0 AU, belt sites near 1.2 to 1.3 AU and Morrow 4.3 AU, gates at about 6 AU, and no Corvane II. *Drives & Transit* section 2 has a 0.75 solar-mass star with Pell 0.25, Corvane II 0.36, Iver 0.50, belt 0.58 to 0.70, Halden IV 0.80, Morrow about 4.0 and gates at 2.0 AU. *Component Stats* and *Requirements & Bids* use the reference layout for HR-1.
