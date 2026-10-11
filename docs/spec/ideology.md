@@ -1,5 +1,7 @@
 # Spec: Ideology profile
 
+**In short:** three ideology scores (Cohesion, Authority, Autonomy) that always sum to 12, plus Outlook and Militancy from −6 to +6. Thresholds turn the scores into one of seven labels. Events move one score and take the change from the other two in proportion. A faction's starting profile comes from three history choices.
+
 *Scope:* how a faction's (and later a character's) ideology and attitudes are stored, changed, labelled and displayed. Simulation rules only; where it appears in the UI is not specced yet. *Source ideas:* `docs/ideas/mechanics/faction-history.md` (sections 1, 2 and 8), `docs/ideas/gdd.md` (4.7), diagram `docs/ideas/mechanics/ideology-triangle.svg`. **Built** is ✓ once a requirement is in the code; none is yet.
 
 ---

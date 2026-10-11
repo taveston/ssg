@@ -1,5 +1,7 @@
 # Spec: Code architecture
 
+**In short:** the code is split into simulation, content and view domains, with dependencies pointing one way. Simulation works in real units (km, days) and never knows about rendering. Every spec rule is a plain function with tests, systems stay small, and text-scan tests enforce the layout.
+
 *Scope:* how the prototype's code is organised, separated, commented and tested. It applies to all code. **Built** is ✓ once the code meets the requirement.
 
 ---
