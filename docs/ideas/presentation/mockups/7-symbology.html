@@ -57,6 +57,8 @@
   .sizes { display: flex; flex-wrap: wrap; gap: 26px; align-items: flex-end; }
   .sizes figure { margin: 0; text-align: center; }
   .sizes figcaption { font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .flag { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .flag .step svg + svg { margin-left: 6px; }
   .ctx svg { width: 100%; height: auto; display: block; }
   footer { margin-top: 18px; color: var(--muted); font-size: 12px; }
 </style>
@@ -80,6 +82,12 @@
       <h2>Amplifiers</h2>
       <p class="note">Added around the frame, never inside it, so the core symbol always reads the same.</p>
       <div class="amps" id="amps"></div>
+    </section>
+
+    <section class="board span2">
+      <h2>Shipping by flag and command</h2>
+      <p class="note">Frame shape = flag. Fill = the state commands it. Own-flag civilians (organisation-owned) keep the circle but lose the fill and go a paler blue; requisition fills them in.</p>
+      <div class="flag" id="flag"></div>
     </section>
 
     <section class="board span2">
@@ -111,7 +119,7 @@
 </div>
 
 <script>
-const C = { own: '#5AA9E6', neutral: '#8CCB8A', hostile: '#EE6A5F', unknown: '#F0A040', text: '#DCE6EC', muted: '#9FB6C4', ground: '#070A0E' };
+const C = { own: '#5AA9E6', civil: '#A9CBE3', neutral: '#8CCB8A', hostile: '#EE6A5F', unknown: '#F0A040', text: '#DCE6EC', muted: '#9FB6C4', ground: '#070A0E' };
 
 // Frame outlines in symbol units (frame fits roughly within radius 14 to 16).
 const FRAME = {
@@ -147,7 +155,7 @@ function icon(kind, col) {
   o.station: installation bar   o.lead: [angleDeg, lengthPx] velocity leader   o.dim: lower opacity (stale)
 */
 function sym(o) {
-  const col = C[o.aff];
+  const col = o.civil ? C.civil : C[o.aff];
   const top = TOP[o.aff];
   const dash = o.dashed ? ' stroke-dasharray="3 2.4"' : '';
   let s = `<g stroke="${col}" stroke-width="1.6" stroke-linejoin="round"${o.dim ? ' opacity="0.55"' : ''}>`;
@@ -158,7 +166,7 @@ function sym(o) {
   if (o.group === 'stack') {
     s += `<g transform="translate(4,-4)" fill="${C.ground}" opacity="0.8">${FRAME[o.aff]}</g>`;
   }
-  s += `<g fill="${col}" fill-opacity="0.16"${dash}>${FRAME[o.aff]}</g>`;
+  s += `<g fill="${o.civil ? 'none' : col}" fill-opacity="${o.aff === 'own' ? 0.3 : 0.16}"${dash}>${FRAME[o.aff]}</g>`;
   s += icon(o.icon, col);
   if (o.station) s += `<rect x="-4" y="${-top - 5}" width="8" height="4" fill="${col}" stroke="none"/>`;
   let above = top + 3;
@@ -203,6 +211,18 @@ for (const [name, hint, o] of ROWS) {
        AFFS.map(([k]) => `<td>${svgBox({ ...o, aff: k }, 64, (o.echelon || o.group === 'tf') ? 72 : 52)}</td>`).join('') + '</tr>';
 }
 document.getElementById('matrix').innerHTML = m;
+
+// Flag and command
+const FLAG = [
+  [{ aff: 'own', icon: 'warship' }, 'STATE', 'Navy warship', 'Own flag · state commands'],
+  [{ aff: 'own', icon: 'supply' }, 'STATE', 'Fleet tanker', 'Own flag · state commands'],
+  [{ aff: 'own', icon: 'cargo', civil: true }, 'OWN FLAG', 'Varga Mining ore carrier', 'Own organisation · not under orders'],
+  [{ aff: 'own', icon: 'warship', civil: true }, 'OWN FLAG', 'Licensed armed hauler', 'Own organisation · armed'],
+  [{ aff: 'own', icon: 'cargo' }, 'REQUISITIONED', 'Ore carrier, chartered', 'Fill appears while under state orders'],
+  [{ aff: 'neutral', icon: 'cargo' }, 'FOREIGN', 'Ostra trader', 'Neutral (or allied) flag']
+];
+document.getElementById('flag').innerHTML = FLAG.map(([o,k,b,s]) =>
+  `<div class="step">${svgBox(o, 40, 40, 22/26)}${svgBox(o, 64, 52, 1.25)}<div class="k">${k}</div><b>${b}</b><span>${s}</span></div>`).join('');
 
 // Installations
 const INST = [
@@ -283,6 +303,8 @@ g += `<path d="M700,120 Q880,170 1000,280" fill="none" stroke="${C.own}" stroke-
 g += place({ aff: 'own', icon: 'embarked', echelon: 'II', lead: [125, 14] }, 760, 140);
 g += label(788, 140, ['Transport Cassel', '1st Arden Guard · arr. 4 d'], C.own);
 // neutral trader
+g += place({ aff: 'own', icon: 'cargo', civil: true, lead: [200, 12] }, 700, 250);
+g += label(726, 254, ['Varga Mining ore carrier', 'own flag · civilian'], C.civil);
 g += place({ aff: 'neutral', icon: 'cargo', lead: [250, 12] }, 1220, 470);
 g += label(1160, 520, ['Ostra trader', 'Halvard Lines'], C.neutral);
 // hostile raider stale

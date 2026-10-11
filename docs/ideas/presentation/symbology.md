@@ -31,7 +31,13 @@ Uses the NATO sea-surface frames. They are closed, compact shapes; the NATO spac
 | Unknown | Quatrefoil | Orange #F0A040 | Today's "foreign contact" orange, standing in for NATO yellow. |
 
 - Frames are outlines with a faint tint fill (about 16 %) so they stand out on the dark ground without becoming solid blobs.
-- **Allies (decided for now, 2026-10-11):** allied ships use the neutral frame. The important split for the player is "mine to command" versus "not mine". NATO itself puts allies in the friend frame. If allies later need to stand apart from neutrals, the likely change is the friend circle with no fill (outline only): it keeps "will fight on our side" in the friendly shape, and the fill marks "takes my orders".
+- **Allies (decided for now, 2026-10-11):** allied ships use the neutral frame. The important split for the player is "mine to command" versus "not mine". NATO itself puts allies in the friend frame. If allies later need to stand apart from neutrals, they need a cue other than the unfilled circle, which own-flag civilians now use (below).
+- **Own-flag versus foreign shipping (candidate):** two separate questions, shown by two separate cues.
+  - *Flag* (whose ship it is) sets the frame shape. Ships registered to own organisations are own flag, so they keep the circle. A foreign neutral merchant has the square.
+  - *Command* (does the state give it orders) sets the fill. State ships have a solid tint. Own-flag civilians have no fill and a paler blue (#A9CBE3), so they read as "ours, but not under orders".
+  - Requisitioning or chartering a civilian ship fills its frame in for as long as the state commands it, so the player sees the takeover on the map.
+  - The armed rule still holds: a licensed armed hauler gets the filled warship icon in an unfilled frame.
+  - The state tint is stronger (about 30 %) than for other affiliations, so filled and unfilled circles stay distinct at 22 px.
 - **Open:** whether "hostile" means at war, or just "a faction we treat as a threat". It should follow the state's declared stance, not the AI's intent, so the player never learns hidden intent from a colour.
 
 ## 3. Icons: what it is
@@ -130,7 +136,9 @@ Adopting this would change built requirements:
 - Whether neutral green and hostile red work for colour-blind players alongside the shapes, or need adjusting. Red and orange are close for some players; the frame shape carries the difference.
 - Warnings currently share orange with unknown contacts. Probably fine, since a new unknown contact usually is the warning.
 - How many icon types before they stop being learnable. Aim for under a dozen.
-- Whether civilian ships owned by own organisations (not the state) need a distinct look, since the state doesn't command them. A candidate: own frame, no fill.
+- Whether the paler civilian blue is too close to the neutral off-white used for bodies and text. Unfilled circle versus filled disc should still tell them apart.
+- Whether state-owned organisations' ships (owned by a company the state owns, but not navy) count as state or civilian. Probably civilian unless requisitioned: ownership isn't command.
+- Own-flag civilian installations (a privately owned yard or refinery) would follow the same rule: circle, no fill.
 - Leader length scale: linear or logarithmic in speed, given transit speeds vary widely.
 
 ## Rendering the mock-up
