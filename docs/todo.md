@@ -17,6 +17,14 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - Write tests for built requirements that have none. Many visual rules can be checked through what drives the picture: projected positions, fold state, pixel sizes, simulated input in a headless app. Mark *Manual* only what truly can't be tested, with the reason.
   - Rename the tests named after spec IDs (`grp_01_…`) so the name says what they check, with the ID in a comment or doc line.
   - Rewrite comments that are only an ID so they explain the rule on their own. Remove comments that point at deleted docs (the validation checklist, iteration history).
+- [ ] **Ship and station symbols** · SYM-01 to SYM-08, SYM-13 to SYM-15, TEST-05, and the reworded MRK-01, MRK-04, GRP-06, INS-05, TEST-03
+  - Replaces the triangle, diamond and hollow-square markers; delete their code. The `Ownership` enum (own, neutral, foreign) gives way to affiliation and command (SYM-01).
+  - Reference: mock-up `docs/ideas/presentation/mockups/7-symbology.png` for shapes and proportions. Ignore its installation role icons.
+  - Most rules can be tested through what drives the picture: which frame, icon, fill and amplifiers a known-values record produces, and pixel sizes.
+- [ ] **Ship groups and condition** · SYM-09, SYM-10, SYM-12, GRP-09, TEST-06
+  - Needs the symbols item first.
+- [ ] **Velocity leaders** · SYM-11
+  - Blocked: ships in transit are not specced yet.
 - [ ] **Trackpad pinch** · ZOOM-07
   - Blocked: see F3-01.
 - [ ] **Ideology profile** · IDEO-01 to IDEO-31

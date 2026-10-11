@@ -1,8 +1,8 @@
 # Spec: System view
 
-**In short:** one star system drawn as a vector display at true scale, with fixed-size markers. Clicking selects an object and opens an inspection inset; focus locks the camera onto an object. Zoom is stepped, with stops computed from the system's orbits. Satellites fold into their parent when their orbits get small on screen, and fast orbits are drawn as exposure rings. Corvane is the test system.
+**In short:** one star system drawn as a vector display at true scale, with fixed-size markers; ships and stations use NATO-style symbols. Clicking selects an object and opens an inspection inset; focus locks the camera onto an object. Zoom is stepped, with stops computed from the system's orbits. Satellites fold into their parent when their orbits get small on screen, and fast orbits are drawn as exposure rings. Corvane is the test system.
 
-*Scope:* scale, clock, markers, inspection, zoom, camera, satellite grouping, the motion rule and the Corvane test system. *Source ideas:* `docs/ideas/presentation/presentation.md` (section 2), `docs/ideas/presentation/presentation-sketches.md` (boards 1, 2, 5, 6), mock-ups in `docs/ideas/presentation/mockups/`. Where a mock-up and this spec disagree, this spec wins.
+*Scope:* scale, clock, markers, ship and station symbols, inspection, zoom, camera, satellite grouping, the motion rule and the Corvane test system. *Source ideas:* `docs/ideas/presentation/presentation.md` (section 2), `docs/ideas/presentation/presentation-sketches.md` (boards 1, 2, 5, 6), `docs/ideas/presentation/symbology.md` (symbols), mock-ups in `docs/ideas/presentation/mockups/`. Where a mock-up and this spec disagree, this spec wins.
 
 *How to read it:* each requirement has a stable ID. **Built** is ✓ once the requirement is in the code. Numbers in `code` are tunables (table at the end), read from `src/view/tunables.rs`, never hard-coded.
 
@@ -32,13 +32,37 @@
 
 | ID | Requirement | Built |
 |---|---|---|
-| MRK-01 | Palette: ground #070A0E; neutral bodies and text #DCE6EC; orbits and secondary text #9FB6C4; own assets #5AA9E6 (blue); foreign contacts and warnings #F0A040 (orange); selection and hover as a white ring. | ✓ |
+| MRK-01 | Palette: ground #070A0E; neutral bodies and text #DCE6EC; orbits and secondary text #9FB6C4; own assets #5AA9E6 (blue); warnings #F0A040 (orange); selection and hover as a white ring. Ships, groups and stations take their colour from their affiliation (SYM-02). | |
 | MRK-02 | Type: Barlow for labels and UI; JetBrains Mono for dates, figures and status readouts. | ✓ |
 | MRK-03 | Each object is a fixed-size screen marker by class, projected from its 3D position each frame; marker size never depends on physical size. | ✓ |
-| MRK-04 | Marker shapes: filled disc = body; hollow square = station; filled triangle = own ship; filled diamond = foreign contact; X = salvage site. | ✓ |
+| MRK-04 | Marker shapes: filled disc = body; X = salvage site. Ships, groups of ships and stations are drawn as symbols (section 3a). | |
 | MRK-05 | Orbits are faint rings; the belt is a translucent shaded band. A ring stays within half a pixel of the true circle, also when the camera is close to it, and a ring passing behind the camera is cut at the near limit, not dropped. | ✓ |
 | MRK-06 | Separate planets are never merged, however close on screen. | ✓ |
 | EDGE-01 | A gate outside the viewport is shown as an arrow pinned to the edge of the map area (below the top bar) in its direction, labelled with its destination. A gate behind the camera is pinned by its direction in the camera's own right and up axes. Arrows slide round the edge as the heading turns. | ✓ |
+
+## 3a. Ship and station symbols
+
+Ships and stations are drawn as symbols adapted from NATO APP-6: the **frame** shape shows affiliation, the **icon** inside shows what it is, and **amplifiers** around the frame show its state. Reference: mock-up `7-symbology.png`, except the installation role icons (naval base, shipyard, habitat, industrial site), which are not specced.
+
+**Affiliation** is how the state sees an object: own, allied, neutral, hostile or unknown. **Command** is whether the state gives it orders. An **own-flag civilian** ship is own (registered to one of the state's organisations) but not commanded. A **group** is several ships drawn as one symbol.
+
+| ID | Requirement | Built |
+|---|---|---|
+| SYM-01 | Each ship, group and station holds in simulation data what the state knows of it: affiliation; whether the state commands it; class (warship, fleet supply, cargo, troop transport, station, or unknown); whether it is known to be armed; for a troop transport, its load (unknown, known empty, or embarked formations, each with a name and an echelon that may be unknown); its track state (firm, weak, or stale with the date last observed); and, for own ships, a condition from 0 to 1. Symbols are drawn from these values only. | |
+| SYM-02 | The frame shape and colour follow affiliation: own = circle, blue #5AA9E6 (own-flag civilian: paler blue #A9CBE3); allied and neutral = square, green #8CCB8A; hostile = diamond, red #EE6A5F; unknown = quatrefoil, orange #F0A040. The outline is `symbol_stroke_px` wide. | |
+| SYM-03 | Fill shows command: a commanded own ship, group or station has a tint of its colour at `symbol_fill_state`; an own-flag civilian has no fill; every other affiliation has a tint at `symbol_fill_other`. When the state takes command of a civilian ship (requisition or charter) it is drawn in the state blue with the state fill, and returns to the civilian look when command ends. | |
+| SYM-04 | A symbol's frame fits a square of `ship_symbol_px` on screen at every zoom (MRK-03). Amplifiers and labels sit outside that square. | |
+| SYM-05 | The icon inside the frame, in the frame's colour: warship = filled triangle; fleet supply or tanker = outline drop; cargo = outline crate (a box with a horizontal centre line); troop transport = outline unit box (a landscape rectangle); unknown class = "?" in JetBrains Mono; station = no icon. A ship known to be armed shows the warship icon whatever its class, so filled always means armed. | |
+| SYM-06 | A troop transport shows what is known of its load. Unknown: empty box, and "?" in the echelon slot above the frame. Known empty: empty box, nothing above. Embarked: the box with both diagonals drawn (the infantry cross), and the echelon of the largest embarked formation above the frame (II battalion, III regiment, X brigade), or "?" if its size is unknown. | |
+| SYM-07 | A station has its affiliation frame with a small filled bar centred on top of the frame (the NATO installation bar), and no icon. | |
+| SYM-08 | Track state: a firm track has a solid frame; a weak track has a dashed frame; a stale track has a dashed frame, is drawn at `stale_symbol_alpha` opacity, and its label reads "last seen *N* d ago" in whole days of game time. Affiliation, class, load and track state each change the symbol independently as the state learns more. | |
+| SYM-09 | A group is drawn as one symbol, and its members are not drawn individually. All members share the group's affiliation and command. The icon is that of its most significant member (warship, then troop transport, then fleet supply, then cargo, then unknown), and the member count is shown in JetBrains Mono at the frame's upper right. A **task force** (members under one commander) has a bracket above the frame, above any echelon. A **loose group** (moving together with no formation) has a second copy of the frame offset up and right behind it. | |
+| SYM-10 | Two groups are never merged into one symbol, even at the same position; an escorted convoy is a loose group and a task force. | |
+| SYM-11 | A ship or group in transit has a velocity leader: a line from the edge of the frame in the on-screen direction of its velocity relative to the star. Its length rises with the logarithm of speed from `leader_min_px` at `leader_speed_min_kms` to `leader_max_px` at `leader_speed_max_kms`, clamped at both ends; below `leader_speed_min_kms`, and for stale tracks, there is no leader. Orbiting and parked ships have no leader. | |
+| SYM-12 | Own ships and own groups (commanded or civilian) have a condition bar under the frame, `ship_symbol_px` wide and 3 px high, filled to their condition in the symbol's colour, or in orange below `condition_warn_fraction`. A group shows the mean of its members. | |
+| SYM-13 | A symbol's label sits to the right of it, in the symbol's colour: the name in Barlow, then a second line in JetBrains Mono in the secondary text colour summarising the parts that apply, joined by " · ": a group's member count by class ("4 warships"); embarked formations ("1st Arden Guard"); "own flag · civilian" or "requisitioned"; and the stale age (SYM-08). With none of these, there is no second line. | |
+| SYM-14 | Hover and click target a symbol through its `ship_symbol_px` square. The hover ring, the selection ring and the focus brackets (CAM-22) are sized to enclose that square, not the amplifiers. | |
+| SYM-15 | Ownership text in tooltips and insets uses: "own", "own flag · civilian", "requisitioned", "allied", "neutral", "hostile" or "unknown". | |
 
 ## 4. Hover and inspection
 
@@ -49,7 +73,7 @@
 | INS-02 | The inset shows: header (name, class and ownership line), Focus, Pin and Close buttons; an image for the knowledge state (INS-04); key facts; and an "Open planetary view" button, disabled until the planetary view exists. | ✓ |
 | INS-03 | Pin keeps an inset open when the selection changes, so two objects can be compared; Esc closes the unpinned inset. | ✓ |
 | INS-04 | The inset image follows knowledge: **surveyed** = clean render, status "SURVEYED · *date*"; **unsurveyed** = grainy telescope frame, "TELESCOPE FRAME · UNSURVEYED" in orange, estimates as ranges; **stale** = sepia image, "LAST IMAGED · *date*". | ✓ |
-| INS-05 | The inset of a body with satellites has an "In orbit" list: one entry per satellite (class marker and name, own and foreign colours per MRK-01), in orbit order from the inside out. Clicking an entry selects that satellite (its inset replaces the parent's unless pinned) once `double_click_window_ms` passes without a second click; double-clicking it behaves as ZOOM-16 and ZOOM-17. | ✓ |
+| INS-05 | The inset of a body with satellites has an "In orbit" list: one entry per satellite (its symbol per section 3a at `list_symbol_px`, or the body disc, and its name), in orbit order from the inside out. Clicking an entry selects that satellite (its inset replaces the parent's unless pinned) once `double_click_window_ms` passes without a second click; double-clicking it behaves as ZOOM-16 and ZOOM-17. | |
 | INS-06 | When the selected object is folded into its parent (GRP-01), its inset's leader line goes to the parent's pill, and the pill carries the white selection ring. When the object unfolds, both move to its own marker without a jump. | ✓ |
 
 ## 5. Navigation and zoom
@@ -115,9 +139,10 @@ A **satellite** is anything orbiting a body other than the star: moons, stations
 | GRP-03 | Folding and unfolding animate the satellite into or out of its parent over `fold_unfold_anim_ms`, including during zoom animations. | ✓ |
 | GRP-04 | At the system frame every moon and planetary station is folded. | ✓ |
 | GRP-05 | A parent with folded satellites shows a "+N" pill beside its marker without overlapping it. | ✓ |
-| GRP-06 | The pill has an orange outline if any folded satellite is foreign, and a small blue dot if own ships are parked there. | ✓ |
+| GRP-06 | The pill's outline takes the colour (SYM-02) of the most pressing affiliation among its folded satellites: hostile, then unknown, then neutral or allied; with none of these it keeps its normal outline. A small blue dot shows if own ships are parked there. | |
 | GRP-07 | Hovering the pill lists the folded satellites; clicking it does exactly what clicking the parent does. | ✓ |
 | GRP-08 | Ships in transit are never folded. | ✓ (rule only; no transit ships yet) |
+| GRP-09 | A group (SYM-09) folds as one satellite: it counts once in the "+N" pill and is listed by name with its member count. | |
 
 ## 7. Motion rule
 
@@ -141,7 +166,9 @@ The prototype system, kept as data (SCL-03). It exists to exercise the rules abo
 |---|---|---|
 | TEST-01 | Corvane contains at least: the star; planets Pell, Iver (with Iver Yard station), Halden IV (capital, own) and Morrow (outer giant with many moons); a belt with salvage sites Wreck Field and Lantern; and off-screen gates. | ✓ |
 | TEST-02 | Halden IV's satellites have periods of about: Arden Highport 0.1 d, IVa 1.5 d, IVb 4.2 d, IVc 31 d, IVd 68 d, so both motion modes show at 1 d/s. Radii follow Kepler from Halden IV's mass. | ✓ |
-| TEST-03 | Halden IV also has a foreign contact K-3 (diamond, slow orbit) and one own ship parked in orbit (triangle), as static orbiting objects. | ✓ |
+| TEST-03 | Halden IV also has contact K-3 (unknown affiliation, unknown class, weak track, slow orbit) and one own commanded warship parked in orbit, as static orbiting objects. | |
+| TEST-05 | Corvane has, as static orbiting objects in slow orbits (dot mode at 1 d/s), at least one of each: own fleet tanker; own troop transport with 1st Arden Guard (battalion) embarked; own empty troop transport; own-flag civilian ore carrier (Varga Mining); requisitioned civilian ore carrier; own-flag civilian armed hauler; neutral trader; allied warship; hostile troop transport with unknown load; hostile raider on a stale track last seen 6 days before the start date; unknown-affiliation contact with known class cargo. Iver Yard and Arden Highport are own stations. | |
+| TEST-06 | Corvane also has, as static orbiting objects: own task force TF-1 (4 warships, one damaged so the group's mean condition is below `condition_warn_fraction`); and a loose group of 6 own-flag civilian haulers. | |
 | TEST-04 | The inspection data covers all three knowledge states: Halden IV surveyed, Halden IVc unsurveyed, Lantern stale. | ✓ |
 
 ## Tunables
@@ -176,6 +203,17 @@ All in the `Tunables` resource (`src/view/tunables.rs`). Defaults are starting v
 | `edge_scroll_px` | 8 px | CAM-17 |
 | `pan_bound_factor` | 1.5 | CAM-19 |
 | `focus_bracket_px` | 14 px (bracket box side) | CAM-22 |
+| `ship_symbol_px` | 22 px | SYM-04, SYM-12, SYM-14 |
+| `list_symbol_px` | 14 px | INS-05 |
+| `symbol_stroke_px` | 1.6 px | SYM-02 |
+| `symbol_fill_state` | 0.30 | SYM-03 |
+| `symbol_fill_other` | 0.16 | SYM-03 |
+| `stale_symbol_alpha` | 0.55 | SYM-08 |
+| `leader_min_px` | 6 px | SYM-11 |
+| `leader_max_px` | 24 px | SYM-11 |
+| `leader_speed_min_kms` | 0.5 km/s | SYM-11 |
+| `leader_speed_max_kms` | 50 km/s | SYM-11 |
+| `condition_warn_fraction` | 0.5 | SYM-12 |
 
 ## Open points
 
@@ -183,4 +221,4 @@ All in the `Tunables` resource (`src/view/tunables.rs`). Defaults are starting v
 
 ## Not yet specced
 
-From the ideas, not to be built until specced: layer toggles, alerts, legend, Administration button, inspection fidelity for foreign contacts (thermal track), ships in transit and trajectories, uncertainty ellipses, the planetary view and its transition, the cluster view, gate distance labels, and every open question in `docs/ideas/presentation/presentation.md` section 6.
+From the ideas, not to be built until specced: installation role icons, data blocks beyond SYM-13, layer toggles, alerts, legend, Administration button, inspection fidelity for foreign contacts (thermal track), ships in transit and trajectories, uncertainty ellipses, the planetary view and its transition, the cluster view, gate distance labels, and every open question in `docs/ideas/presentation/presentation.md` section 6.

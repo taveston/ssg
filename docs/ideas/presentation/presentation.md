@@ -23,6 +23,7 @@ The first three are spatial layers, nested from cluster down to planet. Faction 
 - **Strategic display (decided):** the system and cluster views are a vector plotting display. Orbits are faint lines, bodies and ships are solid markers, trajectories are lines. System, cluster and combat views share one visual language; combat is the same display with the clock slowed (design document, 4.6). It reads as the government's own instruments, which suits a head of state rather than a pilot.
 - **Scale (direction):** positions and orbits are drawn at true scale. Markers are a fixed screen size by class, never physical size. Only the marker is stylised, never the geometry. (Specced for the system view: SCL-02, MRK-03, MRK-04.)
   - Marker shape and weight show the type: planet, moon, station, gate, ship, salvage site.
+  - Ship and station symbology (decided, specced as SYM): NATO-style frames for affiliation, icons for ship type, and amplifiers for state, groups and identification. See *Symbology & UI Style* (`symbology.md`).
   - Navigation is by stepped zoom with stops, focus jumps and bookmarks (specced: ZOOM). Important off-screen objects get edge indicators (candidate; specced for gates as EDGE-01).
   - How gate distance is shown on screen is left open until gate placement is tuned (section 6).
 - **Inspection view (decided):** highlighting any object expands it into a semi-photoreal view. This applies to everything: bodies, stations, gates, sites and ships. Ships appear as blips because of the distances involved, not because they are kept abstract.
@@ -110,7 +111,7 @@ The vector layer is cheap to produce. Photoreal work is needed for generated bod
 - How gate distance appears on screen once placement is settled: true scale, compressed, or an optional overview scaling.
 - Which limits on knowledge to model abstractly, and how; how sensor coverage is shown.
 - Whether the inspection view is in place or a panel; how much survey detail each fidelity level needs.
-- Colour palette and faction colours.
+- Faction colours beyond the affiliation colours in `symbology.md`.
 - Zoom: step factor, animation timing, strength of the resistance at stops, and whether small systems need a region frame.
 - Camera: the final tilt limit and pan and rotate speeds after testing; the tilt range for the cluster view.
 - Motion rule: switch abruptly between dot and exposure ring, or fade across a band of speeds; final values for R_show, T_dot and T_ring after testing.
