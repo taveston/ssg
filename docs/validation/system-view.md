@@ -10,7 +10,7 @@ The **it4 auto** column lists the `cargo test` cases that now cover each check (
 
 The **it5** column records iteration 5 (camera and focus) for every row it touched: the tests that cover it, or what was checked by code review or screenshot. Rows left blank weren't touched; the hand checks are still to run.
 
-"✓ auto" means the `cargo test` case passes. Where a row's Auto note names only part of the check, the rest still needs an eye on the running app. ZOOM-15's stop-radii tests exist (`zoom_15_*`) but its row stays `–`: the focus model it is written against is not built yet.
+"✓ auto" means the `cargo test` case passes. Where a row's Auto note names only part of the check, the rest still needs an eye on the running app. ZOOM-15's row was `–` until iteration 5 built the focus model it is written against.
 
 ## Setup
 
