@@ -1,6 +1,6 @@
 # Findings: iteration 5
 
-*Iteration:* 5, camera and the selection / focus model (ZOOM-13 to ZOOM-17, CAM-01 to CAM-22, CLK-05, INS-05, INS-06, MOT-08). *Status:* not started. Carried in from iteration 4: F4-13, F4-27, F4-28, F4-29 and F4-31 are resolved by this build; F4-30 (zoom setting focus, CAM-21) is deferred to the playtest of it. Add findings from the build from F5-01 on. Format and types are explained in `docs/README.md`.
+*Iteration:* 5, camera and the selection / focus model (ZOOM-13 to ZOOM-17, CAM-01 to CAM-22, CLK-05, INS-05, INS-06, MOT-08). *Status:* built (2026-10-11); awaiting playtest. Carried in from iteration 4: F4-13, F4-27, F4-28, F4-29 and F4-31 are resolved by this build; F4-30 (zoom setting focus, CAM-21) is deferred to the playtest of it. Add findings from the build from F5-01 on. Format and types are explained in `docs/README.md`.
 
 ---
 
@@ -32,7 +32,7 @@
 ### F5-06 · The double-click window tunable has nothing to do
 - **Observation:** `double_click_window_ms` is specced as a fallback for ZOOM-16 and ZOOM-17 if the picking backend's click count proves unreliable. The double-click actions now read Bevy's click count, which has worked in every test, so the tunable is unused and stays marked as waiting.
 - **Affects:** ZOOM-16, ZOOM-17 · **Type:** spec gap
-- **Disposition:** open for triage: drop the tunable from the spec, or keep it until double-clicks have been checked on more hardware.
+- **Disposition:** superseded by F5-07, which uses the tunable for the In orbit list; the map's double-clicks still read Bevy's click count.
 
 ### F5-07 · A single click on an "In orbit" entry waits for the double-click window
 - **Observation:** INS-05 asks for click (select) and double-click (ZOOM-16 / ZOOM-17) on the same entry. But selecting a satellite replaces the parent's inset with the satellite's own, which removes the list before a double-click's second click can land. So a single click on an entry selects once `double_click_window_ms` (350 ms) has passed with no second click; a double-click selects and focuses at once. This gives `double_click_window_ms` a job (F5-06), but list clicks feel a third of a second slow.
