@@ -1,4 +1,4 @@
-# Orphan Worlds: Symbology & UI Style
+# Orphan Worlds: Symbology
 
 This doc sets out how ships, groups of ships and stations are drawn on the vector display, using NATO joint military symbology (APP-6 / MIL-STD-2525) as the reference. The main ideas:
 
@@ -99,13 +99,13 @@ How a contact firms up as tracking improves. Each step adds to the symbol rather
 
 Steps can come in other orders (a ship's transponder may give the owner before the class). The rule is only that each part of the symbol reflects what the state knows about that part.
 
-## 8. Labels and UI style
+## 8. Labels and paths
 
 - **Label:** name in Barlow to the right of the symbol, then one line of JetBrains Mono summarising group make-up, embarked troops, civilian or requisitioned status, and track age.
 - **Candidate:** a fuller data block (ETA, propellant) for own task forces and the hovered or selected object, hidden elsewhere at low zoom to limit clutter.
 - **Paths:** planned paths dashed in the affiliation colour; flown arcs solid (already the convention in the sketches).
 - **Simpler fallback (candidate):** if full frames prove too busy, drop to the older NTDS naval radar style (the same affiliation shapes, small, with no icon inside) at low zoom, and show icons from mid zoom.
-- Panels, windows and reports: to be worked out next.
+- Panels, windows and reports: see *Interface Style* (`ui-style.md`).
 
 ## 9. Open questions
 

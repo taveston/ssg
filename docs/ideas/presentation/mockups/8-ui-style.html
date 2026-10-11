@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Interface Style Sheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<!--
+  Orphan Worlds: panels, windows and reports, candidate (docs/ideas/presentation/ui-style.md).
+  Ship symbols reuse the rules of 7-symbology.html.
+-->
+<style>
+  :root {
+    --ground: #070A0E; --panel: #0C1117; --panel2: #10161E; --line: rgba(159,182,196,0.20); --line2: rgba(159,182,196,0.10);
+    --text: #DCE6EC; --muted: #9FB6C4; --dim: #6F8696; --own: #5AA9E6; --civil: #A9CBE3; --neutral: #8CCB8A; --hostile: #EE6A5F; --warn: #F0A040;
+  }
+  /* The game's interface is always dark, so the sheet is too, in either theme. */
+  :root:not([data-theme="light"]) { color-scheme: dark; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --ground: #070A0E; } }
+  :root[data-theme="dark"] { --ground: #070A0E; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--ground); color: var(--text); }
+  body { font-family: Barlow, system-ui, sans-serif; font-size: 14px; line-height: 1.4; }
+  .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .wrap { max-width: 1440px; margin: 0 auto; padding: 28px 16px 40px; }
+  @media (min-width: 900px) { .wrap { padding: 32px 40px 48px; } }
+  header.sheet { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20px; border-bottom: 1px solid var(--line); padding-bottom: 14px; margin-bottom: 22px; }
+  h1 { font-size: 20px; font-weight: 600; margin: 0; }
+  .tag { font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--warn); border: 1px solid rgba(240,160,64,.5); padding: 2px 7px; border-radius: 3px; letter-spacing: .06em; }
+  .sub { color: var(--muted); }
+  .grid { display: grid; gap: 18px; grid-template-columns: 1fr; }
+  @media (min-width: 1100px) { .g2 { grid-template-columns: 1fr 1fr; } .g3 { grid-template-columns: 0.9fr 1.1fr; } }
+  .board { background: rgba(12,17,23,0.6); border: 1px dashed var(--line2); border-radius: 6px; padding: 16px 18px 18px; min-width: 0; }
+  .board > h2 { font-size: 12px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); margin: 0 0 4px; }
+  .board > p.note { margin: 0 0 14px; color: var(--muted); font-size: 13px; }
+  .span { grid-column: 1 / -1; }
+
+  /* ---- the actual UI components ---- */
+  .panel { background: rgba(12,17,23,0.97); border: 1px solid var(--line); border-radius: 4px; }
+  .sec { padding: 12px 16px; border-top: 1px solid var(--line2); }
+  .sec:first-child { border-top: 0; }
+  .h { font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+  .title { font-size: 19px; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 8px; }
+  .line { color: var(--muted); font-size: 13px; }
+  .figs { display: flex; flex-wrap: wrap; gap: 6px 22px; }
+  .fig .k { color: var(--muted); font-size: 12px; }
+  .fig .v { font-family: "JetBrains Mono", monospace; font-size: 15px; }
+  .btns { display: flex; flex-wrap: wrap; gap: 8px; }
+  .btn { font: 600 13px Barlow, sans-serif; color: var(--text); background: transparent; border: 1px solid var(--line); border-radius: 3px; padding: 7px 12px; }
+  .btn.primary { background: #DCE6EC; color: #0A0E13; border-color: #DCE6EC; }
+  .btn.quiet { border-color: transparent; color: var(--muted); }
+  .btn.danger { border-color: rgba(240,160,64,.6); color: var(--warn); }
+  .x { margin-left: auto; color: var(--muted); font: 13px "JetBrains Mono", monospace; }
+  .chip { display: inline-block; border: 1px solid var(--line); border-radius: 3px; padding: 1px 7px; font-size: 12px; margin: 0 4px 4px 0; }
+  .chip.unk { border-style: dashed; color: var(--muted); }
+  .ref { display: inline-flex; align-items: center; gap: 3px; color: inherit; text-decoration: underline; text-decoration-color: rgba(159,182,196,.45); text-underline-offset: 3px; white-space: nowrap; }
+  .ref svg { vertical-align: middle; }
+  table.t { border-collapse: collapse; width: 100%; font-size: 13px; }
+  table.t th { text-align: left; font-weight: 600; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  table.t td { padding: 6px 8px; border-bottom: 1px solid var(--line2); }
+  table.t td.n, table.t th.n { text-align: right; font-family: "JetBrains Mono", monospace; }
+  .warn { color: var(--warn); } .muted { color: var(--muted); } .dimmed { opacity: .55; }
+  .stamp { font: 11px "JetBrains Mono", monospace; letter-spacing: .06em; color: var(--muted); }
+  .scroll { overflow-x: auto; }
+
+  /* uncertainty legend */
+  .uleg { display: grid; grid-template-columns: auto 1fr; gap: 9px 18px; align-items: baseline; }
+  .uleg .v { font-family: "JetBrains Mono", monospace; font-size: 15px; white-space: nowrap; }
+  .uleg .d { color: var(--muted); font-size: 13px; }
+
+  /* traffic */
+  .traffic .item { display: grid; grid-template-columns: 74px 1fr auto; gap: 2px 10px; padding: 9px 14px; border-top: 1px solid var(--line2); align-items: baseline; }
+  .traffic .item:first-of-type { border-top: 0; }
+  .prec { font: 10.5px "JetBrains Mono", monospace; letter-spacing: .06em; padding: 1px 0; }
+  .prec.flash { color: #0A0E13; background: var(--warn); text-align: center; border-radius: 2px; }
+  .prec.imm { color: var(--warn); }
+  .prec.pri { color: var(--text); }
+  .prec.rtn { color: var(--dim); }
+  .traffic .subj { font-weight: 600; font-size: 13.5px; }
+  .traffic .from { color: var(--muted); font-size: 12px; grid-column: 2; }
+  .traffic .dtg { font: 11px "JetBrains Mono", monospace; color: var(--muted); grid-row: 1; grid-column: 3; }
+  .traffic .item.read .subj { font-weight: 400; color: var(--muted); }
+  .traffic .item.sel { background: rgba(220,230,236,0.05); box-shadow: inset 2px 0 0 var(--text); }
+
+  /* message */
+  .msghead { display: grid; grid-template-columns: 76px 1fr; gap: 3px 10px; font: 12.5px "JetBrains Mono", monospace; }
+  .msghead .k { color: var(--muted); }
+  .msgbody p { margin: 0 0 8px; max-width: 64ch; }
+  .note-src { border-left: 2px solid var(--line); padding: 4px 10px; color: var(--muted); font-size: 13px; }
+
+  /* request */
+  .opt { border: 1px solid var(--line); border-radius: 3px; padding: 10px 12px; margin-bottom: 8px; display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; }
+  .opt b { font-weight: 600; }
+  .opt .c { font: 12px "JetBrains Mono", monospace; color: var(--muted); grid-column: 1; }
+  .opt .btn { grid-row: 1 / span 2; grid-column: 2; }
+
+  /* dossier */
+  .portrait { width: 72px; height: 88px; border: 1px solid var(--line); border-radius: 3px; background: repeating-linear-gradient(135deg, #111922 0 6px, #0D141B 6px 12px); display: grid; place-items: center; color: var(--dim); font: 10px "JetBrains Mono", monospace; flex: none; }
+  .dos-top { display: flex; gap: 14px; }
+  .skills { display: grid; grid-template-columns: auto auto 1fr; gap: 4px 12px; align-items: center; font-size: 13px; }
+  .bar { position: relative; height: 6px; background: rgba(159,182,196,.12); border-radius: 1px; min-width: 120px; }
+  .bar span { position: absolute; top: 0; bottom: 0; background: rgba(220,230,236,.55); border-radius: 1px; }
+  .bar span.unk { background: repeating-linear-gradient(90deg, rgba(159,182,196,.35) 0 3px, transparent 3px 6px); }
+
+  /* admin */
+  .admin { display: grid; grid-template-columns: 190px 1fr 280px; min-height: 520px; }
+  @media (max-width: 1099px) { .admin { grid-template-columns: 1fr; } }
+  .topbar { display: flex; align-items: center; gap: 14px; padding: 10px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .crumb { color: var(--muted); } .crumb b { color: var(--text); font-weight: 600; }
+  .nav { border-right: 1px solid var(--line2); padding: 12px 0; }
+  .nav a { display: flex; justify-content: space-between; padding: 7px 16px; color: var(--muted); text-decoration: none; font-size: 14px; }
+  .nav a.on { color: var(--text); background: rgba(220,230,236,0.05); box-shadow: inset 2px 0 0 var(--text); }
+  .nav a .n { font: 11px "JetBrains Mono", monospace; color: var(--warn); }
+  .nav .grp { font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); padding: 12px 16px 4px; }
+  .main { padding: 18px 22px; min-width: 0; }
+  .side { border-left: 1px solid var(--line2); }
+  .spark { display: inline-block; vertical-align: middle; }
+
+  /* registers */
+  .reg { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 800px) { .reg { grid-template-columns: 1fr; } }
+  .paper { background: #E9E4D8; color: #1B1F24; border-radius: 3px; padding: 14px 16px; font-size: 13px; }
+  .paper .h { color: #5B5446; }
+  .paper .mono { color: #1B1F24; }
+  footer { margin-top: 18px; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="sheet">
+    <h1>Interface style: panels, windows and reports</h1>
+    <span class="tag">CANDIDATE</span>
+    <span class="sub">One console register throughout. Reports are written by people and read like signals. Corvane, 14 Mar 2341.</span>
+  </header>
+
+  <div class="grid g3">
+    <section class="board">
+      <h2>1 · Figures carry their certainty</h2>
+      <p class="note">The same notation in every panel, report and table, so the player can always tell measured from guessed.</p>
+      <div class="uleg">
+        <span class="v">141 k</span><span class="d">Exact: measured or own data.</span>
+        <span class="v">~4</span><span class="d">Estimate: one best guess.</span>
+        <span class="v">6–8</span><span class="d">Range: bounds known, value not.</span>
+        <span class="v"><span class="chip unk">?</span></span><span class="d">Unknown: never observed. Dashed outline.</span>
+        <span class="v dimmed">212 k <span class="stamp">· 02 FEB</span></span><span class="d">Stale: dimmed, with the date it was true.</span>
+        <span class="v warn">−18 u</span><span class="d">Needs attention: orange. Never red or green for good and bad: those mean hostile and neutral.</span>
+        <span class="v"><span class="ref"><svg width="16" height="16" viewBox="-17 -17 34 34" id="r0"></svg>TF-1</span></span><span class="d">Reference: inline symbol and name. Click to show it on the map.</span>
+      </div>
+    </section>
+
+    <section class="board">
+      <h2>2 · Panel anatomy: the inset</h2>
+      <p class="note">Header, key figures, sections under small capitals, actions last. Text left, figures in mono.</p>
+      <div class="panel" style="max-width: 560px">
+        <div class="sec" style="display:flex;gap:12px;align-items:flex-start">
+          <svg width="44" height="50" viewBox="-22 -28 44 50" id="p0"></svg>
+          <div style="flex:1">
+            <div class="title">TF-1 <span class="x">Focus · Pin · ×</span></div>
+            <div class="line">Task force · own · 4 warships · Cdr <span class="ref">Ilse Marr</span></div>
+          </div>
+        </div>
+        <div class="sec">
+          <div class="figs">
+            <div class="fig"><div class="k">Propellant</div><div class="v">61%</div></div>
+            <div class="fig"><div class="k">Δv remaining</div><div class="v">4.2 km/s</div></div>
+            <div class="fig"><div class="k">Readiness</div><div class="v warn">2 of 4</div></div>
+            <div class="fig"><div class="k">Orders</div><div class="v" style="font-family:Barlow">Escort <span class="ref">C-12</span></div></div>
+          </div>
+        </div>
+        <div class="sec">
+          <div class="h">Members</div>
+          <table class="t">
+            <tr><th>Ship</th><th>Design</th><th class="n">Cond.</th></tr>
+            <tr><td>Resolve</td><td class="muted">Halberd class · Kessel Yards</td><td class="n">96%</td></tr>
+            <tr><td>Tamsin</td><td class="muted">Halberd class · Kessel Yards</td><td class="n">91%</td></tr>
+            <tr><td>Arden</td><td class="muted">Pike class · as-built variant</td><td class="n warn">38%</td></tr>
+            <tr><td>Vigil</td><td class="muted">Pike class</td><td class="n">88%</td></tr>
+          </table>
+        </div>
+        <div class="sec btns"><button class="btn primary">Orders…</button><button class="btn">Records</button><button class="btn quiet">Detach Arden</button></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="grid g3" style="margin-top:18px">
+    <section class="board">
+      <h2>3 · Message traffic</h2>
+      <p class="note">One tray for everything that arrives. Precedence, not colour, sets urgency. Docked bottom right on the map; full list in Administration.</p>
+      <div class="panel traffic" style="max-width:520px">
+        <div class="sec" style="display:flex;align-items:baseline;gap:10px"><div class="h" style="margin:0">Message traffic</div><span class="stamp">3 unread</span><span class="x">filter ▾</span></div>
+        <div class="item sel"><span class="prec imm">IMMEDIATE</span><span class="subj">Contact report: K-3 near Halden IV</span><span class="dtg">14 MAR 0612</span><span class="from">Cdr Ilse Marr · TF-1</span></div>
+        <div class="item"><span class="prec pri">PRIORITY</span><span class="subj">Request: second habitat dome</span><span class="dtg">13 MAR</span><span class="from">Gov. Anneke Voss · Port Arden</span></div>
+        <div class="item"><span class="prec pri">PRIORITY</span><span class="subj">Bids received: survey tender (2)</span><span class="dtg">12 MAR</span><span class="from">Procurement Office</span></div>
+        <div class="item read"><span class="prec rtn">ROUTINE</span><span class="subj">Monthly returns: Treasury</span><span class="dtg">01 MAR</span><span class="from">Treasury</span></div>
+        <div class="item read"><span class="prec rtn">ROUTINE</span><span class="subj">Convoy C-12 departed Iver</span><span class="dtg">23 FEB</span><span class="from">Varga Mining</span></div>
+      </div>
+      <p class="note" style="margin-top:12px">FLASH <span class="prec flash" style="padding:1px 6px">FLASH</span> is kept for events that pause the clock (hostile action, loss of a ship).</p>
+    </section>
+
+    <section class="board">
+      <h2>4 · A report: written by someone</h2>
+      <p class="note">Signal header, then plain prose from the author's point of view, then the data it rests on. The author's traits colour the prose; the figures under it are the state's own record.</p>
+      <div class="panel">
+        <div class="sec">
+          <div class="msghead">
+            <span class="k">PREC</span><span class="warn">IMMEDIATE</span>
+            <span class="k">DTG</span><span>14 MAR 2341 0612</span>
+            <span class="k">FROM</span><span>CDR TF-1 (I. MARR)</span>
+            <span class="k">TO</span><span>ADMIRALTY · INFO GOV HALDEN IV</span>
+            <span class="k">SUBJ</span><span>CONTACT REPORT · K-3</span>
+          </div>
+        </div>
+        <div class="sec msgbody">
+          <p>Weak thermal track <span class="ref"><svg width="16" height="16" viewBox="-17 -17 34 34" id="r1"></svg>K-3</span> holding a slow orbit off Halden IV since 09 Mar. Emissions fit a medium hauler running cold. I do not believe a hauler would bother.</p>
+          <p>Request authority to close and identify with <span class="ref"><svg width="16" height="16" viewBox="-17 -17 34 34" id="r2"></svg>Vigil</span>. Escort of <span class="ref"><svg width="16" height="16" viewBox="-17 -17 34 34" id="r3"></svg>C-12</span> would drop to three for about 9 days.</p>
+          <div class="note-src mono" style="font-size:12px">Track: weak · last firm fix ? · class ~medium hauler · affiliation ?<br>Sensor coverage at Halden IV: 1 station, 2 ships</div>
+        </div>
+        <div class="sec btns"><button class="btn primary">Authorise</button><button class="btn">Refuse</button><button class="btn quiet">Show on map</button><button class="btn quiet">Reply…</button></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="grid g2" style="margin-top:18px">
+    <section class="board">
+      <h2>5 · A request: options with known and unknown costs</h2>
+      <p class="note">Options are explicit. Costs the state can price are figures; consequences it can't are stated as the author's claim, not as numbers.</p>
+      <div class="panel">
+        <div class="sec">
+          <div class="stamp">REQUEST · PRIORITY · 13 MAR 2341 · REPLY BY 01 APR</div>
+          <div class="title" style="margin-top:4px">Second habitat dome at Port Arden</div>
+          <div class="line">From Gov. <span class="ref">Anneke Voss</span> · Halden IV</div>
+        </div>
+        <div class="sec msgbody"><p>The next intake from Kessel Deep arrives in May. Without a second dome they will be housed in the shuttle field sheds, which I am told will not see out the winter.</p></div>
+        <div class="sec">
+          <div class="opt"><b>Fund in full</b><span class="c">1.8 M cr · 14 months · Varga Mining builds</span><button class="btn primary">Choose</button></div>
+          <div class="opt"><b>Fund a smaller dome</b><span class="c">0.9 M cr · 8 months · Voss: "not enough"</span><button class="btn">Choose</button></div>
+          <div class="opt"><b>Defer the intake</b><span class="c">no cost now · Kessel Deep opinion ~ −10</span><button class="btn">Choose</button></div>
+        </div>
+        <div class="sec btns"><button class="btn quiet">Ask Treasury for advice</button><button class="btn quiet">Later</button></div>
+      </div>
+    </section>
+
+    <section class="board">
+      <h2>6 · A dossier: what the state knows of a person</h2>
+      <p class="note">Same notation as figures: traits seen, traits not yet seen, skills as ranges. Each entry can show its source.</p>
+      <div class="panel">
+        <div class="sec dos-top">
+          <div class="portrait">PORTRAIT</div>
+          <div style="flex:1">
+            <div class="title">Cdr Ilse Marr</div>
+            <div class="line">Commander, TF-1 · Navy · age 44 · from Iver</div>
+            <div style="margin-top:8px"><span class="chip">Aggressive</span><span class="chip">Loyal to the Admiralty</span><span class="chip unk">? not yet observed</span><span class="chip unk">?</span></div>
+            <div class="line mono" style="font-size:12px">Ideology: Meritocratic (~)</div>
+          </div>
+        </div>
+        <div class="sec">
+          <div class="h">Skills</div>
+          <div class="skills">
+            <span>Fleet command</span><span class="mono">7–8</span><div class="bar"><span style="left:60%;width:20%"></span></div>
+            <span>Logistics</span><span class="mono">~4</span><div class="bar"><span style="left:30%;width:12%"></span></div>
+            <span>Diplomacy</span><span class="mono">?</span><div class="bar"><span class="unk" style="left:0;width:100%"></span></div>
+          </div>
+        </div>
+        <div class="sec">
+          <div class="h">Record</div>
+          <table class="t">
+            <tr><td class="mono muted" style="width:96px">14 MAR 41</td><td>Asked to close on K-3 (pending)</td></tr>
+            <tr><td class="mono muted">02 JAN 41</td><td>Appointed to TF-1 over Cdr Hale</td></tr>
+            <tr class="dimmed"><td class="mono muted">2338</td><td>Iver Yard trials board · <span class="muted">source: old Admiralty files</span></td></tr>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section class="board span" style="margin-top:18px">
+    <h2>7 · The Administration view</h2>
+    <p class="note">Full-screen 2D. Navigation by office on the left, the document in the middle, context on the right. Same top bar as the map, so the clock and traffic are always there.</p>
+    <div class="panel scroll">
+      <div class="topbar">
+        <span class="crumb">Administration / Treasury / <b>Monthly returns</b></span>
+        <span class="mono" style="margin-left:auto">14 Mar 2341</span><button class="btn">1 d/s</button>
+        <button class="btn">Map</button>
+      </div>
+      <div class="admin">
+        <nav class="nav">
+          <div class="grp">Inbox</div>
+          <a href="#">Message traffic <span class="n">3</span></a>
+          <a href="#">Requests <span class="n">1</span></a>
+          <div class="grp">Offices</div>
+          <a href="#">Cabinet</a>
+          <a href="#" class="on">Treasury</a>
+          <a href="#">Admiralty</a>
+          <a href="#">Procurement</a>
+          <a href="#">Interior</a>
+          <a href="#">Intelligence</a>
+          <div class="grp">Files</div>
+          <a href="#">People</a>
+          <a href="#">Organisations</a>
+          <a href="#">Records</a>
+        </nav>
+        <div class="main">
+          <div class="stamp">TREASURY · MONTHLY RETURNS · FEB 2341 · COMPILED 01 MAR</div>
+          <div class="title" style="margin:4px 0 2px">Revenue fell short of spending by 0.4 M cr</div>
+          <p class="line" style="margin:0 0 14px; max-width:70ch">Summary first, in a sentence, then the table. Halden IV customs are down because no convoy arrived in February. The reserve covers about 11 months at this rate.</p>
+          <table class="t">
+            <tr><th>Line</th><th class="n">Feb</th><th class="n">Jan</th><th class="n">6 months</th><th>Note</th></tr>
+            <tr><td>Taxes, Halden IV</td><td class="n">2.10</td><td class="n">2.08</td><td class="n" id="s1"></td><td class="muted">steady</td></tr>
+            <tr><td>Customs and tolls</td><td class="n warn">0.31</td><td class="n">0.74</td><td class="n" id="s2"></td><td class="muted">no convoy in Feb · <span class="ref">C-12</span></td></tr>
+            <tr><td>Varga Mining dividend</td><td class="n">~0.4</td><td class="n">0.38</td><td class="n" id="s3"></td><td class="muted">estimate until audited</td></tr>
+            <tr><td>Navy upkeep</td><td class="n">−1.92</td><td class="n">−1.90</td><td class="n" id="s4"></td><td class="muted">TF-1 at sea</td></tr>
+            <tr><td>Contracts</td><td class="n">−1.30</td><td class="n">−0.95</td><td class="n" id="s5"></td><td class="muted">survey tender deposit</td></tr>
+            <tr><td><b>Balance</b></td><td class="n warn"><b>−0.41</b></td><td class="n">0.35</td><td class="n" id="s6"></td><td class="muted">M cr</td></tr>
+          </table>
+        </div>
+        <aside class="side">
+          <div class="sec">
+            <div class="h">Office</div>
+            <div class="dos-top"><div class="portrait" style="width:48px;height:58px">·</div>
+              <div><div style="font-weight:600">Treasurer Odo Brandt</div><div class="line">Cautious · in post 3 y</div></div></div>
+          </div>
+          <div class="sec">
+            <div class="h">Related</div>
+            <div class="msgbody">
+              <p><span class="ref">Request: second habitat dome</span></p>
+              <p><span class="ref">Bids: survey tender</span></p>
+              <p><span class="ref"><svg width="16" height="16" viewBox="-17 -17 34 34" id="r4"></svg>C-12</span> · arr. 19 d</p>
+            </div>
+          </div>
+          <div class="sec"><div class="h">Policy</div><div class="line">Tax rate, tolls and subsidies are set here, not in the report.</div><div class="btns" style="margin-top:8px"><button class="btn">Set policy…</button></div></div>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <section class="board span" style="margin-top:18px">
+    <h2>8 · One register or two?</h2>
+    <p class="note">The admin view could switch to a "paper" look. Recommended against: the console register is cheaper, reads better at length on a dark screen, and keeps the map one click away without a jolt. Paper flavour comes from structure (signal headers, file stamps), not colour.</p>
+    <div class="reg">
+      <div class="panel" style="padding:14px 16px">
+        <div class="stamp">RECOMMENDED · CONSOLE</div>
+        <div class="title" style="font-size:16px;margin:4px 0">Revenue fell short by 0.4 M cr</div>
+        <div class="line">Halden IV customs are down because no convoy arrived in February.</div>
+      </div>
+      <div class="paper">
+        <div class="h">ALTERNATIVE · PAPER</div>
+        <div style="font-weight:600;font-size:16px;margin:4px 0">Revenue fell short by 0.4 M cr</div>
+        <div>Halden IV customs are down because no convoy arrived in February.</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>Orphan Worlds · presentation candidate · reasoning: docs/ideas/presentation/ui-style.md · symbols: docs/spec/system-view.md (SYM)</footer>
+</div>
+
+<script>
+const C = { own: '#5AA9E6', civil: '#A9CBE3', neutral: '#8CCB8A', hostile: '#EE6A5F', unknown: '#F0A040', ground: '#070A0E' };
+const FRAME = {
+  own: '<circle cx="0" cy="0" r="13"/>',
+  neutral: '<rect x="-12" y="-12" width="24" height="24"/>',
+  hostile: '<path d="M0,-16 L16,0 L0,16 L-16,0 Z"/>',
+  unknown: '<path d="M-7.8,-7.8 A8,8 0 0 1 7.8,-7.8 A8,8 0 0 1 7.8,7.8 A8,8 0 0 1 -7.8,7.8 A8,8 0 0 1 -7.8,-7.8 Z"/>'
+};
+const TOP = { own: 13, neutral: 12, hostile: 16, unknown: 14 };
+function icon(kind, col) {
+  switch (kind) {
+    case 'warship': return `<path d="M0,-7 L7,5 L-7,5 Z" fill="${col}" stroke="none"/>`;
+    case 'cargo': return `<rect x="-6" y="-5" width="12" height="10" fill="none"/><line x1="-6" y1="0" x2="6" y2="0"/>`;
+    case 'unknown': return `<text x="0" y="5" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="14" fill="${col}" stroke="none">?</text>`;
+    default: return '';
+  }
+}
+function sym(o, sw = 1.6) {
+  const col = o.civil ? C.civil : C[o.aff], top = TOP[o.aff];
+  let s = `<g stroke="${col}" stroke-width="${sw}" stroke-linejoin="round">`;
+  if (o.group === 'stack') s += `<g transform="translate(4,-4)" fill="${C.ground}">${FRAME[o.aff]}</g>`;
+  s += `<g fill="${o.civil ? 'none' : col}" fill-opacity="${o.aff === 'own' ? 0.3 : 0.16}"${o.dashed ? ' stroke-dasharray="3 2.4"' : ''}>${FRAME[o.aff]}</g>`;
+  s += icon(o.icon, col);
+  if (o.group === 'tf') s += `<path d="M-12,${-top-3} V${-top-8} H12 V${-top-3}" fill="none" stroke-width="1.4"/>`;
+  if (o.cond !== undefined) s += `<rect x="-11" y="${top+4}" width="22" height="3" fill="none" stroke-width="0.8" opacity="0.6"/><rect x="-11" y="${top+4}" width="${22*o.cond}" height="3" fill="${o.cond < .5 ? C.unknown : col}" stroke="none"/>`;
+  return s + '</g>';
+}
+const set = (id, o, sw) => { const e = document.getElementById(id); if (e) e.innerHTML = sym(o, sw); };
+set('p0', { aff: 'own', icon: 'warship', group: 'tf', cond: 0.78 });
+set('r0', { aff: 'own', icon: 'warship', group: 'tf' }, 2.4);
+set('r1', { aff: 'unknown', icon: 'unknown', dashed: true }, 2.4);
+set('r2', { aff: 'own', icon: 'warship' }, 2.4);
+set('r3', { aff: 'own', icon: 'cargo', civil: true, group: 'stack' }, 2.4);
+set('r4', { aff: 'own', icon: 'cargo', civil: true, group: 'stack' }, 2.4);
+
+// Sparklines: six months, neutral stroke; last point orange when it needs attention.
+function spark(vals, warn) {
+  const w = 70, h = 16, min = Math.min(...vals), max = Math.max(...vals), r = (max - min) || 1;
+  const pts = vals.map((v, i) => [i * w / (vals.length - 1), h - 2 - (v - min) / r * (h - 4)]);
+  const last = pts[pts.length - 1];
+  return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><polyline points="${pts.map(p => p.join(',')).join(' ')}" fill="none" stroke="#9FB6C4" stroke-width="1.2"/><circle cx="${last[0]}" cy="${last[1]}" r="2" fill="${warn ? C.unknown : '#DCE6EC'}"/></svg>`;
+}
+const S = { s1: [[2.0,2.02,2.05,2.06,2.08,2.10]], s2: [[0.7,0.72,0.69,0.75,0.74,0.31], true], s3: [[0.35,0.36,0.36,0.37,0.38,0.4]], s4: [[-1.8,-1.82,-1.85,-1.88,-1.9,-1.92]], s5: [[-0.6,-0.7,-0.8,-0.9,-0.95,-1.3]], s6: [[0.4,0.42,0.3,0.36,0.35,-0.41], true] };
+for (const [id, [v, w]] of Object.entries(S)) document.getElementById(id).innerHTML = spark(v, w);
+</script>
+</body>
+</html>

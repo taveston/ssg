@@ -23,7 +23,7 @@ The first three are spatial layers, nested from cluster down to planet. Faction 
 - **Strategic display (decided):** the system and cluster views are a vector plotting display. Orbits are faint lines, bodies and ships are solid markers, trajectories are lines. System, cluster and combat views share one visual language; combat is the same display with the clock slowed (design document, 4.6). It reads as the government's own instruments, which suits a head of state rather than a pilot.
 - **Scale (direction):** positions and orbits are drawn at true scale. Markers are a fixed screen size by class, never physical size. Only the marker is stylised, never the geometry. (Specced for the system view: SCL-02, MRK-03, MRK-04.)
   - Marker shape and weight show the type: planet, moon, station, gate, ship, salvage site.
-  - Ship and station symbology (decided, specced as SYM): NATO-style frames for affiliation, icons for ship type, and amplifiers for state, groups and identification. See *Symbology & UI Style* (`symbology.md`).
+  - Ship and station symbology (decided, specced as SYM): NATO-style frames for affiliation, icons for ship type, and amplifiers for state, groups and identification. See *Symbology* (`symbology.md`).
   - Navigation is by stepped zoom with stops, focus jumps and bookmarks (specced: ZOOM). Important off-screen objects get edge indicators (candidate; specced for gates as EDGE-01).
   - How gate distance is shown on screen is left open until gate placement is tuned (section 6).
 - **Inspection view (decided):** highlighting any object expands it into a semi-photoreal view. This applies to everything: bodies, stations, gates, sites and ships. Ships appear as blips because of the distances involved, not because they are kept abstract.
@@ -98,7 +98,7 @@ The first three are spatial layers, nested from cluster down to planet. Faction 
 ## 4. Faction administration view
 
 - **Purpose (decided):** managing the faction at a high level: policy, budget, appointments, organisations, collated reports and character interactions.
-- **Style (direction):** a fully 2D UI, separate from the spatial layers.
+- **Style (direction):** a fully 2D UI, separate from the spatial layers. Layout, panels, message traffic, reports, requests and dossiers: *Interface Style* (`ui-style.md`, candidate).
 - **Links to the map (candidate):** reports, requests and alerts link to the place they concern, and spatial objects link back to their owners, staff and records.
 - **Characters (candidate):** shown with what the state knows about them, keeping "average" and "unknown" visibly distinct (design document, 4.3).
 
@@ -116,4 +116,4 @@ The vector layer is cheap to produce. Photoreal work is needed for generated bod
 - Camera: the final tilt limit and pan and rotate speeds after testing; the tilt range for the cluster view.
 - Motion rule: switch abruptly between dot and exposure ring, or fade across a band of speeds; final values for R_show, T_dot and T_ring after testing.
 - Planetary view as a globe or a flat map, and how much surface detail is modelled.
-- How the administration view is organised (screens, panels, an inbox of reports), and how the player moves between it and the spatial layers.
+- How the administration view is organised, and how the player moves between it and the spatial layers: candidate in `ui-style.md`.

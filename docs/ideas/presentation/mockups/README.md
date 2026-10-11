@@ -11,6 +11,7 @@ Six PNG boards from the design canvas "Inspect & Planetary Transition": referenc
 | `5-inspection-fidelity.png` | 5 · Inspection fidelity follows knowledge |
 | `6-satellite-grouping-and-motion.png` | 6 · Satellite grouping by zoom, and the motion rule |
 | `7-symbology.png` | Ship symbology sheet (2026-10-11). Source: `7-symbology.html`; described in `../symbology.md` |
+| `8-ui-style.png` | Interface style: panels, message traffic, reports, requests, dossiers, Administration view (2026-10-11). Source: `8-ui-style.html`; described in `../ui-style.md` |
 
 How to use them:
 

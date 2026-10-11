@@ -6,7 +6,7 @@
 
 Status tags: **Decided** = settled. **Direction** = settled in principle, details open. **Candidate** = under consideration.
 
-Companion documents (under `docs/ideas/`): *Setting & Back Story* (`world/setting.md`); *Faction History Options*, *Component Catalogue*, *Component Stats & Ship Assembly*, *Requirements & Bids*, *Drives & Transit*, *World Generator* and the diagram *ideology-triangle.svg* (all in `mechanics/`); *Presentation & Visual Style*, *Reference Sketches* and *Symbology & UI Style* (`presentation/`). What is committed for building is in `docs/spec/`.
+Companion documents (under `docs/ideas/`): *Setting & Back Story* (`world/setting.md`); *Faction History Options*, *Component Catalogue*, *Component Stats & Ship Assembly*, *Requirements & Bids*, *Drives & Transit*, *World Generator* and the diagram *ideology-triangle.svg* (all in `mechanics/`); *Presentation & Visual Style*, *Reference Sketches*, *Symbology* and *Interface Style* (`presentation/`). What is committed for building is in `docs/spec/`.
 
 ---
 
