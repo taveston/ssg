@@ -67,7 +67,7 @@
 <div class="wrap">
   <header>
     <h1>Ship symbology</h1>
-    <span class="tag">CANDIDATE</span>
+    <span class="tag">SPECCED · SYM</span>
     <span class="sub">Adapted from NATO APP-6 / MIL-STD-2525: frame shape = affiliation, icon = what it is, amplifiers around the frame = state. Corvane system, 14 Mar 2341.</span>
   </header>
 
@@ -92,7 +92,7 @@
 
     <section class="board span2">
       <h2>Installations</h2>
-      <p class="note">Same affiliation frames with the NATO installation bar on top. Icons are outlines; a site on a surface folds into its body like other satellites and shows on the planetary view with the same symbol.</p>
+      <p class="note">Same affiliation frames with the NATO installation bar on top. Role icons (naval base, shipyard, habitat, industry) are set aside for now.</p>
       <div class="scroll"><table class="matrix" id="inst"></table></div>
     </section>
 
@@ -115,7 +115,7 @@
     </section>
   </div>
 
-  <footer>Orphan Worlds · presentation candidate · source of rules: docs/ideas/presentation/symbology.md</footer>
+  <footer>Orphan Worlds · rules: docs/spec/system-view.md (SYM); reasoning: docs/ideas/presentation/symbology.md</footer>
 </div>
 
 <script>
@@ -226,11 +226,7 @@ document.getElementById('flag').innerHTML = FLAG.map(([o,k,b,s]) =>
 
 // Installations
 const INST = [
-  ['Station, general', 'no specific role · bar only', { icon: 'none' }],
-  ['Naval base', 'fleet anchorage, repair, rearm · anchor', { icon: 'navalbase' }],
-  ['Shipyard', 'crane over a hull', { icon: 'shipyard' }],
-  ['Habitat', 'pressurised settlement · dome', { icon: 'habitat' }],
-  ['Industrial site', 'ore processing, refinery, foundry · sawtooth roof', { icon: 'industry' }]
+  ['Station', 'installation bar, no icon (role icons not specced)', { icon: 'none' }],
 ];
 let it = '<tr><th></th>' + AFFS.map(([k,l]) => `<th class="aff-${k}">${l}</th>`).join('') + '</tr>';
 for (const [name, hint, o] of INST) {
@@ -253,9 +249,9 @@ document.getElementById('amps').innerHTML = AMPS.map(([o,b,s]) => `<div class="a
 
 // Ladder
 const LADDER = [
-  [{ aff: 'unknown', icon: 'none', dashed: true }, '1 · DETECTED', 'Thermal track', 'Unknown frame, no icon, uncertainty region'],
-  [{ aff: 'unknown', icon: 'none', lead: [60, 12] }, '2 · TRACKED', 'Firm track', 'Solid frame; leader once velocity is known'],
-  [{ aff: 'unknown', icon: 'cargo' }, '3 · CLASSIFIED', 'Class known', 'Icon appears: "medium hauler?"'],
+  [{ aff: 'unknown', icon: 'unknown', dashed: true }, '1 · DETECTED', 'Thermal track', 'Dashed unknown frame, class unknown'],
+  [{ aff: 'unknown', icon: 'unknown', lead: [60, 12] }, '2 · TRACKED', 'Firm track', 'Solid frame; leader once velocity is known'],
+  [{ aff: 'unknown', icon: 'cargo' }, '3 · CLASSIFIED', 'Class known', 'Icon appears: "medium hauler"'],
   [{ aff: 'hostile', icon: 'cargo' }, '4 · IDENTIFIED', 'Owner known', 'Frame takes affiliation shape and colour'],
   [{ aff: 'hostile', icon: 'warship' }, '5 · RE-ASSESSED', 'Armed hauler', 'Icon changes when a design is better observed']
 ];
@@ -267,7 +263,7 @@ let sz = '';
 for (const [px, cap] of SZ) {
   const sc = px / 26; // a frame is ~26 units across
   sz += `<figure><div style="display:flex;gap:${Math.round(6*sc)+4}px;align-items:center">` +
-    ['own:warship','neutral:cargo','hostile:warship','unknown:none','own:embarked'].map(t => { const [a,i] = t.split(':'); return svgBox({ aff: a, icon: i }, 40, 40, sc); }).join('') +
+    ['own:warship','neutral:cargo','hostile:warship','unknown:unknown','own:embarked'].map(t => { const [a,i] = t.split(':'); return svgBox({ aff: a, icon: i }, 40, 40, sc); }).join('') +
     `</div><figcaption>${cap}</figcaption></figure>`;
 }
 sz += `<figure><div style="display:flex;gap:10px;align-items:center"><svg width="14" height="14" viewBox="-7 -7 14 14"><path d="M0,-6 L6,5 L-6,5 Z" fill="${C.own}"/></svg><svg width="14" height="14" viewBox="-7 -7 14 14"><path d="M0,-6 L6,0 L0,6 L-6,0 Z" fill="${C.unknown}"/></svg></div><figcaption>today: triangle / diamond</figcaption></figure>`;
@@ -287,8 +283,8 @@ g += `<circle cx="1040" cy="300" r="120" fill="none" stroke="${C.muted}" stroke-
 g += `<circle cx="1040" cy="300" r="7" fill="${C.text}"/>`;
 g += `<text x="1056" y="318" font-family="Barlow, sans-serif" font-size="14" font-weight="600" fill="${C.text}">Halden IV</text>`;
 // Arden Highport station on the inner ring
-g += place({ aff: 'own', icon: 'navalbase', station: true }, 1125, 215, 0.85);
-g += label(1145, 211, ['Arden Highport', 'naval base'], C.own);
+g += place({ aff: 'own', icon: 'none', station: true }, 1125, 215, 0.85);
+g += label(1145, 211, ['Arden Highport'], C.own);
 // convoy track and TF-1
 g += `<path d="M120,470 Q520,420 900,330" fill="none" stroke="${C.own}" stroke-opacity="0.45" stroke-dasharray="4 4"/>`;
 g += place({ aff: 'own', icon: 'cargo', group: 'stack', count: '6', lead: [72, 14] }, 360, 440);
@@ -312,7 +308,7 @@ g += place({ aff: 'hostile', icon: 'warship', dashed: true, dim: true }, 210, 15
 g += label(236, 150, ['Raider R-2', 'last seen 6 d ago'], C.hostile);
 // unknown track with ellipse
 g += `<ellipse cx="1130" cy="90" rx="62" ry="24" transform="rotate(-18 1130 90)" fill="${C.unknown}" fill-opacity="0.06" stroke="${C.unknown}" stroke-opacity="0.6" stroke-dasharray="4 3"/>`;
-g += place({ aff: 'unknown', icon: 'none', dashed: true }, 1130, 90);
+g += place({ aff: 'unknown', icon: 'unknown', dashed: true }, 1130, 90);
 g += label(1080, 140, ['Contact K-3', 'weak track · thermal'], C.unknown);
 // legend corner
 g += `<text x="16" y="540" font-family="JetBrains Mono, monospace" font-size="10.5" fill="${C.muted}">dashed line = planned path · dashed frame = estimated position</text>`;

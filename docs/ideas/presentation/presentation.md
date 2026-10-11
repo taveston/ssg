@@ -21,7 +21,7 @@
 - **Strategic display (decided):** the system and cluster views are a vector plotting display: orbits as faint lines, bodies and ships as solid markers, trajectories as lines. System, cluster, and combat views share one visual language; combat is the same display with the clock slowed (design document, 4.6). The look reads as the government's own instruments, which suits a head of state rather than a pilot.
 - **Scale (direction):** positions and orbits are drawn at true scale; markers are drawn at a fixed screen size by class, never at physical size. Only the marker is stylised, never the geometry. (Specced for the system view: SCL-02, MRK-03, MRK-04.)
   - Marker shape and weight encode type: planet, moon, station, gate, ship, salvage site.
-  - Ship symbology (candidate): NATO-style frames for affiliation, icons for ship type, and amplifiers for state, groups and identification. See *Symbology & UI Style* (`symbology.md`).
+  - Ship and station symbology (decided, specced as SYM): NATO-style frames for affiliation, icons for ship type, and amplifiers for state, groups and identification. See *Symbology & UI Style* (`symbology.md`).
   - Navigation by stepped zoom with stops, focus jumps, and bookmarks (specced: `docs/spec/system-view.md`, ZOOM); edge-of-screen indicators for important off-screen objects (candidate; specced for gates as EDGE-01).
   - How gate distance is handled on screen is deliberately left open until gate placement is tuned (section 6).
 - **Inspection view (decided):** highlighting any object expands it into a semi-photorealistic view. This applies to everything: bodies, stations, gates, sites, and ships. Ships appear as blips because of the distances involved, not because they are kept abstract.
@@ -97,7 +97,7 @@
 - How gate distance appears on screen once placement is settled (true scale, compressed, or an optional overview scaling).
 - Which limits on knowledge to model abstractly, and how; how sensor coverage is shown.
 - Inspection view in place or as a panel; how much survey detail is needed for each fidelity level.
-- Colour palette and faction colours (a candidate for ships in `symbology.md`).
+- Faction colours beyond the affiliation colours in `symbology.md`.
 - Zoom: step factor, animation timing, how strong the resistance at stops is, and whether a region frame is needed in small systems.
 - Camera: final tilt limit and pan and rotate speeds after testing; the tilt range for the cluster view.
 - Motion rule: switch abruptly between dot and exposure ring, or fade gradually across a band of speeds; final values for R_show, T_dot, T_ring after testing.
