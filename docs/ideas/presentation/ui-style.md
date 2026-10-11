@@ -4,16 +4,16 @@ This doc proposes how the interface around the map looks and behaves: panels, th
 
 - **One console register everywhere.** The same dark, quiet look as the map, in the spatial views and in Administration. Flavour comes from structure (signal headers, file stamps), not from a change of skin.
 - **Figures carry their certainty.** One notation for exact, estimated, ranged, unknown and stale values, used in every panel, report and table.
-- **Reports are written by people.** Each has an author, written from their point of view and coloured by their traits, with the state's own figures underneath.
+- **Reports have authors.** Each comes from a named person or office, with the state's own figures underneath. Whether the prose carries the author's bias is a mechanics question, still open.
 - **No free-floating windows.** Panels dock in fixed places; only insets sit on the map.
 
-Everything here is **candidate**. Mock-up: `mockups/8-ui-style.png` (source `mockups/8-ui-style.html`). Builds on *Presentation & Visual Style* (sections 2 and 4) and *Symbology*. Names, figures and the currency ("cr") in the mock-up are placeholders.
+The console register is **decided** (2026-10-12); everything else is **candidate**. Mock-up: `mockups/8-ui-style.png` (source `mockups/8-ui-style.html`). Builds on *Presentation & Visual Style* (sections 2 and 4) and *Symbology*. Names, figures and the currency ("cr") in the mock-up are placeholders.
 
 ---
 
 ## 1. Register
 
-- **Console, not paper (candidate):** the Administration view keeps the dark console look rather than switching to a "paper files" look. Reasons: one set of components to build, long text reads well light-on-dark at these sizes, and moving between map and Administration doesn't jolt. Board 8 of the mock-up compares the two.
+- **Console, not paper (decided 2026-10-12):** the Administration view keeps the dark console look rather than switching to a "paper files" look. Reasons: one set of components to build, long text reads well light-on-dark at these sizes, and moving between map and Administration doesn't jolt. Board 8 of the mock-up compares the two.
 - The look is a well-kept government plotting console: near-black ground, translucent panels, hairline borders, small corner radius (3–4 px), no glow, no scan lines, no drop shadows.
 - Period flavour comes from text conventions borrowed from military staff work: precedence, date-time groups, FROM/TO/SUBJ headers, file stamps in small mono capitals.
 
@@ -70,8 +70,8 @@ Every panel follows the same order (board 2):
 
 ## 7. Reports
 
-- **Written by someone.** A report has a signal header (PREC, DTG, FROM, TO, SUBJ), then a few sentences of plain prose from the author's point of view, then the figures it rests on in mono.
-- The prose can carry the author's personality and bias (an aggressive commander reads threat into a cold hauler); the figures beneath are the state's own record, with their certainty notation. The player learns to weigh people against data. Ties into characters with hidden traits (design document, 4.3).
+- **Layout (candidate):** a signal header (PREC, DTG, FROM, TO, SUBJ), then a short body, then the figures it rests on in mono, with their certainty notation.
+- **Authored, biased prose (open; a mechanics decision):** the body could be written from the author's point of view and carry their personality and bias (an aggressive commander reads threat into a cold hauler), so the player learns to weigh people against data. Ties into characters with hidden traits (design document, 4.3). The worry is the running clock: at 1 day/s, reports arrive faster than prose can be read, and reading for nuance invites pausing all the time. Options to weigh later: keep bias to a single line or a tag ("Marr assesses: hostile"); put bias only in rare, important reports; or roll routine traffic into digests. Settle with the character and information mechanics.
 - **Summary first:** every report and collated return opens with a one-sentence conclusion, then the table (board 7).
 - Actions on a report are the decisions it asks for (Authorise / Refuse), plus Show on map and Reply.
 - **Candidate:** reports reach the player at once (no signal delay, per the information model), but carry the date of the observation they describe, which may be older.
@@ -90,7 +90,8 @@ Every panel follows the same order (board 2):
 
 ## 10. The Administration view
 
-- **Layout (candidate):** full-screen 2D. Left: navigation by office (Inbox; Cabinet, Treasury, Admiralty, Procurement, Interior, Intelligence; Files: People, Organisations, Records). Centre: the document. Right: context (the office holder, related items, the policy controls for that office).
+- **Layout (candidate):** full-screen 2D. Left: navigation by office. Centre: the document. Right: context. The offices in the mock-up (Cabinet, Treasury, Admiralty, Procurement, Interior, Intelligence; Files: People, Organisations, Records) are placeholders: none of government is defined yet.
+- The right column holds the office holder, related items and that office's policy controls.
 - **Offices own their reports and their levers:** the Treasury page shows the monthly returns and the tax and toll settings; reports describe, policy panels decide, so the player never edits a number inside a report.
 - The top bar stays, with a Map button back to the spatial view.
 - **Collated returns:** tables with this month, last month and a six-month sparkline per line; notes link to causes ("no convoy in Feb · C-12").
@@ -99,7 +100,7 @@ Every panel follows the same order (board 2):
 
 - Office list and names: depends on how government and ministers are designed.
 - Whether reports arrive as separate items or roll up into daily or weekly digests at high time rates.
-- How much prose to generate per report, and how much the author's traits change it.
+- How much prose to generate per report, and whether authors' traits colour it, given the running clock (section 7).
 - Portrait style (painted, photographic, or a stylised ID-card look) and its art cost.
 - Whether the right-hand detail panel in the spatial views and the Administration context column are the same component.
 - Currency name and units.
