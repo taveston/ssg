@@ -14,6 +14,7 @@
 
 use bevy::prelude::*;
 
+use super::anchors::BodyAnchors;
 use super::bindings::{Bindings, pressed};
 use super::camera::requests::FocusRequest;
 use super::colors;
@@ -21,12 +22,14 @@ use super::date::{date_from_elapsed_days, format_date, format_time_ago};
 use super::fidelity::FidelityImages;
 use super::fonts::Fonts;
 use super::hover::ownership_label;
+use super::in_orbit::{OrbitEntry, orbit_entries, spawn_in_orbit_list};
+use super::marker_images::MarkerImages;
 use super::motion_mode::MotionModeState;
-use super::screen::ScreenPositions;
 use super::selection::Selection;
 use super::targets::MapInputBlocker;
 use crate::Stage;
 use crate::sim::body::{BodyClass, Description, DisplayName, KeyFacts, Knowledge, Ownership};
+use crate::sim::orbit::Orbit;
 
 #[derive(Component)]
 struct InspectPanelFor {
@@ -61,7 +64,6 @@ const BRACKET_LINE_PX: f32 = 2.0;
 const HEADER_FONT_PX: f32 = 15.0;
 const BODY_FONT_PX: f32 = 11.0;
 const STATUS_FONT_PX: f32 = 10.0;
-const CHIP_FONT_PX: f32 = 10.0;
 /// INS-04: the sepia tone of a stale record.
 const STALE_TONE: Color = Color::srgb(0.65, 0.55, 0.4);
 /// INS-02: "Open planetary view" is disabled until that view exists.
@@ -148,8 +150,20 @@ struct InsetContent {
     image: InsetImage,
     description: String,
     facts: Vec<(String, String)>,
-    satellites: Vec<(Entity, String)>,
+    satellites: Vec<OrbitEntry>,
 }
+
+/// The satellites an inset lists (INS-05).
+type Satellites<'w, 's> = Query<
+    'w,
+    's,
+    (
+        &'static DisplayName,
+        &'static BodyClass,
+        &'static Ownership,
+        &'static Orbit,
+    ),
+>;
 
 type InsetBodies<'w, 's> = Query<
     'w,
@@ -204,7 +218,8 @@ fn rebuild_panels(
     existing_panels: Query<Entity, With<InspectPanelFor>>,
     existing_leaders: Query<Entity, With<LeaderFor>>,
     bodies: InsetBodies,
-    names: Query<&DisplayName>,
+    satellites: Satellites,
+    images: Res<MarkerImages>,
 ) {
     if !selection.is_changed() {
         return;
@@ -216,10 +231,10 @@ fn rebuild_panels(
     let pinned = selection.pinned.iter().map(|&body| (body, true));
     let primary = selection.primary.map(|body| (body, false));
     for (body, pinned) in pinned.chain(primary) {
-        let Some(content) = gather_content(body, pinned, &bodies, &names) else {
+        let Some(content) = gather_content(body, pinned, &bodies, &satellites) else {
             continue;
         };
-        spawn_panel(&mut commands, &fonts, &fidelity, &content);
+        spawn_panel(&mut commands, (&fonts, &fidelity, &images), &content);
         spawn_leader(&mut commands, body, pinned);
     }
 }
@@ -228,19 +243,12 @@ fn gather_content(
     body: Entity,
     pinned: bool,
     bodies: &InsetBodies,
-    names: &Query<&DisplayName>,
+    satellites: &Satellites,
 ) -> Option<InsetContent> {
     let (name, description, facts, class, ownership, knowledge, children) =
         bodies.get(body).ok()?;
     let (status, tone, image) = knowledge_status(knowledge);
-    let satellites = children
-        .into_iter()
-        .flat_map(|children| children.iter())
-        .map(|child| {
-            let label = names.get(child).map(|n| n.0.clone()).unwrap_or_default();
-            (child, label)
-        })
-        .collect();
+    let satellites = orbit_entries(children, satellites);
     Some(InsetContent {
         body,
         pinned,
@@ -278,8 +286,7 @@ fn spawn_leader(commands: &mut Commands, body: Entity, pinned: bool) {
 /// satellite chips, and the disabled planetary-view button.
 fn spawn_panel(
     commands: &mut Commands,
-    fonts: &Fonts,
-    fidelity: &FidelityImages,
+    (fonts, fidelity, images): (&Fonts, &FidelityImages, &MarkerImages),
     content: &InsetContent,
 ) {
     let border = if content.pinned {
@@ -331,7 +338,7 @@ fn spawn_panel(
                 spawn_text(panel, &line, fonts.mono(BODY_FONT_PX), colors::NEUTRAL);
             }
             spawn_position_note(panel, fonts, content.body);
-            spawn_satellite_chips(panel, fonts, &content.satellites);
+            spawn_in_orbit_list(panel, fonts, images, &content.satellites);
             spawn_planetary_view_button(panel, fonts);
         });
 }
@@ -488,47 +495,6 @@ fn spawn_corner_bracket(frame: &mut ChildSpawnerCommands, top: bool, right: bool
     ));
 }
 
-/// The satellites as clickable chips, a partial start on INS-05 (F4-09).
-fn spawn_satellite_chips(
-    panel: &mut ChildSpawnerCommands,
-    fonts: &Fonts,
-    satellites: &[(Entity, String)],
-) {
-    if satellites.is_empty() {
-        return;
-    }
-    panel
-        .spawn(Node {
-            flex_direction: FlexDirection::Row,
-            flex_wrap: FlexWrap::Wrap,
-            column_gap: px(4),
-            row_gap: px(4),
-            ..default()
-        })
-        .with_children(|chips| {
-            for (child, label) in satellites {
-                let child = *child;
-                chips
-                    .spawn((
-                        Node {
-                            padding: UiRect::axes(px(6), px(2)),
-                            border: UiRect::all(px(1)),
-                            ..default()
-                        },
-                        BorderColor::all(colors::PANEL_BORDER),
-                    ))
-                    .with_children(|chip| {
-                        spawn_text(chip, label, fonts.label(CHIP_FONT_PX), colors::NEUTRAL);
-                    })
-                    .observe(
-                        move |_click: On<PointerClick>, mut selection: ResMut<Selection>| {
-                            selection.primary = Some(child);
-                        },
-                    );
-            }
-        });
-}
-
 /// INS-02: "Open planetary view", disabled until that view exists.
 fn spawn_planetary_view_button(panel: &mut ChildSpawnerCommands, fonts: &Fonts) {
     panel
@@ -550,19 +516,20 @@ fn spawn_planetary_view_button(panel: &mut ChildSpawnerCommands, fonts: &Fonts) 
         });
 }
 
-/// INS-01: insets and their leaders follow their markers.
+/// INS-01 / INS-06: insets and their leaders follow their bodies' anchors -
+/// the marker, or the parent's pill while the body is folded.
 fn reposition_panels(
-    screen: Res<ScreenPositions>,
+    anchors: Res<BodyAnchors>,
     mut panels: Query<(&InspectPanelFor, &mut Node)>,
     mut leaders: Query<(&LeaderFor, &mut Node), Without<InspectPanelFor>>,
 ) {
     for (panel_for, mut node) in &mut panels {
         let offset = Vec2::new(LEADER_LENGTH, -PANEL_RAISE_PX);
-        place(&mut node, screen.get(panel_for.body), offset);
+        place(&mut node, anchors.get(panel_for.body), offset);
     }
     for (leader_for, mut node) in &mut leaders {
         let offset = Vec2::new(0.0, -LEADER_THICKNESS_PX / 2.0);
-        place(&mut node, screen.get(leader_for.0), offset);
+        place(&mut node, anchors.get(leader_for.0), offset);
     }
 }
 

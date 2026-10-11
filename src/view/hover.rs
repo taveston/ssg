@@ -16,7 +16,7 @@ use super::fold::FoldSummary;
 use super::fonts::Fonts;
 use super::gesture::{PressStart, was_click};
 use super::selection::Selection;
-use super::targets::{GroupPillFor, MarkerFor};
+use super::targets::{GroupPillFor, Hovered, MarkerFor};
 use super::tunables::Tunables;
 use crate::Boot;
 use crate::sim::body::{BodyClass, DisplayName, Ownership};
@@ -83,14 +83,12 @@ pub fn on_marker_over(
     markers: Query<&MarkerFor>,
     bodies: Query<(&DisplayName, &Ownership, Option<&Children>)>,
     classes: Query<&BodyClass>,
-    mut outlines: Query<&mut Outline>,
+    mut commands: Commands,
     mut tooltip_nodes: Query<&mut Node, With<TooltipRoot>>,
     mut tooltip_labels: Query<&mut Text, With<TooltipLabel>>,
 ) {
-    if let Ok(mut outline) = outlines.get_mut(over.entity) {
-        outline.width = px(2);
-        outline.color = colors::SELECTION_RING;
-    }
+    // HOV-01: the white ring, drawn by the marker overlay.
+    commands.entity(over.entity).insert(Hovered);
     let Ok(marker_for) = markers.get(over.entity) else {
         return;
     };
@@ -125,12 +123,11 @@ pub fn on_marker_over(
 
 pub fn on_marker_out(
     out: On<PointerOut>,
-    mut outlines: Query<&mut Outline>,
+    mut commands: Commands,
     mut tooltip_nodes: Query<&mut Node, With<TooltipRoot>>,
 ) {
-    if let Ok(mut outline) = outlines.get_mut(out.entity) {
-        outline.width = px(0);
-        outline.color = Color::NONE;
+    if let Ok(mut node) = commands.get_entity(out.entity) {
+        node.remove::<Hovered>();
     }
     for mut node in &mut tooltip_nodes {
         node.display = Display::None;

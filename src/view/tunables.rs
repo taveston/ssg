@@ -63,11 +63,9 @@ pub struct Tunables {
     /// Below 1.0 so a framed thing has a margin rather than touching the
     /// screen edge.
     pub zoom_fit_margin: f32,
-    /// Fallback double-click window, used only if the picking backend's own
-    /// click count proves unreliable. Waits for that fallback to ZOOM-16 and
-    /// ZOOM-17, which isn't built: Bevy's click count has been reliable
-    /// (F5-06).
-    #[allow(dead_code)]
+    /// The double-click window. Double-clicks themselves use the picking
+    /// backend's click count; a single click on an inset's "In orbit" entry
+    /// waits this long for a second one before it selects (INS-05, F5-07).
     pub double_click_window_ms: f32,
 
     // --- Camera (section 5a). Tilt is measured from straight down. ---
@@ -99,9 +97,8 @@ pub struct Tunables {
     /// The pivot stays within this many system-frame radii of the star
     /// (CAM-19).
     pub pan_bound_factor: f32,
-    /// Side of the box the focused marker's corner brackets outline. Waits
-    /// for CAM-22.
-    #[allow(dead_code)]
+    /// Side of the box the focused marker's corner brackets outline
+    /// (CAM-22).
     pub focus_bracket_px: f32,
 }
 

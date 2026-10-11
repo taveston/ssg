@@ -20,7 +20,8 @@ use super::hover;
 use super::marker_images::MarkerImages;
 use super::motion_mode::MotionModeState;
 use super::screen::ScreenPositions;
-use super::targets::MarkerFor;
+use super::selection::Selection;
+use super::targets::{Hovered, MarkerFor};
 use crate::sim::body::{BodyClass, DisplayName, Ownership};
 use crate::{Boot, Stage};
 
@@ -87,6 +88,12 @@ const LABEL_FONT_PX: f32 = 12.0;
 
 /// MRK-03: marker size is a presentation choice by class, in screen pixels,
 /// never derived from physical size.
+/// How far the white ring reaches from a marker's centre (MRK-01), so
+/// anything drawn round a marker (CAM-22's brackets) can clear it.
+pub fn ring_outer_half(class: BodyClass) -> f32 {
+    marker_half_size(class).max_element() + HOVER_RING_OFFSET_PX + RING_PX
+}
+
 fn marker_half_size(class: BodyClass) -> Vec2 {
     match class {
         BodyClass::Star => Vec2::splat(9.0),
@@ -139,7 +146,10 @@ pub struct MarkersPlugin;
 impl Plugin for MarkersPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, spawn_markers.in_set(Boot::Overlay))
-            .add_systems(Update, update_markers.in_set(Stage::Overlay));
+            .add_systems(
+                Update,
+                (update_markers, ring_markers).in_set(Stage::Overlay),
+            );
     }
 }
 
@@ -282,6 +292,71 @@ type MarkerNodes<'w, 's> = Query<
     ),
 >;
 
+/// INS-05: a small copy of a body's marker, for lists - the same shape
+/// and colour as on the map, at `half` pixels.
+pub fn spawn_marker_icon(
+    parent: &mut ChildSpawnerCommands,
+    fonts: &Fonts,
+    images: &MarkerImages,
+    (class, ownership): (BodyClass, Ownership),
+    half: f32,
+) {
+    let shape = marker_shape(class, ownership);
+    let color = colors::ownership_color(ownership);
+    let mut node = marker_node(shape, Vec2::splat(half));
+    node.position_type = PositionType::Relative;
+    node.display = Display::Flex;
+    let mut icon = parent.spawn(node);
+    match shape {
+        MarkerShape::Disc => {
+            icon.insert(BackgroundColor(color));
+        }
+        MarkerShape::HollowSquare | MarkerShape::HollowCircle => {
+            icon.insert(BorderColor::all(color));
+        }
+        MarkerShape::FilledTriangle => {
+            icon.insert(ImageNode::new(images.triangle.clone()).with_color(color));
+        }
+        MarkerShape::FilledDiamond => {
+            icon.insert(ImageNode::new(images.diamond.clone()).with_color(color));
+        }
+        MarkerShape::Glyph(glyph) => {
+            icon.with_children(|icon| {
+                icon.spawn((
+                    Text::new(glyph),
+                    fonts.label(half * GLYPH_SCALE),
+                    TextColor(color),
+                ));
+            });
+        }
+    }
+}
+
+/// MRK-01: the white ring - on a marker that is hovered (HOV-01) or
+/// selected, pinned or not (INS-01, CAM-22).
+pub fn shows_ring(hovered: bool, selected: bool) -> bool {
+    hovered || selected
+}
+
+/// Width of the white hover and selection ring.
+const RING_PX: f32 = 2.0;
+
+/// MRK-01: draw the white ring on hovered and selected markers.
+fn ring_markers(
+    selection: Res<Selection>,
+    mut markers: Query<(&MarkerFor, Has<Hovered>, &mut Outline), With<MarkerHalfSize>>,
+) {
+    for (marker_for, hovered, mut outline) in &mut markers {
+        let ring = shows_ring(hovered, selection.is_open(marker_for.0));
+        outline.width = px(if ring { RING_PX } else { 0.0 });
+        outline.color = if ring {
+            colors::SELECTION_RING
+        } else {
+            Color::NONE
+        };
+    }
+}
+
 /// MRK-03: place, fade and colour every marker for this frame.
 fn update_markers(
     screen: Res<ScreenPositions>,
@@ -356,6 +431,14 @@ mod tests {
         assert_eq!(marker_shape(Ship, Own), MarkerShape::FilledTriangle);
         assert_eq!(marker_shape(Ship, Foreign), MarkerShape::FilledDiamond);
         assert_eq!(MarkerShape::FilledTriangle.style(), MarkerStyle::Image);
+    }
+
+    /// MRK-01: hovered or selected markers carry the white ring.
+    #[test]
+    fn mrk_01_ring_on_hover_or_selection() {
+        assert!(shows_ring(true, false));
+        assert!(shows_ring(false, true));
+        assert!(!shows_ring(false, false));
     }
 
     /// MRK-03: marker size depends on class only.

@@ -10,6 +10,11 @@ use bevy::prelude::*;
 #[derive(Component)]
 pub struct MarkerFor(pub Entity);
 
+/// On a node while the pointer is over it (HOV-01), so the marker overlay
+/// can draw the white ring for hover and selection alike (MRK-01).
+#[derive(Component)]
+pub struct Hovered;
+
 /// A UI panel the map's drags don't start on: pressing on the top bar or
 /// an inset and dragging doesn't pan or rotate the camera (CAM-10).
 #[derive(Component)]

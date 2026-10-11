@@ -10,6 +10,7 @@ use super::fold::FoldSummary;
 use super::fonts::Fonts;
 use super::hover;
 use super::screen::ScreenPositions;
+use super::selection::Selection;
 use super::targets::GroupPillFor;
 use crate::sim::orbit::Orbit;
 use crate::{Boot, Stage};
@@ -17,6 +18,19 @@ use crate::{Boot, Stage};
 /// GRP-05: where the pill sits relative to its parent's marker centre -
 /// down and to the right, clear of the largest marker and its label.
 const PILL_OFFSET_PX: Vec2 = Vec2::new(10.0, 8.0);
+/// Half the pill's height: its left-middle is where a leader line or the
+/// focus brackets meet it (INS-06).
+const PILL_HALF_HEIGHT_PX: f32 = 8.0;
+/// The white ring on a pill that holds a selected satellite (INS-06), the
+/// same as a marker's (MRK-01).
+const RING_PX: f32 = 2.0;
+const RING_OFFSET_PX: f32 = 2.0;
+
+/// INS-06: where a folded satellite is shown - the left-middle of its
+/// parent's pill, given the parent's screen position.
+pub fn pill_anchor(parent_screen: Vec2) -> Vec2 {
+    parent_screen + PILL_OFFSET_PX + Vec2::new(0.0, PILL_HALF_HEIGHT_PX)
+}
 /// The pill's own dark ground, a touch lighter than the map so it reads as
 /// a chip over it.
 const PILL_GROUND: Color = Color::srgba(0.07, 0.09, 0.11, 0.9);
@@ -36,7 +50,7 @@ pub struct PillsPlugin;
 impl Plugin for PillsPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, spawn_pills.in_set(Boot::Overlay))
-            .add_systems(Update, update_pills.in_set(Stage::Overlay));
+            .add_systems(Update, (update_pills, ring_pills).in_set(Stage::Overlay));
     }
 }
 
@@ -66,6 +80,11 @@ fn spawn_pills(
                 },
                 BackgroundColor(PILL_GROUND),
                 BorderColor::all(Color::NONE),
+                Outline {
+                    width: px(0),
+                    offset: px(RING_OFFSET_PX),
+                    color: Color::NONE,
+                },
                 children![
                     (
                         PillCountText,
@@ -91,6 +110,27 @@ fn spawn_pills(
             .observe(hover::on_pill_over)
             .observe(hover::on_pill_out)
             .observe(hover::on_pill_click);
+    }
+}
+
+/// INS-06: a pill carries the white selection ring while a selected
+/// object is folded into it.
+fn ring_pills(
+    selection: Res<Selection>,
+    folds: Res<FoldSummary>,
+    mut pills: Query<(&GroupPillFor, &mut Outline)>,
+) {
+    for (pill_for, mut outline) in &mut pills {
+        let holds_selection = folds
+            .0
+            .get(&pill_for.0)
+            .is_some_and(|group| group.members.iter().any(|&m| selection.is_open(m)));
+        outline.width = px(if holds_selection { RING_PX } else { 0.0 });
+        outline.color = if holds_selection {
+            colors::SELECTION_RING
+        } else {
+            Color::NONE
+        };
     }
 }
 

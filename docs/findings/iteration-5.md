@@ -34,6 +34,16 @@
 - **Affects:** ZOOM-16, ZOOM-17 · **Type:** spec gap
 - **Disposition:** open for triage: drop the tunable from the spec, or keep it until double-clicks have been checked on more hardware.
 
+### F5-07 · A single click on an "In orbit" entry waits for the double-click window
+- **Observation:** INS-05 asks for click (select) and double-click (ZOOM-16 / ZOOM-17) on the same entry. But selecting a satellite replaces the parent's inset with the satellite's own, which removes the list before a double-click's second click can land. So a single click on an entry selects once `double_click_window_ms` (350 ms) has passed with no second click; a double-click selects and focuses at once. This gives `double_click_window_ms` a job (F5-06), but list clicks feel a third of a second slow.
+- **Affects:** INS-05, ZOOM-16, ZOOM-17, F5-06 · **Type:** spec gap
+- **Disposition:** built this way. Alternative for triage: keep the parent's inset open when a satellite is picked from its list, so selection can be immediate.
+
+### F5-08 · Focus brackets sized to clear the selection ring
+- **Observation:** CAM-22 sets the bracket box at `focus_bracket_px` (14 px), but a planet's 12 px marker plus the selection ring (2 px out, 2 px wide) is about 20 px across, so 14 px brackets sat under the ring and couldn't be seen; CAM-22 asks that both read on one marker. The box is now the larger of `focus_bracket_px` and the marker's ring plus 2 px (`bracket_side`): 24 px on a planet, 30 px on the star.
+- **Affects:** CAM-22, MRK-01 · **Type:** spec wrong
+- **Disposition:** built this way; triage whether `focus_bracket_px` should become a margin round the ring rather than a box side.
+
 <!-- Findings from the build: copy this block.
 ### F5-01 · Short title
 - **Observation:**

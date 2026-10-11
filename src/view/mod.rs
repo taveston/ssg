@@ -10,6 +10,7 @@
 
 use bevy::prelude::*;
 
+pub mod anchors;
 pub mod anim;
 pub mod belt;
 pub mod bindings;
@@ -19,11 +20,13 @@ pub mod date;
 pub mod edge;
 pub mod fidelity;
 pub mod focus;
+pub mod focus_marks;
 pub mod fold;
 pub mod fonts;
 pub mod gesture;
 pub mod grouping;
 pub mod hover;
+pub mod in_orbit;
 pub mod inspect;
 pub mod marker_images;
 pub mod markers;
@@ -66,12 +69,15 @@ impl Plugin for ViewPlugin {
                 rings::RingsPlugin,
                 ring_picking::RingPickingPlugin,
                 screen::ScreenPlugin,
+                anchors::AnchorsPlugin,
+                focus_marks::FocusMarksPlugin,
                 edge::EdgePlugin,
                 marker_images::MarkerImagesPlugin,
                 markers::MarkersPlugin,
                 pills::PillsPlugin,
                 hover::HoverPlugin,
                 inspect::InspectPlugin,
+                in_orbit::InOrbitPlugin,
                 topbar::TopBarPlugin,
             ));
     }
