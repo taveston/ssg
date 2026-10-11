@@ -276,26 +276,24 @@ fn arch_21_functions_stay_small() {
     assert!(too_long.is_empty(), "too long:\n{}", too_long.join("\n"));
 }
 
-/// The IDs `docs/spec/system-view.md` marks as built: neither struck
-/// through, withdrawn nor "not built".
+/// The IDs `docs/spec/system-view.md` marks as built (a ✓ in the Built
+/// column).
 fn built_system_view_ids() -> Vec<String> {
     let spec = fs::read_to_string(root().join("docs/spec/system-view.md")).expect("spec");
     spec.lines()
         .filter_map(|line| {
             let cells: Vec<&str> = line.split('|').map(str::trim).collect();
-            // | ID | Requirement | Since |
+            // | ID | Requirement | Built |
             if cells.len() != 5 {
                 return None;
             }
-            let (id, requirement, since) = (cells[1], cells[2], cells[3]);
+            let (id, built) = (cells[1], cells[3]);
             let is_id = id.split_once('-').is_some_and(|(prefix, number)| {
                 prefix.chars().all(|c| c.is_ascii_uppercase())
                     && !number.is_empty()
                     && number.chars().all(|c| c.is_ascii_digit())
             });
-            let withdrawn = requirement.contains("Withdrawn") || id.starts_with("~~");
-            let built = !since.contains("not built");
-            (is_id && !withdrawn && built).then(|| id.to_string())
+            (is_id && built.contains('✓')).then(|| id.to_string())
         })
         .collect()
 }

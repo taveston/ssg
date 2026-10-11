@@ -2,7 +2,7 @@
 
 *Status:* Draft, 2026-10-10. Everything here is **Candidate** unless marked otherwise. Every figure comes from `scripts/transit/run_all.py` (output in `scripts/transit/results/report.txt` and `transit-table.csv`); low-thrust cases come from `lowthrust_cases.py`. Change `params.py`, not the tables.
 
-> **Repo note (2026-10-10):** `scripts/transit/` is not in this repo yet; the figures below are as last generated. The prototype's Corvane layout (`src/system_data.rs`) does not match section 2 yet: see `docs/findings/iteration-3.md`.
+> **Repo note (2026-10-10):** `scripts/transit/` is not in this repo yet; the figures below are as last generated. The prototype's Corvane layout (`src/content/corvane.rs`) does not match section 2 yet: see F3-05 in `docs/findings.md`.
 
 *Companion documents:* *Design Document* (4.2 map and gates, 5 technology, 9 open questions on gate distance and delta-v), *Component Catalogue*, *Component Stats & Ship Assembly* (CSA: specific designs and ship assembly; it uses this document's orbits), *Requirements & Bids*, *Reference Sketches* (Corvane).
 
