@@ -23,6 +23,7 @@ Hard sci-fi space strategy game for PC. This repo holds the prototype and the wh
 - Implement each item's spec IDs as written. Plan your own steps; keep the app runnable and `cargo test` green after each step, and commit after each.
 - When a requirement is withdrawn, delete its code and tests. Never keep old behaviour alongside new.
 - If the spec is ambiguous or doesn't work on screen, make a sensible choice and **add a finding** to `docs/findings.md` (type "spec gap" or "spec wrong", saying what you chose). Don't edit `docs/spec/` or `docs/ideas/` beyond the Built column unless asked.
+- If a test fails because an unbuilt requirement isn't on `docs/todo.md`, don't build it: add an item for it under "Spec changes" and mention it in your summary.
 - When an item is done: mark its requirements ✓ in the spec's Built column, delete the item from `docs/todo.md`, and delete any finding it resolves.
 - Every number the spec marks as a tunable lives in the `Tunables` resource (`src/view/tunables.rs`), documented field by field. Never hard-code one.
 - Keep simulation data separate from rendering. Store everything in real units (km, days) using `f64` in simulation data, and convert to render space in one place. Marker size is a presentation choice in screen pixels, never derived from physical size.

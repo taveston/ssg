@@ -21,12 +21,12 @@ Status tags in `ideas/`: **Decided** = settled. **Direction** = settled in princ
 ## How work flows
 
 1. **Think** in `ideas/`. Mark what gets settled, and why, where it's discussed.
-2. **Spec** it: copy the settled rules into `spec/` with IDs, add a **Specced** note in the idea doc, and add an item to `todo.md` under "Spec changes" naming the IDs. A spec change is never committed without its to-do item.
+2. **Spec** it: copy the settled rules into `spec/` with IDs, add a **Specced** note in the idea doc, and add an item to `todo.md` under "Spec changes" naming the IDs. A spec change is never committed without its to-do item, in the same commit. This includes requirements reworded so that the code no longer meets them: clear their ✓ and list them.
 3. **Build:** you pick items from `todo.md` for a coding session. The session builds them with automated tests, marks the requirements ✓ in the spec's Built column, logs any findings and deletes the finished items.
 4. **Play** the build whenever you like, and note anything that looks or feels wrong in `findings.md` (or tell a session to). There's no fixed checklist.
 5. **Triage** at the start of a design session: decide each open finding. The outcome goes into the spec (with a to-do item), into `todo.md` under "Fixes", or into `ideas/`, and the finding is deleted.
 
-At the start of a design session, also check that every unbuilt spec requirement is on the to-do list, and add any that slipped through.
+`cargo test` fails if any requirement with an empty Built cell isn't named on the to-do list (ranges like `IDEO-01 to IDEO-31` count). Design sessions may not be able to run it, so before committing a spec change, check the to-do list by hand; the test catches anything missed at the next build.
 
 ## Spec conventions
 

@@ -1,6 +1,7 @@
 //! Architecture checks (`docs/spec/architecture.md`, ARCH-01 to ARCH-34)
 //! as text scans of the source tree, so a rule broken later fails the
-//! build. Standard library only: no parsing crate, just enough reading of
+//! build. Also checks that every unbuilt spec requirement is on
+//! `docs/todo.md`. Standard library only: no parsing crate, just enough reading of
 //! Rust to find imports, functions and comments.
 //!
 //! The scans are deliberately rough. Where they would need real parsing to
@@ -317,6 +318,95 @@ fn arch_23_every_built_spec_id_is_cited_in_a_comment() {
     assert!(
         missing.is_empty(),
         "built IDs no comment cites: {missing:?}"
+    );
+}
+
+/// Whether `word` has the shape of a spec ID: capitals, a hyphen, digits.
+fn is_spec_id(word: &str) -> bool {
+    word.split_once('-').is_some_and(|(prefix, number)| {
+        prefix.len() >= 2
+            && prefix.chars().all(|c| c.is_ascii_uppercase())
+            && !number.is_empty()
+            && number.chars().all(|c| c.is_ascii_digit())
+    })
+}
+
+/// Requirements in any `docs/spec/` file whose Built cell is empty.
+fn unbuilt_spec_ids() -> Vec<String> {
+    let mut ids = Vec::new();
+    for entry in fs::read_dir(root().join("docs/spec")).expect("spec dir") {
+        let path = entry.expect("dir entry").path();
+        if path.extension().is_none_or(|e| e != "md") {
+            continue;
+        }
+        let text = fs::read_to_string(&path).expect("readable spec");
+        for line in text.lines() {
+            // | ID | Requirement | Built |
+            let cells: Vec<&str> = line.split('|').map(str::trim).collect();
+            if cells.len() == 5 && is_spec_id(cells[1]) && !cells[3].contains('✓') {
+                ids.push(cells[1].to_string());
+            }
+        }
+    }
+    ids
+}
+
+/// The IDs from `first` to `last` inclusive, if both share a prefix.
+fn id_range(first: &str, last: &str) -> Option<Vec<String>> {
+    let (prefix, from) = first.split_once('-')?;
+    let (last_prefix, to) = last.split_once('-')?;
+    if last_prefix != prefix || !is_spec_id(last) {
+        return None;
+    }
+    let (from_n, to_n): (u32, u32) = (from.parse().ok()?, to.parse().ok()?);
+    Some(
+        (from_n..=to_n)
+            .map(|n| format!("{prefix}-{n:0width$}", width = from.len()))
+            .collect(),
+    )
+}
+
+/// Every ID the to-do list names, with ranges such as "IDEO-01 to IDEO-31"
+/// expanded.
+fn ids_named_in(text: &str) -> BTreeSet<String> {
+    let words: Vec<&str> = text
+        .split(|c: char| !(c.is_ascii_alphanumeric() || c == '-'))
+        .filter(|w| !w.is_empty())
+        .collect();
+    let mut ids = BTreeSet::new();
+    for (i, word) in words.iter().enumerate() {
+        if !is_spec_id(word) {
+            continue;
+        }
+        ids.insert(word.to_string());
+        let after_to = if words.get(i + 1) == Some(&"to") {
+            words.get(i + 2)
+        } else {
+            None
+        };
+        ids.extend(
+            after_to
+                .and_then(|last| id_range(word, last))
+                .into_iter()
+                .flatten(),
+        );
+    }
+    ids
+}
+
+/// Every spec requirement not yet built is on `docs/todo.md`, so a spec
+/// change can't be committed and then forgotten.
+#[test]
+fn unbuilt_requirements_are_on_the_todo_list() {
+    let todo = fs::read_to_string(root().join("docs/todo.md")).expect("todo list");
+    let listed = ids_named_in(&todo);
+    let missing: Vec<String> = unbuilt_spec_ids()
+        .into_iter()
+        .filter(|id| !listed.contains(id))
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "unbuilt requirements missing from docs/todo.md (add an item under Spec changes): {missing:?}"
     );
 }
 
