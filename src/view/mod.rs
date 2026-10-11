@@ -38,6 +38,7 @@ pub mod selection;
 pub mod targets;
 pub mod topbar;
 pub mod tunables;
+pub mod world;
 
 pub struct ViewPlugin;
 

@@ -21,6 +21,7 @@ use super::fold::{
 };
 use super::scale::km_to_render;
 use super::tunables::Tunables;
+use super::world::ViewNow;
 use crate::sim::body::{BodyClass, Ownership};
 use crate::sim::orbit::Orbit;
 use crate::{Boot, Stage};
@@ -58,11 +59,10 @@ fn attach_fold_state(mut commands: Commands, satellites: Query<Entity, UnfoldedS
 fn fold_satellites(
     time: Res<Time>,
     tunables: Res<Tunables>,
-    camera_q: Query<(&Camera, &GlobalTransform)>,
-    transforms: Query<&GlobalTransform>,
+    view: ViewNow,
     mut satellites: Query<(&Orbit, &ChildOf, &mut SatelliteFoldState)>,
 ) {
-    let Ok((camera, camera_transform)) = camera_q.single() else {
+    let Some((camera, camera_transform)) = view.camera() else {
         return;
     };
     // Measure orbit radius along the camera's least-foreshortened screen
@@ -75,14 +75,13 @@ fn fold_satellites(
     let step = step_per_frame(time.delta_secs(), tunables.fold_unfold_anim_ms);
 
     for (orbit, child_of, mut fold) in &mut satellites {
-        let Ok(parent) = transforms.get(child_of.parent()) else {
+        let Some(centre) = view.position(child_of.parent()) else {
             continue;
         };
-        let centre = parent.translation();
         let edge = centre + right_flat * km_to_render(orbit.radius_km);
         let (Ok(centre), Ok(edge)) = (
-            camera.world_to_viewport(camera_transform, centre),
-            camera.world_to_viewport(camera_transform, edge),
+            camera.world_to_viewport(&camera_transform, centre),
+            camera.world_to_viewport(&camera_transform, edge),
         ) else {
             // Off-screen or behind the camera: leave the latch alone.
             continue;

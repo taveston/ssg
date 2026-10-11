@@ -6,8 +6,8 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
+use super::world::ViewNow;
 use crate::Stage;
-use crate::sim::body::BodyClass;
 
 /// Each body's projected screen position, in logical pixels from the
 /// window's top left, plus the viewport it was projected into. A body
@@ -42,23 +42,17 @@ impl Plugin for ScreenPlugin {
     }
 }
 
-fn project_bodies(
-    camera_q: Query<(&Camera, &GlobalTransform)>,
-    windows: Query<&Window>,
-    bodies: Query<(Entity, &GlobalTransform), With<BodyClass>>,
-    mut screen: ResMut<ScreenPositions>,
-) {
-    let Ok((camera, camera_transform)) = camera_q.single() else {
-        return;
-    };
+/// MRK-03 / CAM-05: project every body with this frame's camera and
+/// positions, so markers and the camera never disagree by a frame.
+fn project_bodies(view: ViewNow, windows: Query<&Window>, mut screen: ResMut<ScreenPositions>) {
     let Ok(window) = windows.single() else {
         return;
     };
     screen.viewport = Vec2::new(window.width(), window.height());
     screen.bodies.clear();
-    for (entity, transform) in &bodies {
-        if let Ok(pos) = camera.world_to_viewport(camera_transform, transform.translation()) {
-            screen.bodies.insert(entity, pos);
+    for (&body, &world) in view.positions() {
+        if let Some(pos) = view.project(world) {
+            screen.bodies.insert(body, pos);
         }
     }
 }

@@ -22,6 +22,7 @@ use super::focus::Focus;
 use super::fonts::Fonts;
 use super::hover::ownership_label;
 use super::motion_mode::MotionModeState;
+use super::screen::ScreenPositions;
 use super::selection::Selection;
 use crate::Stage;
 use crate::sim::body::{BodyClass, Description, DisplayName, KeyFacts, Knowledge, Ownership};
@@ -541,32 +542,17 @@ fn spawn_planetary_view_button(panel: &mut ChildSpawnerCommands, fonts: &Fonts) 
 
 /// INS-01: insets and their leaders follow their markers.
 fn reposition_panels(
-    camera_q: Query<(&Camera, &GlobalTransform)>,
-    bodies: Query<&GlobalTransform>,
+    screen: Res<ScreenPositions>,
     mut panels: Query<(&InspectPanelFor, &mut Node)>,
     mut leaders: Query<(&LeaderFor, &mut Node), Without<InspectPanelFor>>,
 ) {
-    let Ok((camera, camera_transform)) = camera_q.single() else {
-        return;
-    };
-    let on_screen = |body: Entity| {
-        let world = bodies.get(body).ok()?.translation();
-        camera.world_to_viewport(camera_transform, world).ok()
-    };
-
     for (panel_for, mut node) in &mut panels {
-        place(
-            &mut node,
-            on_screen(panel_for.body),
-            Vec2::new(LEADER_LENGTH, -PANEL_RAISE_PX),
-        );
+        let offset = Vec2::new(LEADER_LENGTH, -PANEL_RAISE_PX);
+        place(&mut node, screen.get(panel_for.body), offset);
     }
     for (leader_for, mut node) in &mut leaders {
-        place(
-            &mut node,
-            on_screen(leader_for.0),
-            Vec2::new(0.0, -LEADER_THICKNESS_PX / 2.0),
-        );
+        let offset = Vec2::new(0.0, -LEADER_THICKNESS_PX / 2.0);
+        place(&mut node, screen.get(leader_for.0), offset);
     }
 }
 

@@ -12,6 +12,7 @@ use super::state::{
 use super::stops::{ZoomStops, distance_for_radius};
 use crate::view::focus::{Focus, focused_pivot};
 use crate::view::tunables::Tunables;
+use crate::view::world::WorldPositions;
 
 /// Render-unit clip planes wide enough for a moon's orbit up close and the
 /// whole system with its gates.
@@ -56,20 +57,16 @@ pub fn start_at_system_frame(
     );
 }
 
-/// Where a body is in render space.
-pub fn body_position(body: Entity, transforms: &Query<&GlobalTransform>) -> Option<Vec3> {
-    transforms.get(body).ok().map(GlobalTransform::translation)
+/// Where a body is this frame, in render space (CAM-05, F4-29).
+pub fn body_position(body: Entity, positions: &WorldPositions) -> Option<Vec3> {
+    positions.0.get(&body).copied()
 }
 
 /// Where a move's target pivot is now.
-fn target_pivot_now(
-    target: &MoveTarget,
-    transforms: &Query<&GlobalTransform>,
-    fallback: Vec3,
-) -> Vec3 {
+fn target_pivot_now(target: &MoveTarget, positions: &WorldPositions, fallback: Vec3) -> Vec3 {
     match target.pivot {
         PivotTarget::Fixed(pivot) => pivot,
-        PivotTarget::Body { body, offset } => body_position(body, transforms)
+        PivotTarget::Body { body, offset } => body_position(body, positions)
             .map_or(fallback, |position| focused_pivot(position, offset)),
     }
 }
@@ -91,7 +88,7 @@ pub fn start_move(
 /// ZOOM-01: advance the move in flight and write the rig from it.
 pub fn advance_move(
     time: Res<Time>,
-    transforms: Query<&GlobalTransform>,
+    positions: Res<WorldPositions>,
     mut active: ResMut<ActiveMove>,
     mut rig: ResMut<CameraRig>,
 ) {
@@ -100,7 +97,7 @@ pub fn advance_move(
     };
     camera_move.elapsed += time.delta_secs();
     let t = (camera_move.elapsed / camera_move.duration).clamp(0.0, 1.0);
-    let target_pivot = target_pivot_now(&camera_move.target, &transforms, rig.pivot);
+    let target_pivot = target_pivot_now(&camera_move.target, &positions, rig.pivot);
     let mut next = blend_rig(&camera_move.start, &camera_move.target, target_pivot, t);
     next.distance = next.distance.clamp(MIN_DISTANCE, MAX_DISTANCE);
     *rig = next;
@@ -112,13 +109,13 @@ pub fn advance_move(
 pub fn follow_focus(
     active: Res<ActiveMove>,
     focus: Res<Focus>,
-    transforms: Query<&GlobalTransform>,
+    positions: Res<WorldPositions>,
     mut rig: ResMut<CameraRig>,
 ) {
     if active.0.is_some() {
         return;
     }
-    let Some(position) = focus.body.and_then(|body| body_position(body, &transforms)) else {
+    let Some(position) = focus.body.and_then(|body| body_position(body, &positions)) else {
         return;
     };
     rig.pivot = focused_pivot(position, focus.offset);

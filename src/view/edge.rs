@@ -11,6 +11,7 @@ use bevy::prelude::*;
 use super::colors;
 use super::fonts::Fonts;
 use super::screen::ScreenPositions;
+use super::world::ViewNow;
 use crate::sim::body::{BodyClass, DisplayName, Ownership};
 use crate::{Boot, Stage};
 
@@ -167,20 +168,23 @@ fn spawn_edge_indicators(
 /// has no projected position; it is pinned in its direction instead (F4-08).
 fn update_edge_targets(
     screen: Res<ScreenPositions>,
-    camera_q: Query<&GlobalTransform, With<Camera>>,
-    gates: Query<(Entity, &BodyClass, &GlobalTransform)>,
+    view: ViewNow,
+    gates: Query<(Entity, &BodyClass)>,
     mut targets: ResMut<GateEdgeTargets>,
 ) {
     targets.0.clear();
-    let camera = camera_q.single().ok();
-    for (entity, class, transform) in &gates {
+    let camera = view.camera().map(|(_, transform)| transform);
+    for (entity, class) in &gates {
         if *class != BodyClass::Gate {
             continue;
         }
         let edge = match (screen.get(entity), camera) {
             (Some(pos), _) => clamp_to_viewport_edge(pos, screen.viewport, EDGE_MARGIN_PX),
             (None, Some(camera)) => {
-                let to_gate = transform.translation() - camera.translation();
+                let Some(gate) = view.position(entity) else {
+                    continue;
+                };
+                let to_gate = gate - camera.translation();
                 let direction = screen_direction(to_gate, *camera.right(), *camera.up());
                 pin_direction_to_edge(direction, screen.viewport, EDGE_MARGIN_PX)
             }

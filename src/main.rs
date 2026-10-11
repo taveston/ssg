@@ -22,10 +22,10 @@ pub enum Boot {
     Overlay,
 }
 
-/// The per-frame pipeline. The simulation runs first; then the camera
-/// settles, simulated positions become transforms, grouping decides what is
-/// folded, motion what is a ring, and the overlay is laid out and drawn on
-/// top. Plugins tag their systems with these instead of reaching across
+/// The per-frame pipeline. The simulation runs first; its positions are
+/// turned into render space; then the camera settles on this frame's
+/// positions (CAM-05), grouping decides what is folded, motion what is a
+/// ring, and the overlay is laid out and drawn on top. Plugins tag their systems with these instead of reaching across
 /// module boundaries with `.after()`.
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Stage {
@@ -54,8 +54,8 @@ fn main() {
             Update,
             (
                 Stage::Simulation,
-                Stage::Camera,
                 Stage::Projection,
+                Stage::Camera,
                 Stage::Grouping,
                 Stage::Motion,
                 Stage::Screen,

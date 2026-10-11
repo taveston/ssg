@@ -20,6 +20,7 @@ use super::motion::{RingBodies, ring_point, ring_strength};
 use super::targets::MarkerFor;
 use crate::sim::body::BodyClass;
 use crate::sim::orbit::Orbit;
+use crate::view::world::ViewNow;
 use crate::{Boot, Stage};
 
 /// How close to a ring the pointer must be to hit it, in pixels: the same
@@ -92,16 +93,12 @@ fn spawn_ring_targets(mut commands: Commands, bodies: Query<(Entity, &BodyClass)
 
 /// MOT-05: trace every active exposure ring on screen.
 fn trace_rings(
-    camera_q: Query<(&Camera, &GlobalTransform)>,
+    view: ViewNow,
     bodies: RingBodies,
-    transforms: Query<&GlobalTransform>,
     targets: Query<(Entity, &MarkerFor), With<RingTarget>>,
     mut paths: ResMut<RingPaths>,
 ) {
     paths.0.clear();
-    let Ok(camera) = camera_q.single() else {
-        return;
-    };
     for (target, marker_for) in &targets {
         let body = marker_for.0;
         if ring_strength(body, &bodies).is_none() {
@@ -109,7 +106,7 @@ fn trace_rings(
         }
         let point = |i: usize| {
             let angle = i as f32 / RING_TRACE_SEGMENTS as f32 * std::f32::consts::TAU;
-            ring_point(body, angle, &bodies, &transforms, camera)
+            ring_point(body, angle, &bodies, &view)
         };
         // A point the camera can't project breaks the ring there, rather
         // than joining across the gap.

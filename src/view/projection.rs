@@ -7,7 +7,12 @@
 
 use bevy::prelude::*;
 
+use std::collections::HashMap;
+
+use bevy::math::DVec3;
+
 use super::scale::km_to_render_vec3;
+use super::world::{WorldPositions, world_positions_km};
 use crate::sim::body::BodyClass;
 use crate::sim::orbit::OrbitPositionKm;
 use crate::{Boot, Stage};
@@ -16,8 +21,12 @@ pub struct ProjectionPlugin;
 
 impl Plugin for ProjectionPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, attach_transforms.in_set(Boot::Derive))
-            .add_systems(Update, project_orbit_positions.in_set(Stage::Projection));
+        app.init_resource::<WorldPositions>()
+            .add_systems(Startup, attach_transforms.in_set(Boot::Derive))
+            .add_systems(
+                Update,
+                (update_world_positions, project_orbit_positions).in_set(Stage::Projection),
+            );
     }
 }
 
@@ -38,6 +47,33 @@ fn attach_transforms(
         commands
             .entity(entity)
             .insert(Transform::from_translation(translation));
+    }
+}
+
+/// A body, its position relative to what it orbits, and what that is.
+type BodyPlacement = (
+    Entity,
+    Option<&'static OrbitPositionKm>,
+    Option<&'static ChildOf>,
+);
+
+/// CAM-05 / F4-29: every body's position this frame, relative to the star,
+/// from the simulation's km positions - not last frame's `GlobalTransform`.
+fn update_world_positions(
+    bodies: Query<BodyPlacement, With<BodyClass>>,
+    mut world: ResMut<WorldPositions>,
+) {
+    let locals: HashMap<Entity, (DVec3, Option<Entity>)> = bodies
+        .iter()
+        .filter_map(|(body, position, child_of)| {
+            Some((body, (position?.0, child_of.map(ChildOf::parent))))
+        })
+        .collect();
+    let km = world_positions_km(&locals);
+    world.0.clear();
+    for (body, _, _) in &bodies {
+        let render = km.get(&body).map_or(Vec3::ZERO, |&p| km_to_render_vec3(p));
+        world.0.insert(body, render);
     }
 }
 

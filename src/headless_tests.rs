@@ -10,6 +10,7 @@
 use std::time::Duration;
 
 use bevy::camera::RenderTargetInfo;
+use bevy::input::InputPlugin;
 use bevy::prelude::*;
 use bevy::time::TimeUpdateStrategy;
 use bevy::window::WindowResolution;
@@ -20,8 +21,12 @@ use crate::sim::body::DisplayName;
 use crate::sim::clock::GameClock;
 use crate::sim::orbit::{Orbit, OrbitPositionKm, orbit_position_km};
 use crate::sim::units::KM_PER_AU;
+use crate::view::bindings::BindingsPlugin;
+use crate::view::camera::CameraPlugin;
+use crate::view::camera::state::{CameraRig, OrbitCamera};
 use crate::view::camera::stops::{StopsPlugin, ZoomStops, distance_for_radius};
 use crate::view::edge::{EdgePlugin, GateEdgeTargets};
+use crate::view::focus::Focus;
 use crate::view::fold::SatelliteFoldState;
 use crate::view::fonts::Fonts;
 use crate::view::grouping::GroupingPlugin;
@@ -55,8 +60,8 @@ fn headless_app(frame: Duration) -> App {
             Update,
             (
                 Stage::Simulation,
-                Stage::Camera,
                 Stage::Projection,
+                Stage::Camera,
                 Stage::Grouping,
                 Stage::Motion,
                 Stage::Screen,
@@ -85,7 +90,7 @@ fn body(app: &mut App, name: &str) -> Entity {
 
 /// A camera that can project without a renderer: its target size and
 /// projection matrix filled in as the render world would.
-fn test_camera(target: Vec3, distance: f32) -> (Camera, Projection, Transform) {
+fn test_camera(target: Vec3, distance: f32) -> (Camera3d, Camera, Projection, Transform) {
     let mut projection = Projection::Perspective(PerspectiveProjection::default());
     projection.update(VIEWPORT.x as f32, VIEWPORT.y as f32);
     let mut camera = Camera::default();
@@ -97,7 +102,7 @@ fn test_camera(target: Vec3, distance: f32) -> (Camera, Projection, Transform) {
     let elevation = std::f32::consts::FRAC_PI_2 - TILT;
     let offset = Vec3::new(0.0, distance * elevation.sin(), distance * elevation.cos());
     let transform = Transform::from_translation(target + offset).looking_at(target, Vec3::Y);
-    (camera, projection, transform)
+    (Camera3d::default(), camera, projection, transform)
 }
 
 /// Font handles for plugins that spawn text; nothing is rendered.
@@ -220,7 +225,7 @@ fn arch_31_fold_state_after_a_scale_change() {
     );
 
     // Zoom in to Halden IV's satellite frame.
-    let (_, _, close) = test_camera(halden_pos, satellite_distance);
+    let (_, _, _, close) = test_camera(halden_pos, satellite_distance);
     *app.world_mut().get_mut::<Transform>(camera).unwrap() = close;
     run(&mut app, SETTLE_FRAMES);
     assert!(
@@ -235,7 +240,7 @@ fn arch_31_fold_state_after_a_scale_change() {
     assert!(folded(&mut app, "Iver Yard"), "other planets stay folded");
 
     // And back out.
-    let (_, _, far) = test_camera(Vec3::ZERO, system_distance);
+    let (_, _, _, far) = test_camera(Vec3::ZERO, system_distance);
     *app.world_mut().get_mut::<Transform>(camera).unwrap() = far;
     run(&mut app, SETTLE_FRAMES);
     let mut satellites = app.world_mut().query::<&SatelliteFoldState>();
@@ -251,7 +256,7 @@ fn arch_31_fold_state_after_a_scale_change() {
 fn arch_31_motion_mode_after_a_rate_change() {
     let mut app = headless_app(FRAME);
     app.add_plugins((ContentPlugin, SimPlugin))
-        .add_plugins((TunablesPlugin, MotionPlugin))
+        .add_plugins((TunablesPlugin, ProjectionPlugin, MotionPlugin))
         // Shared view state the ring labels read; `ViewPlugin` owns it.
         .init_resource::<Selection>()
         .insert_resource(placeholder_fonts());
@@ -367,6 +372,74 @@ fn edge_01_every_gate_has_an_arrow_when_zoomed_in() {
         assert!(
             on_screen || pinned.is_pinned(gate),
             "a gate has neither a marker nor an edge arrow"
+        );
+    }
+}
+
+/// Give the real camera (spawned by `CameraPlugin`) the computed values the
+/// renderer would, so it can project without a GPU.
+fn compute_camera_headless(app: &mut App) {
+    let mut cameras = app
+        .world_mut()
+        .query_filtered::<(&mut Camera, &mut Projection), With<OrbitCamera>>();
+    for (mut camera, mut projection) in cameras.iter_mut(app.world_mut()) {
+        projection.update(VIEWPORT.x as f32, VIEWPORT.y as f32);
+        camera.computed.target_info = Some(RenderTargetInfo {
+            physical_size: VIEWPORT,
+            scale_factor: 1.0,
+        });
+        camera.computed.clip_from_view = projection.get_clip_from_view();
+    }
+}
+
+/// CAM-05 / F4-29: a focused planet keeps its place on screen at any time
+/// rate. At 5 d/s, Halden IV moves about 65 px a frame at its satellite
+/// frame; following it a frame late made it shake. With zero offset it
+/// must sit at the screen centre on every frame.
+#[test]
+fn cam_05_focused_body_keeps_its_place_on_screen() {
+    let mut app = headless_app(FRAME);
+    app.add_plugins((ContentPlugin, SimPlugin, InputPlugin))
+        .add_plugins((
+            TunablesPlugin,
+            BindingsPlugin,
+            ProjectionPlugin,
+            CameraPlugin,
+        ))
+        .add_plugins(ScreenPlugin)
+        .init_resource::<Selection>()
+        .init_resource::<Focus>();
+    app.world_mut().spawn(Window {
+        resolution: WindowResolution::new(VIEWPORT.x, VIEWPORT.y),
+        ..default()
+    });
+    run(&mut app, 1);
+    compute_camera_headless(&mut app);
+
+    let halden = body(&mut app, "Halden IV");
+    let radius = app
+        .world()
+        .resource::<ZoomStops>()
+        .satellite_radius(halden)
+        .unwrap();
+    let margin = app.world().resource::<Tunables>().zoom_fit_margin;
+    app.world_mut().resource_mut::<CameraRig>().distance =
+        distance_for_radius(radius, fov(), 0.0, margin);
+    *app.world_mut().resource_mut::<Focus>() = Focus::on(halden);
+    app.world_mut().resource_mut::<GameClock>().run_at(5.0);
+
+    let centre = VIEWPORT.as_vec2() / 2.0;
+    for frame in 0..SETTLE_FRAMES {
+        run(&mut app, 1);
+        let on_screen = app
+            .world()
+            .resource::<ScreenPositions>()
+            .get(halden)
+            .unwrap();
+        assert!(
+            on_screen.distance(centre) < 0.5,
+            "frame {frame}: Halden IV at {on_screen}, {} px off centre",
+            on_screen.distance(centre)
         );
     }
 }

@@ -17,6 +17,7 @@ use crate::view::fold::SatelliteFoldState;
 use crate::view::motion_mode::MotionModeState;
 use crate::view::scale::km_to_render;
 use crate::view::tunables::Tunables;
+use crate::view::world::WorldPositions;
 
 /// How many straight chords a ring starts as, enough for any ring seen
 /// from a distance.
@@ -77,15 +78,17 @@ fn draw_orbit_rings(
     mut gizmos: Gizmos,
     mut exposure: Gizmos<ExposureRingGizmos>,
     selection: Res<crate::view::selection::Selection>,
-    camera_q: Query<(&Camera, &GlobalTransform, &Projection)>,
+    camera_q: Query<(&Camera, &Transform, &Projection)>,
     bodies: RingBodies,
-    transforms: Query<&GlobalTransform>,
+    positions: Res<WorldPositions>,
 ) {
+    // This frame's camera and positions (CAM-05), so rings and markers
+    // agree.
     let Ok((camera, camera_transform, projection)) = camera_q.single() else {
         return;
     };
     let view = RingView {
-        camera_pos: camera_transform.translation(),
+        camera_pos: camera_transform.translation,
         camera_forward: camera_transform.forward().as_vec3(),
         max_error_rad: max_error_rad(camera, projection),
     };
@@ -103,8 +106,7 @@ fn draw_orbit_rings(
         }
 
         let center = child_of
-            .and_then(|c| transforms.get(c.parent()).ok())
-            .map(GlobalTransform::translation)
+            .and_then(|c| positions.0.get(&c.parent()).copied())
             .unwrap_or(Vec3::ZERO);
         let radius = km_to_render(orbit.radius_km);
 

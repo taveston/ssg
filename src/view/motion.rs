@@ -16,14 +16,16 @@ use super::motion_mode::{
 use crate::sim::body::{BodyClass, DisplayName, Ownership};
 use crate::sim::clock::GameClock;
 use crate::sim::orbit::Orbit;
+use crate::sim::orbit::OrbitPositionKm;
 use crate::view::anim::step_per_frame;
 use crate::view::colors;
 use crate::view::fold::SatelliteFoldState;
 use crate::view::fonts::Fonts;
-use crate::view::scale::km_to_render;
+use crate::view::scale::{km_to_render, km_to_render_vec3};
 use crate::view::screen::in_viewport;
 use crate::view::selection::Selection;
 use crate::view::tunables::Tunables;
+use crate::view::world::ViewNow;
 use crate::{Boot, Stage};
 
 /// Trail of recent positions, re-projected every frame so it shows the
@@ -177,10 +179,9 @@ fn update_motion_modes(
 
 /// The position of a body's parent in render space, or the origin (the
 /// star) for a body with none.
-fn parent_position(child_of: Option<&ChildOf>, transforms: &Query<&GlobalTransform>) -> Vec3 {
+fn parent_position(child_of: Option<&ChildOf>, view: &ViewNow) -> Vec3 {
     child_of
-        .and_then(|child_of| transforms.get(child_of.parent()).ok())
-        .map(GlobalTransform::translation)
+        .and_then(|child_of| view.position(child_of.parent()))
         .unwrap_or(Vec3::ZERO)
 }
 
@@ -189,11 +190,10 @@ fn parent_position(child_of: Option<&ChildOf>, transforms: &Query<&GlobalTransfo
 fn sample_trails(
     clock: Res<GameClock>,
     tunables: Res<Tunables>,
-    mut bodies: Query<(&GlobalTransform, &Orbit, Option<&ChildOf>, &mut FadingTrail)>,
-    transforms: Query<&GlobalTransform>,
+    mut bodies: Query<(&OrbitPositionKm, &Orbit, &mut FadingTrail)>,
 ) {
     let now = clock.elapsed_days();
-    for (transform, orbit, child_of, mut trail) in &mut bodies {
+    for (local, orbit, mut trail) in &mut bodies {
         let interval_days =
             trail_sample_interval_days(orbit.period_days, tunables.trail_arc_degrees, TRAIL_LENGTH);
         if !should_sample(now, trail.last_sample_day, interval_days) {
@@ -202,7 +202,7 @@ fn sample_trails(
         trail.last_sample_day = now;
         // Relative to the parent, so the trail traces the orbit rather than
         // the parent's path through the system.
-        let sample = transform.translation() - parent_position(child_of, &transforms);
+        let sample = km_to_render_vec3(local.0);
         push_trail_sample(&mut trail.positions, sample, TRAIL_LENGTH);
     }
 }
@@ -211,7 +211,7 @@ fn sample_trails(
 /// parent is *now* so the trail stays wrapped round it, fading with age.
 #[allow(clippy::type_complexity)]
 fn draw_trails(
-    camera_q: Query<(&Camera, &GlobalTransform)>,
+    view: ViewNow,
     bodies: Query<(
         &FadingTrail,
         &MotionModeState,
@@ -219,12 +219,8 @@ fn draw_trails(
         Option<&ChildOf>,
         Option<&Ownership>,
     )>,
-    transforms: Query<&GlobalTransform>,
     mut dots: Query<(&TrailDotFor, &mut Node, &mut BackgroundColor)>,
 ) {
-    let Ok((camera, camera_transform)) = camera_q.single() else {
-        return;
-    };
     for (dot_for, mut node, mut background) in &mut dots {
         let Ok((trail, mode, fold, child_of, ownership)) = bodies.get(dot_for.0) else {
             node.display = Display::None;
@@ -237,10 +233,8 @@ fn draw_trails(
         let sample = trail_sample_for_dot(dot_for.1, trail.positions.len(), TRAIL_LENGTH)
             .map(|index| trail.positions[index])
             .filter(|_| strength > 0.0);
-        let world = sample.map(|sample| parent_position(child_of, &transforms) + sample);
-        let Some(pos) =
-            world.and_then(|world| camera.world_to_viewport(camera_transform, world).ok())
-        else {
+        let world = sample.map(|sample| parent_position(child_of, &view) + sample);
+        let Some(pos) = world.and_then(|world| view.project(world)) else {
             node.display = Display::None;
             continue;
         };
@@ -267,21 +261,15 @@ pub type RingBodies<'w, 's> = Query<
 >;
 
 /// Where the point at `angle` on a body's orbit lands on screen.
-pub fn ring_point(
-    body: Entity,
-    angle: f32,
-    bodies: &RingBodies,
-    transforms: &Query<&GlobalTransform>,
-    camera: (&Camera, &GlobalTransform),
-) -> Option<Vec2> {
+pub fn ring_point(body: Entity, angle: f32, bodies: &RingBodies, view: &ViewNow) -> Option<Vec2> {
     let (orbit, _, child_of, _) = bodies.get(body).ok()?;
     let centre = match child_of {
-        Some(child_of) => transforms.get(child_of.parent()).ok()?.translation(),
+        Some(child_of) => view.position(child_of.parent())?,
         None => Vec3::ZERO,
     };
     let radius = km_to_render(orbit.radius_km);
     let world = centre + Vec3::new(radius * angle.cos(), 0.0, radius * angle.sin());
-    camera.0.world_to_viewport(camera.1, world).ok()
+    view.project(world)
 }
 
 /// MOT-02: how strongly a body's exposure ring shows, if at all.
@@ -296,14 +284,13 @@ pub fn ring_strength(body: Entity, bodies: &RingBodies) -> Option<f32> {
 /// phase - so it doesn't appear to orbit while the body is a ring. MOT-07:
 /// a selected body's label is white.
 fn place_ring_labels(
-    camera_q: Query<(&Camera, &GlobalTransform)>,
+    view: ViewNow,
     windows: Query<&Window>,
     selection: Res<Selection>,
     bodies: RingBodies,
-    transforms: Query<&GlobalTransform>,
     mut labels: Query<(&RingLabelFor, &mut Node, &mut TextColor)>,
 ) {
-    let (Ok(camera), Ok(window)) = (camera_q.single(), windows.single()) else {
+    let Ok(window) = windows.single() else {
         return;
     };
     let viewport = Vec2::new(window.width(), window.height());
@@ -311,7 +298,7 @@ fn place_ring_labels(
         let body = label_for.0;
         let placed = ring_strength(body, &bodies).and_then(|strength| {
             let (orbit, ..) = bodies.get(body).ok()?;
-            let pos = ring_point(body, orbit.phase0_rad as f32, &bodies, &transforms, camera)?;
+            let pos = ring_point(body, orbit.phase0_rad as f32, &bodies, &view)?;
             in_viewport(pos, viewport).then_some((pos, strength))
         });
         let Some((pos, strength)) = placed else {

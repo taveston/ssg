@@ -13,7 +13,7 @@ use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll, MouseSc
 use bevy::prelude::*;
 
 use super::requests::FocusJumpRequest;
-use super::rig::start_move;
+use super::rig::{body_position, start_move};
 use super::rules::{clamp_tilt, plane_axes, plane_point};
 use super::state::{
     ActiveMove, BOOKMARK_SLOTS, Bookmark, Bookmarks, CameraRig, MAX_DISTANCE, MIN_DISTANCE,
@@ -26,6 +26,7 @@ use crate::view::bindings::{Bindings, held, pressed};
 use crate::view::focus::{Focus, clamp_to_pan_bound};
 use crate::view::selection::Selection;
 use crate::view::tunables::Tunables;
+use crate::view::world::WorldPositions;
 
 /// Right drag: radians of heading or tilt per pixel dragged (iteration 1
 /// behaviour; CAM-12 replaces it with `rotate_deg_per_px`).
@@ -91,7 +92,7 @@ fn inner_limit(
     stops: &ZoomStops,
     selected: Option<Entity>,
     anchor: Option<Vec3>,
-    transforms: &Query<&GlobalTransform>,
+    positions: &WorldPositions,
     fit: impl Fn(f32) -> f32,
 ) -> f32 {
     let nearest_frame = || {
@@ -100,7 +101,7 @@ fn inner_limit(
             .per_body_satellite_radius
             .iter()
             .filter_map(|(entity, radius)| {
-                let position = transforms.get(*entity).ok()?.translation();
+                let position = *positions.0.get(entity)?;
                 Some((position.distance(anchor), *radius))
             })
             .min_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal))
@@ -137,9 +138,9 @@ pub fn handle_zoom_input(
     stops: Res<ZoomStops>,
     selection: Res<Selection>,
     windows: Query<&Window>,
-    camera_q: Query<(&Camera, &GlobalTransform, &Projection), With<OrbitCamera>>,
-    transforms: Query<&GlobalTransform>,
-    bodies: Query<(Entity, &GlobalTransform, &BodyClass)>,
+    camera_q: Query<(&Camera, &Transform, &Projection), With<OrbitCamera>>,
+    positions: Res<WorldPositions>,
+    bodies: Query<(Entity, &BodyClass)>,
     mut view: CameraControl,
 ) {
     // ZOOM-01: whole notches only, never the raw delta (ZOOM-07's pinch
@@ -156,18 +157,19 @@ pub fn handle_zoom_input(
     else {
         return;
     };
+    // The camera as the player sees it: placed by the rig last frame.
+    let camera_transform = GlobalTransform::from(*camera_transform);
 
     let fov = camera_fov(projection);
     let selected = selection.primary;
     // The withdrawn ZOOM-03: towards the selected object if there is one,
     // else the cursor (F4-13).
     let anchor = selected
-        .and_then(|entity| transforms.get(entity).ok())
-        .map(GlobalTransform::translation)
-        .or_else(|| cursor_anchor(camera, camera_transform, window));
+        .and_then(|entity| body_position(entity, &positions))
+        .or_else(|| cursor_anchor(camera, &camera_transform, window));
     let zoom = ZoomAnchoring { selected, anchor };
     let rig = *view.rig;
-    let step = plan_step(notches, fov, &rig, &stops, &tunables, &zoom, &transforms);
+    let step = plan_step(notches, fov, &rig, &stops, &tunables, &zoom, &positions);
 
     let from = ZoomFrom {
         anchor,
@@ -176,7 +178,8 @@ pub fn handle_zoom_input(
         distance: rig.distance,
     };
     let view_radius = radius_for_distance(step.target, fov, rig.tilt, tunables.zoom_fit_margin);
-    let pivot = zoom_target_pivot(from, step.target, view_radius, &followable_bodies(&bodies));
+    let followable = followable_bodies(&bodies, &positions);
+    let pivot = zoom_target_pivot(from, step.target, view_radius, &followable);
     let target = MoveTarget::keeping_view(&rig, pivot, step.target);
     view.start(target, step.duration_ms);
 }
@@ -213,14 +216,14 @@ fn plan_step(
     stops: &ZoomStops,
     tunables: &Tunables,
     zoom: &ZoomAnchoring,
-    transforms: &Query<&GlobalTransform>,
+    positions: &WorldPositions,
 ) -> ZoomStep {
     let fit = |radius: f32| distance_for_radius(radius, fov, rig.tilt, tunables.zoom_fit_margin);
     plan_zoom_step(
         rig.distance,
         notches,
         &stop_distances(stops, zoom.selected, fit),
-        inner_limit(stops, zoom.selected, zoom.anchor, transforms, fit),
+        inner_limit(stops, zoom.selected, zoom.anchor, positions, fit),
         fit(stops.system_radius).min(MAX_DISTANCE),
         StepSettings {
             step_factor: tunables.zoom_step_factor,
@@ -233,12 +236,13 @@ fn plan_step(
 /// Anything the view can centre on. Gates are excluded: they're edge
 /// indicators sitting far out, not somewhere to fly to.
 fn followable_bodies(
-    bodies: &Query<(Entity, &GlobalTransform, &BodyClass)>,
+    bodies: &Query<(Entity, &BodyClass)>,
+    positions: &WorldPositions,
 ) -> Vec<(Entity, Vec3)> {
     bodies
         .iter()
-        .filter(|(_, _, class)| **class != BodyClass::Gate)
-        .map(|(entity, transform, _)| (entity, transform.translation()))
+        .filter(|(_, class)| **class != BodyClass::Gate)
+        .filter_map(|(entity, _)| Some((entity, body_position(entity, positions)?)))
         .collect()
 }
 
