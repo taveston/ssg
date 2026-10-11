@@ -21,8 +21,10 @@ pub struct Bindings {
     pub zoom_out: Vec<KeyCode>,
 
     // --- Camera moves ---
-    /// ZOOM-10: back to the system frame.
+    /// ZOOM-10 / CAM-04: back to the system frame, level, north up.
     pub home: Vec<KeyCode>,
+    /// CAM-03: level and north up.
+    pub north_up: Vec<KeyCode>,
     /// ZOOM-16: focus the selection.
     pub focus_selection: Vec<KeyCode>,
     /// ZOOM-11: held with a bookmark slot key, saves instead of recalling.
@@ -71,6 +73,7 @@ impl Default for Bindings {
             zoom_out: vec![KeyCode::Minus, KeyCode::NumpadSubtract],
 
             home: vec![KeyCode::Home],
+            north_up: vec![KeyCode::KeyN],
             focus_selection: vec![KeyCode::KeyF],
             bookmark_save: vec![KeyCode::ControlLeft, KeyCode::ControlRight],
             bookmark_slots: vec![

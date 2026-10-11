@@ -15,9 +15,9 @@ use bevy::prelude::*;
 
 use crate::{Boot, Stage};
 
+pub mod actions;
 pub mod control;
 pub mod drag;
-pub mod input;
 pub mod keys;
 pub mod requests;
 pub mod rig;
@@ -35,7 +35,7 @@ impl Plugin for CameraPlugin {
             .init_resource::<state::CameraRig>()
             .init_resource::<state::ActiveMove>()
             .init_resource::<state::Bookmarks>()
-            .init_resource::<requests::FocusJumpRequest>()
+            .init_resource::<requests::FocusRequest>()
             .init_resource::<requests::PlanetaryViewRequest>()
             .init_resource::<requests::ContextMenuRequest>()
             .init_resource::<drag::MouseDrag>()
@@ -55,9 +55,10 @@ impl Plugin for CameraPlugin {
                     keys::handle_key_pan,
                     keys::handle_key_rotate,
                     zoom_input::handle_zoom_input,
-                    input::handle_navigation_keys,
-                    input::handle_focus_jump,
-                    input::handle_bookmarks,
+                    actions::handle_home,
+                    actions::handle_north_up,
+                    actions::handle_focus_requests,
+                    actions::handle_bookmarks,
                     rig::advance_move,
                     rig::follow_focus,
                     rig::place_camera,

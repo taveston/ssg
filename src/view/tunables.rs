@@ -64,8 +64,9 @@ pub struct Tunables {
     /// screen edge.
     pub zoom_fit_margin: f32,
     /// Fallback double-click window, used only if the picking backend's own
-    /// click-count proves unreliable. Waits for ZOOM-16 and ZOOM-17, which
-    /// are not built; the current code reads the backend's click count.
+    /// click count proves unreliable. Waits for that fallback to ZOOM-16 and
+    /// ZOOM-17, which isn't built: Bevy's click count has been reliable
+    /// (F5-06).
     #[allow(dead_code)]
     pub double_click_window_ms: f32,
 

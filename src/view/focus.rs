@@ -18,13 +18,9 @@ pub struct Focus {
 }
 
 impl Focus {
-    /// CAM-06: focusing by double-click, F or the Focus button starts with
-    /// zero offset.
-    pub fn on(body: Entity) -> Self {
-        Self {
-            body: Some(body),
-            offset: Vec3::ZERO,
-        }
+    /// Whether `body` is the focused object (ZOOM-17 asks).
+    pub fn is_on(&self, body: Entity) -> bool {
+        self.body == Some(body)
     }
 }
 
@@ -67,14 +63,17 @@ mod tests {
         assert_eq!(focused_pivot(Vec3::ONE, Vec3::ZERO), Vec3::ONE);
     }
 
-    /// CAM-06: focusing starts with zero offset.
     #[test]
-    fn cam_06_focus_starts_with_zero_offset() {
+    fn zoom_17_is_on_names_the_focused_body() {
         let mut world = World::new();
-        let body = world.spawn_empty().id();
-        let focus = Focus::on(body);
-        assert_eq!(focus.body, Some(body));
-        assert_eq!(focus.offset, Vec3::ZERO);
+        let [body, other] = [(); 2].map(|_| world.spawn_empty().id());
+        let focus = Focus {
+            body: Some(body),
+            offset: Vec3::ZERO,
+        };
+        assert!(focus.is_on(body));
+        assert!(!focus.is_on(other));
+        assert!(!Focus::default().is_on(body));
     }
 
     /// CAM-19 while focused: the offset is cut back so body plus offset

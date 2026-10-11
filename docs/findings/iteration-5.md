@@ -29,6 +29,11 @@
 - **Affects:** CAM-12, CAM-15 · **Type:** spec gap
 - **Disposition:** built this way; check the feel in the playtest.
 
+### F5-06 · The double-click window tunable has nothing to do
+- **Observation:** `double_click_window_ms` is specced as a fallback for ZOOM-16 and ZOOM-17 if the picking backend's click count proves unreliable. The double-click actions now read Bevy's click count, which has worked in every test, so the tunable is unused and stays marked as waiting.
+- **Affects:** ZOOM-16, ZOOM-17 · **Type:** spec gap
+- **Disposition:** open for triage: drop the tunable from the spec, or keep it until double-clicks have been checked on more hardware.
+
 <!-- Findings from the build: copy this block.
 ### F5-01 · Short title
 - **Observation:**

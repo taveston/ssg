@@ -398,7 +398,8 @@ fn arch_34_every_module_has_a_header_naming_its_ids() {
 #[test]
 fn cam_18_keys_and_buttons_only_in_the_bindings() {
     for (path, text) in sources() {
-        if path == "view/bindings.rs" {
+        // The bindings define the keys; the headless tests press them.
+        if path == "view/bindings.rs" || path == "headless_tests.rs" {
             continue;
         }
         for (number, line) in non_test(&text).lines().enumerate() {

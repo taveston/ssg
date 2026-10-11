@@ -61,6 +61,19 @@ pub fn plane_point(ray: Ray3d) -> Option<Vec3> {
     })
 }
 
+/// CAM-03 / CAM-06: the heading equivalent to `target` that is nearest
+/// `current`, so a move to north up or to a bookmark turns the short way
+/// round rather than unwinding whole turns.
+pub fn nearest_heading(current: f32, target: f32) -> f32 {
+    let turn = std::f32::consts::TAU;
+    let difference = (target - current).rem_euclid(turn);
+    if difference > turn / 2.0 {
+        current + difference - turn
+    } else {
+        current + difference
+    }
+}
+
 /// CAM-14: the height of the view at the pivot, in render units, so a pan
 /// speed given as a fraction of it looks the same at every zoom.
 pub fn visible_height_at_pivot(distance: f32, fov_y: f32) -> f32 {
@@ -199,6 +212,26 @@ mod tests {
             assert!(close(right, camera.right().into()));
             assert!(close(up, camera.up().into()));
         }
+    }
+
+    /// CAM-03: north up is the nearest heading that is a whole number of
+    /// turns, reached the short way round.
+    #[test]
+    fn cam_03_north_up_turns_the_short_way() {
+        use std::f32::consts::{PI, TAU};
+        assert!((nearest_heading(0.3, 0.0) - 0.0).abs() < 1e-6);
+        assert!((nearest_heading(2.0 * TAU + 0.3, 0.0) - 2.0 * TAU).abs() < 1e-5);
+        assert!((nearest_heading(PI - 0.1, 0.0) - 0.0).abs() < 1e-5);
+        assert!((nearest_heading(PI + 0.1, 0.0) - TAU).abs() < 1e-5);
+        assert!((nearest_heading(-0.2, 0.0)).abs() < 1e-6);
+    }
+
+    /// CAM-06: recalling a bookmark turns to its heading the short way.
+    #[test]
+    fn cam_06_bookmark_heading_is_reached_the_short_way() {
+        use std::f32::consts::TAU;
+        let target = nearest_heading(0.1, 3.0 * TAU - 0.1);
+        assert!((target - -0.1).abs() < 1e-4);
     }
 
     const PAN: KeyPanSettings = KeyPanSettings {

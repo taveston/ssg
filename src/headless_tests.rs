@@ -12,6 +12,7 @@ use std::time::Duration;
 use bevy::camera::RenderTargetInfo;
 use bevy::input::ButtonState;
 use bevy::input::InputPlugin;
+use bevy::input::keyboard::{Key, KeyboardInput, NativeKey};
 use bevy::input::mouse::{MouseButtonInput, MouseScrollUnit, MouseWheel};
 use bevy::input::touch::TouchPhase;
 use bevy::prelude::*;
@@ -26,6 +27,7 @@ use crate::sim::orbit::{Orbit, OrbitPositionKm, orbit_position_km};
 use crate::sim::units::KM_PER_AU;
 use crate::view::bindings::BindingsPlugin;
 use crate::view::camera::CameraPlugin;
+use crate::view::camera::requests::FocusRequest;
 use crate::view::camera::state::{CameraRig, OrbitCamera};
 use crate::view::camera::stops::{StopsPlugin, ZoomStops, distance_for_radius};
 use crate::view::edge::{EdgePlugin, GateEdgeTargets};
@@ -431,7 +433,10 @@ fn cam_05_focused_body_keeps_its_place_on_screen() {
     let margin = app.world().resource::<Tunables>().zoom_fit_margin;
     app.world_mut().resource_mut::<CameraRig>().distance =
         distance_for_radius(radius, fov(), 0.0, margin);
-    *app.world_mut().resource_mut::<Focus>() = Focus::on(halden);
+    *app.world_mut().resource_mut::<Focus>() = Focus {
+        body: Some(halden),
+        offset: Vec3::ZERO,
+    };
     app.world_mut().resource_mut::<GameClock>().run_at(5.0);
 
     let centre = VIEWPORT.as_vec2() / 2.0;
@@ -556,7 +561,10 @@ fn cam_21_zoom_focuses_and_cam_08_zoom_out_ends_it() {
 fn zoom_13_focused_zoom_keeps_the_body_in_place() {
     let mut app = camera_app();
     let halden = body(&mut app, "Halden IV");
-    *app.world_mut().resource_mut::<Focus>() = Focus::on(halden);
+    *app.world_mut().resource_mut::<Focus>() = Focus {
+        body: Some(halden),
+        offset: Vec3::ZERO,
+    };
     run(&mut app, 3);
     for _ in 0..6 {
         scroll(&mut app, 1.0);
@@ -647,7 +655,10 @@ fn cam_10_left_drag_keeps_the_grabbed_point_under_the_cursor() {
 fn cam_07_panning_while_focused_keeps_focus() {
     let mut app = camera_app();
     let halden = body(&mut app, "Halden IV");
-    *app.world_mut().resource_mut::<Focus>() = Focus::on(halden);
+    *app.world_mut().resource_mut::<Focus>() = Focus {
+        body: Some(halden),
+        offset: Vec3::ZERO,
+    };
     run(&mut app, 3);
     let star = body(&mut app, "Corvane");
     drag_star(&mut app, star, Vec2::new(700.0, 400.0));
@@ -658,4 +669,86 @@ fn cam_07_panning_while_focused_keeps_focus() {
         "the offset moved: {}",
         focus.offset
     );
+}
+
+/// ZOOM-16 / CAM-03 / CAM-04 with the real camera: a focus request frames
+/// the body's satellites and focuses it; N levels and turns north up,
+/// keeping pivot and scale; Home returns to the system frame, level and
+/// north up, and ends the focus.
+#[test]
+fn zoom_16_cam_03_cam_04_focus_north_and_home_moves() {
+    let mut app = camera_app();
+    let halden = body(&mut app, "Halden IV");
+    let system_distance = app.world().resource::<CameraRig>().distance;
+
+    app.world_mut().resource_mut::<FocusRequest>().0 = Some(halden);
+    run(&mut app, 40);
+    let radius = app
+        .world()
+        .resource::<ZoomStops>()
+        .satellite_radius(halden)
+        .unwrap();
+    let margin = app.world().resource::<Tunables>().zoom_fit_margin;
+    let framed = distance_for_radius(radius, fov(), 0.0, margin);
+    let rig = *app.world().resource::<CameraRig>();
+    assert!(
+        (rig.distance - framed).abs() < framed * 1e-3,
+        "ZOOM-16 frames the satellites"
+    );
+    assert_eq!(app.world().resource::<Focus>().body, Some(halden));
+
+    // Tilt and turn, then N.
+    {
+        let mut rig = app.world_mut().resource_mut::<CameraRig>();
+        rig.tilt = 0.7;
+        rig.heading = 2.0 * std::f32::consts::TAU + 1.0;
+    }
+    run(&mut app, 2);
+    let before = *app.world().resource::<CameraRig>();
+    press_key(&mut app, KeyCode::KeyN);
+    run(&mut app, 40);
+    let after = *app.world().resource::<CameraRig>();
+    assert!(after.tilt.abs() < 1e-5, "CAM-03 levels");
+    assert!(
+        (after.heading - 2.0 * std::f32::consts::TAU).abs() < 1e-4,
+        "north up, the short way"
+    );
+    assert!(
+        (after.distance - before.distance).abs() < 1e-5,
+        "scale kept"
+    );
+    assert_eq!(
+        app.world().resource::<Focus>().body,
+        Some(halden),
+        "pivot (focus) kept"
+    );
+
+    // Home.
+    app.world_mut().resource_mut::<CameraRig>().tilt = 0.5;
+    run(&mut app, 2);
+    press_key(&mut app, KeyCode::Home);
+    run(&mut app, 40);
+    let home = *app.world().resource::<CameraRig>();
+    assert!((home.distance - system_distance).abs() < system_distance * 1e-3);
+    assert!(home.tilt.abs() < 1e-5 && home.pivot.length() < 1e-3);
+    assert_eq!(
+        app.world().resource::<Focus>().body,
+        None,
+        "CAM-04: Home ends focus"
+    );
+}
+
+fn press_key(app: &mut App, key: KeyCode) {
+    let window = the_window(app);
+    for state in [ButtonState::Pressed, ButtonState::Released] {
+        app.world_mut().write_message(KeyboardInput {
+            key_code: key,
+            logical_key: Key::Unidentified(NativeKey::Unidentified),
+            state,
+            text: None,
+            repeat: false,
+            window,
+        });
+        run(app, 1);
+    }
 }

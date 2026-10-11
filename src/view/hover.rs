@@ -2,16 +2,16 @@
 //! white hover ring, and the pointer handlers every pickable body node
 //! (marker, pill, exposure-ring hit target) is observed by.
 //!
-//! A click selects (`selection.rs`); a double-click asks the camera to frame
-//! the body (`camera/requests.rs`), or on an already selected body is the
-//! planetary-view hook. Those double-click rules follow the withdrawn
-//! ZOOM-08 and ZOOM-09 until the camera iteration (F4-13).
+//! A click selects (`selection.rs`); a double-click also focuses the body
+//! and frames its satellites (ZOOM-16), or on the focused body is the
+//! planetary-view hook (ZOOM-17), through `camera/requests.rs`.
 
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
-use super::camera::requests::{FocusJumpRequest, PlanetaryViewRequest};
+use super::camera::requests::{FocusRequest, PlanetaryViewRequest};
 use super::colors;
+use super::focus::Focus;
 use super::fold::FoldSummary;
 use super::fonts::Fonts;
 use super::gesture::{PressStart, was_click};
@@ -161,8 +161,9 @@ pub fn on_marker_click(
     click: On<PointerClick>,
     markers: Query<&MarkerFor>,
     check: ClickCheck,
+    focus: Res<Focus>,
     mut selection: ResMut<Selection>,
-    mut focus_jump: ResMut<FocusJumpRequest>,
+    mut focus_request: ResMut<FocusRequest>,
     mut planetary: ResMut<PlanetaryViewRequest>,
 ) {
     if !check.selects(&click) {
@@ -173,20 +174,17 @@ pub fn on_marker_click(
     };
     let body = marker_for.0;
 
+    // INS-01: a click selects. ZOOM-16 / ZOOM-17: a double-click also
+    // focuses the body - or, on the body already focused, is the
+    // planetary-view trigger. Focus, not selection, decides (F4-28).
+    selection.select(body);
     if click.count >= 2 {
-        if selection.is_open(body) {
-            // Second double-click on an already-inspected body is the
-            // planetary-view trigger. That view doesn't exist yet, so this
-            // just records the request as the hook for it.
+        if focus.is_on(body) {
             planetary.0 = Some(body);
         } else {
-            selection.select(body);
-            focus_jump.0 = Some(body);
+            focus_request.0 = Some(body);
         }
-        return;
     }
-
-    selection.select(body);
 }
 
 pub fn on_pill_click(

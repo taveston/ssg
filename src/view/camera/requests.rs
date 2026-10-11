@@ -1,15 +1,15 @@
 //! What the rest of the view can ask of the camera, without reaching into
 //! its state: set by pointer handlers, consumed by the camera next frame.
-//! This is the seam the camera iteration (ZOOM-16, ZOOM-17, CAM-06)
-//! rebuilds behind.
+//! ZOOM-16, ZOOM-17 and CAM-13 meet the camera here.
 
 use bevy::prelude::*;
 
-/// A request to frame a body's satellites, raised by a double-click or the
-/// focus key and consumed by the camera next frame. Keeps the pointer
-/// observers from needing the camera's whole system-parameter set.
+/// ZOOM-16: a request to focus a body and frame its satellites, raised by a
+/// double-click on a body that isn't focused or by the inset's Focus button,
+/// and taken by the camera next frame. Keeps the pointer observers from
+/// needing the camera's whole system-parameter set.
 #[derive(Resource, Default)]
-pub struct FocusJumpRequest(pub Option<Entity>);
+pub struct FocusRequest(pub Option<Entity>);
 
 /// Set when the planetary view is asked for (ZOOM-17). The view doesn't
 /// exist yet; `planetary_view_hook` takes the request.
