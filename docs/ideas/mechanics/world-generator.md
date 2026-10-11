@@ -1,18 +1,18 @@
 # Orphan Worlds: World Generator
 
-*Status:* Draft. Companion to the design document (2, 4.2, 4.5, 5). Status tags as in the design document: **Decided**, **Direction**, **Candidate**. All numbers are placeholders for tuning; the astronomical figures are approximate and should be checked against current surveys before they are fixed.
+**In short:** the generator builds the cluster for a new game: a flattened 3D volume of stars at realistic density and mix, gates only in the systems the old network had a reason to reach, links between them, full detail for gated systems only, and a historical layer of settlements, yards, ruins and salvage. It produces the truth; what each faction knows of it is handled separately (*Presentation & Visual Style*, 2: fidelity follows knowledge).
 
-The generator builds the cluster for a new game: stars, the systems the player can visit, the gate network between them, and the historical layer left by the old network (settlements, yards, ruins, salvage). It produces the truth; what each faction knows of it is handled separately (*Presentation & Visual Style*, 2: fidelity follows knowledge).
+*Status:* draft. Companion to the design document (2, 4.2, 4.5, 5); status tags as there (**Decided**, **Direction**, **Candidate**). All numbers are placeholders for tuning. The astronomical figures are approximate and should be checked against current surveys before they are fixed.
 
 ---
 
 ## 1. Principles
 
-- **3D but flat (decided):** the cluster is a three-dimensional volume with a narrow extent in z. This is a concession for playability: the map reads well from a tilted top-down view, links rarely hide behind each other, and the player rarely has to rotate the camera. In reality the galactic disc is hundreds of parsecs thick, so a local cluster would be roughly spherical; the flattening is deliberate, not a claim about the galaxy.
-- **Informed by current science (decided):** star types, multiplicity, planet occurrence, and system architectures follow observed distributions, not genre conventions. Where the game needs something rarer than nature provides (for example enough habitable worlds), the reason is the builders' choice of where to settle, not inflated odds.
+- **3D but flat (decided):** the cluster is a three-dimensional volume, narrow in z. This is a concession to playability: the map reads well from a tilted top-down view, links rarely hide behind each other, and the player rarely has to rotate the camera. In reality the galactic disc is hundreds of parsecs thick, so a local cluster would be roughly spherical. The flattening is deliberate, not a claim about the galaxy.
+- **Informed by current science (decided):** star types, multiplicity, planet occurrence and system architectures follow observed distributions, not genre conventions. Where the game needs something rarer than nature provides (enough habitable worlds, say), the reason is the builders' choice of where to settle, not inflated odds.
 - **Gates where there was a reason (decided):** not every system has a gate. The old network built them where something justified the cost: worlds to settle, resources, or a link needed to join the network together.
 - **Non-visitable systems are lightly modelled (decided):** systems without a gate are never visited, so they need only enough detail to appear on the map and in the astronomical record.
-- **Seeded and reproducible (candidate):** one seed reproduces a map exactly. Each stage draws from its own derived seed, so tuning one stage does not reshuffle the others.
+- **Seeded and reproducible (candidate):** one seed reproduces a map exactly. Each stage draws from its own derived seed, so tuning one stage doesn't reshuffle the others.
 
 ## 2. Pipeline (direction)
 
@@ -43,9 +43,12 @@ The generator builds the cluster for a new game: stars, the systems the player c
   | Giants | very rare | Possible as a notable landmark |
 
   Brown dwarfs add roughly one for every four to six stars; most are isolated, some are companions.
-- **Multiplicity (direction):** roughly a quarter of M dwarfs and about half of Sun-like stars have companions. Wide pairs behave as two nearby systems; close pairs host circumbinary planets; intermediate pairs truncate planet systems.
+- **Multiplicity (direction):** roughly a quarter of M dwarfs and about half of Sun-like stars have companions.
+  - Wide pairs behave as two nearby systems.
+  - Close pairs host circumbinary planets.
+  - Intermediate pairs truncate planet systems.
 - **Age and metallicity (candidate):** each system gets an age (0 to about 10 billion years) and a metallicity spread around solar. Higher metallicity raises the chance of giant planets and rich rocky material, so it feeds directly into resource value. Age governs M-dwarf activity and which stars have become white dwarfs.
-- **Free-floating planets (candidate):** surveys suggest planets without a star may be about as common as stars. They are mostly invisible, but a few could appear as charted objects, and a gate at one would make an intriguing node. The game's title makes this hard to resist.
+- **Free-floating planets (candidate):** surveys suggest planets without a star may be about as common as stars. Most are invisible, but a few could appear as charted objects, and a gate at one would make an intriguing node. The game's title makes this hard to resist.
 
 ## 4. Gates & the Network
 
@@ -63,14 +66,14 @@ The old network's builders knew each system well and built gates where the value
 | Strategic | Chokepoints and approaches to valuable systems | Naval base |
 | Relay | Little intrinsic value, but needed to join systems beyond link range | None; gate-maintenance outposts at most |
 
-- **Relays (candidate):** a dim red dwarf that exists on the map only because the network had to pass through it gives a natural chokepoint with nothing to live on, which suits raiders and defence.
-- **Ungated systems:** everything else. Most are dim M dwarfs with nothing the builders needed, but a few rich systems were never gated (too remote, or planned and never finished), which can feed lore and regret.
+- **Relays (candidate):** a dim red dwarf that is gated only because the network had to pass through it makes a natural chokepoint with nothing to live on. That suits raiders and defence.
+- **Ungated systems:** everything else. Most are dim M dwarfs with nothing the builders needed. A few rich systems were never gated (too remote, or planned and never finished), which can feed lore and regret.
 
 ### 4.2 Links (candidate)
 
-- Each gated system links to a small handful (two to five) of gated systems within a maximum link range; the network is connected.
-- Links prefer near neighbours, so a few relays and chokepoints arise naturally rather than by decree.
-- Mild preference for links that do not cross in the top-down projection, for readability.
+- Each gated system links to a small handful (two to five) of gated systems within a maximum link range. The network is connected.
+- Links prefer near neighbours, so relays and chokepoints arise naturally rather than by decree.
+- A mild preference for links that don't cross in the top-down projection, for readability.
 - Some links lead out of the cluster and are dark (design document, 4.2; parking lot).
 - Gates sit at the system edge, one per destination (design document, 4.2). The gate's distance from the star, and whether it scales with the star's mass or the extent of its planets, is open (section 9).
 
@@ -78,23 +81,37 @@ The old network's builders knew each system well and built gates where the value
 
 ### 5.1 Approach (direction)
 
-Generate from observed occurrence rates and architecture templates rather than simulating planet formation: cheap, plausible, and tunable.
+Generate from observed occurrence rates and architecture templates rather than simulating planet formation: cheap, plausible and tunable.
 
-- **Architecture templates by star type (candidate):** compact multi-planet M-dwarf systems (TRAPPIST-1-like); Solar-system-like with an inner rocky zone and outer giants; a hot or eccentric giant that has cleared the inner system; debris-disc systems; white-dwarf remnants with debris and surviving outer planets.
-- **Occurrence (direction, approximate):** small planets are nearly ubiquitous; sub-Neptunes (between Earth and Neptune in size, absent from our own system) are the most common type; M dwarfs typically host two or three small planets in close orbits; cold giants occur around perhaps 10 to 20% of Sun-like stars and only a few percent of M dwarfs; hot Jupiters around about 1%.
-- **Stability (candidate):** planets spaced by a minimum number of mutual Hill radii; moons within a fraction of their planet's Hill sphere.
-- **Key boundaries (direction):** habitable zone at about 0.95 to 1.7 × √(L/L☉) AU; snow line at about 2.7 × √(L/L☉) AU. Water ice is abundant beyond the snow line, so its distance shapes the trade-off between water and solar power.
+- **Architecture templates by star type (candidate):**
+  - compact multi-planet M-dwarf systems, like TRAPPIST-1
+  - Solar-system-like, with an inner rocky zone and outer giants
+  - a hot or eccentric giant that has cleared the inner system
+  - debris-disc systems
+  - white-dwarf remnants with debris and surviving outer planets
+- **Occurrence (direction, approximate):**
+  - Small planets are nearly everywhere.
+  - Sub-Neptunes (between Earth and Neptune in size, absent from our own system) are the most common type.
+  - M dwarfs typically host two or three small planets in close orbits.
+  - Cold giants occur around perhaps 10 to 20% of Sun-like stars and only a few percent of M dwarfs.
+  - Hot Jupiters occur around about 1% of stars.
+- **Stability (candidate):** planets are spaced by a minimum number of mutual Hill radii; moons orbit within a fraction of their planet's Hill sphere.
+- **Key boundaries (direction):** the habitable zone is at about 0.95 to 1.7 × √(L/L☉) AU, the snow line at about 2.7 × √(L/L☉) AU. Water ice is abundant beyond the snow line, so its distance shapes the trade-off between water and solar power.
 
 ### 5.2 Bodies (candidate)
 
 - **Planets:** rocky (airless, thin atmosphere, dense atmosphere, icy, molten), super-Earths, sub-Neptunes, ice giants, gas giants.
-- **Moons:** giants get moon systems, often with large icy moons, the main water sources; rocky planets get few or none.
-- **Small bodies:** inner rocky or metallic belts, outer icy belts, Trojans, comets; drawn as density shading with promoted sites (*Presentation & Visual Style*, 2).
-- **Orbits:** Keplerian, on rails; how much more detail is modelled is open (design document, 9).
+- **Moons:** giants get moon systems, often with large icy moons, which are the main water sources. Rocky planets get few or none.
+- **Small bodies:** inner rocky or metallic belts, outer icy belts, Trojans, comets. Drawn as density shading, with notable sites as individual markers (*Presentation & Visual Style*, 2).
+- **Orbits:** Keplerian, on rails. How much more detail is modelled is open (design document, 9).
 
 ### 5.3 Worlds that support human life (direction)
 
-Starter worlds support human life in habitats on hostile surfaces (design document, 4.1), not in the open air. Candidate criteria: gravity roughly 0.3 to 1.5 g; surface temperature and pressure within what habitats can manage; accessible water; a star that is not too active. Halden IV in the reference sketches (cold terrestrial, 0.82 g, thin nitrogen, −41 °C) is the intended flavour. Close-in worlds of M dwarfs are often tidally locked and flare-exposed, which makes them harder but not impossible homes.
+Starter worlds support human life in habitats on hostile surfaces (design document, 4.1), not in the open air.
+
+- **Candidate criteria:** gravity roughly 0.3 to 1.5 g; surface temperature and pressure within what habitats can manage; accessible water; a star that isn't too active.
+- Halden IV in the reference sketches (cold terrestrial, 0.82 g, thin nitrogen, −41 °C) is the intended flavour.
+- Close-in worlds of M dwarfs are often tidally locked and exposed to flares, which makes them harder but not impossible homes.
 
 ### 5.4 Resources (candidate)
 
@@ -109,31 +126,31 @@ Each body carries rough deposits of the economy's few resources (design document
 
 Modelled at catalogue level only:
 
-- Position, star type(s), age, metallicity, and a catalogue designation rather than a name (the old network named the systems it reached).
-- **Known planets (candidate):** a short list as astronomers would know it: biased towards large planets and close orbits, as real detection methods are. The player never learns more.
+- Position, star type(s), age, metallicity, and a catalogue designation rather than a name (the old network named only the systems it reached).
+- **Known planets (candidate):** a short list as astronomers would know it, biased towards large planets and close orbits, as real detection methods are. The player never learns more.
 - **Uses:** landmarks and depth in the cluster view; lore and recovered records ("a survey of this system was planned"); candidates for dark-gate destinations later.
-- **Never** visited, so full detail is never generated. If a later feature makes one visitable, the coarse summary is the seed for generating its detail on demand.
+- They are **never** visited, so full detail is never generated. If a later feature makes one visitable, the coarse summary seeds its detail on demand.
 
 ## 7. Historical Layer (direction)
 
 Laid down after the physical map, in the same order as the setting's timeline (design document, 5):
 
-1. **Old network:** settlements, yards, stations, and gate-maintenance outposts placed by each system's gate motive.
-2. **Collapse:** destruction, abandonment, and decay, varying by system; some gates degraded.
+1. **Old network:** settlements, yards, stations and gate-maintenance outposts, placed by each system's gate motive.
+2. **Collapse:** destruction, abandonment and decay, varying by system. Some gates are degraded.
 3. **Turmoil and recovery:** surviving populations consolidate into the starting factions on their worlds.
-4. **Result at game start:** inhabited worlds, dormant yards, salvage sites with partly known contents, ruins, and records, with richer sites further out or behind dark gates (design document, 4.5).
-5. **Authored beats:** placement rules for Earth-mystery clues and external-threat hints, varying by map while the truth stays fixed.
+4. **Result at game start:** inhabited worlds, dormant yards, salvage sites with partly known contents, ruins and records. Richer sites lie further out or behind dark gates (design document, 4.5).
+5. **Authored beats:** placement rules for Earth-mystery clues and external-threat hints. Placement varies by map; the truth stays fixed.
 
 ## 8. Factions & Fairness (candidate)
 
-- Starting factions are placed on systems whose gate motive fits their origin (a shipyard hub where the yards are), resolving the open question in *Faction History Options*.
+- Starting factions are placed on systems whose gate motive fits their origin: a shipyard hub where the yards are. This would answer the open question in *Faction History Options* about matching starts to origins.
 - Fairness checks: comparable starter worlds, resources within reach, distance to rivals, and access to gates and salvage. Fairness is in the totals; starts can differ in kind.
 - AI factions draw histories weighted by the map position they receive.
 
 ## 9. Open Questions
 
-- Slab proportions and whether the plan shape is round, irregular, or elongated.
-- Ratio of gated to ungated systems; maximum link range; links per system.
+- Slab proportions, and whether the plan shape is round, irregular or elongated.
+- The ratio of gated to ungated systems; maximum link range; links per system.
 - Gate distance from the star: fixed, scaled by stellar mass, or beyond the outermost major planet (design document, 9).
 - Which architecture templates are needed, and how many bodies per system.
 - How much orbital detail is modelled (eccentricity, inclination, resonances).
