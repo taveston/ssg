@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ship Symbology Sheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<!--
+  Orphan Worlds: ship symbology, candidate (docs/ideas/presentation/symbology.md).
+  Symbols are built by sym() below from one set of rules, so the sheet stays consistent.
+  Render to PNG: see the note at the end of symbology.md.
+-->
+<style>
+  :root {
+    --ground: #070A0E; --panel: rgba(12,17,23,0.97); --border: rgba(159,182,196,0.22);
+    --text: #DCE6EC; --muted: #9FB6C4; --own: #5AA9E6; --neutral: #8CCB8A; --hostile: #EE6A5F; --unknown: #F0A040;
+  }
+  /* The game's display is always dark, so the sheet is too, in either theme. */
+  :root:not([data-theme="light"]) { color-scheme: dark; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --ground: #070A0E; } }
+  :root[data-theme="dark"] { --ground: #070A0E; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--ground); color: var(--text); }
+  body { font-family: Barlow, system-ui, sans-serif; font-size: 14px; line-height: 1.4; }
+  .wrap { max-width: 1440px; margin: 0 auto; padding: 28px 16px 40px; }
+  @media (min-width: 900px) { .wrap { padding: 32px 40px 48px; } }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20px; border-bottom: 1px solid var(--border); padding-bottom: 14px; margin-bottom: 22px; }
+  h1 { font-size: 20px; font-weight: 600; margin: 0; letter-spacing: .01em; }
+  .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .tag { font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--unknown); border: 1px solid rgba(240,160,64,.5); padding: 2px 7px; border-radius: 3px; letter-spacing: .06em; }
+  .sub { color: var(--muted); }
+  .grid { display: grid; gap: 18px; grid-template-columns: 1fr; }
+  @media (min-width: 1100px) { .grid { grid-template-columns: 1.15fr 1fr; } }
+  .board { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 16px 18px 18px; min-width: 0; }
+  .board h2 { font-size: 13px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0 0 4px; }
+  .board p.note { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+  .span2 { grid-column: 1 / -1; }
+  .scroll { overflow-x: auto; }
+  table.matrix { border-collapse: collapse; width: 100%; min-width: 560px; }
+  table.matrix th { font-weight: 600; font-size: 12px; text-align: center; padding: 4px 6px 8px; }
+  table.matrix th.row { text-align: left; font-weight: 400; color: var(--text); width: 30%; padding-right: 10px; }
+  table.matrix th.row span { display: block; color: var(--muted); font-size: 12px; }
+  table.matrix td { text-align: center; padding: 2px 4px; border-top: 1px solid rgba(159,182,196,.08); }
+  table.matrix td svg { display: block; margin: 0 auto; }
+  .aff-own { color: var(--own); } .aff-neutral { color: var(--neutral); } .aff-hostile { color: var(--hostile); } .aff-unknown { color: var(--unknown); }
+  .amps { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px 14px; }
+  .amp { display: flex; gap: 10px; align-items: center; }
+  .amp svg { flex: none; }
+  .amp b { font-weight: 600; display: block; font-size: 13px; }
+  .amp span { color: var(--muted); font-size: 12px; }
+  .ladder { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .step { border: 1px solid rgba(159,182,196,.12); border-radius: 4px; padding: 10px; text-align: center; }
+  .step .k { font-family: "JetBrains Mono", monospace; font-size: 10.5px; letter-spacing: .08em; color: var(--muted); }
+  .step b { display: block; font-weight: 600; margin-top: 2px; }
+  .step span { color: var(--muted); font-size: 12px; }
+  .sizes { display: flex; flex-wrap: wrap; gap: 26px; align-items: flex-end; }
+  .sizes figure { margin: 0; text-align: center; }
+  .sizes figcaption { font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .ctx svg { width: 100%; height: auto; display: block; }
+  footer { margin-top: 18px; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Ship symbology</h1>
+    <span class="tag">CANDIDATE</span>
+    <span class="sub">Adapted from NATO APP-6 / MIL-STD-2525: frame shape = affiliation, icon = what it is, amplifiers around the frame = state. Corvane system, 14 Mar 2341.</span>
+  </header>
+
+  <div class="grid">
+    <section class="board">
+      <h2>Frames × icons</h2>
+      <p class="note">Shape carries affiliation even without colour. Filled icon = armed; outline icon = unarmed.</p>
+      <div class="scroll"><table class="matrix" id="matrix"></table></div>
+    </section>
+
+    <section class="board">
+      <h2>Amplifiers</h2>
+      <p class="note">Added around the frame, never inside it, so the core symbol always reads the same.</p>
+      <div class="amps" id="amps"></div>
+    </section>
+
+    <section class="board span2">
+      <h2>Identification ladder</h2>
+      <p class="note">A contact firms up as tracking improves. Each step adds to the symbol rather than replacing it.</p>
+      <div class="ladder" id="ladder"></div>
+    </section>
+
+    <section class="board span2 ctx">
+      <h2>In context: near Halden IV</h2>
+      <p class="note">Task force TF-1 escorting convoy C-12 inbound, a replenishment tanker on station, an embarked battalion heading for Port Arden, a neutral trader, a hostile raider and an unidentified track.</p>
+      <svg id="ctx" viewBox="0 0 1300 560" role="img" aria-label="System view excerpt with ship symbols"></svg>
+    </section>
+
+    <section class="board span2">
+      <h2>Size on screen</h2>
+      <p class="note">Today's markers are about 14 px. A framed symbol needs about 22 px for the icon to read; groups and data blocks add width.</p>
+      <div class="sizes" id="sizes"></div>
+    </section>
+  </div>
+
+  <footer>Orphan Worlds · presentation candidate · source of rules: docs/ideas/presentation/symbology.md</footer>
+</div>
+
+<script>
+const C = { own: '#5AA9E6', neutral: '#8CCB8A', hostile: '#EE6A5F', unknown: '#F0A040', text: '#DCE6EC', muted: '#9FB6C4', ground: '#070A0E' };
+
+// Frame outlines in symbol units (frame fits roughly within radius 14 to 16).
+const FRAME = {
+  own: '<circle cx="0" cy="0" r="13"/>',
+  neutral: '<rect x="-12" y="-12" width="24" height="24"/>',
+  hostile: '<path d="M0,-16 L16,0 L0,16 L-16,0 Z"/>',
+  unknown: '<path d="M-7.8,-7.8 A8,8 0 0 1 7.8,-7.8 A8,8 0 0 1 7.8,7.8 A8,8 0 0 1 -7.8,7.8 A8,8 0 0 1 -7.8,-7.8 Z"/>'
+};
+// Top and bottom extent of each frame, for placing amplifiers.
+const TOP = { own: 13, neutral: 12, hostile: 16, unknown: 14 };
+
+function icon(kind, col) {
+  switch (kind) {
+    case 'warship': return `<path d="M0,-7 L7,5 L-7,5 Z" fill="${col}" stroke="none"/>`;
+    case 'supply':  return `<path d="M0,-8 C3,-4 6,-1 6,2.5 A6,6 0 0 1 -6,2.5 C-6,-1 -3,-4 0,-8 Z" fill="none"/>`;
+    case 'cargo':   return `<rect x="-6" y="-5" width="12" height="10" fill="none"/><line x1="-6" y1="0" x2="6" y2="0"/>`;
+    case 'transport': return `<rect x="-8" y="-5" width="16" height="10" fill="none"/>`;
+    case 'embarked':  return `<rect x="-8" y="-5" width="16" height="10" fill="none"/><path d="M-8,-5 L8,5 M8,-5 L-8,5" fill="none"/>`;
+    case 'unknown': return `<text x="0" y="5" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="14" fill="${col}" stroke="none">?</text>`;
+    default: return '';
+  }
+}
+
+/*
+  sym(o) returns the inner SVG for one symbol centred on 0,0.
+  o.aff: own | neutral | hostile | unknown      o.icon: warship | supply | cargo | transport | embarked | unknown | none
+  o.dashed: frame dashed (estimated or planned position)   o.group: 'tf' (task force bracket) | 'stack' (loose group)
+  o.count: members in a group   o.echelon: text above the frame (e.g. 'II')   o.cond: 0..1 condition bar
+  o.station: installation bar   o.lead: [angleDeg, lengthPx] velocity leader   o.dim: lower opacity (stale)
+*/
+function sym(o) {
+  const col = C[o.aff];
+  const top = TOP[o.aff];
+  const dash = o.dashed ? ' stroke-dasharray="3 2.4"' : '';
+  let s = `<g stroke="${col}" stroke-width="1.6" stroke-linejoin="round"${o.dim ? ' opacity="0.55"' : ''}>`;
+  if (o.lead) {
+    const a = (o.lead[0] - 90) * Math.PI / 180, r0 = top + 1, r1 = top + 1 + o.lead[1];
+    s += `<line x1="${(Math.cos(a)*r0).toFixed(1)}" y1="${(Math.sin(a)*r0).toFixed(1)}" x2="${(Math.cos(a)*r1).toFixed(1)}" y2="${(Math.sin(a)*r1).toFixed(1)}" stroke-width="1.4"/>`;
+  }
+  if (o.group === 'stack') {
+    s += `<g transform="translate(4,-4)" fill="${C.ground}" opacity="0.8">${FRAME[o.aff]}</g>`;
+  }
+  s += `<g fill="${col}" fill-opacity="0.16"${dash}>${FRAME[o.aff]}</g>`;
+  s += icon(o.icon, col);
+  if (o.station) s += `<rect x="-4" y="${-top - 5}" width="8" height="4" fill="${col}" stroke="none"/>`;
+  let above = top + 3;
+  if (o.echelon) {
+    s += `<text x="0" y="${-above - 1}" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="${col}" stroke="none">${o.echelon}</text>`;
+    above += 11;
+  }
+  if (o.group === 'tf') {
+    s += `<path d="M-12,${-above} L-12,${-above - 5} L12,${-above - 5} L12,${-above}" fill="none" stroke-width="1.4"/>`;
+  }
+  if (o.count) {
+    s += `<text x="${top + (o.group === 'stack' ? 8 : 3)}" y="${-top + (o.group === 'stack' ? 2 : 6)}" font-family="JetBrains Mono, monospace" font-size="10" fill="${col}" stroke="none">${o.count}</text>`;
+  }
+  if (o.cond !== undefined) {
+    const w = 22, y = top + 4;
+    s += `<rect x="${-w/2}" y="${y}" width="${w}" height="3" fill="none" stroke-width="0.8" opacity="0.6"/>`;
+    s += `<rect x="${-w/2}" y="${y}" width="${(w*o.cond).toFixed(1)}" height="3" fill="${o.cond < 0.5 ? C.unknown : col}" stroke="none"/>`;
+  }
+  return s + '</g>';
+}
+
+function svgBox(o, w = 64, h = 60, scale = 1) {
+  return `<svg width="${w*scale}" height="${h*scale}" viewBox="${-w/2} ${-h/2} ${w} ${h}" aria-hidden="true">${sym(o)}</svg>`;
+}
+
+// Matrix
+const AFFS = [['own','Own'],['neutral','Neutral'],['hostile','Hostile'],['unknown','Unknown']];
+const ROWS = [
+  ['Warship', 'combatant · filled triangle', { icon: 'warship' }],
+  ['Fleet supply / tanker', 'propellant and stores · drop', { icon: 'supply' }],
+  ['Cargo ship', 'hauler · crate', { icon: 'cargo' }],
+  ['Troop transport, empty', 'empty unit box', { icon: 'transport' }],
+  ['Troop transport, embarked', 'infantry box + echelon (II = battalion)', { icon: 'embarked', echelon: 'II' }],
+  ['Type unknown', 'affiliation known, class not', { icon: 'unknown' }],
+  ['Task force', 'formation under one commander · bracket + count', { icon: 'warship', group: 'tf', count: '4' }],
+  ['Loose group / convoy', 'ships moving together · stack + count', { icon: 'cargo', group: 'stack', count: '6' }]
+];
+let m = '<tr><th></th>' + AFFS.map(([k,l]) => `<th class="aff-${k}">${l}</th>`).join('') + '</tr>';
+for (const [name, hint, o] of ROWS) {
+  m += `<tr><th class="row">${name}<span>${hint}</span></th>` +
+       AFFS.map(([k]) => `<td>${svgBox({ ...o, aff: k }, 64, (o.echelon || o.group === 'tf') ? 72 : 52)}</td>`).join('') + '</tr>';
+}
+document.getElementById('matrix').innerHTML = m;
+
+// Amplifiers
+const AMPS = [
+  [{ aff: 'own', icon: 'warship', lead: [60, 16] }, 'Velocity leader', 'Direction of motion; length grows with speed'],
+  [{ aff: 'own', icon: 'warship', cond: 0.7 }, 'Condition bar', 'Own ships: hull/readiness; turns orange below half'],
+  [{ aff: 'own', icon: 'supply', dashed: true }, 'Dashed frame', 'Not a current observation: estimated or planned'],
+  [{ aff: 'own', icon: 'embarked', echelon: 'X' }, 'Echelon', 'Size of embarked force (II bn · III rgt · X bde)'],
+  [{ aff: 'own', icon: 'warship', group: 'tf', count: '4' }, 'Task-force bracket', 'A formation with a commander and orders'],
+  [{ aff: 'neutral', icon: 'cargo', group: 'stack', count: '3' }, 'Stack', 'Ships together without a formation'],
+  [{ aff: 'own', icon: 'none', station: true }, 'Installation bar', 'Station: same frames, bar on top (NATO installation)'],
+  [{ aff: 'hostile', icon: 'warship', dim: true, dashed: true }, 'Stale track', 'Dimmed and dashed; age in the data block']
+];
+document.getElementById('amps').innerHTML = AMPS.map(([o,b,s]) => `<div class="amp">${svgBox(o, 64, 64)}<div><b>${b}</b><span>${s}</span></div></div>`).join('');
+
+// Ladder
+const LADDER = [
+  [{ aff: 'unknown', icon: 'none', dashed: true }, '1 · DETECTED', 'Thermal track', 'Unknown frame, no icon, uncertainty region'],
+  [{ aff: 'unknown', icon: 'none', lead: [60, 12] }, '2 · TRACKED', 'Firm track', 'Solid frame; leader once velocity is known'],
+  [{ aff: 'unknown', icon: 'cargo' }, '3 · CLASSIFIED', 'Class known', 'Icon appears: "medium hauler?"'],
+  [{ aff: 'hostile', icon: 'cargo' }, '4 · IDENTIFIED', 'Owner known', 'Frame takes affiliation shape and colour'],
+  [{ aff: 'hostile', icon: 'warship' }, '5 · RE-ASSESSED', 'Armed hauler', 'Icon changes when a design is better observed']
+];
+document.getElementById('ladder').innerHTML = LADDER.map(([o,k,b,s]) => `<div class="step">${svgBox(o, 64, 56, 1.25)}<div class="k">${k}</div><b>${b}</b><span>${s}</span></div>`).join('');
+
+// Sizes
+const SZ = [[14,'14 px · current marker size'],[18,'18 px'],[22,'22 px · proposed'],[30,'30 px']];
+let sz = '';
+for (const [px, cap] of SZ) {
+  const sc = px / 26; // a frame is ~26 units across
+  sz += `<figure><div style="display:flex;gap:${Math.round(6*sc)+4}px;align-items:center">` +
+    ['own:warship','neutral:cargo','hostile:warship','unknown:none','own:embarked'].map(t => { const [a,i] = t.split(':'); return svgBox({ aff: a, icon: i }, 40, 40, sc); }).join('') +
+    `</div><figcaption>${cap}</figcaption></figure>`;
+}
+sz += `<figure><div style="display:flex;gap:10px;align-items:center"><svg width="14" height="14" viewBox="-7 -7 14 14"><path d="M0,-6 L6,5 L-6,5 Z" fill="${C.own}"/></svg><svg width="14" height="14" viewBox="-7 -7 14 14"><path d="M0,-6 L6,0 L0,6 L-6,0 Z" fill="${C.unknown}"/></svg></div><figcaption>today: triangle / diamond</figcaption></figure>`;
+document.getElementById('sizes').innerHTML = sz;
+
+// Context view
+function place(o, x, y, sc = 1) { return `<g transform="translate(${x},${y}) scale(${sc})">${sym(o)}</g>`; }
+function label(x, y, lines, col) {
+  return `<text x="${x}" y="${y}" font-family="Barlow, sans-serif" font-size="13" fill="${col}">${lines[0]}</text>` +
+    lines.slice(1).map((l, i) => `<text x="${x}" y="${y + 15 + i*14}" font-family="JetBrains Mono, monospace" font-size="10.5" fill="${C.muted}">${l}</text>`).join('');
+}
+let g = '';
+// orbits and planet
+g += `<circle cx="1040" cy="300" r="760" fill="none" stroke="${C.muted}" stroke-opacity="0.18"/>`;
+g += `<circle cx="1040" cy="300" r="300" fill="none" stroke="${C.muted}" stroke-opacity="0.12"/>`;
+g += `<circle cx="1040" cy="300" r="120" fill="none" stroke="${C.muted}" stroke-opacity="0.14"/>`;
+g += `<circle cx="1040" cy="300" r="7" fill="${C.text}"/>`;
+g += `<text x="1056" y="318" font-family="Barlow, sans-serif" font-size="14" font-weight="600" fill="${C.text}">Halden IV</text>`;
+// Arden Highport station on the inner ring
+g += place({ aff: 'own', icon: 'none', station: true }, 1125, 215, 0.85);
+g += label(1145, 211, ['Arden Highport'], C.own);
+// convoy track and TF-1
+g += `<path d="M120,470 Q520,420 900,330" fill="none" stroke="${C.own}" stroke-opacity="0.45" stroke-dasharray="4 4"/>`;
+g += place({ aff: 'own', icon: 'cargo', group: 'stack', count: '6', lead: [72, 14] }, 360, 440);
+g += label(388, 448, ['Convoy C-12', '6 haulers · arr. 19 d'], C.own);
+g += place({ aff: 'own', icon: 'warship', group: 'tf', count: '4', lead: [72, 14], cond: 0.9 }, 420, 372);
+g += label(448, 370, ['TF-1 · escort', '4 warships · Cdr Ilse Marr'], C.own);
+// tanker on station
+g += place({ aff: 'own', icon: 'supply', cond: 0.55 }, 960, 420);
+g += label(985, 424, ['RFA Tolland', 'propellant 55%'], C.own);
+// embarked transport
+g += `<path d="M700,120 Q880,170 1000,280" fill="none" stroke="${C.own}" stroke-opacity="0.45" stroke-dasharray="4 4"/>`;
+g += place({ aff: 'own', icon: 'embarked', echelon: 'II', lead: [125, 14] }, 760, 140);
+g += label(788, 140, ['Transport Cassel', '1st Arden Guard · arr. 4 d'], C.own);
+// neutral trader
+g += place({ aff: 'neutral', icon: 'cargo', lead: [250, 12] }, 1220, 470);
+g += label(1160, 520, ['Ostra trader', 'Halvard Lines'], C.neutral);
+// hostile raider stale
+g += place({ aff: 'hostile', icon: 'warship', dashed: true, dim: true }, 210, 150);
+g += label(236, 150, ['Raider R-2', 'last seen 6 d ago'], C.hostile);
+// unknown track with ellipse
+g += `<ellipse cx="1130" cy="90" rx="62" ry="24" transform="rotate(-18 1130 90)" fill="${C.unknown}" fill-opacity="0.06" stroke="${C.unknown}" stroke-opacity="0.6" stroke-dasharray="4 3"/>`;
+g += place({ aff: 'unknown', icon: 'none', dashed: true }, 1130, 90);
+g += label(1080, 140, ['Contact K-3', 'weak track · thermal'], C.unknown);
+// legend corner
+g += `<text x="16" y="540" font-family="JetBrains Mono, monospace" font-size="10.5" fill="${C.muted}">dashed line = planned path · dashed frame = estimated position</text>`;
+document.getElementById('ctx').innerHTML = g;
+</script>
+</body>
+</html>

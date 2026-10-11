@@ -2,7 +2,7 @@
 
 *Hard sci-fi space strategy for PC*  |  *Last updated:* 2026-10-09  |  *Status:* Concept
 
-Status tags: **Decided** = settled. **Direction** = settled in principle, details open. **Candidate** = under consideration. Open questions are in section 9, shelved ideas in section 8. Companion documents (paths under `docs/ideas/`): *Setting & Back Story* (`world/setting.md`), *Faction History Options*, *Component Catalogue*, *Component Stats & Ship Assembly*, *Requirements & Bids*, *Drives & Transit*, *World Generator* (all in `mechanics/`), *Presentation & Visual Style* and *Reference Sketches* (`presentation/`), *ideology-triangle.svg* (diagram, `mechanics/`). What is committed for building is in `docs/spec/`; see `docs/README.md`.
+Status tags: **Decided** = settled. **Direction** = settled in principle, details open. **Candidate** = under consideration. Open questions are in section 9, shelved ideas in section 8. Companion documents (paths under `docs/ideas/`): *Setting & Back Story* (`world/setting.md`), *Faction History Options*, *Component Catalogue*, *Component Stats & Ship Assembly*, *Requirements & Bids*, *Drives & Transit*, *World Generator* (all in `mechanics/`), *Presentation & Visual Style*, *Reference Sketches* and *Symbology & UI Style* (`presentation/`), *ideology-triangle.svg* (diagram, `mechanics/`). What is committed for building is in `docs/spec/`; see `docs/README.md`.
 
 ---
 
