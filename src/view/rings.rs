@@ -274,8 +274,8 @@ mod tests {
         let radius = 180.0;
         let planet = ring_point(Vec3::ZERO, radius, 4.4);
         // The satellite frame: about one unit away at the default tilt.
-        let pitch: f32 = 1.15;
-        let camera = planet + Vec3::new(0.0, pitch.sin(), pitch.cos()) * 1.07;
+        let elevation: f32 = 1.15;
+        let camera = planet + Vec3::new(0.0, elevation.sin(), elevation.cos()) * 1.07;
         let view = looking_at(camera, planet);
         let segments = ring_segments(Vec3::ZERO, radius, view);
 

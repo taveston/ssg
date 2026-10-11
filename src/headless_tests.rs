@@ -42,6 +42,7 @@ use crate::view::projection::ProjectionPlugin;
 use crate::view::scale::km_to_render;
 use crate::view::screen::{ScreenPlugin, ScreenPositions};
 use crate::view::selection::Selection;
+use crate::view::topbar::TOP_BAR_HEIGHT_PX;
 use crate::view::tunables::{Tunables, TunablesPlugin};
 use crate::view::world::WorldPositions;
 use crate::{Boot, Stage};
@@ -750,5 +751,81 @@ fn press_key(app: &mut App, key: KeyCode) {
             window,
         });
         run(app, 1);
+    }
+}
+
+/// MOT-08: the motion rule covers every orbiting object - planets, moons,
+/// stations and parked ships - and not the gates. At 5 d/s Pell (an 86-day
+/// orbit, 17 s apparent) becomes an exposure ring like any satellite.
+#[test]
+fn mot_08_the_rule_applies_to_every_orbiting_object() {
+    let mut app = headless_app(FRAME);
+    app.add_plugins((ContentPlugin, SimPlugin))
+        .add_plugins((TunablesPlugin, ProjectionPlugin, MotionPlugin))
+        .init_resource::<Selection>()
+        .insert_resource(placeholder_fonts());
+    run(&mut app, 2);
+    for name in [
+        "Pell",
+        "Iver Yard",
+        "Orison",
+        "K-3",
+        "Halden IVc",
+        "Lantern",
+    ] {
+        let entity = body(&mut app, name);
+        assert!(
+            app.world().get::<MotionModeState>(entity).is_some(),
+            "{name}"
+        );
+    }
+    let gate = body(&mut app, "Gate Ostra");
+    assert!(
+        app.world().get::<MotionModeState>(gate).is_none(),
+        "gates keep edge arrows"
+    );
+
+    app.world_mut().resource_mut::<GameClock>().run_at(5.0);
+    run(&mut app, SETTLE_FRAMES);
+    let pell = body(&mut app, "Pell");
+    assert!(app.world().get::<MotionModeState>(pell).unwrap().ring_mode);
+}
+
+/// EDGE-01 (F4-20, F5-09): turning the heading a full circle while focused
+/// at Halden IV's satellite frame and tilted, every gate always has its
+/// marker on screen or an arrow on the edge, and no arrow hides under the
+/// top bar.
+#[test]
+fn edge_01_every_gate_has_an_arrow_as_the_heading_turns() {
+    let mut app = camera_app();
+    app.add_plugins(EdgePlugin)
+        .insert_resource(placeholder_fonts());
+    run(&mut app, 1);
+    let halden = body(&mut app, "Halden IV");
+    app.world_mut().resource_mut::<FocusRequest>().0 = Some(halden);
+    run(&mut app, 40);
+    app.world_mut().resource_mut::<CameraRig>().tilt = 0.6;
+    let gates: Vec<Entity> = ["Gate Ostra", "Gate Brenn", "Gate Soll"]
+        .into_iter()
+        .map(|name| body(&mut app, name))
+        .collect();
+    for step in 0..24 {
+        app.world_mut().resource_mut::<CameraRig>().heading = step as f32 * 0.2618;
+        run(&mut app, 2);
+        let screen = app.world().resource::<ScreenPositions>();
+        let pinned = app.world().resource::<GateEdgeTargets>();
+        for &gate in &gates {
+            let on_screen = screen.get(gate).is_some_and(|pos| screen.in_viewport(pos));
+            assert!(
+                on_screen || pinned.is_pinned(gate),
+                "heading step {step}: a gate is lost"
+            );
+            if let Some(&arrow) = pinned.0.get(&gate) {
+                assert!(
+                    arrow.y > TOP_BAR_HEIGHT_PX,
+                    "an arrow under the top bar: {arrow}"
+                );
+            }
+        }
     }
 }

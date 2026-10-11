@@ -11,6 +11,7 @@ use bevy::prelude::*;
 use super::colors;
 use super::fonts::Fonts;
 use super::screen::ScreenPositions;
+use super::topbar::TOP_BAR_HEIGHT_PX;
 use super::world::ViewNow;
 use crate::sim::body::{BodyClass, DisplayName, Ownership};
 use crate::{Boot, Stage};
@@ -101,6 +102,24 @@ pub fn edge_arrow_angle(edge_pos: Vec2, viewport: Vec2) -> f32 {
     dir.x.atan2(-dir.y)
 }
 
+/// EDGE-01 (F5-09): the part of the window the map shows in, below the
+/// top bar. Arrows are pinned to its edges, so none hides under the bar;
+/// the clamping functions work in its own coordinates.
+struct MapArea {
+    offset: Vec2,
+    size: Vec2,
+}
+
+impl MapArea {
+    fn of(viewport: Vec2) -> Self {
+        let offset = Vec2::new(0.0, TOP_BAR_HEIGHT_PX);
+        Self {
+            offset,
+            size: (viewport - offset).max(Vec2::ZERO),
+        }
+    }
+}
+
 pub struct EdgePlugin;
 
 impl Plugin for EdgePlugin {
@@ -178,20 +197,21 @@ fn update_edge_targets(
         if *class != BodyClass::Gate {
             continue;
         }
+        let area = MapArea::of(screen.viewport);
         let edge = match (screen.get(entity), camera) {
-            (Some(pos), _) => clamp_to_viewport_edge(pos, screen.viewport, EDGE_MARGIN_PX),
+            (Some(pos), _) => clamp_to_viewport_edge(pos - area.offset, area.size, EDGE_MARGIN_PX),
             (None, Some(camera)) => {
                 let Some(gate) = view.position(entity) else {
                     continue;
                 };
                 let to_gate = gate - camera.translation();
                 let direction = screen_direction(to_gate, *camera.right(), *camera.up());
-                pin_direction_to_edge(direction, screen.viewport, EDGE_MARGIN_PX)
+                pin_direction_to_edge(direction, area.size, EDGE_MARGIN_PX)
             }
             (None, None) => None,
         };
         if let Some(edge) = edge {
-            targets.0.insert(entity, edge);
+            targets.0.insert(entity, edge + area.offset);
         }
     }
 }
@@ -211,7 +231,8 @@ fn place_edge_indicators(
         node.top = px(pos.y - ARROW_HALF_PX);
         // The glyph points up by default; rotate it (clockwise) to point
         // from the viewport centre toward the gate's true direction.
-        transform.rotation = Rot2::radians(edge_arrow_angle(pos, screen.viewport));
+        let area = MapArea::of(screen.viewport);
+        transform.rotation = Rot2::radians(edge_arrow_angle(pos - area.offset, area.size));
     }
 }
 

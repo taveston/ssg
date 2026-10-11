@@ -28,8 +28,8 @@ pub struct StepSettings {
 
 /// ZOOM-01 / ZOOM-05: plan a step of `notches` from `current`: one step
 /// factor per notch, settling on the first stop in the way (and taking
-/// longer to do it), clamped to the limits `inner..=outer`. The limits are
-/// still the withdrawn ZOOM-06's (F4-13): scrolling past one does nothing.
+/// longer to do it), clamped to the limits `inner..=outer` (ZOOM-14):
+/// scrolling past one does nothing.
 pub fn plan_zoom_step(
     current: f32,
     notches: f32,

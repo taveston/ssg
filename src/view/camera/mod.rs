@@ -1,15 +1,17 @@
-//! The camera: a hand-rolled orbit/zoom/pan rig (`docs/spec/system-view.md`,
-//! ZOOM-01, ZOOM-02, ZOOM-05, ZOOM-10, ZOOM-11, ZOOM-15).
+//! The camera (`docs/spec/system-view.md`, section 5 and 5a: ZOOM-01,
+//! ZOOM-02, ZOOM-05, ZOOM-10 to ZOOM-17, CAM-01 to CAM-22). It looks at a
+//! pivot on the orbital plane from a heading, a tilt and a distance, and
+//! tracks the focused object (`view/focus.rs`); selection never moves it.
 //!
-//! Zoom is stepped and animated: each wheel notch multiplies the view scale
-//! by a fixed factor over an ease-out animation, resisting slightly at stops
-//! that frame something meaningful (`stops.rs`, `zoom.rs`) and refusing to
-//! go past the system or satellite frames.
-//!
-//! The anchoring, limits, latching and double-click behaviour still follow
-//! the withdrawn ZOOM-03, ZOOM-04, ZOOM-06, ZOOM-08, ZOOM-09 and ZOOM-12
-//! (F4-13): the camera iteration replaces them. Input handling is kept in
-//! `input.rs` so that rework can replace it without touching the rest.
+//! - `state.rs`: the rig, the move in flight, bookmarks.
+//! - `rules.rs`, `zoom.rs`, `stops.rs`: the geometry and rules, as plain
+//!   functions.
+//! - `control.rs`: the one way input changes the camera.
+//! - `zoom_input.rs`, `drag.rs`, `keys.rs`, `actions.rs`: the inputs,
+//!   all read through `view/bindings.rs` (CAM-18).
+//! - `requests.rs`: what the rest of the view can ask of the camera, and the
+//!   context-menu and planetary-view hooks.
+//! - `rig.rs`: runs the move, follows the focus, places the camera.
 
 use bevy::prelude::*;
 

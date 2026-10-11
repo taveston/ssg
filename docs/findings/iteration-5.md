@@ -44,6 +44,11 @@
 - **Affects:** CAM-22, MRK-01 · **Type:** spec wrong
 - **Disposition:** built this way; triage whether `focus_bracket_px` should become a margin round the ring rather than a box side.
 
+### F5-09 · Edge arrows hid under the top bar
+- **Observation:** re-checking EDGE-01 now that the camera starts level and turns: a gate due north at the system frame (Gate Soll) had its arrow pinned to the top edge, under the top bar, so it couldn't be seen. Arrows are now pinned inside the map area below the bar (the bar has an explicit height, `TOP_BAR_HEIGHT_PX`). A headless test turns the heading a full circle while focused and tilted: every gate keeps a marker or an arrow, and no arrow is under the bar.
+- **Affects:** EDGE-01, F4-20 · **Type:** bug
+- **Disposition:** fixed in iteration 5. Arrows also slide round the edge as the heading turns, which answers the brief's question of what they do then.
+
 <!-- Findings from the build: copy this block.
 ### F5-01 · Short title
 - **Observation:**

@@ -43,6 +43,8 @@ impl Plugin for TopBarPlugin {
     }
 }
 
+/// The top bar's height. Edge arrows stay below it (EDGE-01, F5-09).
+pub const TOP_BAR_HEIGHT_PX: f32 = 54.0;
 const BAR_FONT_PX: f32 = 14.0;
 /// CLK-02: the active rate's highlight.
 const ACTIVE_ALPHA: f32 = 0.3;
@@ -88,6 +90,7 @@ fn spawn_top_bar(mut commands: Commands, fonts: Res<Fonts>) {
                 top: px(0),
                 left: px(0),
                 width: percent(100),
+                height: px(TOP_BAR_HEIGHT_PX),
                 padding: UiRect::axes(px(14), px(8)),
                 align_items: AlignItems::Center,
                 column_gap: px(14),
