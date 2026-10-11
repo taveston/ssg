@@ -24,26 +24,49 @@ pub struct ZoomStops {
     pub inner_system_radius: f32,
     /// Per parent body, the radius that fits all of its satellites.
     pub per_body_satellite_radius: HashMap<Entity, f32>,
+    /// Per body orbiting the star, its orbit's radius.
+    pub star_orbit_radius: HashMap<Entity, f32>,
 }
+
+/// A body with no satellites, orbiting the star, is framed at this fraction
+/// of the region frame: a sensible close-up rather than nothing.
+const BARE_BODY_FRAME_FRACTION: f32 = 0.05;
 
 impl ZoomStops {
     /// The satellite-frame radius for a body, if it has satellites.
     pub fn satellite_radius(&self, body: Entity) -> Option<f32> {
         self.per_body_satellite_radius.get(&body).copied()
     }
+
+    /// ZOOM-14 / ZOOM-15: the satellite frame for a body: all its
+    /// satellites fit. A body with none (a moon, Pell) uses the frame of
+    /// the body it orbits, or a close-up if it orbits the star (F5-02).
+    pub fn satellite_frame(&self, body: Entity, parent: Option<Entity>) -> f32 {
+        self.satellite_radius(body)
+            .or_else(|| parent.and_then(|parent| self.satellite_radius(parent)))
+            .unwrap_or(self.inner_system_radius * BARE_BODY_FRAME_FRACTION)
+    }
+
+    /// ZOOM-15: the region frame - around the focused planet's orbit (its
+    /// orbit's radius), or the inner system when nothing is focused (F5-02).
+    pub fn region_frame(&self, focused_planet: Option<Entity>) -> f32 {
+        focused_planet
+            .and_then(|planet| self.star_orbit_radius.get(&planet).copied())
+            .unwrap_or(self.inner_system_radius)
+    }
 }
 
-/// The camera distance at which a flat circle of `radius` centred on the
-/// focus point just fits the viewport.
-///
-/// A circle in the XZ plane seen at `tilt` from straight down projects to
-/// an ellipse whose vertical semi-axis is `radius * cos(tilt)`; at typical
-/// window aspect ratios and this project's steep views, that
-/// vertical extent is what binds, so it's what we fit against.
 /// The flattest a framed circle is allowed to look, as cos(tilt), so a
 /// near-edge-on view can't demand a zero (or absurdly small) distance.
 const MIN_TILT_COMPRESSION: f32 = 0.2;
 
+/// The camera distance at which a flat circle of `radius` centred on the
+/// pivot just fits the viewport.
+///
+/// A circle in the XZ plane seen at `tilt` from straight down projects to
+/// an ellipse whose vertical semi-axis is `radius * cos(tilt)`; at typical
+/// window aspect ratios that vertical extent is what binds, so it's what
+/// we fit against.
 pub fn distance_for_radius(radius: f32, fov_y: f32, tilt: f32, margin: f32) -> f32 {
     // Floor the compression so a near-edge-on view can't demand a
     // zero (or absurdly small) distance.
@@ -68,11 +91,6 @@ pub fn frame_radii(planet_orbit_radii: &mut [f32]) -> (f32, f32) {
     (system, inner)
 }
 
-/// The inverse: how much of the orbital plane fits at a given distance.
-pub fn radius_for_distance(distance: f32, fov_y: f32, tilt: f32, margin: f32) -> f32 {
-    distance * margin * (fov_y * 0.5).tan() / tilt.cos().abs().max(MIN_TILT_COMPRESSION)
-}
-
 pub struct StopsPlugin;
 
 impl Plugin for StopsPlugin {
@@ -89,6 +107,7 @@ fn compute_stops(
 ) {
     let mut planet_radii: Vec<f32> = Vec::new();
     let mut per_parent: HashMap<Entity, f32> = HashMap::new();
+    let mut star_orbits: HashMap<Entity, f32> = HashMap::new();
 
     for (entity, orbital, class, child_of) in &bodies {
         match child_of {
@@ -97,18 +116,19 @@ fn compute_stops(
                 *entry = entry.max(km_to_render(orbital.radius_km));
             }
             None => {
+                star_orbits.insert(entity, km_to_render(orbital.radius_km));
                 if *class == BodyClass::Planet {
                     planet_radii.push(km_to_render(orbital.radius_km));
                 }
             }
         }
-        let _ = entity;
     }
 
     let (system_radius, inner_system_radius) = frame_radii(&mut planet_radii);
     stops.system_radius = system_radius;
     stops.inner_system_radius = inner_system_radius;
     stops.per_body_satellite_radius = per_parent;
+    stops.star_orbit_radius = star_orbits;
 }
 
 #[cfg(test)]
@@ -167,26 +187,59 @@ mod tests {
         assert!((inner - km_to_render(2.0 * KM_PER_AU)).abs() < 0.01);
     }
 
+    /// ZOOM-14 / ZOOM-15 (F5-02): a body with satellites frames them; a
+    /// moon frames its planet's; a bare planet gets a close-up.
+    #[test]
+    fn zoom_15_satellite_frame_with_fallbacks() {
+        let mut world = World::new();
+        let [planet, moon, bare] = [(); 3].map(|_| world.spawn_empty().id());
+        let mut stops = ZoomStops {
+            inner_system_radius: 180.0,
+            ..default()
+        };
+        stops.per_body_satellite_radius.insert(planet, 0.44);
+        assert_eq!(stops.satellite_frame(planet, None), 0.44);
+        assert_eq!(stops.satellite_frame(moon, Some(planet)), 0.44);
+        assert_eq!(
+            stops.satellite_frame(bare, None),
+            180.0 * BARE_BODY_FRAME_FRACTION
+        );
+    }
+
+    /// ZOOM-15 (F5-02): the region frame is the focused planet's orbit, or
+    /// the inner system with nothing focused.
+    #[test]
+    fn zoom_15_region_frame_follows_the_focus() {
+        let mut world = World::new();
+        let planet = world.spawn_empty().id();
+        let mut stops = ZoomStops {
+            inner_system_radius: 180.0,
+            ..default()
+        };
+        stops.star_orbit_radius.insert(planet, 31.5);
+        assert_eq!(stops.region_frame(Some(planet)), 31.5);
+        assert_eq!(stops.region_frame(None), 180.0);
+    }
+
     #[test]
     fn zoom_15_degenerate_systems_still_give_a_frame() {
         assert_eq!(frame_radii(&mut []), (1.0, 1.0));
         assert_eq!(frame_radii(&mut [7.0]), (7.0, 7.0));
     }
 
-    /// A radius converted to a camera distance and back is the same radius,
-    /// so a stop frames exactly what it says it does.
+    /// A stop frames exactly what it says: the framed radius fills
+    /// `margin` of the view's half-height at that distance, at any tilt.
     #[test]
-    fn zoom_15_distance_and_radius_round_trip() {
+    fn zoom_15_a_framed_radius_fills_the_margin() {
         let fov = std::f32::consts::FRAC_PI_4;
-        let tilt = 0.42;
         let margin = 0.8;
-        for radius in [0.4_f32, 12.0, 180.0, 387.0] {
-            let distance = distance_for_radius(radius, fov, tilt, margin);
-            let back = radius_for_distance(distance, fov, tilt, margin);
-            assert!(
-                (back - radius).abs() < radius * 1e-4,
-                "{radius} -> {distance} -> {back}"
-            );
+        for tilt in [0.0_f32, 0.42] {
+            for radius in [0.4_f32, 12.0, 180.0, 387.0] {
+                let distance = distance_for_radius(radius, fov, tilt, margin);
+                let half_height = distance * (fov / 2.0).tan();
+                let fill = radius * tilt.cos() / half_height;
+                assert!((fill - margin).abs() < 1e-4, "{radius} at {tilt}: {fill}");
+            }
         }
     }
 }

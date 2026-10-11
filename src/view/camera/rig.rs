@@ -72,8 +72,9 @@ fn target_pivot_now(target: &MoveTarget, positions: &WorldPositions, fallback: V
 }
 
 /// Start a move from the current rig (ZOOM-02), replacing any in flight.
-/// The focus is set at once to what the move ends on, so a focus jump
-/// shows as focused from its first frame.
+/// A move onto a body focuses it at once, so a focus jump shows as
+/// focused from its first frame; any other move leaves the focus to the
+/// caller.
 pub fn start_move(
     active: &mut ActiveMove,
     rig: &CameraRig,
@@ -81,7 +82,9 @@ pub fn start_move(
     target: MoveTarget,
     duration_ms: f32,
 ) {
-    *focus = target.focus();
+    if let PivotTarget::Body { .. } = target.pivot {
+        *focus = target.focus();
+    }
     active.0 = Some(CameraMove::new(*rig, target, duration_ms));
 }
 
@@ -91,6 +94,7 @@ pub fn advance_move(
     positions: Res<WorldPositions>,
     mut active: ResMut<ActiveMove>,
     mut rig: ResMut<CameraRig>,
+    mut focus: ResMut<Focus>,
 ) {
     let Some(mut camera_move) = active.0 else {
         return;
@@ -102,6 +106,19 @@ pub fn advance_move(
     next.distance = next.distance.clamp(MIN_DISTANCE, MAX_DISTANCE);
     *rig = next;
     active.0 = (!camera_move.finished()).then_some(camera_move);
+    // A focus kept through a move to a fixed pivot (CAM-21's first step)
+    // takes up from where the move ended.
+    if active.0.is_none() && matches!(camera_move.target.pivot, PivotTarget::Fixed(_)) {
+        settle_focus(&mut focus, &rig, &positions);
+    }
+}
+
+/// The offset that keeps the focused body's pivot where the rig is now,
+/// so taking up the focus again doesn't jump.
+pub fn settle_focus(focus: &mut Focus, rig: &CameraRig, positions: &WorldPositions) {
+    if let Some(position) = focus.body.and_then(|body| body_position(body, positions)) {
+        focus.offset = rig.pivot - position;
+    }
 }
 
 /// CAM-05: with no move in flight, the pivot is the focused object's

@@ -22,6 +22,7 @@ pub mod rules;
 pub mod state;
 pub mod stops;
 pub mod zoom;
+pub mod zoom_input;
 
 pub struct CameraPlugin;
 
@@ -43,7 +44,7 @@ impl Plugin for CameraPlugin {
                 Update,
                 (
                     input::handle_orbit_input,
-                    input::handle_zoom_input,
+                    zoom_input::handle_zoom_input,
                     input::handle_navigation_keys,
                     input::handle_focus_jump,
                     input::handle_bookmarks,

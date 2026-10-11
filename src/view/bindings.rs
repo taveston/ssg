@@ -16,6 +16,10 @@ pub struct Bindings {
     pub rate_up: Vec<KeyCode>,
     pub rate_down: Vec<KeyCode>,
 
+    // --- Zoom (CAM-16) ---
+    pub zoom_in: Vec<KeyCode>,
+    pub zoom_out: Vec<KeyCode>,
+
     // --- Camera moves ---
     /// ZOOM-10: back to the system frame.
     pub home: Vec<KeyCode>,
@@ -43,6 +47,9 @@ impl Default for Bindings {
             pause: vec![KeyCode::Space],
             rate_up: vec![KeyCode::Period],
             rate_down: vec![KeyCode::Comma],
+
+            zoom_in: vec![KeyCode::Equal, KeyCode::NumpadAdd],
+            zoom_out: vec![KeyCode::Minus, KeyCode::NumpadSubtract],
 
             home: vec![KeyCode::Home],
             focus_selection: vec![KeyCode::KeyF],

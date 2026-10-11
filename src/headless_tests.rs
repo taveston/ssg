@@ -11,6 +11,8 @@ use std::time::Duration;
 
 use bevy::camera::RenderTargetInfo;
 use bevy::input::InputPlugin;
+use bevy::input::mouse::{MouseScrollUnit, MouseWheel};
+use bevy::input::touch::TouchPhase;
 use bevy::prelude::*;
 use bevy::time::TimeUpdateStrategy;
 use bevy::window::WindowResolution;
@@ -37,6 +39,7 @@ use crate::view::scale::km_to_render;
 use crate::view::screen::{ScreenPlugin, ScreenPositions};
 use crate::view::selection::Selection;
 use crate::view::tunables::{Tunables, TunablesPlugin};
+use crate::view::world::WorldPositions;
 use crate::{Boot, Stage};
 
 /// One frame at 60 fps.
@@ -441,5 +444,125 @@ fn cam_05_focused_body_keeps_its_place_on_screen() {
             "frame {frame}: Halden IV at {on_screen}, {} px off centre",
             on_screen.distance(centre)
         );
+    }
+}
+
+/// One wheel notch (positive zooms in), then enough frames for the 200 ms
+/// step to finish.
+fn scroll(app: &mut App, notches: f32) {
+    let window = {
+        let mut windows = app.world_mut().query_filtered::<Entity, With<Window>>();
+        windows.single(app.world()).unwrap()
+    };
+    app.world_mut().write_message(MouseWheel {
+        unit: MouseScrollUnit::Line,
+        x: 0.0,
+        y: notches,
+        window,
+        phase: TouchPhase::Moved,
+    });
+    run(app, 20);
+}
+
+/// The real camera in a headless app, paused, with a window to project into.
+fn camera_app() -> App {
+    let mut app = headless_app(FRAME);
+    app.add_plugins((ContentPlugin, SimPlugin, InputPlugin))
+        .add_plugins((
+            TunablesPlugin,
+            BindingsPlugin,
+            ProjectionPlugin,
+            CameraPlugin,
+        ))
+        .add_plugins(ScreenPlugin)
+        .init_resource::<Selection>()
+        .init_resource::<Focus>();
+    app.world_mut().spawn(Window {
+        resolution: WindowResolution::new(VIEWPORT.x, VIEWPORT.y),
+        ..default()
+    });
+    run(&mut app, 1);
+    compute_camera_headless(&mut app);
+    app.world_mut().resource_mut::<GameClock>().toggle_pause();
+    run(&mut app, 2);
+    app
+}
+
+/// CAM-21 / ZOOM-14 / CAM-08 with the real zoom: with nothing focused over
+/// Halden IV, zooming in focuses it once the step goes past the region
+/// frame, with no jump; zoom stops at its satellite frame; zooming back out
+/// to the system frame ends the focus.
+#[test]
+fn cam_21_zoom_focuses_and_cam_08_zoom_out_ends_it() {
+    let mut app = camera_app();
+    let halden = body(&mut app, "Halden IV");
+    let halden_pos = app.world().resource::<WorldPositions>().0[&halden];
+    let system_distance = app.world().resource::<CameraRig>().distance;
+    // Put the (unfocused) view over Halden IV.
+    app.world_mut().resource_mut::<CameraRig>().pivot = halden_pos;
+    run(&mut app, 2);
+
+    let mut focused_at = None;
+    for notch in 0..30 {
+        let before = *app.world().resource::<CameraRig>();
+        scroll(&mut app, 1.0);
+        let focus = *app.world().resource::<Focus>();
+        if focus.body.is_some() && focused_at.is_none() {
+            assert_eq!(focus.body, Some(halden), "CAM-21 focuses the nearest body");
+            let after = *app.world().resource::<CameraRig>();
+            assert!(
+                (after.pivot - before.pivot).length() < 1e-3,
+                "CAM-21: no jump when focus starts"
+            );
+            focused_at = Some(notch);
+        }
+    }
+    assert!(focused_at.is_some(), "zooming in focused something");
+
+    // ZOOM-14: the inner limit is Halden IV's satellite frame.
+    let radius = app
+        .world()
+        .resource::<ZoomStops>()
+        .satellite_radius(halden)
+        .unwrap();
+    let margin = app.world().resource::<Tunables>().zoom_fit_margin;
+    let limit = distance_for_radius(radius, fov(), 0.0, margin);
+    let distance = app.world().resource::<CameraRig>().distance;
+    assert!(
+        (distance - limit).abs() < limit * 1e-3,
+        "stopped at {distance}, limit {limit}"
+    );
+
+    // CAM-08: zooming back out to the system frame ends focus.
+    for _ in 0..40 {
+        scroll(&mut app, -1.0);
+    }
+    let rig = *app.world().resource::<CameraRig>();
+    assert!((rig.distance - system_distance).abs() < system_distance * 1e-3);
+    assert_eq!(
+        app.world().resource::<Focus>().body,
+        None,
+        "CAM-08: focus ended"
+    );
+}
+
+/// ZOOM-13 / CAM-08: zooming while focused keeps the focused body where it
+/// is on screen, and keeps the focus.
+#[test]
+fn zoom_13_focused_zoom_keeps_the_body_in_place() {
+    let mut app = camera_app();
+    let halden = body(&mut app, "Halden IV");
+    *app.world_mut().resource_mut::<Focus>() = Focus::on(halden);
+    run(&mut app, 3);
+    for _ in 0..6 {
+        scroll(&mut app, 1.0);
+        let screen = app
+            .world()
+            .resource::<ScreenPositions>()
+            .get(halden)
+            .unwrap();
+        let centre = VIEWPORT.as_vec2() / 2.0;
+        assert!(screen.distance(centre) < 0.5, "Halden IV at {screen}");
+        assert_eq!(app.world().resource::<Focus>().body, Some(halden));
     }
 }
