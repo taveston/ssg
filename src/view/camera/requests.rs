@@ -11,7 +11,30 @@ use bevy::prelude::*;
 #[derive(Resource, Default)]
 pub struct FocusJumpRequest(pub Option<Entity>);
 
-/// Set when the player double-clicks a body that's already inspected. The
-/// planetary view doesn't exist yet; this is the hook it will hang from.
+/// Set when the planetary view is asked for (ZOOM-17). The view doesn't
+/// exist yet; `planetary_view_hook` takes the request.
 #[derive(Resource, Default)]
 pub struct PlanetaryViewRequest(pub Option<Entity>);
+
+/// CAM-13: a right-click (a right press and release under the drag
+/// threshold), at this screen position. Reserved for context menus and
+/// orders; until those exist, `context_menu_hook` takes it and does
+/// nothing visible.
+#[derive(Resource, Default)]
+pub struct ContextMenuRequest(pub Option<Vec2>);
+
+/// CAM-13: the hook context menus and orders will hang from. Nothing
+/// visible happens yet.
+pub fn context_menu_hook(mut request: ResMut<ContextMenuRequest>) {
+    if let Some(position) = request.0.take() {
+        debug!("context menu requested at {position} (not built)");
+    }
+}
+
+/// ZOOM-17: the hook the planetary view will hang from. Nothing visible
+/// happens yet.
+pub fn planetary_view_hook(mut request: ResMut<PlanetaryViewRequest>) {
+    if let Some(body) = request.0.take() {
+        debug!("planetary view requested for {body} (not built)");
+    }
+}

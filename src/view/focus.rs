@@ -45,6 +45,13 @@ pub fn clamp_to_pan_bound(pivot: Vec3, bound: f32) -> Vec3 {
     }
 }
 
+/// CAM-07 / CAM-19 while focused: the offset that keeps `body + offset`
+/// inside the bound.
+pub fn clamp_offset_to_pan_bound(body_position: Vec3, offset: Vec3, bound: f32) -> Vec3 {
+    let body = Vec3::new(body_position.x, 0.0, body_position.z);
+    clamp_to_pan_bound(body + offset, bound) - body
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -68,6 +75,17 @@ mod tests {
         let focus = Focus::on(body);
         assert_eq!(focus.body, Some(body));
         assert_eq!(focus.offset, Vec3::ZERO);
+    }
+
+    /// CAM-19 while focused: the offset is cut back so body plus offset
+    /// stays on the bound.
+    #[test]
+    fn cam_19_focused_offset_stays_within_the_pan_bound() {
+        let body = Vec3::new(90.0, 0.0, 0.0);
+        let offset = clamp_offset_to_pan_bound(body, Vec3::new(50.0, 0.0, 0.0), 100.0);
+        assert!((offset - Vec3::new(10.0, 0.0, 0.0)).length() < 1e-4);
+        let small = Vec3::new(1.0, 0.0, 1.0);
+        assert!((clamp_offset_to_pan_bound(body, small, 100.0) - small).length() < 1e-4);
     }
 
     /// CAM-19: inside the bound the pivot is untouched; outside, it stops on

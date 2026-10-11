@@ -10,7 +10,7 @@ use bevy::ecs::system::SystemParam;
 use bevy::input::mouse::{AccumulatedMouseScroll, MouseScrollUnit};
 use bevy::prelude::*;
 
-use super::input::CameraControl;
+use super::control::CameraControl;
 use super::rig::body_position;
 use super::rules::plane_point;
 use super::state::{

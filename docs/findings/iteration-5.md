@@ -19,6 +19,16 @@
 - **Affects:** ZOOM-13, CAM-19, CAM-01 · **Type:** spec gap
 - **Disposition:** built this way.
 
+### F5-04 · Clicks now that left drag pans
+- **Observation:** with left drag panning (CAM-10), a press can be a click or a pan, and both picking and the camera see it. I chose: every press records where it started (`gesture.rs`); a marker, pill or ring click selects only if the release is within `drag_threshold_px` of the press, so the release of a pan never also selects. A left click on empty space still does nothing (F2-04 stays as it is). Only the primary button selects: a right-click on a marker used to select it, and is now reserved for the CAM-13 hook. A press that starts on the top bar or an inset never starts a pan or rotation, so dragging across a panel's buttons doesn't move the map.
+- **Affects:** CAM-10, CAM-13, INS-01, F2-04 · **Type:** spec gap
+- **Disposition:** built this way.
+
+### F5-05 · Which way the rotation controls turn
+- **Observation:** CAM-12 and CAM-15 don't say which way is which. I chose: Q, and dragging left, turn the camera anticlockwise as seen from above, so the scene appears to turn clockwise on screen; E, and dragging right, the other way. Dragging down tilts towards the horizon, dragging up back towards straight down; Page Up and Page Down tilt as specced. Rotation is about the pivot, which is the focused object when there is one.
+- **Affects:** CAM-12, CAM-15 · **Type:** spec gap
+- **Disposition:** built this way; check the feel in the playtest.
+
 <!-- Findings from the build: copy this block.
 ### F5-01 · Short title
 - **Observation:**

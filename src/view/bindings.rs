@@ -30,11 +30,30 @@ pub struct Bindings {
     /// ZOOM-11: the bookmark slots, in order.
     pub bookmark_slots: Vec<KeyCode>,
 
-    // --- Mouse ---
-    /// Drag to rotate the camera.
+    // --- Keyboard camera (CAM-14, CAM-15) ---
+    pub pan_up: Vec<KeyCode>,
+    pub pan_down: Vec<KeyCode>,
+    pub pan_left: Vec<KeyCode>,
+    pub pan_right: Vec<KeyCode>,
+    /// Held while panning, pans faster.
+    pub pan_fast: Vec<KeyCode>,
+    pub turn_left: Vec<KeyCode>,
+    pub turn_right: Vec<KeyCode>,
+    /// Tilt towards the horizon.
+    pub tilt_up: Vec<KeyCode>,
+    /// Tilt towards straight down.
+    pub tilt_down: Vec<KeyCode>,
+
+    // --- Mouse (CAM-10 to CAM-13) ---
+    /// Drag to rotate the camera; click for a context menu.
     pub rotate_button: MouseButton,
     /// Drag to pan.
     pub pan_buttons: Vec<MouseButton>,
+    /// The select button: clicks select, drags pan, except with
+    /// `select_drag_reserved` held.
+    pub select_button: MouseButton,
+    /// Held with the select button, a drag does nothing (reserved).
+    pub select_drag_reserved: Vec<KeyCode>,
 
     // --- Inspection ---
     /// INS-03: close the unpinned inset.
@@ -61,8 +80,20 @@ impl Default for Bindings {
                 KeyCode::Digit4,
             ],
 
+            pan_up: vec![KeyCode::KeyW, KeyCode::ArrowUp],
+            pan_down: vec![KeyCode::KeyS, KeyCode::ArrowDown],
+            pan_left: vec![KeyCode::KeyA, KeyCode::ArrowLeft],
+            pan_right: vec![KeyCode::KeyD, KeyCode::ArrowRight],
+            pan_fast: vec![KeyCode::ShiftLeft, KeyCode::ShiftRight],
+            turn_left: vec![KeyCode::KeyQ],
+            turn_right: vec![KeyCode::KeyE],
+            tilt_up: vec![KeyCode::PageUp],
+            tilt_down: vec![KeyCode::PageDown],
+
             rotate_button: MouseButton::Right,
-            pan_buttons: vec![MouseButton::Middle],
+            pan_buttons: vec![MouseButton::Left, MouseButton::Middle],
+            select_button: MouseButton::Left,
+            select_drag_reserved: vec![KeyCode::ShiftLeft, KeyCode::ShiftRight],
 
             close_inset: vec![KeyCode::Escape],
         }

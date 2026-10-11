@@ -24,6 +24,7 @@ use super::hover::ownership_label;
 use super::motion_mode::MotionModeState;
 use super::screen::ScreenPositions;
 use super::selection::Selection;
+use super::targets::MapInputBlocker;
 use crate::Stage;
 use crate::sim::body::{BodyClass, Description, DisplayName, KeyFacts, Knowledge, Ownership};
 
@@ -289,6 +290,8 @@ fn spawn_panel(
     commands
         .spawn((
             InspectPanelFor { body: content.body },
+            // CAM-10: a press on an inset doesn't start a map drag.
+            MapInputBlocker,
             Node {
                 position_type: PositionType::Absolute,
                 width: px(PANEL_WIDTH),

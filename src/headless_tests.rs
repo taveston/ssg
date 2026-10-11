@@ -10,8 +10,9 @@
 use std::time::Duration;
 
 use bevy::camera::RenderTargetInfo;
+use bevy::input::ButtonState;
 use bevy::input::InputPlugin;
-use bevy::input::mouse::{MouseScrollUnit, MouseWheel};
+use bevy::input::mouse::{MouseButtonInput, MouseScrollUnit, MouseWheel};
 use bevy::input::touch::TouchPhase;
 use bevy::prelude::*;
 use bevy::time::TimeUpdateStrategy;
@@ -31,6 +32,7 @@ use crate::view::edge::{EdgePlugin, GateEdgeTargets};
 use crate::view::focus::Focus;
 use crate::view::fold::SatelliteFoldState;
 use crate::view::fonts::Fonts;
+use crate::view::gesture::PressStart;
 use crate::view::grouping::GroupingPlugin;
 use crate::view::motion::MotionPlugin;
 use crate::view::motion_mode::MotionModeState;
@@ -411,7 +413,8 @@ fn cam_05_focused_body_keeps_its_place_on_screen() {
         ))
         .add_plugins(ScreenPlugin)
         .init_resource::<Selection>()
-        .init_resource::<Focus>();
+        .init_resource::<Focus>()
+        .init_resource::<PressStart>();
     app.world_mut().spawn(Window {
         resolution: WindowResolution::new(VIEWPORT.x, VIEWPORT.y),
         ..default()
@@ -476,7 +479,8 @@ fn camera_app() -> App {
         ))
         .add_plugins(ScreenPlugin)
         .init_resource::<Selection>()
-        .init_resource::<Focus>();
+        .init_resource::<Focus>()
+        .init_resource::<PressStart>();
     app.world_mut().spawn(Window {
         resolution: WindowResolution::new(VIEWPORT.x, VIEWPORT.y),
         ..default()
@@ -565,4 +569,93 @@ fn zoom_13_focused_zoom_keeps_the_body_in_place() {
         assert!(screen.distance(centre) < 0.5, "Halden IV at {screen}");
         assert_eq!(app.world().resource::<Focus>().body, Some(halden));
     }
+}
+
+fn the_window(app: &mut App) -> Entity {
+    let mut windows = app.world_mut().query_filtered::<Entity, With<Window>>();
+    windows.single(app.world()).unwrap()
+}
+
+fn move_cursor(app: &mut App, to: Vec2) {
+    let window = the_window(app);
+    app.world_mut()
+        .get_mut::<Window>(window)
+        .unwrap()
+        .set_cursor_position(Some(to));
+}
+
+fn mouse(app: &mut App, button: MouseButton, state: ButtonState) {
+    let window = the_window(app);
+    app.world_mut().write_message(MouseButtonInput {
+        button,
+        state,
+        window,
+    });
+}
+
+/// CAM-10: drag the star from where it is to `to`, a few frames at a time.
+fn drag_star(app: &mut App, star: Entity, to: Vec2) {
+    let from = app.world().resource::<ScreenPositions>().get(star).unwrap();
+    move_cursor(app, from);
+    run(app, 1);
+    mouse(app, MouseButton::Left, ButtonState::Pressed);
+    run(app, 1);
+    for step in 1..=10 {
+        move_cursor(app, from.lerp(to, step as f32 / 10.0));
+        run(app, 1);
+    }
+    mouse(app, MouseButton::Left, ButtonState::Released);
+    run(app, 2);
+}
+
+/// CAM-10: the plane point grabbed at the start of a left drag stays under
+/// the cursor - also when tilted - and a press that barely moves is a
+/// click, which doesn't pan.
+#[test]
+fn cam_10_left_drag_keeps_the_grabbed_point_under_the_cursor() {
+    let mut app = camera_app();
+    let star = body(&mut app, "Corvane");
+
+    for tilt in [0.0, 0.8] {
+        app.world_mut().resource_mut::<CameraRig>().tilt = tilt;
+        run(&mut app, 2);
+        let to = Vec2::new(1100.0, 300.0);
+        drag_star(&mut app, star, to);
+        let at = app.world().resource::<ScreenPositions>().get(star).unwrap();
+        assert!(
+            at.distance(to) < 1.0,
+            "tilt {tilt}: star at {at}, cursor at {to}"
+        );
+    }
+
+    // A 2 px jitter is a click: the view doesn't move.
+    let before = app.world().resource::<CameraRig>().pivot;
+    let start = Vec2::new(500.0, 500.0);
+    move_cursor(&mut app, start);
+    run(&mut app, 1);
+    mouse(&mut app, MouseButton::Left, ButtonState::Pressed);
+    run(&mut app, 1);
+    move_cursor(&mut app, start + Vec2::new(2.0, 0.0));
+    run(&mut app, 1);
+    mouse(&mut app, MouseButton::Left, ButtonState::Released);
+    run(&mut app, 2);
+    assert_eq!(app.world().resource::<CameraRig>().pivot, before);
+}
+
+/// CAM-07: panning while focused moves the offset and keeps the focus.
+#[test]
+fn cam_07_panning_while_focused_keeps_focus() {
+    let mut app = camera_app();
+    let halden = body(&mut app, "Halden IV");
+    *app.world_mut().resource_mut::<Focus>() = Focus::on(halden);
+    run(&mut app, 3);
+    let star = body(&mut app, "Corvane");
+    drag_star(&mut app, star, Vec2::new(700.0, 400.0));
+    let focus = *app.world().resource::<Focus>();
+    assert_eq!(focus.body, Some(halden));
+    assert!(
+        focus.offset.length() > 1.0,
+        "the offset moved: {}",
+        focus.offset
+    );
 }

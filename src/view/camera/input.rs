@@ -1,83 +1,22 @@
-//! Camera input: wheel, keys and mouse drags turned into camera moves.
-//! Everything here reads input through the bindings (CAM-18) and calls
-//! into `state.rs` and `rig.rs`.
-//!
-//! Zoom is in `zoom_input.rs`. Still the iteration 3 behaviours, being
-//! replaced in steps 5 and 6: right drag turns and tilts (clamped by
-//! CAM-01); middle drag pans (bounded by CAM-19); Home and F jump (ZOOM-10,
-//! the withdrawn ZOOM-08); Ctrl+1 to 4 save and 1 to 4 recall bookmarks
-//! (ZOOM-11).
+//! Camera moves from keys: Home (ZOOM-10), F (the withdrawn ZOOM-08,
+//! replaced in step 6), and Ctrl+1 to 4 save and 1 to 4 recall bookmarks
+//! (ZOOM-11). Zoom is in `zoom_input.rs`, drags in `drag.rs`, panning and
+//! turning keys in `keys.rs`; all read input through the bindings (CAM-18)
+//! and change the camera through `control.rs`.
 
-use bevy::input::mouse::AccumulatedMouseMotion;
 use bevy::prelude::*;
 
+use super::control::CameraControl;
 use super::requests::FocusJumpRequest;
-use super::rig::{settle_focus, start_move};
-use super::rules::{clamp_tilt, plane_axes};
 use super::state::{
-    ActiveMove, BOOKMARK_SLOTS, Bookmark, Bookmarks, CameraRig, MIN_DISTANCE, MoveTarget,
-    OrbitCamera, PivotTarget, camera_fov,
+    BOOKMARK_SLOTS, Bookmark, Bookmarks, MIN_DISTANCE, MoveTarget, OrbitCamera, PivotTarget,
+    camera_fov,
 };
 use super::stops::{ZoomStops, distance_for_radius};
 use crate::view::bindings::{Bindings, held, pressed};
-use crate::view::focus::{Focus, clamp_to_pan_bound};
+use crate::view::focus::Focus;
 use crate::view::selection::Selection;
 use crate::view::tunables::Tunables;
-use crate::view::world::WorldPositions;
-
-/// Right drag: radians of heading or tilt per pixel dragged (iteration 1
-/// behaviour; CAM-12 replaces it with `rotate_deg_per_px`).
-const DRAG_ROTATE_RAD_PER_PX: f32 = 0.005;
-/// Middle drag: plane distance per pixel dragged, as a fraction of the
-/// camera distance, so a pan feels the same at every zoom (iteration 1
-/// behaviour; CAM-10 replaces it with an exact cursor-locked pan).
-const DRAG_PAN_PER_PX: f32 = 0.0015;
-
-/// Right drag turns the heading and tilts, the tilt clamped (CAM-01).
-pub fn handle_orbit_input(
-    mouse_buttons: Res<ButtonInput<MouseButton>>,
-    bindings: Res<Bindings>,
-    tunables: Res<Tunables>,
-    mouse_motion: Res<AccumulatedMouseMotion>,
-    mut rig: ResMut<CameraRig>,
-) {
-    if !held(&mouse_buttons, &[bindings.rotate_button]) {
-        return;
-    }
-    let delta = mouse_motion.delta;
-    rig.heading -= delta.x * DRAG_ROTATE_RAD_PER_PX;
-    rig.tilt = clamp_tilt(
-        rig.tilt + delta.y * DRAG_ROTATE_RAD_PER_PX,
-        tunables.max_pitch_deg,
-    );
-}
-
-/// The rig, the focus and the move in flight: what every camera action
-/// changes together.
-#[derive(bevy::ecs::system::SystemParam)]
-pub struct CameraControl<'w> {
-    pub rig: ResMut<'w, CameraRig>,
-    pub focus: ResMut<'w, Focus>,
-    pub active: ResMut<'w, ActiveMove>,
-}
-
-impl CameraControl<'_> {
-    /// Before a new move replaces one in flight: a focus kept through the
-    /// old move takes the offset of where the pivot is now, so nothing
-    /// jumps (ZOOM-02, CAM-21).
-    pub fn settle(&mut self, positions: &WorldPositions) {
-        if self.active.0.is_none() {
-            return;
-        }
-        settle_focus(&mut self.focus, &self.rig, positions);
-    }
-
-    /// Start a move from the current rig.
-    pub fn start(&mut self, target: MoveTarget, duration_ms: f32) {
-        let rig = *self.rig;
-        start_move(&mut self.active, &rig, &mut self.focus, target, duration_ms);
-    }
-}
 
 /// ZOOM-10: Home returns to the system frame.
 pub fn handle_navigation_keys(
@@ -200,28 +139,4 @@ fn bookmark_target(bookmark: &Bookmark) -> MoveTarget {
         tilt: bookmark.rig.tilt,
         distance: bookmark.rig.distance,
     }
-}
-
-/// Middle drag pans (iteration 1 behaviour): it ends any move and drops the
-/// focus, and the pivot stays within the pan bound (CAM-19).
-pub fn handle_pan_input(
-    mouse_buttons: Res<ButtonInput<MouseButton>>,
-    bindings: Res<Bindings>,
-    mouse_motion: Res<AccumulatedMouseMotion>,
-    tunables: Res<Tunables>,
-    stops: Res<ZoomStops>,
-    mut view: CameraControl,
-) {
-    if !held(&mouse_buttons, &bindings.pan_buttons) {
-        return;
-    }
-    // The pivot is already wherever the focus or the move put it.
-    view.active.0 = None;
-    *view.focus = Focus::default();
-
-    let delta = mouse_motion.delta;
-    let (right, up) = plane_axes(view.rig.heading);
-    let pan = (-right * delta.x + up * delta.y) * view.rig.distance * DRAG_PAN_PER_PX;
-    let bound = tunables.pan_bound_factor * stops.system_radius;
-    view.rig.pivot = clamp_to_pan_bound(view.rig.pivot + pan, bound);
 }

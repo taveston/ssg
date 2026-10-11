@@ -13,6 +13,7 @@ use crate::view::bindings::{Bindings, pressed};
 use crate::view::colors;
 use crate::view::date::{date_from_elapsed_days, format_date};
 use crate::view::fonts::Fonts;
+use crate::view::targets::MapInputBlocker;
 
 #[derive(Component)]
 struct DateText;
@@ -93,6 +94,8 @@ fn spawn_top_bar(mut commands: Commands, fonts: Res<Fonts>) {
                 ..default()
             },
             BackgroundColor(colors::PANEL),
+            // CAM-10: a press on the bar doesn't start a map drag.
+            MapInputBlocker,
         ))
         .with_children(|bar| {
             bar.spawn((

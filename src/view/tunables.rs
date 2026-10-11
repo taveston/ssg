@@ -74,36 +74,26 @@ pub struct Tunables {
     /// goes below the orbital plane (CAM-01).
     pub max_pitch_deg: f32,
     /// A press and release that moves less than this is a click, never a
-    /// drag. Waits for CAM-10 and CAM-13.
-    #[allow(dead_code)]
+    /// drag (CAM-10, CAM-13).
     pub drag_threshold_px: f32,
-    /// Degrees of heading or tilt per pixel of right drag. Waits for CAM-12.
-    #[allow(dead_code)]
+    /// Degrees of heading or tilt per pixel of right drag (CAM-12).
     pub rotate_deg_per_px: f32,
     /// Key panning speed, as a fraction of the visible height at the pivot
-    /// per second, so it looks the same at every zoom and tilt. Waits for
-    /// CAM-14 and CAM-17.
-    #[allow(dead_code)]
+    /// per second, so it looks the same at every zoom and tilt (CAM-14,
+    /// CAM-17).
     pub key_pan_screen_per_s: f32,
-    /// Time for key panning to ramp up to speed, and back down. Waits for
-    /// CAM-14.
-    #[allow(dead_code)]
+    /// Time for key panning to ramp up to speed, and back down (CAM-14).
     pub key_pan_ramp_ms: f32,
-    /// Holding Shift multiplies the key panning speed by this. Waits for
-    /// CAM-14.
-    #[allow(dead_code)]
+    /// Holding Shift multiplies the key panning speed by this (CAM-14).
     pub key_pan_fast_factor: f32,
-    /// Heading and tilt speed for the rotate keys, in degrees per second.
-    /// Waits for CAM-15.
-    #[allow(dead_code)]
+    /// Heading and tilt speed for the rotate keys, in degrees per second
+    /// (CAM-15).
     pub key_rotate_deg_per_s: f32,
-    /// Whether a cursor at the window edge pans the view. Off by default.
-    /// Waits for CAM-17.
-    #[allow(dead_code)]
+    /// Whether a cursor at the window edge pans the view. Off by default
+    /// (CAM-17).
     pub edge_scroll_enabled: bool,
-    /// How close to a window edge the cursor must be to edge-scroll. Waits
-    /// for CAM-17.
-    #[allow(dead_code)]
+    /// How close to a window edge the cursor must be to edge-scroll
+    /// (CAM-17).
     pub edge_scroll_px: f32,
     /// The pivot stays within this many system-frame radii of the star
     /// (CAM-19).

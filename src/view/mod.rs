@@ -21,6 +21,7 @@ pub mod fidelity;
 pub mod focus;
 pub mod fold;
 pub mod fonts;
+pub mod gesture;
 pub mod grouping;
 pub mod hover;
 pub mod inspect;
@@ -49,6 +50,7 @@ impl Plugin for ViewPlugin {
         // both are read across the view.
         app.init_resource::<selection::Selection>()
             .init_resource::<focus::Focus>()
+            .init_resource::<gesture::PressStart>()
             .add_plugins((
                 tunables::TunablesPlugin,
                 bindings::BindingsPlugin,

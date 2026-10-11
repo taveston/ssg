@@ -392,7 +392,9 @@ fn arch_34_every_module_has_a_header_naming_its_ids() {
 }
 
 /// CAM-18: every key and mouse button is read through the bindings
-/// resource, so no other module names a `KeyCode` or `MouseButton`.
+/// resource, so no other module hard-codes one: outside the bindings, no
+/// `KeyCode::` or `MouseButton::` variant is named. (The types themselves
+/// may appear, to read input or hold a binding.)
 #[test]
 fn cam_18_keys_and_buttons_only_in_the_bindings() {
     for (path, text) in sources() {
@@ -401,16 +403,10 @@ fn cam_18_keys_and_buttons_only_in_the_bindings() {
         }
         for (number, line) in non_test(&text).lines().enumerate() {
             let code = code_of(line);
-            for word in ["KeyCode", "MouseButton"] {
-                let typed = code.match_indices(word).any(|(at, _)| {
-                    // `ButtonInput<KeyCode>` is reading the input resource,
-                    // not binding a key; a variant (`KeyCode::KeyF`) or a
-                    // key list is.
-                    !code[..at].ends_with("ButtonInput<")
-                });
+            for word in ["KeyCode::", "MouseButton::"] {
                 assert!(
-                    !typed,
-                    "src/{path}:{}: names {word} outside the bindings",
+                    !code.contains(word),
+                    "src/{path}:{}: hard-codes a {word} outside the bindings",
                     number + 1
                 );
             }

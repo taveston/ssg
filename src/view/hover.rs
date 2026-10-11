@@ -7,14 +7,17 @@
 //! planetary-view hook. Those double-click rules follow the withdrawn
 //! ZOOM-08 and ZOOM-09 until the camera iteration (F4-13).
 
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
 use super::camera::requests::{FocusJumpRequest, PlanetaryViewRequest};
 use super::colors;
 use super::fold::FoldSummary;
 use super::fonts::Fonts;
+use super::gesture::{PressStart, was_click};
 use super::selection::Selection;
 use super::targets::{GroupPillFor, MarkerFor};
+use super::tunables::Tunables;
 use crate::Boot;
 use crate::sim::body::{BodyClass, DisplayName, Ownership};
 
@@ -134,13 +137,37 @@ pub fn on_marker_out(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
+/// What a click handler needs to tell a selecting click from the release
+/// of a drag or a reserved button.
+#[derive(SystemParam)]
+pub struct ClickCheck<'w, 's> {
+    press: Res<'w, PressStart>,
+    tunables: Res<'w, Tunables>,
+    windows: Query<'w, 's, &'static Window>,
+}
+
+impl ClickCheck<'_, '_> {
+    /// A click that selects: the primary button, and not the release of a
+    /// drag (CAM-10). Right-clicks are reserved for context menus (CAM-13).
+    fn selects(&self, click: &On<PointerClick>) -> bool {
+        let release = self.windows.single().ok().and_then(Window::cursor_position);
+        click.button == PointerButton::Primary
+            && release.is_none_or(|at| was_click(&self.press, at, self.tunables.drag_threshold_px))
+    }
+}
+
 pub fn on_marker_click(
     click: On<PointerClick>,
     markers: Query<&MarkerFor>,
+    check: ClickCheck,
     mut selection: ResMut<Selection>,
     mut focus_jump: ResMut<FocusJumpRequest>,
     mut planetary: ResMut<PlanetaryViewRequest>,
 ) {
+    if !check.selects(&click) {
+        return;
+    }
     let Ok(marker_for) = markers.get(click.entity) else {
         return;
     };
@@ -165,8 +192,12 @@ pub fn on_marker_click(
 pub fn on_pill_click(
     click: On<PointerClick>,
     pills: Query<&GroupPillFor>,
+    check: ClickCheck,
     mut selection: ResMut<Selection>,
 ) {
+    if !check.selects(&click) {
+        return;
+    }
     let Ok(pill) = pills.get(click.entity) else {
         return;
     };

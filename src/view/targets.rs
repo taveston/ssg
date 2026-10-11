@@ -10,6 +10,11 @@ use bevy::prelude::*;
 #[derive(Component)]
 pub struct MarkerFor(pub Entity);
 
+/// A UI panel the map's drags don't start on: pressing on the top bar or
+/// an inset and dragging doesn't pan or rotate the camera (CAM-10).
+#[derive(Component)]
+pub struct MapInputBlocker;
+
 /// A "+N" count pill -> the parent whose folded satellites it counts.
 /// Clicking it does what clicking the parent does (GRP-07).
 #[derive(Component)]
