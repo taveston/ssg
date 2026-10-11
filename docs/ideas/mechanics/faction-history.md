@@ -1,35 +1,35 @@
 # Orphan Worlds: Faction History Options
 
-*Status:* Draft. All numbers are placeholders for balancing. See the design document, 4.7, and the diagram *ideology-triangle.svg*.
+**In short:** a faction's ideology profile comes from three history choices: **origins** (what the settlement was before the collapse), **turmoil** (how it survived the collapse) and **recovery** (how social and political order was restored). Each of the six options per phase gives 4 ideology points, so three choices fill the pool of 12, and each option also sets Outlook, Militancy, starting assets and scars. The ideology rules are specced in `docs/spec/ideology.md`; this doc holds the option tables, flavour text and reasoning.
 
-A faction's profile emerges from three history choices: **origins** (what the settlement was before the collapse), **turmoil** (how it survived the collapse), and **recovery** (how social and political order was restored). Each option shifts ideology and attitudes and sets starting assets and scars. A summary label and history blurb can be generated from the choices.
+*Status:* draft. All numbers are placeholders for balancing. See the design document, 4.7, and the diagram *ideology-triangle.svg*. A summary label and history blurb can be generated from the choices.
 
-**Timeline:** the old network collapses → years of turmoil → order is restored on the ground → **game start**, when the faction is just venturing back into space. Recovery is political and social, not industrial: there are no interplanetary fleets or trade yet. Pre-collapse orbital yards and stations exist but sit dormant or barely maintained.
+**Timeline:** the old network collapses, then years of turmoil, then order is restored on the ground, then **game start**, when the faction is just venturing back into space. Recovery is political and social, not industrial: there are no interplanetary fleets or trade yet. Orbital yards and stations from before the collapse exist but sit dormant or barely maintained.
 
-*Terminology:* "Organisation" is the mechanical term; in the setting, firms are corporations, guilds, and institutes.
+*Terminology:* "organisation" is the mechanical term. In the setting, firms are corporations, guilds and institutes.
 
 ---
 
 ## 1. How ideology is represented (decided)
 
-Design goals: readable at a glance, similar magnitude to the other profile numbers, and the effect of any event obvious.
+Design goals: readable at a glance, numbers of similar size to the rest of the profile, and the effect of any event obvious.
 
-> **Specced** in `docs/spec/ideology.md` (IDEO-01 to IDEO-31) on 2026-10-10. The exact rules (storage in tenths, label thresholds, the event and rounding rules, summary line) live there; this section keeps the shape and the reasoning.
+> **Specced** in `docs/spec/ideology.md` (IDEO-01 to IDEO-31). The exact rules (storage in tenths, label thresholds, the event and rounding rules, the summary line) live there; this section keeps the shape and the reasoning.
 
-- **Fixed pool of 12** shared by **Cohesion**, **Authority** and **Autonomy**, so the three numbers *are* the position in the triangle: "Coh 6 · Auth 4 · Auto 2" is the whole picture; 4 / 4 / 4 is the exact centre.
-- **Labels** by thresholds of 7 (corner) and 3 (edge), Pluralist otherwise; thresholds chosen so random histories give an even spread (section 7). Labels and reasoning in section 8.
-- **Events change one score and the other two absorb it in proportion**, so the faction moves in a straight line towards or away from a corner; the effect of any event is obvious at a glance. Two-sided events ("Autonomy → Authority 2") move along an edge.
+- **A fixed pool of 12** shared by **Cohesion**, **Authority** and **Autonomy**, so the three numbers *are* the position in the triangle. "Coh 6 · Auth 4 · Auto 2" is the whole picture; 4 / 4 / 4 is the exact centre.
+- **Labels** by thresholds of 7 (corner) and 3 (edge), Pluralist otherwise. The thresholds were chosen so random histories give an even spread (section 7). Labels and reasoning are in section 8.
+- **An event changes one score and the other two absorb it in proportion**, so the faction moves in a straight line towards or away from a corner, and the effect is obvious at a glance. Two-sided events ("Autonomy → Authority 2") move along an edge.
 - **Outlook** (Insular/Outward) and **Militancy** (Pacifist/Militant), each −6 to +6, so all five profile numbers span 12 points.
 - **Characters** can use the same pool, thresholds and labels.
 
 ## 2. How the history modifiers work
 
-> The 4-points-per-option rule and loading options from data are specced as IDEO-30 and IDEO-31; the option tables below remain placeholders.
+> The 4-points-per-option rule and loading options from data are specced as IDEO-30 and IDEO-31. The option tables below are still placeholders.
 
 - **Ideology:** each option distributes exactly **4 points** across the three forces, so three choices add up to the pool of 12. No baseline or scaling.
-- **Design pattern:** in each phase, three options lean firmly to one force and three blend two forces, and each phase's options total 8 / 8 / 8, so no force is favoured.
+- **Design pattern:** in each phase, three options lean firmly to one force and three blend two forces. Each phase's options total 8 / 8 / 8, so no force is favoured.
 - **Outlook and Militancy:** plain sums of the options, from 0.
-- **Starting effects and scars:** qualitative for now (organisations, designs, settlements, characters; lost population, damaged infrastructure, distrust, weak institutions).
+- **Starting effects and scars:** qualitative for now. Effects: organisations, designs, settlements, characters. Scars: lost population, damaged infrastructure, distrust, weak institutions.
 - **Randomness:** the player picks the path; specific scars or windfalls could be rolled within it.
 - **Names** should paint a concrete picture rather than describe a policy.
 - **Flavour text** is written from the faction's own point of view.
@@ -107,13 +107,13 @@ The first row as prose: a trading faction with dormant yards and a vibrant priva
 ## 7. Whole-space check (216 combinations)
 
 - Random histories give an even spread: each corner label about 18%, each edge label 13 to 15%, Pluralist 4%.
-- Outlook −4 to +5 and Militancy −4 to +6, within the ±6 caps; a slight outward and militant skew that AI weighting can offset.
+- Outlook ranges from −4 to +5 and Militancy from −4 to +6, within the ±6 caps. There is a slight outward and militant skew, which AI weighting can offset.
 
 ## 8. Ideology labels (decided)
 
-> **Settled 2026-10-09; specced** as IDEO-10 to IDEO-13.
+> **Specced** as IDEO-10 to IDEO-13.
 
-**Corner names:** Cohesion / Authority / Autonomy name the three forces (the axes of the triangle). Chosen for neutrality. Rejected alternatives: Communal/Command/Enterprise, Stewardship/Authority/Initiative, Commons/Directorate/Market, Commonwealth/Directorate/Company, Shared/Directed/Free.
+**Corner names:** Cohesion, Authority and Autonomy name the three forces (the axes of the triangle). They were chosen for neutrality. Rejected alternatives: Communal/Command/Enterprise, Stewardship/Authority/Initiative, Commons/Directorate/Market, Commonwealth/Directorate/Company, Shared/Directed/Free.
 
 **Region labels:** seven regions summarise a position. Each label works as an adjective for a state ("a Paternalist state") and as a noun for a person ("a paternalist"), so the same set can describe characters.
 
@@ -127,7 +127,16 @@ The first row as prose: a trading faction with dormant yards and a vibrant priva
 | Cohesion + Autonomy edge | Auth 3 or less | **Mutualist** | Self-organising communities and cooperatives with a light centre (opposite Authoritarian) |
 | Centre | Otherwise | **Pluralist** | No dominant force; politics is a negotiation |
 
-Rejected: Cohesive/Centralised/Autonomous and Stewarded/Chartered/Mutual (mixed parts of speech; don't work for characters); Communitarian (strained); Pragmatist for the centre (clashes with the candidate Idealist/Pragmatist trait pair); Pacific for the Militancy axis (uncommon word). Rejected numeric approaches: open-ended sums (the effect of an event depends on the totals); percentages (mismatched with the ±6 axes); taking event points from the larger score first (felt arbitrary).
+**Rejected labels:**
+- Cohesive/Centralised/Autonomous and Stewarded/Chartered/Mutual: mixed parts of speech, and they don't work for characters.
+- Communitarian: strained.
+- Pragmatist for the centre: clashes with the candidate Idealist/Pragmatist trait pair.
+- Pacific for the Militancy axis: an uncommon word.
+
+**Rejected numeric approaches:**
+- Open-ended sums: the effect of an event depends on the totals.
+- Percentages: don't match the ±6 axes.
+- Taking event points from the larger score first: felt arbitrary.
 
 ## 9. Open questions
 
@@ -135,7 +144,7 @@ Rejected: Cohesive/Centralised/Autonomous and Stewarded/Chartered/Mutual (mixed 
 - Whether the remaining policy-style names (for example Technocratic restoration, Emergency rationing) should get more vivid names too.
 - What is rolled, and how much.
 - Turning qualitative effects and scars into concrete assets and values.
-- How AI factions draw histories (random, weighted by map position).
+- How AI factions draw histories (random, or weighted by map position).
 - Whether map generation places starts to match origins.
 - How history sets government form and how that interacts with ideology.
 - Character ideology: how it is set and changes.

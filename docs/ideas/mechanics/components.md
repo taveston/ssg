@@ -1,20 +1,33 @@
 # Orphan Worlds: Component Catalogue
 
-*Status:* Draft structure. *Scope:* ship components first; ground equipment and infrastructure (stations, mass drivers, refineries) need their own catalogues later.
+**In short:** the catalogue of ship component types, grouped by category, each with a rough reproducibility tier. Component designs are the technology layer: mostly from before the collapse or reverse engineered. Organisations assemble ship designs from them in response to the player's requirements (design document, 4.4 and 4.5).
 
-Component designs are the technology layer, mostly from pre-collapse sources and reverse engineering. Organisations assemble ship designs from them in response to the player's requirements (design document, 4.4 and 4.5).
+*Status:* draft structure. *Scope:* ship components first. Ground equipment and infrastructure (stations, mass drivers, refineries) need their own catalogues later.
 
 ---
 
 ## 1. Structure
 
-- **Category:** broad function (e.g. Drive); matches the knowledge domains organisations build understanding in.
-- **Type:** technology family (e.g. Nuclear thermal, solid-core).
-- **Design:** a specific documented design of a type; first-class object, some pre-seeded.
+- **Category:** broad function, for example Drive. Categories match the knowledge domains in which organisations build understanding.
+- **Type:** technology family, for example Nuclear thermal, solid-core.
+- **Design:** a specific documented design of a type. Designs are first-class objects; some are seeded at the start.
 
-**Reproducibility tier (candidate, indicative only):** 1 basic (most organisations) · 2 moderate (specialised tooling or staff) · 3 advanced (rare materials, high-end tooling, deep know-how) · R relic (not reproducible; found, not built). Real difficulty also depends on documentation, tooling, materials, and staff.
+**Reproducibility tier (candidate, indicative only):**
+- **1 basic:** most organisations can build it.
+- **2 moderate:** needs specialised tooling or staff.
+- **3 advanced:** needs rare materials, high-end tooling and deep know-how.
+- **R relic:** can't be reproduced; found, not built.
 
-**Design record:** name and type · origin (pre-collapse, reverse engineered, derived variant, bid) · documentation level (fragmentary, partial, working, complete) · characteristics (mass, power, performance, reliability, complexity) · requirements (tooling, materials, skills) · rights · seeding (who holds it at start).
+Real difficulty also depends on documentation, tooling, materials and staff.
+
+**Design record:**
+- name and type
+- origin: before the collapse, reverse engineered, derived variant, or bid
+- documentation level: fragmentary, partial, working or complete
+- characteristics: mass, power, performance, reliability, complexity
+- requirements: tooling, materials, skills
+- rights
+- seeding: who holds it at the start
 
 ## 2. Catalogue
 
@@ -83,10 +96,10 @@ Drive › Nuclear thermal, solid-core:
 
 ## 4. Open questions
 
-- Seeding: how many designs per faction and organisation, which tiers, fixed or generated.
+- Seeding: how many designs per faction and organisation, which tiers, and whether fixed or generated.
 - Which numbers a component carries and how they combine into ship performance.
-- Designs per type; how as-built versions are handled.
+- How many designs per type, and how as-built versions are handled.
 - Whether tiers stay a guide or become a rule.
-- Merges, splits, and gaps in the categories.
+- Merges, splits and gaps in the categories.
 - Setting limits: automation, artificial gravity, hard sci-fi no-go list.
-- Catalogues for ground equipment, stations, and infrastructure.
+- Catalogues for ground equipment, stations and infrastructure.

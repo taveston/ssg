@@ -1,6 +1,8 @@
 # Spec: System view
 
-*Scope:* the strategic vector display of one star system: scale, clock, markers, ship and station symbols, inspection, zoom, camera, satellite grouping, the motion rule and the Corvane test system. *Source ideas:* `docs/ideas/presentation/presentation.md` (section 2), `docs/ideas/presentation/presentation-sketches.md` (boards 1, 2, 5, 6), `docs/ideas/presentation/symbology.md` (symbols), mock-ups in `docs/ideas/presentation/mockups/`. Where a mock-up and this spec disagree, this spec wins.
+**In short:** one star system drawn as a vector display at true scale, with fixed-size markers; ships and stations use NATO-style symbols. Clicking selects an object and opens an inspection inset; focus locks the camera onto an object. Zoom is stepped, with stops computed from the system's orbits. Satellites fold into their parent when their orbits get small on screen, and fast orbits are drawn as exposure rings. Corvane is the test system.
+
+*Scope:* scale, clock, markers, ship and station symbols, inspection, zoom, camera, satellite grouping, the motion rule and the Corvane test system. *Source ideas:* `docs/ideas/presentation/presentation.md` (section 2), `docs/ideas/presentation/presentation-sketches.md` (boards 1, 2, 5, 6), `docs/ideas/presentation/symbology.md` (symbols), mock-ups in `docs/ideas/presentation/mockups/`. Where a mock-up and this spec disagree, this spec wins.
 
 *How to read it:* each requirement has a stable ID. **Built** is ✓ once the requirement is in the code. Numbers in `code` are tunables (table at the end), read from `src/view/tunables.rs`, never hard-coded.
 
@@ -92,7 +94,14 @@ Ships and stations are drawn as symbols adapted from NATO APP-6: the **frame** s
 
 ## 5a. Camera
 
-The camera looks at a **pivot**, a point on the orbital plane, from a distance set by the zoom scale. Its orientation is a **heading** (rotation about the plane's normal) and a **tilt** (0° = looking straight down). **North** is a fixed direction in the orbital plane, the same for every system. There are two separate states. **Selection** (INS-01) is the object whose details are shown; it never moves the camera. **Focus** is the object the camera is locked onto: the camera tracks it as it moves. Selection and focus may be different objects (for example, focus on Halden IV while IVc is selected).
+Terms used below:
+- **Pivot:** the point on the orbital plane the camera looks at, from a distance set by the zoom scale.
+- **Heading:** rotation about the plane's normal. **Tilt:** 0° is looking straight down.
+- **North:** a fixed direction in the orbital plane, the same for every system.
+- **Selection** (INS-01): the object whose details are shown. It never moves the camera.
+- **Focus:** the object the camera is locked onto; the camera tracks it as it moves.
+
+Selection and focus may be different objects: for example, focus on Halden IV while IVc is selected.
 
 | ID | Requirement | Built |
 |---|---|---|

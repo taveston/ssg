@@ -36,4 +36,4 @@ None yet.
 
 ## Other
 
-- [ ] **Style pass over existing docs:** bring `docs/ideas/` and `docs/spec/` up to the writing guidelines in `docs/README.md` (summary at the top, short plain sentences). A design session job, reviewed before committing, since tightening prose can shift meaning.
+None yet.
