@@ -2,7 +2,7 @@
 
 **In short:** Earth, the hub of a gate network, is presumed destroyed. Scattered colonies formed successor states, and the game starts as they venture back into space. The cause of Earth's fall is a mystery uncovered through ruins, and an external threat looms as a possible end-game. This doc holds the settled core and room for back-story ideas.
 
-Status tags as in the design document; settled points are marked **Decided** in place.
+Status tags as in the overview; settled points are marked **Decided** in place.
 
 Related: what gates are, why most have failed and how they're maintained in `../mechanics/gates.md` (speculative); faction origins and their flavour text in `../mechanics/factions.md`; the historical layer the generator lays down in `../mechanics/world-generator.md` (section 7).
 

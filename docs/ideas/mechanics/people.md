@@ -2,7 +2,7 @@
 
 **In short:** the player rules through people and institutions. Characters are people within the state, not a dynasty: skills say how well they do things, opposing trait pairs say what they choose to do, and much of it is hidden until revealed by behaviour. The player appoints only senior posts. Organisations act independently and drive the private economy; the player can take direct control of anything, at a price. There are no canned pop-up events: requests and problems arise from the simulation.
 
-*Status:* draft. Status tags as in the design document (**Decided**, **Direction**, **Candidate**). Companion documents: *Design Document* (overview, pillar 3), *Economy* (what organisations own), *Factions & Ideology* (the triangle characters share), *Requirements & Bids* (5.3, trait rules in bids), *Interface Style* (dossiers).
+*Status:* draft. Status tags as in the overview (**Decided**, **Direction**, **Candidate**). Companion documents: *Overview* (pillar 3), *Economy* (what organisations own), *Factions & Ideology* (the triangle characters share), *Requirements & Bids* (5.3, trait rules in bids), *Interface Style* (dossiers).
 
 ---
 

@@ -2,11 +2,11 @@
 
 **In short:** how the state gets ships. The player sets requirements from a role template; organisations decide whether to bid and generate bids from their understanding, capacity, people and traits; the state's technical office shows each claim with an honest 80% range; the player awards a contract; and the as-built figures, drawn once at design freeze, are revealed through yard reports, trials and service. Every difference between bids has a learnable cause, and every surprise has tells. Section 9 works through one tender (HR-1) end to end; section 11 is the MVP cut.
 
-*Status:* draft. Status tags as in the design document (**Decided**, **Direction**, **Candidate**). The HR-1 figures in section 9 come from `scripts/bids/hr1_bids.py`, which runs the bid rules here on the as-built distributions of *Component Stats & Ship Assembly* (CSA). Figures marked **[P: CSA]** or **[P: D&T]** (*Drives & Transit*) are open in those documents; plain **[P]** marks illustrative values for this document.
+*Status:* draft. Status tags as in the overview (**Decided**, **Direction**, **Candidate**). The HR-1 figures in section 9 come from `scripts/bids/hr1_bids.py`, which runs the bid rules here on the as-built distributions of *Component Stats & Ship Assembly* (CSA). Figures marked **[P: CSA]** or **[P: D&T]** (*Drives & Transit*) are open in those documents; plain **[P]** marks illustrative values for this document.
 
 > **Repo note:** `scripts/bids/` isn't in this repo yet; the figures below are as last generated.
 
-Companion documents: *Design Document* (6, risks), *Salvage & Research*, *Component Catalogue*, *Component Stats & Ship Assembly* (understanding modifier curves, cost scale, assembly formulas), *Drives & Transit* (drive baselines, transit times), *Presentation & Visual Style*, *Reference Sketches*.
+Companion documents: *Overview* (6, risks), *Salvage & Research*, *Component Catalogue*, *Component Stats & Ship Assembly* (understanding modifier curves, cost scale, assembly formulas), *Drives & Transit* (drive baselines, transit times), *Presentation & Visual Style*, *Reference Sketches*.
 
 ---
 

@@ -2,7 +2,7 @@
 
 **In short:** a few concrete resources (water, metals, rare metals, components), one shared currency that allocates but doesn't create, and a private economy run by organisations that the player can see but not control directly. The state owns bases, gates and basic infrastructure; organisations own everything productive. The backbone arc is salvage first, then extraction, with gates as the main reason to be in space.
 
-*Status:* draft. Status tags as in the design document (**Decided**, **Direction**, **Candidate**). Companion documents: *Design Document* (overview), *Characters, Organisations & Events* (who runs organisations), *Salvage & Research*, *Gates*, *World Generator* (5.4, resources on bodies), *Drives & Transit* (carbon and hydrogen depot questions).
+*Status:* draft. Status tags as in the overview (**Decided**, **Direction**, **Candidate**). Companion documents: *Overview*, *Characters, Organisations & Events* (who runs organisations), *Salvage & Research*, *Gates*, *World Generator* (5.4, resources on bodies), *Drives & Transit* (carbon and hydrogen depot questions).
 
 ---
 

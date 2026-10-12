@@ -2,7 +2,7 @@
 
 **In short:** the generator builds the cluster for a new game: a flattened 3D volume of stars at realistic density and mix, gates only in the systems the old network had a reason to reach, links between them, full detail for gated systems only, and a historical layer of settlements, yards, ruins and salvage. It produces the truth; what each faction knows of it is handled separately (*Presentation & Visual Style*, 2: fidelity follows knowledge).
 
-*Status:* draft. Companion to the design document (2, structure), *Gates*, *Salvage & Research* and *Setting & Back Story*; status tags as there (**Decided**, **Direction**, **Candidate**). All numbers are placeholders for tuning. The astronomical figures are approximate and should be checked against current surveys before they are fixed.
+*Status:* draft. Companion to the overview (2, structure), *Gates*, *Salvage & Research* and *Setting & Back Story*; status tags as there (**Decided**, **Direction**, **Candidate**). All numbers are placeholders for tuning. The astronomical figures are approximate and should be checked against current surveys before they are fixed.
 
 ---
 
@@ -29,7 +29,7 @@
 
 - **Shape (candidate):** a slab, roughly round or irregular in plan, with a thickness of about a fifth to a third of its width.
 - **Density (candidate):** realistic, about 0.1 star systems per cubic parsec, so nearest neighbours are typically 1 to 2 parsecs (3 to 6 light years) apart. For scale, a slab 6 pc thick and about 25 pc across holds roughly 300 systems.
-- **Map size (candidate):** the design document's 10 to 100 systems counts gated, visitable systems. If a quarter to a half of all systems are gated, a large map holds a few hundred stars in total.
+- **Map size (candidate):** the overview's 10 to 100 systems counts gated, visitable systems. If a quarter to a half of all systems are gated, a large map holds a few hundred stars in total.
 - **Stellar mix (direction, approximate solar-neighbourhood figures by primary star):**
 
   | Primary | Share | Notes |

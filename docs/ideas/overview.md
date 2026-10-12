@@ -1,4 +1,4 @@
-# Orphan Worlds: Design Document
+# Orphan Worlds: Overview
 
 *Hard sci-fi space strategy for PC.* *Status:* concept.
 

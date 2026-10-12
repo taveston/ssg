@@ -2,7 +2,7 @@
 
 **In short:** factions differ mechanically, not through hand-crafted back story. Their main differentiator is an ideology profile: a position in a triangle of Cohesion, Authority and Autonomy, plus Outlook and Militancy. The profile comes from three history choices: **origins** (what the settlement was before the collapse), **turmoil** (how it survived the collapse) and **recovery** (how social and political order was restored). Each of the six options per phase gives 4 ideology points, so three choices fill the pool of 12, and each option also sets Outlook, Militancy, starting assets and scars. The ideology rules are specced in `docs/spec/ideology.md`; this doc holds the option tables, flavour text and reasoning.
 
-*Status:* draft. All numbers are placeholders for balancing. Status tags as in the design document. See the diagram *ideology-triangle.svg*. A summary label and history blurb can be generated from the choices.
+*Status:* draft. All numbers are placeholders for balancing. Status tags as in the overview. See the diagram *ideology-triangle.svg*. A summary label and history blurb can be generated from the choices.
 
 **Timeline:** the old network collapses, then years of turmoil, then order is restored on the ground, then **game start**, when the faction is just venturing back into space. Recovery is political and social, not industrial: there are no interplanetary fleets or trade yet. Orbital yards and stations from before the collapse exist but sit dormant or barely maintained.
 

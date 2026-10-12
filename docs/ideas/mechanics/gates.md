@@ -4,13 +4,13 @@
 
 > **Speculative.** Everything here is early ideation and **Candidate** unless marked otherwise. Nothing is a requirement.
 
-*Companion documents:* *Design Document*, *Economy* (6, backbone arc), *Setting & Back Story*, *World Generator* (4, 7), *Drives & Transit* (6, gate placement and entry tolerance), *Factions & Ideology*.
+*Companion documents:* *Overview*, *Economy* (6, backbone arc), *Setting & Back Story*, *World Generator* (4, 7), *Drives & Transit* (6, gate placement and entry tolerance), *Factions & Ideology*.
 
 ---
 
 ## 1. In-game and behind the scenes
 
-The design document keeps how gates work deliberately unexplained. That still holds on screen: no character explains the physics. This doc is the truth behind it, so that mechanics, salvage and clues stay consistent. Players can piece some of it together from records and research.
+The overview keeps how gates work deliberately unexplained. That still holds on screen: no character explains the physics. This doc is the truth behind it, so that mechanics, salvage and clues stay consistent. Players can piece some of it together from records and research.
 
 ## 2. What a gate is
 

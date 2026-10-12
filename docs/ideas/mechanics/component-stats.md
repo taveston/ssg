@@ -6,7 +6,7 @@
 
 > **Repo note:** `scripts/components/` isn't in this repo yet; the tables below are as last generated.
 
-*Companion documents:* *Design Document*, *Salvage & Research*, *Component Catalogue* (this answers its open questions on which numbers a component carries, how they combine, and how as-built versions are handled), *Drives & Transit* (orbits, drive families, transit times) and *Requirements & Bids* (uses the stat names, understanding modifiers and HR-1 distributions defined here).
+*Companion documents:* *Overview*, *Salvage & Research*, *Component Catalogue* (this answers its open questions on which numbers a component carries, how they combine, and how as-built versions are handled), *Drives & Transit* (orbits, drive families, transit times) and *Requirements & Bids* (uses the stat names, understanding modifiers and HR-1 distributions defined here).
 
 ---
 

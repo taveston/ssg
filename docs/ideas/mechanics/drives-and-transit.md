@@ -8,7 +8,7 @@
 
 > **Speculative.** This document is early ideation. Nothing in it, including the Corvane reference layout and the gate distance, is a requirement. The prototype's Corvane is defined by the spec (TEST-01), not by section 2.
 
-*Companion documents:* *Design Document*, *Gates*, *Setting & Back Story* (technology), *Component Catalogue*, *Component Stats & Ship Assembly* (CSA: specific designs and ship assembly, using this document's orbits), *Requirements & Bids*, *Reference Sketches* (Corvane).
+*Companion documents:* *Overview*, *Gates*, *Setting & Back Story* (technology), *Component Catalogue*, *Component Stats & Ship Assembly* (CSA: specific designs and ship assembly, using this document's orbits), *Requirements & Bids*, *Reference Sketches* (Corvane).
 
 ---
 
@@ -137,7 +137,7 @@ Gate entry tolerance 10 km/s (6.2); best phasing; "rdv" = must match the gate's 
 ### 6.2 Recommendation
 
 1. **Place gates by travel time, not by a physical edge.** Choose the gate radius so a hydrogen NTR reaches it from the system's main world in about four to six months with good phasing. In Corvane: **2.0 AU** (1.35 × the snow line). Gate runs then take about 3 minutes of real time early in the game, about one minute with pulsed fusion and 30 seconds with a torch. The propulsion arc changes the strategic map, which is the point.
-2. **Gate entry tolerance (new rule, candidate):** a gate accepts ships arriving at up to about 10 km/s relative to it. Without this, the workhorse drive can't reach any gate beyond about 1.5 AU. The tolerance fits "how gates work is unexplained", and it makes a readable stat: ships still have to brake on the far side, so arrival speed, not just travel time, is part of a gate run. Unmaintained gates could have a lower tolerance (the design document's reduced throughput). *Gates* (4) gives the in-world reason: the gate's field steadies arriving ships, and a degraded field steadies less.
+2. **Gate entry tolerance (new rule, candidate):** a gate accepts ships arriving at up to about 10 km/s relative to it. Without this, the workhorse drive can't reach any gate beyond about 1.5 AU. The tolerance fits "how gates work is unexplained", and it makes a readable stat: ships still have to brake on the far side, so arrival speed, not just travel time, is part of a gate run. Unmaintained gates could have a lower tolerance (the overview's reduced throughput). *Gates* (4) gives the in-world reason: the gate's field steadies arriving ships, and a degraded field steadies less.
 3. **Keep giants clear of the gate ring:** at least 5 Hill radii. A Jupiter-mass Morrow at 2.2 AU sweeps 1.38 to 3.03 AU, which rules out a 2 AU gate. Move Morrow to about 4 AU (or make it an ice giant), and have the generator apply the same rule everywhere.
 4. **Rejected for now:**
    - 3 AU: keeps Morrow, but 10-month NTR runs and a 459-day median make early gate work glacial.

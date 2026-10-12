@@ -2,7 +2,7 @@
 
 **In short:** the game has three nested spatial layers (cluster, system, planet) and a separate 2D administration view. The cluster and system views are a vector plotting display at true scale, with fixed-size markers; combat uses the same display with the clock slowed. Any object can be inspected in a semi-photoreal inset whose fidelity follows what the state knows. The camera is a map camera with limited tilt; selection (what you read about) and focus (what the camera tracks) are separate. Much of section 2 is now specced in `docs/spec/system-view.md`; this doc keeps the reasoning and what isn't specced yet.
 
-*Status:* draft. Companion to the design document; status tags as there (**Decided**, **Direction**, **Candidate**). Reference sketches: [Inspect & Planetary Transition](https://claude.ai/artifact/E8U8j7d2HdB5gGd1S1W5WR), a design canvas with the system view, inspect in place, transition storyboard, planetary view and inspection fidelity states. *Reference Sketches* describes it in words.
+*Status:* draft. Companion to the overview; status tags as there (**Decided**, **Direction**, **Candidate**). Reference sketches: [Inspect & Planetary Transition](https://claude.ai/artifact/E8U8j7d2HdB5gGd1S1W5WR), a design canvas with the system view, inspect in place, transition storyboard, planetary view and inspection fidelity states. *Reference Sketches* describes it in words.
 
 ---
 

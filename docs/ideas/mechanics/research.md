@@ -2,7 +2,7 @@
 
 **In short:** there is no tech tree and no research points. Salvage sites yield bulk material, discrete tech finds and lore. Progress means reverse engineering those finds: organisations and state labs build understanding per component type, and their reproductions start poor and improve with practice. Designs are objects with documentation levels, owners and lineages; capability is local and spreads by licensing or poaching, or is lost with an organisation.
 
-*Status:* draft. Status tags as in the design document (**Decided**, **Direction**, **Candidate**). Companion documents: *Design Document* (overview, pillar 2), *Component Catalogue*, *Component Stats & Ship Assembly* (section 6, the understanding scale), *Requirements & Bids* (1, the two design levels), *World Generator* (7, where sites are placed), *Characters, Organisations & Events*.
+*Status:* draft. Status tags as in the overview (**Decided**, **Direction**, **Candidate**). Companion documents: *Overview* (pillar 2), *Component Catalogue*, *Component Stats & Ship Assembly* (section 6, the understanding scale), *Requirements & Bids* (1, the two design levels), *World Generator* (7, where sites are placed), *Characters, Organisations & Events*.
 
 ---
 
