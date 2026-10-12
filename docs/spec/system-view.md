@@ -103,7 +103,7 @@ Shared formatting for every readout in the game, not tied to one panel. Figures 
 | ZOOM-11 | Ctrl+1 to Ctrl+4 save a bookmark (scale and centre, or the focused object); 1 to 4 recall it with the same animated move. | ✓ |
 | ZOOM-13 | Zoom is anchored on the focused object when there is one (CAM-05); otherwise on the point where the cursor's ray meets the orbital plane, or the screen centre for keyboard zoom (CAM-16). Selection never sets the anchor. The anchor keeps its screen position through the zoom. The anchored pivot is clamped to the pan bound (CAM-19); a ray that misses the plane anchors on the pivot. | ✓ |
 | ZOOM-14 | Hard limits: outer = system frame. Inner, with a body focused: the scale at which that body's true diameter spans `body_max_screen_fraction` of the map area's height. Inner, with nothing focused: a view radius of `min_view_radius_au`. Scrolling past a limit does nothing and never changes layer. | ✓ |
-| ZOOM-15 | There are two stops, computed per system from its real orbits: the **system frame** (all planetary orbits fit; gates stay as edge indicators) and, while a body with satellites is focused, its **satellite frame** (all its satellites fit). There are no other stops. | ✓ |
+| ZOOM-15 | There are two stops, computed per system from its real orbits: the **system frame** (all planetary orbits fit inside the map area, on both axes and in perspective, at the current tilt; gates stay as edge indicators) and, while a body with satellites is focused, its **satellite frame** (all its satellites fit). There are no other stops. | ✓ |
 | ZOOM-16 | Double-click on a body that is not focused selects it, focuses it (CAM-06) and frames it in one pan-and-zoom of `focus_jump_ms`. The frame is its satellite frame if it has satellites; otherwise its parent's satellite frame if it orbits a body; otherwise the inner limit (ZOOM-14). F does the same for the current selection, and the inset's Focus button for the inset's object. A body that can't be focused (CAM-24) is only selected. | ✓ |
 | ZOOM-17 | Double-click on the focused body selects it and is the planetary-view trigger. Until that view exists it calls a clearly named hook and does nothing visible. | ✓ |
 
@@ -127,7 +127,7 @@ Selection and focus may be different objects: for example, focus on Halden IV wh
 | CAM-05 | While an object is focused, the pivot is recomputed every frame as the object's position plus a pan offset, so the object keeps its place on screen at any time rate. The offset does not rotate with the object's orbit. The pivot and the markers use the same frame's positions. | ✓ |
 | CAM-06 | Focus is set only by double-click, F or the inset's Focus button (ZOOM-16), each with zero offset, and by recalling a bookmark. Zooming never sets focus. A bookmark (ZOOM-11) also stores heading, tilt and any focused object with its offset; recalling it restores all of them. | ✓ |
 | CAM-07 | Panning while focused changes the offset and does not end focus. The offset is clamped so the focused body stays at least `focus_keep_margin_px` inside the map area. | ✓ |
-| CAM-08 | Focus ends on: Home; a zoom that reaches the system frame (CAM-23); focusing another object (which becomes the focus); recalling a bookmark saved without a focused object; the × on the focus chip (CAM-09); and the body becoming unfocusable (CAM-24). Nothing else ends it: not selection, Esc, rotating, panning or zooming inside the system frame. | ✓ |
+| CAM-08 | Focus ends on: Home; a zoom that reaches the system frame (CAM-23); focusing another object (which becomes the focus); recalling a bookmark saved without a focused object; the × on the focus chip (CAM-09), which also moves the view to centre on the focused body's parent at its satellite frame (or the system frame over the star if the body orbits the star); and the body becoming unfocusable (CAM-24). Nothing else ends it: not selection, Esc, rotating, panning or zooming inside the system frame. | ✓ |
 | CAM-09 | While an object is focused, a chip under the breadcrumb reads "Focus: *name*" with a × that ends focus. | ✓ |
 | CAM-10 | Left drag pans: the point on the orbital plane under the cursor when the drag starts stays under the cursor throughout, with no inertia after release. A press and release that moves less than `drag_threshold_px` is a click, never a pan. A press that starts on the top bar or an inset never pans. Shift+left drag is reserved and does nothing. | ✓ |
 | CAM-11 | Middle drag pans exactly as CAM-10. | ✓ |
@@ -141,7 +141,7 @@ Selection and focus may be different objects: for example, focus on Halden IV wh
 | CAM-19 | The pivot never moves further than `pan_bound_factor` × the system frame radius from the star, whether panning freely or by offset while focused. | ✓ |
 | CAM-20 | Pan or rotate input during an animated move (ZOOM-10, ZOOM-11, ZOOM-16, CAM-03) ends the move and takes over from the camera's current state, with no jump. | ✓ |
 | CAM-23 | A zoom-out step that reaches the system frame also eases the pivot to the star and the tilt to `standard_tilt_deg`, within the same zoom animation. The heading is kept. This happens whether or not anything was focused. | ✓ |
-| CAM-24 | An object in exposure-ring mode (MOT-02) can't be focused, and the inset's Focus button is disabled while it is in that mode. If the focused object enters ring mode, focus moves to its parent (or the nearest ancestor not in ring mode, or ends at the star), with the offset that keeps the view where it is. Focus never moves back when the object leaves ring mode. | ✓ |
+| CAM-24 | An object in exposure-ring mode (MOT-02) can't be focused, and the inset's Focus button is disabled while it is in that mode. If the focused object enters ring mode, focus moves to its parent (or the nearest ancestor not in ring mode) and the view moves to frame it as a focus jump does (ZOOM-16); if there is none, focus ends and the view returns to the system frame over the star. Focus never moves back when the object leaves ring mode. | ✓ |
 | CAM-22 | The focused object's marker carries four corner brackets in the neutral colour (MRK-01), so focus is never mistaken for the white selection ring. The bracket box encloses the selection ring's size (whether or not the ring is showing) with `focus_bracket_margin_px` to spare on each side. | |
 
 ## 6. Satellite grouping
@@ -211,10 +211,10 @@ All in the `Tunables` resource (`src/view/tunables.rs`). Defaults are starting v
 | `zoom_fit_margin` | 0.8 | ZOOM-15 |
 | `min_view_radius_au` | 0.05 AU | ZOOM-14 |
 | `body_max_screen_fraction` | 0.25 | ZOOM-14 |
-| `standard_tilt_deg` | 20° | CAM-02, CAM-23 |
+| `standard_tilt_deg` | 60° | CAM-02, CAM-23 |
 | `focus_keep_margin_px` | 40 px | CAM-07 |
 | `double_click_window_ms` | 350 | INS-05 |
-| `max_pitch_deg` | 65° | CAM-01, CAM-12, CAM-15 |
+| `max_pitch_deg` | 85° | CAM-01, CAM-12, CAM-15 |
 | `drag_threshold_px` | 4 px | INS-01, CAM-10, CAM-13 |
 | `rotate_deg_per_px` | 0.25 | CAM-12 |
 | `key_pan_screen_per_s` | 0.6 | CAM-14, CAM-17 |
