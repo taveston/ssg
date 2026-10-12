@@ -36,6 +36,8 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - `focus_bracket_px` becomes `focus_bracket_margin_px` (F5-08 described the built behaviour; keep it, just as a margin).
 - [ ] **Placeholder knowledge images** · INS-04, TEST-04
   - Remove the stale state, its sepia image and all status text and dates from the inset. Lantern no longer needs stale data.
+- [ ] **Astronomical facts in the inset** · INS-08, UNIT-01 to UNIT-03
+  - Needs SCL-05 (body radii) from "Deliberate focus and two-stop zoom" first.
 - [ ] **FPS debug readout** · CLK-06
   - Add the toggle binding to the bindings resource (CAM-18).
 - [ ] **Ideology profile** · IDEO-01 to IDEO-31

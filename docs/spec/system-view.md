@@ -2,7 +2,7 @@
 
 **In short:** one star system drawn as a vector display at true scale, with fixed-size markers; ships and stations use NATO-style symbols. Clicking selects an object and opens an inspection inset; focus locks the camera onto an object. Zoom is stepped, with two stops: the whole system and the focused body's satellites. Focus is only ever set deliberately. Satellites fold into their parent when their orbits get small on screen, and fast orbits are drawn as exposure rings. Corvane is the test system.
 
-*Scope:* scale, clock, markers, ship and station symbols, inspection, zoom, camera, satellite grouping, the motion rule and the Corvane test system. *Source ideas:* `docs/ideas/presentation/presentation.md` (section 2), `docs/ideas/presentation/presentation-sketches.md` (boards 1, 2, 5, 6), `docs/ideas/presentation/symbology.md` (symbols), mock-ups in `docs/ideas/presentation/mockups/`. Where a mock-up and this spec disagree, this spec wins.
+*Scope:* scale, clock, markers, units in readouts, ship and station symbols, inspection, zoom, camera, satellite grouping, the motion rule and the Corvane test system. *Source ideas:* `docs/ideas/presentation/presentation.md` (section 2), `docs/ideas/presentation/presentation-sketches.md` (boards 1, 2, 5, 6), `docs/ideas/presentation/symbology.md` (symbols), mock-ups in `docs/ideas/presentation/mockups/`. Where a mock-up and this spec disagree, this spec wins.
 
 *How to read it:* each requirement has a stable ID. **Built** is ✓ once the requirement is in the code. Numbers in `code` are tunables (table at the end), read from `src/view/tunables.rs`, never hard-coded.
 
@@ -79,7 +79,18 @@ Ships and stations are drawn as symbols adapted from NATO APP-6: the **frame** s
 | INS-04 | The inset image is a placeholder for the knowledge state: **surveyed** = clean render; **unsurveyed** = grainy telescope frame. There is no status text or date, and no stale state, until information gathering is designed. | |
 | INS-05 | The inset of a body with satellites has an "In orbit" list: one entry per satellite (its symbol per section 3a at `list_symbol_px`, or the body disc, and its name), in orbit order from the inside out. Clicking an entry selects that satellite (its inset replaces the parent's unless pinned) once `double_click_window_ms` passes without a second click; double-clicking it behaves as ZOOM-16 and ZOOM-17. | |
 | INS-07 | The inset is placed `inset_offset_px` from its anchor (the marker, or as INS-06 and MOT-09 say), clear of the marker and its label. It is kept wholly inside the map area (below the top bar); when clamped, it stays as close to that placement as fits. The leader line runs from the anchor to the inset's nearest edge in horizontal and vertical segments with one right-angled bend. | |
+| INS-08 | A body's inset lists, in its key facts: **Orbit** (distance to its parent, UNIT-01) and **Period** (UNIT-02); for the star, **Mass** in solar masses to 2 decimals instead; and **Mean radius** (UNIT-01, from SCL-05). | |
 | INS-06 | When the selected object is folded into its parent (GRP-01), its inset's leader line goes to the parent's pill, and the pill carries the white selection ring. When the object unfolds, both move to its own marker without a jump. | ✓ |
+
+## 4a. Units in readouts
+
+Shared formatting for every readout in the game, not tied to one panel. Figures are in JetBrains Mono (MRK-02).
+
+| ID | Requirement | Built |
+|---|---|---|
+| UNIT-01 | A distance is shown in km below `distance_au_threshold_au`, and in AU at or above it, to 3 significant figures, with thousands separators (for example "850 km", "182,000 km", "0.362 AU", "12.4 AU"). | |
+| UNIT-02 | A duration is shown in the largest unit it reaches, to 3 significant figures: minutes ("42.0 min"), hours ("5.30 h"), days ("31.2 d") or years of 365.25 days ("2.40 y"). | |
+| UNIT-03 | Distances and durations are formatted by one shared module that any panel calls; no panel formats them itself. *Checked in review.* | |
 
 ## 5. Navigation and zoom
 
@@ -216,6 +227,7 @@ All in the `Tunables` resource (`src/view/tunables.rs`). Defaults are starting v
 | `focus_bracket_margin_px` | 2 px | CAM-22 |
 | `min_hit_radius_px` | 10 px | MRK-08 |
 | `inset_offset_px` | 48 px | INS-07 |
+| `distance_au_threshold_au` | 0.01 AU | UNIT-01 |
 | `ship_symbol_px` | 22 px | SYM-04, SYM-12, SYM-14 |
 | `list_symbol_px` | 14 px | INS-05 |
 | `symbol_stroke_px` | 1.6 px | SYM-02 |
