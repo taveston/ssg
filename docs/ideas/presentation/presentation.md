@@ -28,7 +28,7 @@ The first three are spatial layers, nested from cluster down to planet. Faction 
   - How gate distance is shown on screen is left open until gate placement is tuned (section 6).
 - **Inspection view (decided):** highlighting any object expands it into a semi-photoreal view. This applies to everything: bodies, stations, gates, sites and ships. Ships appear as blips because of the distances involved, not because they are kept abstract.
   - **Presentation (candidate):** the view expands in place as an inset anchored to the marker, with the vector display still visible around it. Insets can be pinned to compare objects side by side. (Specced: INS-01 to INS-03.)
-  - **Fidelity follows knowledge (candidate):** the view shows the best image the state holds. An unsurveyed body is a grainy telescope frame. A surveyed one is a clean render with overlays (ice, ruins, settlements). An old observation shows the last image with its date. Own ships and stations render fully; foreign contacts only as well as they have been observed. This ties the visuals to the uncertainty pillar and to partly known salvage sites (design document, 4.5). (Specced for bodies and sites: INS-04; foreign contacts not yet.)
+  - **Fidelity follows knowledge (candidate):** the view shows the best image the state holds. An unsurveyed body is a grainy telescope frame. A surveyed one is a clean render with overlays (ice, ruins, settlements). An old observation shows the last image with its date. Own ships and stations render fully; foreign contacts only as well as they have been observed. This ties the visuals to the uncertainty pillar and to partly known salvage sites (design document, 4.5). (Only placeholder surveyed and unsurveyed images are specced, INS-04: how information is gathered isn't designed yet, so there is no stale state, status text or date. Foreign contacts not yet.)
   - **Renders from designs (candidate):** ship and station renders are assembled from their component designs. So two bids for the same requirements look visibly different, and as-built variants and refits show.
 - **Information model (decided):** the player has a semi-omniscient view. Signal delay isn't modelled: what the state knows, the player sees at once, in every system.
 - **Abstract uncertainty (candidate):** limits on knowledge are modelled abstractly rather than through physics.
@@ -90,7 +90,7 @@ The first three are spatial layers, nested from cluster down to planet. Faction 
 - **Cluster view camera (direction):** the cluster map is 3D, but shallow. The same camera model applies, with the pivot on the cluster's mean plane. Tilt there carries real information, so it may want a wider range. Because depth is shallow, drop lines from each system to the mean plane (or a faint plane grid) could make height readable at a glance (candidate).
 - **Gamepad and touch (candidate):** every camera action should be reachable without a mouse.
   - Gamepad: left stick pans, right stick rotates and tilts, triggers step zoom, shoulders cycle selection, and a virtual cursor picks.
-  - Touch: one-finger drag pans, pinch zooms (ZOOM-07), two-finger twist rotates, two-finger vertical drag tilts, double-tap stands in for double-click.
+  - Touch: one-finger drag pans, pinch zooms, two-finger twist rotates, two-finger vertical drag tilts, double-tap stands in for double-click.
   - Nothing should be reachable only by hover: HOV-01's tooltip content also needs a home in the inset.
 
 ## 3. Planetary view
