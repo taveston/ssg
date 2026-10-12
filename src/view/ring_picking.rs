@@ -178,7 +178,7 @@ mod tests {
     /// MOT-05 (F4-14): a ring is hittable anywhere along its length, not
     /// only at a few points round it.
     #[test]
-    fn mot_05_a_ring_is_hit_anywhere_along_it() {
+    fn a_ring_is_hit_anywhere_along_it() {
         let mut world = World::new();
         let (ring, segments) = square(&mut world, 200.0);
         let mut paths = RingPaths::default();
@@ -198,7 +198,7 @@ mod tests {
 
     /// MOT-05: where two rings are both within reach, the closer wins.
     #[test]
-    fn mot_05_the_nearer_of_two_rings_wins() {
+    fn the_nearer_of_two_rings_wins() {
         let mut world = World::new();
         let (inner, inner_segments) = square(&mut world, 100.0);
         let (outer, outer_segments) = square(&mut world, 106.0);

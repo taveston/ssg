@@ -316,7 +316,7 @@ mod tests {
     /// TEST-02: the satellite periods the motion rule is tuned against, so
     /// both modes are visible at 1 d/s.
     #[test]
-    fn test_02_halden_iv_satellite_periods() {
+    fn halden_iv_satellite_periods() {
         let halden = planet("Halden IV");
         for (name, expected) in [
             ("Arden Highport", 0.1),
@@ -338,7 +338,7 @@ mod tests {
     /// straddles both motion thresholds at 1 d/s (ring under 20 s, dot at
     /// or over 25 s), which is the whole point of these values.
     #[test]
-    fn test_02_periods_straddle_both_motion_modes_at_one_day_per_second() {
+    fn periods_straddle_both_motion_modes_at_one_day_per_second() {
         let halden = planet("Halden IV");
         assert!(satellite_period_days(&halden, "Arden Highport") < 20.0);
         assert!(satellite_period_days(&halden, "Halden IVa") < 20.0);
@@ -349,7 +349,7 @@ mod tests {
 
     /// TEST-01 / TEST-03: the bodies the other checks lean on are present.
     #[test]
-    fn test_01_and_03_corvane_contains_the_required_bodies() {
+    fn corvane_contains_the_required_bodies() {
         let system = hand_made_system();
         let planet_names: Vec<&str> = system.planets.iter().map(|p| p.name).collect();
         for name in ["Pell", "Iver", "Halden IV", "Morrow"] {

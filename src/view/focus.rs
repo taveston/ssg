@@ -55,7 +55,7 @@ mod tests {
     /// CAM-05: the pivot is the object's position plus the offset, and the
     /// offset is not turned by where the object is in its orbit.
     #[test]
-    fn cam_05_pivot_is_position_plus_offset() {
+    fn pivot_is_position_plus_offset() {
         let offset = Vec3::new(2.0, 0.0, -1.0);
         for position in [Vec3::new(180.0, 0.0, 0.0), Vec3::new(0.0, 0.0, -180.0)] {
             assert_eq!(focused_pivot(position, offset), position + offset);
@@ -63,8 +63,9 @@ mod tests {
         assert_eq!(focused_pivot(Vec3::ONE, Vec3::ZERO), Vec3::ONE);
     }
 
+    /// Covers ZOOM-17.
     #[test]
-    fn zoom_17_is_on_names_the_focused_body() {
+    fn focus_is_on_only_the_focused_body() {
         let mut world = World::new();
         let [body, other] = [(); 2].map(|_| world.spawn_empty().id());
         let focus = Focus {
@@ -79,7 +80,7 @@ mod tests {
     /// CAM-19 while focused: the offset is cut back so body plus offset
     /// stays on the bound.
     #[test]
-    fn cam_19_focused_offset_stays_within_the_pan_bound() {
+    fn focused_offset_stays_within_the_pan_bound() {
         let body = Vec3::new(90.0, 0.0, 0.0);
         let offset = clamp_offset_to_pan_bound(body, Vec3::new(50.0, 0.0, 0.0), 100.0);
         assert!((offset - Vec3::new(10.0, 0.0, 0.0)).length() < 1e-4);
@@ -90,7 +91,7 @@ mod tests {
     /// CAM-19: inside the bound the pivot is untouched; outside, it stops on
     /// the bound in the same direction.
     #[test]
-    fn cam_19_pivot_stays_within_the_pan_bound() {
+    fn pivot_stays_within_the_pan_bound() {
         let inside = Vec3::new(30.0, 0.0, 40.0);
         assert_eq!(clamp_to_pan_bound(inside, 100.0), inside);
         let outside = Vec3::new(300.0, 0.0, 400.0);

@@ -211,7 +211,7 @@ mod tests {
     /// ZOOM-01: one notch is exactly one factor of two, in either
     /// direction, and notches compose.
     #[test]
-    fn zoom_01_one_notch_is_one_step_factor() {
+    fn one_notch_is_one_step_factor() {
         assert_eq!(stepped_distance(100.0, 1.0, STEP_FACTOR), 50.0);
         assert_eq!(stepped_distance(100.0, -1.0, STEP_FACTOR), 200.0);
         assert_eq!(stepped_distance(100.0, 3.0, STEP_FACTOR), 12.5);
@@ -221,7 +221,7 @@ mod tests {
     /// ZOOM-01: a step in and a step out return to where they started, so
     /// stepping can't drift.
     #[test]
-    fn zoom_01_stepping_in_and_out_round_trips() {
+    fn stepping_in_and_out_round_trips() {
         let start = 37.5_f32;
         let there = stepped_distance(start, 1.0, STEP_FACTOR);
         let back = stepped_distance(there, -1.0, STEP_FACTOR);
@@ -231,7 +231,7 @@ mod tests {
     /// ZOOM-01: raw wheel deltas are never used. A device reporting pixels
     /// must not turn one event into dozens of steps (F4-11).
     #[test]
-    fn zoom_01_pixel_scroll_is_converted_not_used_raw() {
+    fn pixel_scroll_is_converted_not_used_raw() {
         // A line-unit device reports notches directly.
         assert_eq!(notches_from_scroll(1.0, false), 1.0);
         assert_eq!(notches_from_scroll(-2.0, false), -2.0);
@@ -247,7 +247,7 @@ mod tests {
     /// ZOOM-05: zooming in from the system frame towards a satellite frame
     /// stops at the region frame on the way.
     #[test]
-    fn zoom_05_step_settles_on_a_stop_it_would_skip() {
+    fn step_settles_on_a_stop_it_would_skip() {
         let stops = [1.0_f32, 40.0, 180.0];
         // 200 -> 100 would skip the 180 stop.
         assert_eq!(first_stop_crossed(200.0, 100.0, &stops), Some(180.0));
@@ -258,14 +258,15 @@ mod tests {
     /// ZOOM-05: a step that crosses two stops takes the nearer one, so no
     /// stop is ever skipped.
     #[test]
-    fn zoom_05_takes_the_nearest_stop_in_the_direction_of_travel() {
+    fn takes_the_nearest_stop_in_the_direction_of_travel() {
         let stops = [50.0_f32, 90.0];
         assert_eq!(first_stop_crossed(100.0, 10.0, &stops), Some(90.0));
         assert_eq!(first_stop_crossed(10.0, 100.0, &stops), Some(50.0));
     }
 
+    /// Covers ZOOM-05.
     #[test]
-    fn zoom_05_no_stop_in_the_way_means_a_plain_step() {
+    fn no_stop_in_the_way_means_a_plain_step() {
         let stops = [1.0_f32, 180.0];
         assert_eq!(first_stop_crossed(100.0, 50.0, &stops), None);
         assert_eq!(first_stop_crossed(100.0, 100.0, &stops), None);
@@ -275,21 +276,22 @@ mod tests {
     /// ZOOM-05: a stop the step lands exactly on, or starts from, is not
     /// "crossed" - otherwise sitting on a stop would snag every step.
     #[test]
-    fn zoom_05_endpoints_are_not_crossings() {
+    fn endpoints_are_not_crossings() {
         let stops = [50.0_f32, 100.0];
         assert_eq!(first_stop_crossed(100.0, 50.0, &stops), None);
         assert_eq!(first_stop_crossed(100.0, 25.0, &stops), Some(50.0));
     }
 
+    /// Covers ZOOM-05.
     #[test]
-    fn zoom_05_landing_on_a_stop_takes_longer() {
+    fn landing_on_a_stop_takes_longer() {
         assert_eq!(step_duration_ms(ANIM_MS, RESISTANCE, false), 200.0);
         assert!((step_duration_ms(ANIM_MS, RESISTANCE, true) - 270.0).abs() < 1e-4);
     }
 
     /// ZOOM-01: the step animates with ease-out and ends exactly on target.
     #[test]
-    fn zoom_01_animation_eases_out_onto_the_target() {
+    fn animation_eases_out_onto_the_target() {
         let (start, target, duration) = (200.0_f32, 100.0, 0.2);
         assert_eq!(animated_distance(start, target, 0.0, duration), start);
         assert_eq!(animated_distance(start, target, duration, duration), target);
@@ -307,7 +309,7 @@ mod tests {
     /// ZOOM-01 / ZOOM-05: a plain step is one factor; a step over a stop
     /// lands on it and takes longer.
     #[test]
-    fn zoom_05_planned_step_settles_on_stops() {
+    fn planned_step_settles_on_stops() {
         let plain = plan_zoom_step(100.0, 1.0, &[], 0.0, 1000.0, SETTINGS);
         assert_eq!(
             plain,
@@ -322,8 +324,9 @@ mod tests {
     }
 
     /// Scrolling past a limit does nothing: the step stops at the limit.
+    /// Covers ZOOM-01.
     #[test]
-    fn zoom_01_planned_step_stops_at_the_limits() {
+    fn planned_step_stops_at_the_limits() {
         assert_eq!(
             plan_zoom_step(100.0, -1.0, &[], 1.0, 150.0, SETTINGS).target,
             150.0
@@ -340,8 +343,9 @@ mod tests {
 
     /// The anchor keeps its place: scaling the distance scales the anchor's
     /// offset from the centre by the same factor.
+    /// Covers ZOOM-13.
     #[test]
-    fn zoom_13_anchor_keeps_its_place_on_screen() {
+    fn anchor_keeps_its_place_on_screen() {
         let anchor = Vec3::new(10.0, 0.0, 0.0);
         let centre = Vec3::ZERO;
         assert_eq!(
@@ -355,7 +359,7 @@ mod tests {
     /// ZOOM-13: focus first, then the cursor's plane point, then the pivot;
     /// selection never comes into it.
     #[test]
-    fn zoom_13_anchor_order() {
+    fn zoom_anchor_prefers_focus_then_cursor_then_pivot() {
         let (focus, cursor, pivot) = (Vec3::X, Vec3::Y, Vec3::Z);
         assert_eq!(zoom_anchor(Some(focus), Some(cursor), pivot), focus);
         assert_eq!(zoom_anchor(None, Some(cursor), pivot), cursor);
@@ -367,8 +371,9 @@ mod tests {
         [world.spawn_empty().id(), world.spawn_empty().id()]
     }
 
+    /// Covers ZOOM-14.
     #[test]
-    fn zoom_14_nearest_body_to_the_anchor() {
+    fn nearest_body_to_the_anchor() {
         let [near, far] = entities();
         let candidates = [
             (far, Vec3::new(50.0, 0.0, 0.0)),
@@ -386,7 +391,7 @@ mod tests {
     /// CAM-08: focus survives zooming that stays inside the system frame,
     /// and ends on a step that reaches it.
     #[test]
-    fn cam_08_reaching_the_system_frame_ends_focus() {
+    fn reaching_the_system_frame_ends_focus() {
         let [body, _] = entities();
         let some = Some(body);
         assert_eq!(
@@ -406,7 +411,7 @@ mod tests {
     /// CAM-21: with nothing focused, only a step in past the region frame
     /// focuses - not one that lands on it, nor one zooming out.
     #[test]
-    fn cam_21_zooming_in_past_the_region_frame_focuses() {
+    fn zooming_in_past_the_region_frame_focuses() {
         let [body, _] = entities();
         let some = Some(body);
         assert_eq!(
@@ -431,7 +436,7 @@ mod tests {
     /// distance rather than queueing behind the step in flight - so the new
     /// step starts exactly where the view is, with no jump and no stutter.
     #[test]
-    fn zoom_02_new_input_retargets_from_the_current_scale() {
+    fn new_input_retargets_from_the_current_scale() {
         let duration = 0.2;
         let first_target = stepped_distance(200.0, 1.0, STEP_FACTOR);
         let interrupted_at = animated_distance(200.0, first_target, 0.08, duration);

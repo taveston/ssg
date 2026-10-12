@@ -184,7 +184,7 @@ mod tests {
     /// CAM-06: a bookmark restores the whole view, and any focus with its
     /// offset.
     #[test]
-    fn cam_06_bookmark_restores_heading_tilt_and_focus() {
+    fn bookmark_restores_heading_tilt_and_focus() {
         let mut world = World::new();
         let body = world.spawn_empty().id();
         let rig = CameraRig {

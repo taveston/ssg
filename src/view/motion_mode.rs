@@ -112,8 +112,9 @@ mod tests {
     const T_RING: f32 = 20.0;
     const T_DOT: f32 = 25.0;
 
+    /// Covers MOT-03.
     #[test]
-    fn mot_03_ring_below_t_ring_and_dot_above_t_dot() {
+    fn ring_below_t_ring_and_dot_above_t_dot() {
         assert!(next_ring_mode(19.9, false, T_RING, T_DOT));
         assert!(next_ring_mode(0.1, false, T_RING, T_DOT));
         assert!(!next_ring_mode(25.0, true, T_RING, T_DOT));
@@ -122,16 +123,18 @@ mod tests {
 
     /// Between the thresholds the mode is kept, so an object drifting
     /// across the band doesn't switch back and forth.
+    /// Covers MOT-03.
     #[test]
-    fn mot_03_keeps_mode_between_thresholds() {
+    fn keeps_mode_between_thresholds() {
         for apparent in [20.0_f64, 22.5, 24.9] {
             assert!(next_ring_mode(apparent, true, T_RING, T_DOT));
             assert!(!next_ring_mode(apparent, false, T_RING, T_DOT));
         }
     }
 
+    /// Covers MOT-03.
     #[test]
-    fn mot_03_no_flicker_on_a_round_trip_through_the_band() {
+    fn no_flicker_on_a_round_trip_through_the_band() {
         let mut ring = false;
         for apparent in [30.0_f64, 25.0, 24.0, 21.0, 20.0] {
             ring = next_ring_mode(apparent, ring, T_RING, T_DOT);
@@ -150,14 +153,14 @@ mod tests {
     /// MOT-04: pause is an infinite apparent period, which must fall out of
     /// the same rule rather than needing a special case.
     #[test]
-    fn mot_04_pause_gives_dot_mode() {
+    fn pause_gives_dot_mode() {
         assert!(!next_ring_mode(f64::INFINITY, true, T_RING, T_DOT));
     }
 
     /// MOT-03 against the real test content: IVc flips mode between the two
     /// rates the validation checklist calls for (31 s at 1 d/s, 6.2 s at 5).
     #[test]
-    fn mot_03_ivc_changes_mode_between_rates() {
+    fn ivc_changes_mode_between_rates() {
         let period_days = 31.0;
         assert!(!next_ring_mode(period_days / 1.0, false, T_RING, T_DOT));
         assert!(next_ring_mode(period_days / 5.0, false, T_RING, T_DOT));
@@ -166,7 +169,7 @@ mod tests {
     /// MOT-01: the apparent period is the orbital period divided by the
     /// rate, so the same orbit reads differently at 1 d/s and 5 d/s.
     #[test]
-    fn mot_01_apparent_period_divides_by_the_time_rate() {
+    fn apparent_period_divides_by_the_time_rate() {
         assert_eq!(apparent_period_secs(31.0, 1.0, false), 31.0);
         assert_eq!(apparent_period_secs(31.0, 5.0, false), 6.2);
         assert_eq!(apparent_period_secs(0.1, 1.0, false), 0.1);
@@ -175,7 +178,7 @@ mod tests {
     /// MOT-04: pause (and a rate of zero, which is the same thing) gives an
     /// infinite apparent period - the dot branch, with no special case.
     #[test]
-    fn mot_04_paused_time_gives_an_infinite_apparent_period() {
+    fn paused_time_gives_an_infinite_apparent_period() {
         assert!(apparent_period_secs(31.0, 1.0, true).is_infinite());
         assert!(apparent_period_secs(31.0, 0.0, false).is_infinite());
         assert!(!next_ring_mode(
@@ -188,7 +191,7 @@ mod tests {
 
     /// MOT-03: the cross-fade climbs to 1 and stays there.
     #[test]
-    fn mot_03_crossfade_runs_to_one_and_stops() {
+    fn crossfade_runs_to_one_and_stops() {
         assert!((advance_crossfade(0.0, 0.25) - 0.25).abs() < 1e-6);
         assert_eq!(advance_crossfade(0.9, 0.25), 1.0);
         assert_eq!(advance_crossfade(1.0, 0.25), 1.0);
@@ -198,7 +201,7 @@ mod tests {
     /// period, which is what makes it read the same on a 0.1 d station orbit
     /// and a 68 d moon orbit.
     #[test]
-    fn mot_01_trail_covers_a_fixed_arc_of_the_orbit() {
+    fn trail_covers_a_fixed_arc_of_the_orbit() {
         for period in [0.1_f64, 1.5, 31.0, 68.0] {
             let span = trail_span_days(period, 30.0);
             assert!(
@@ -211,7 +214,7 @@ mod tests {
     /// MOT-01: the samples divide that arc evenly, and a longer orbit is
     /// sampled proportionally less often.
     #[test]
-    fn mot_01_trail_samples_divide_the_arc_evenly() {
+    fn trail_samples_divide_the_arc_evenly() {
         let interval = trail_sample_interval_days(36.0, 30.0, 16);
         assert!((interval - 3.0 / 16.0).abs() < 1e-9);
         assert_eq!(
@@ -225,7 +228,7 @@ mod tests {
     /// elapsed days) never takes another sample, and an empty trail pool
     /// can't divide by zero.
     #[test]
-    fn mot_01_trail_sampling_is_driven_by_simulated_days() {
+    fn trail_sampling_is_driven_by_simulated_days() {
         let interval = trail_sample_interval_days(31.0, 30.0, 16);
         assert!(
             !should_sample(10.0, 10.0, interval),
@@ -239,7 +242,7 @@ mod tests {
 
     /// MOT-01: the trail fades from the body backwards.
     #[test]
-    fn mot_01_trail_fades_from_newest_to_oldest() {
+    fn trail_fades_from_newest_to_oldest() {
         assert_eq!(trail_dot_fade(0, 16), 1.0);
         assert!(trail_dot_fade(8, 16) < trail_dot_fade(4, 16));
         assert!(trail_dot_fade(15, 16) > 0.0, "the oldest dot still shows");

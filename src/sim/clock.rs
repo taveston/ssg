@@ -81,7 +81,7 @@ mod tests {
 
     /// CLK-01: the default is one game day per real second.
     #[test]
-    fn clk_01_default_rate_is_one_day_per_second() {
+    fn default_rate_is_one_day_per_second() {
         let mut clock = GameClock::default();
         assert_eq!(clock.rate_days_per_sec(), 1.0);
         clock.advance(2.0);
@@ -90,7 +90,7 @@ mod tests {
 
     /// CLK-01: the rate scales elapsed time, nothing else.
     #[test]
-    fn clk_01_rate_scales_elapsed_days() {
+    fn rate_scales_elapsed_days() {
         let mut clock = GameClock::default();
         clock.run_at(5.0);
         clock.advance(2.0);
@@ -100,7 +100,7 @@ mod tests {
     /// CLK-04: pausing stops the clock, and resuming carries on from where
     /// it stopped rather than catching up.
     #[test]
-    fn clk_04_pause_stops_the_clock_without_losing_time() {
+    fn pause_stops_the_clock_without_losing_time() {
         let mut clock = GameClock::default();
         clock.advance(3.0);
         clock.toggle_pause();
@@ -113,7 +113,7 @@ mod tests {
 
     /// CLK-03: halving stops at 1/16 d/s; doubling is unbounded.
     #[test]
-    fn clk_03_rate_halves_down_to_one_sixteenth() {
+    fn rate_halves_down_to_one_sixteenth() {
         let mut clock = GameClock::default();
         for _ in 0..10 {
             clock.halve_rate();
@@ -126,7 +126,7 @@ mod tests {
     /// CLK-02: picking a rate also resumes, so the buttons can't leave the
     /// clock paused at a rate it isn't running.
     #[test]
-    fn clk_02_choosing_a_rate_resumes() {
+    fn choosing_a_rate_resumes() {
         let mut clock = GameClock::default();
         clock.toggle_pause();
         clock.run_at(5.0);

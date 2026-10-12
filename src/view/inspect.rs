@@ -549,7 +549,7 @@ mod tests {
 
     /// INS-02 (F4-09): classes read as words, not enum names.
     #[test]
-    fn ins_02_class_names_are_readable() {
+    fn class_names_are_readable() {
         assert_eq!(class_label(BodyClass::SalvageSite), "Salvage site");
         assert_eq!(class_label(BodyClass::Planet), "Planet");
         assert!(
@@ -561,7 +561,7 @@ mod tests {
 
     /// INS-04: surveyed is a clean render with the survey date.
     #[test]
-    fn ins_04_surveyed_shows_the_date() {
+    fn surveyed_shows_the_date() {
         let (status, tone, image) = knowledge_status(&Knowledge::Surveyed { imaged_day: 0.0 });
         assert_eq!(status, "SURVEYED · 14 Mar 2341");
         assert_eq!(tone, StatusTone::Surveyed);
@@ -570,7 +570,7 @@ mod tests {
 
     /// INS-04: unsurveyed is a telescope frame, in orange.
     #[test]
-    fn ins_04_unsurveyed_is_a_telescope_frame_in_orange() {
+    fn unsurveyed_is_a_telescope_frame_in_orange() {
         let (status, tone, image) = knowledge_status(&Knowledge::Unsurveyed);
         assert_eq!(status, "TELESCOPE FRAME · UNSURVEYED");
         assert_eq!(tone.color(), colors::FOREIGN);
@@ -580,7 +580,7 @@ mod tests {
     /// INS-04: stale is a sepia image with the last-imaged line (which
     /// gives the time since, not the date: F4-10).
     #[test]
-    fn ins_04_stale_is_sepia_and_last_imaged() {
+    fn stale_is_sepia_and_last_imaged() {
         let (status, tone, image) = knowledge_status(&Knowledge::Stale {
             last_imaged_day: -1_006.0,
         });

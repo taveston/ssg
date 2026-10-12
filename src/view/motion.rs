@@ -324,7 +324,7 @@ mod tests {
     /// MOT-01: dot 15 is the newest sample, dot 0 the oldest, and a trail
     /// still filling up leaves its oldest dots empty.
     #[test]
-    fn mot_01_trail_dots_map_onto_samples_newest_last() {
+    fn trail_dots_map_onto_samples_newest_last() {
         assert_eq!(trail_sample_for_dot(15, 16, 16), Some(15));
         assert_eq!(trail_sample_for_dot(0, 16, 16), Some(0));
         assert_eq!(trail_sample_for_dot(15, 3, 16), Some(2));
@@ -335,7 +335,7 @@ mod tests {
 
     /// MOT-01: the trail keeps the newest samples and drops the oldest.
     #[test]
-    fn mot_01_trail_keeps_only_the_newest_samples() {
+    fn trail_keeps_only_the_newest_samples() {
         let mut samples = Vec::new();
         for i in 0..20 {
             push_trail_sample(&mut samples, Vec3::splat(i as f32), 16);

@@ -79,7 +79,7 @@ mod tests {
     /// ZOOM-01: ease-out means most of the travel happens early, and the
     /// ends are exact so a step settles precisely on its target.
     #[test]
-    fn zoom_01_ease_out_is_front_loaded_and_exact_at_the_ends() {
+    fn ease_out_is_front_loaded_and_exact_at_the_ends() {
         assert_eq!(ease_out_cubic(0.0), 0.0);
         assert_eq!(ease_out_cubic(1.0), 1.0);
         assert!(ease_out_cubic(0.5) > 0.5, "ease-out leads the linear ramp");
@@ -92,8 +92,9 @@ mod tests {
         }
     }
 
+    /// Covers ZOOM-01.
     #[test]
-    fn zoom_01_ease_out_clamps_outside_the_unit_range() {
+    fn ease_out_clamps_outside_the_unit_range() {
         assert_eq!(ease_out_cubic(-1.0), 0.0);
         assert_eq!(ease_out_cubic(2.0), 1.0);
     }

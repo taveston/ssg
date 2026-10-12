@@ -141,7 +141,7 @@ mod tests {
     /// GRP-01 / GRP-03: a satellite only stops drawing once it has folded
     /// and slid all the way in.
     #[test]
-    fn grp_03_fully_folded_waits_for_the_slide() {
+    fn fully_folded_waits_for_the_slide() {
         assert!(fully_folded(true, 0.0));
         assert!(!fully_folded(true, 0.4), "still sliding in");
         assert!(!fully_folded(false, 0.0), "starting to slide out");
@@ -150,7 +150,7 @@ mod tests {
     /// GRP-01: a moon of a folded moon is hidden even if its own orbit is
     /// large enough to show; folding stops at a planet.
     #[test]
-    fn grp_01_satellites_of_folded_satellites_stay_hidden() {
+    fn satellites_of_folded_satellites_stay_hidden() {
         let mut world = World::new();
         let [planet, moon, submoon, other] = [(); 4].map(|_| world.spawn_empty().id());
         let mut satellites = HashMap::new();
@@ -164,30 +164,34 @@ mod tests {
         assert!(!hidden.contains_key(&planet));
     }
 
+    /// Covers GRP-01.
     #[test]
-    fn grp_01_no_satellites_means_nothing_hidden() {
+    fn no_satellites_means_nothing_hidden() {
         assert!(hidden_by_ancestry(&HashMap::new()).is_empty());
     }
 
     const UNFOLD_AT: f32 = 24.0;
     const FOLD_BELOW: f32 = 20.0;
 
+    /// Covers GRP-01.
     #[test]
-    fn grp_01_unfolds_at_or_above_r_show() {
+    fn unfolds_at_or_above_r_show() {
         assert!(!next_folded(UNFOLD_AT, true, UNFOLD_AT, FOLD_BELOW));
         assert!(!next_folded(100.0, true, UNFOLD_AT, FOLD_BELOW));
     }
 
+    /// Covers GRP-01.
     #[test]
-    fn grp_01_folds_below_fold_threshold() {
+    fn folds_below_fold_threshold() {
         assert!(next_folded(FOLD_BELOW - 0.01, false, UNFOLD_AT, FOLD_BELOW));
         assert!(next_folded(0.0, false, UNFOLD_AT, FOLD_BELOW));
     }
 
     /// The whole point of the band: inside it, neither threshold fires, so
     /// a satellite sitting there keeps whatever state it arrived with.
+    /// Covers GRP-01.
     #[test]
-    fn grp_01_hysteresis_keeps_state_inside_the_band() {
+    fn hysteresis_keeps_state_inside_the_band() {
         for radius in [20.0_f32, 22.0, 23.99] {
             assert!(
                 next_folded(radius, true, UNFOLD_AT, FOLD_BELOW),
@@ -202,8 +206,9 @@ mod tests {
 
     /// Crossing the band and coming back must not flicker: it takes a full
     /// traverse to flip, in either direction.
+    /// Covers GRP-01.
     #[test]
-    fn grp_01_hysteresis_no_flicker_on_a_round_trip() {
+    fn hysteresis_no_flicker_on_a_round_trip() {
         let mut folded = true;
         // Drifting up through the band changes nothing until R_show.
         for radius in [19.0_f32, 20.0, 22.0, 23.9] {
@@ -224,7 +229,7 @@ mod tests {
     /// GRP-03: unfolding slides out to the true position, folding slides
     /// back onto the parent, and neither overshoots.
     #[test]
-    fn grp_03_fold_anim_travels_to_the_right_end() {
+    fn fold_anim_travels_to_the_right_end() {
         assert!((advance_fold_anim(0.0, false, 0.25) - 0.25).abs() < 1e-6);
         assert!((advance_fold_anim(1.0, true, 0.25) - 0.75).abs() < 1e-6);
         assert_eq!(advance_fold_anim(0.9, false, 0.25), 1.0);
@@ -236,7 +241,7 @@ mod tests {
     /// GRP-03: a satellite that flips state part-way through the animation
     /// turns round from where it is, so the slide never jumps.
     #[test]
-    fn grp_03_fold_anim_reverses_from_where_it_is() {
+    fn fold_anim_reverses_from_where_it_is() {
         let mut t = 0.0;
         for _ in 0..2 {
             t = advance_fold_anim(t, false, 0.25);
@@ -250,7 +255,7 @@ mod tests {
     /// GRP-03: a whole animation takes `fold_unfold_anim_ms`, however the
     /// frames fall.
     #[test]
-    fn grp_03_fold_anim_takes_the_tunable_duration() {
+    fn fold_anim_takes_the_tunable_duration() {
         let anim_ms = 200.0;
         let mut t = 0.0;
         let mut elapsed = 0.0;
@@ -272,7 +277,7 @@ mod tests {
     /// GRP-06: the pill's orange outline tracks any foreign satellite, and
     /// the blue dot only an own *ship*.
     #[test]
-    fn grp_06_pill_flags_follow_the_folded_satellites() {
+    fn pill_flags_follow_the_folded_satellites() {
         let halden = [
             (BodyClass::Moon, Ownership::Own),
             (BodyClass::Station, Ownership::Own),
@@ -291,7 +296,7 @@ mod tests {
     /// GRP-06: own moons are not parked ships, and a foreign moon still
     /// raises the outline.
     #[test]
-    fn grp_06_pill_flags_distinguish_ships_from_other_satellites() {
+    fn pill_flags_distinguish_ships_from_other_satellites() {
         assert_eq!(
             pill_flags(&[(BodyClass::Moon, Ownership::Own)]),
             PillFlags {
@@ -317,7 +322,7 @@ mod tests {
 
     /// GRP-06: a group with nothing in it raises neither flag.
     #[test]
-    fn grp_06_pill_flags_of_an_empty_group_are_clear() {
+    fn pill_flags_of_an_empty_group_are_clear() {
         assert_eq!(pill_flags(&[]), PillFlags::default());
     }
 }

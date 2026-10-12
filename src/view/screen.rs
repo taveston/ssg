@@ -61,8 +61,9 @@ fn project_bodies(view: ViewNow, windows: Query<&Window>, mut screen: ResMut<Scr
 mod tests {
     use super::*;
 
+    /// Covers MRK-03.
     #[test]
-    fn mrk_03_viewport_test_includes_the_edges() {
+    fn viewport_test_includes_the_edges() {
         let viewport = Vec2::new(800.0, 600.0);
         assert!(in_viewport(Vec2::new(0.0, 0.0), viewport));
         assert!(in_viewport(Vec2::new(800.0, 600.0), viewport));

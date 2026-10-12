@@ -146,8 +146,9 @@ mod tests {
             .collect()
     }
 
+    /// Covers ZOOM-15.
     #[test]
-    fn zoom_15_system_frame_fits_every_planetary_orbit() {
+    fn system_frame_fits_every_planetary_orbit() {
         let mut radii = corvane_planet_radii();
         let (system, _) = frame_radii(&mut radii);
         for radius in &radii {
@@ -163,7 +164,7 @@ mod tests {
     /// ZOOM-15: gates are excluded on purpose - they stay edge indicators
     /// rather than stretching the frame out to ~6 AU.
     #[test]
-    fn zoom_15_system_frame_excludes_gates() {
+    fn system_frame_excludes_gates() {
         let system_data = hand_made_system();
         let mut radii = corvane_planet_radii();
         let (system, _) = frame_radii(&mut radii);
@@ -175,8 +176,9 @@ mod tests {
         }
     }
 
+    /// Covers ZOOM-15.
     #[test]
-    fn zoom_15_region_frame_is_the_inner_system() {
+    fn region_frame_is_the_inner_system() {
         let mut radii = corvane_planet_radii();
         let (system, inner) = frame_radii(&mut radii);
         assert!(
@@ -190,7 +192,7 @@ mod tests {
     /// ZOOM-14 / ZOOM-15 (F5-02): a body with satellites frames them; a
     /// moon frames its planet's; a bare planet gets a close-up.
     #[test]
-    fn zoom_15_satellite_frame_with_fallbacks() {
+    fn satellite_frame_falls_back_when_a_body_has_no_satellites() {
         let mut world = World::new();
         let [planet, moon, bare] = [(); 3].map(|_| world.spawn_empty().id());
         let mut stops = ZoomStops {
@@ -209,7 +211,7 @@ mod tests {
     /// ZOOM-15 (F5-02): the region frame is the focused planet's orbit, or
     /// the inner system with nothing focused.
     #[test]
-    fn zoom_15_region_frame_follows_the_focus() {
+    fn region_frame_follows_the_focus() {
         let mut world = World::new();
         let planet = world.spawn_empty().id();
         let mut stops = ZoomStops {
@@ -221,16 +223,18 @@ mod tests {
         assert_eq!(stops.region_frame(None), 180.0);
     }
 
+    /// Covers ZOOM-15.
     #[test]
-    fn zoom_15_degenerate_systems_still_give_a_frame() {
+    fn degenerate_systems_still_give_a_frame() {
         assert_eq!(frame_radii(&mut []), (1.0, 1.0));
         assert_eq!(frame_radii(&mut [7.0]), (7.0, 7.0));
     }
 
     /// A stop frames exactly what it says: the framed radius fills
     /// `margin` of the view's half-height at that distance, at any tilt.
+    /// Covers ZOOM-15.
     #[test]
-    fn zoom_15_a_framed_radius_fills_the_margin() {
+    fn a_framed_radius_fills_the_margin() {
         let fov = std::f32::consts::FRAC_PI_4;
         let margin = 0.8;
         for tilt in [0.0_f32, 0.42] {

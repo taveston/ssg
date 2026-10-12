@@ -33,7 +33,7 @@ mod tests {
     /// SCL-02: one linear scale - doubling a distance doubles its render
     /// length, at planetary and lunar scale alike.
     #[test]
-    fn scl_02_the_scale_is_linear() {
+    fn the_scale_is_linear() {
         for km in [9_394.0_f64, 430_292.0, KM_PER_AU, 4.3 * KM_PER_AU] {
             let ratio = km_to_render(2.0 * km) / km_to_render(km);
             assert!((ratio - 2.0).abs() < 1e-5, "{km} km: ratio {ratio}");
@@ -43,7 +43,7 @@ mod tests {
 
     /// SCL-02: a vector converts exactly as its components do.
     #[test]
-    fn scl_02_vectors_and_distances_share_the_scale() {
+    fn vectors_and_distances_share_the_scale() {
         let km = DVec3::new(KM_PER_AU, 0.0, -2.0 * KM_PER_AU);
         let render = km_to_render_vec3(km);
         assert!((render.x - km_to_render(KM_PER_AU)).abs() < 1e-4);

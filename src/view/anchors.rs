@@ -81,7 +81,7 @@ mod tests {
     /// INS-06: folded, a satellite is shown at its parent's pill; unfolded,
     /// at its own marker; part way, part way - no jump at either end.
     #[test]
-    fn ins_06_folded_satellite_is_shown_at_the_pill() {
+    fn folded_satellite_is_shown_at_the_pill() {
         let own = Some(Vec2::new(100.0, 0.0));
         let pill = Some(Vec2::new(0.0, 0.0));
         assert_eq!(shown_at(own, pill, 0.0), pill);
@@ -90,8 +90,9 @@ mod tests {
     }
 
     /// A body with no parent pill is just at its own position.
+    /// Covers INS-06.
     #[test]
-    fn ins_06_unparented_bodies_are_at_their_marker() {
+    fn unparented_bodies_are_at_their_marker() {
         let own = Some(Vec2::new(3.0, 4.0));
         assert_eq!(shown_at(own, None, 0.0), own);
         assert_eq!(shown_at(None, None, 1.0), None);

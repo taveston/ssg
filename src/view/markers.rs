@@ -420,7 +420,7 @@ mod tests {
     /// MRK-04: each class gets its own shape, and ships are told apart by
     /// ownership.
     #[test]
-    fn mrk_04_marker_shapes_by_class() {
+    fn marker_shapes_by_class() {
         use BodyClass::*;
         use Ownership::*;
         assert_eq!(marker_shape(Planet, Own), MarkerShape::Disc);
@@ -435,7 +435,7 @@ mod tests {
 
     /// MRK-01: hovered or selected markers carry the white ring.
     #[test]
-    fn mrk_01_ring_on_hover_or_selection() {
+    fn ring_on_hover_or_selection() {
         assert!(shows_ring(true, false));
         assert!(shows_ring(false, true));
         assert!(!shows_ring(false, false));
@@ -443,14 +443,14 @@ mod tests {
 
     /// MRK-03: marker size depends on class only.
     #[test]
-    fn mrk_03_marker_size_is_by_class() {
+    fn marker_size_is_by_class() {
         assert!(marker_half_size(BodyClass::Star).x > marker_half_size(BodyClass::Planet).x);
         assert!(marker_half_size(BodyClass::Planet).x > marker_half_size(BodyClass::Moon).x);
     }
 
     /// GRP-01: a fully folded satellite draws nothing, whatever else says.
     #[test]
-    fn grp_01_folded_satellite_marker_is_invisible() {
+    fn folded_satellite_marker_is_invisible() {
         assert_eq!(marker_alpha(1.0, true, 1.0), 0.0);
         assert_eq!(marker_alpha(0.0, false, 1.0), 0.0);
         assert_eq!(marker_alpha(1.0, false, 1.0), 1.0);
@@ -459,14 +459,14 @@ mod tests {
     /// GRP-03 / MOT-02: the marker fades with the fold slide and with the
     /// dot-to-ring cross-fade.
     #[test]
-    fn mot_02_ring_mode_fades_the_dot() {
+    fn ring_mode_fades_the_dot() {
         assert_eq!(marker_alpha(1.0, false, 0.0), 0.0);
         assert!((marker_alpha(0.5, false, 0.5) - 0.25).abs() < 1e-6);
     }
 
     /// GRP-03: the marker slides from its parent to its true position.
     #[test]
-    fn grp_03_marker_slides_out_of_its_parent() {
+    fn marker_slides_out_of_its_parent() {
         let own = Vec2::new(100.0, 0.0);
         let parent = Some(Vec2::ZERO);
         assert_eq!(marker_position(own, parent, 0.0), Vec2::ZERO);

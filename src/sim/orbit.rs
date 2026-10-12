@@ -79,7 +79,7 @@ mod tests {
     /// SCL-04: Kepler's third law - the period squared goes as the radius
     /// cubed, so quadrupling the radius multiplies the period by eight.
     #[test]
-    fn scl_04_period_follows_keplers_third_law() {
+    fn period_follows_keplers_third_law() {
         let base = kepler_period_days(10_000.0, EARTH_MASS_KG);
         let quadrupled = kepler_period_days(40_000.0, EARTH_MASS_KG);
         assert!(
@@ -92,14 +92,14 @@ mod tests {
     /// SCL-04: and against a known orbit, so a wrong constant would show:
     /// the Moon's sidereal month is about 27.4 days round a lone Earth.
     #[test]
-    fn scl_04_period_matches_the_moon() {
+    fn period_matches_the_moon() {
         let days = kepler_period_days(384_400.0, EARTH_MASS_KG);
         assert!((days - 27.4).abs() < 0.1, "got {days} d");
     }
 
     /// SCL-04: a heavier parent pulls its satellites round faster.
     #[test]
-    fn scl_04_heavier_parent_means_shorter_period() {
+    fn heavier_parent_means_shorter_period() {
         let light = kepler_period_days(50_000.0, EARTH_MASS_KG);
         let heavy = kepler_period_days(50_000.0, 4.0 * EARTH_MASS_KG);
         assert!(heavy < light);
@@ -118,7 +118,7 @@ mod tests {
     /// ARCH-11 / SCL-01: the position is in km, straight from the elements
     /// and the elapsed days - no transform anywhere.
     #[test]
-    fn arch_11_position_starts_at_the_start_phase() {
+    fn position_starts_at_the_start_phase() {
         let position = orbit_position_km(&MOON, 0.0);
         assert!((position.x - 400_000.0).abs() < 1e-6);
         assert!(position.y.abs() < 1e-12, "orbits are coplanar in XZ");
@@ -127,7 +127,7 @@ mod tests {
 
     /// SCL-04: a circular orbit keeps its radius, whatever the phase.
     #[test]
-    fn scl_04_radius_is_constant_round_the_orbit() {
+    fn radius_is_constant_round_the_orbit() {
         for days in [0.0_f64, 1.3, 5.0, 10.0, 17.7, 100.0] {
             let position = orbit_position_km(&MOON, days);
             let radius = (position.x * position.x + position.z * position.z).sqrt();
@@ -141,7 +141,7 @@ mod tests {
     /// ARCH-11: one period brings a body back to where it started, and half
     /// a period puts it on the far side.
     #[test]
-    fn arch_11_one_period_is_one_full_turn() {
+    fn one_period_is_one_full_turn() {
         let start = orbit_position_km(&MOON, 0.0);
         let full = orbit_position_km(&MOON, MOON.period_days);
         assert!((full - start).length() < 1e-6);
@@ -156,7 +156,7 @@ mod tests {
     /// ARCH-11: the start phase offsets the whole orbit, so two bodies on
     /// the same orbit at different phases never coincide.
     #[test]
-    fn arch_11_start_phase_offsets_the_orbit() {
+    fn start_phase_offsets_the_orbit() {
         let other = Orbit {
             phase0_rad: std::f64::consts::PI,
             ..MOON
@@ -168,8 +168,9 @@ mod tests {
 
     /// A body with no period (a degenerate record) sits still rather than
     /// dividing by zero.
+    /// Covers ARCH-11.
     #[test]
-    fn arch_11_a_zero_period_body_sits_at_its_start_phase() {
+    fn a_zero_period_body_sits_at_its_start_phase() {
         let still = Orbit {
             period_days: 0.0,
             ..MOON

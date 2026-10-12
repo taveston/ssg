@@ -33,7 +33,7 @@ mod tests {
     /// CAM-10 / CAM-13: a tiny jitter is still a click; past the threshold
     /// it's a drag.
     #[test]
-    fn cam_10_click_or_drag_by_the_threshold() {
+    fn click_or_drag_by_the_threshold() {
         let start = Vec2::new(100.0, 100.0);
         assert!(!is_drag(start, Vec2::new(102.0, 101.0), 4.0));
         assert!(is_drag(start, Vec2::new(104.0, 100.0), 4.0));
@@ -42,7 +42,7 @@ mod tests {
 
     /// CAM-10: the click that ends a drag doesn't select.
     #[test]
-    fn cam_10_a_drag_release_is_not_a_click() {
+    fn a_drag_release_is_not_a_click() {
         let press = PressStart(Some(Vec2::new(10.0, 10.0)));
         assert!(was_click(&press, Vec2::new(11.0, 12.0), 4.0));
         assert!(!was_click(&press, Vec2::new(60.0, 10.0), 4.0));

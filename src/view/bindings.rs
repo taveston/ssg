@@ -133,7 +133,7 @@ mod tests {
     /// CLK-05: Space pauses, `.` and `,` change the rate, and + and - are
     /// no longer clock keys.
     #[test]
-    fn clk_05_clock_keys() {
+    fn clock_keys_are_space_period_and_comma() {
         let bindings = Bindings::default();
         assert_eq!(bindings.pause, vec![KeyCode::Space]);
         assert_eq!(bindings.rate_up, vec![KeyCode::Period]);
@@ -145,7 +145,7 @@ mod tests {
 
     /// CAM-18: actions are read through the bindings, alternatives included.
     #[test]
-    fn cam_18_any_bound_key_triggers_the_action() {
+    fn any_bound_key_triggers_the_action() {
         let mut input = ButtonInput::<KeyCode>::default();
         let bound = [KeyCode::KeyW, KeyCode::ArrowUp];
         assert!(!held(&input, &bound));

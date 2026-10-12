@@ -163,7 +163,7 @@ mod tests {
 
     /// CAM-02: the camera starts level, north up, over the star.
     #[test]
-    fn cam_02_start_state_is_level_and_north_up() {
+    fn start_state_is_level_and_north_up() {
         let start = CameraRig::default();
         assert_eq!(
             (start.heading, start.tilt, start.pivot),
@@ -173,7 +173,7 @@ mod tests {
 
     /// ZOOM-01: a move eases from the start to exactly the target.
     #[test]
-    fn zoom_01_move_runs_from_start_to_target() {
+    fn move_runs_from_start_to_target() {
         let start = rig(Vec3::ZERO, 100.0);
         let target = MoveTarget {
             pivot: PivotTarget::Fixed(Vec3::X),
@@ -190,7 +190,7 @@ mod tests {
     /// ZOOM-13: a step scaled about an anchor keeps the anchor still all
     /// the way, because pivot and distance share one eased factor.
     #[test]
-    fn zoom_13_anchor_stays_put_through_the_move() {
+    fn anchor_stays_put_through_the_move() {
         let anchor = Vec3::new(10.0, 0.0, 0.0);
         let start = rig(Vec3::ZERO, 100.0);
         let k = 0.5;
@@ -208,8 +208,9 @@ mod tests {
 
     /// A move onto a body leaves it focused with the move's offset; a move
     /// to a fixed point leaves nothing focused.
+    /// Covers CAM-06.
     #[test]
-    fn cam_06_moves_leave_the_matching_focus() {
+    fn moves_leave_the_matching_focus() {
         let mut world = World::new();
         let body = world.spawn_empty().id();
         let start = CameraRig::default();

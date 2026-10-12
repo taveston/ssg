@@ -94,7 +94,7 @@ mod tests {
     /// CAM-05: a moon's world position is its planet's plus its own offset,
     /// whatever order the bodies come in; the star is the origin.
     #[test]
-    fn cam_05_world_positions_add_up_the_parent_chain() {
+    fn world_positions_add_up_the_parent_chain() {
         let mut world = World::new();
         let [star, planet, moon, submoon] = [(); 4].map(|_| world.spawn_empty().id());
         let mut locals = HashMap::new();

@@ -260,7 +260,7 @@ mod tests {
 
     /// EDGE-01: a gate comfortably on screen is not an edge indicator.
     #[test]
-    fn edge_01_on_screen_gates_are_not_clamped() {
+    fn on_screen_gates_are_not_clamped() {
         assert_eq!(
             clamp_to_viewport_edge(Vec2::new(800.0, 450.0), VIEWPORT, MARGIN),
             None
@@ -274,7 +274,7 @@ mod tests {
     /// EDGE-01: an off-screen gate is pinned to the edge, inside the
     /// margin, in its own direction.
     #[test]
-    fn edge_01_off_screen_gates_are_pinned_inside_the_margin() {
+    fn off_screen_gates_are_pinned_inside_the_margin() {
         for target in [
             Vec2::new(4000.0, 450.0),
             Vec2::new(-4000.0, 450.0),
@@ -305,7 +305,7 @@ mod tests {
     /// EDGE-01: the clamp touches exactly one edge - it slides along the
     /// nearer one rather than cutting the corner.
     #[test]
-    fn edge_01_clamp_lands_on_the_first_edge_crossed() {
+    fn clamp_lands_on_the_first_edge_crossed() {
         // Far right, slightly up: the right edge binds.
         let clamped = clamp_to_viewport_edge(Vec2::new(5000.0, 400.0), VIEWPORT, MARGIN).unwrap();
         assert!((clamped.x - (VIEWPORT.x - MARGIN)).abs() < 0.01);
@@ -317,7 +317,7 @@ mod tests {
     /// EDGE-01: a gate straight above or beside the centre is a degenerate
     /// direction on one axis and must not divide by zero.
     #[test]
-    fn edge_01_axis_aligned_gates_clamp_cleanly() {
+    fn axis_aligned_gates_clamp_cleanly() {
         let centre = VIEWPORT / 2.0;
         let above = clamp_to_viewport_edge(Vec2::new(centre.x, -2000.0), VIEWPORT, MARGIN).unwrap();
         assert!((above.x - centre.x).abs() < 0.01);
@@ -331,7 +331,7 @@ mod tests {
     /// EDGE-01 (F4-08): a point behind a camera looking down and forward
     /// reads as "down the screen", and to the right of it as "right".
     #[test]
-    fn edge_01_points_behind_the_camera_still_have_a_direction() {
+    fn points_behind_the_camera_still_have_a_direction() {
         let (right, up) = (Vec3::X, Vec3::new(0.0, 0.4, -0.9).normalize());
         // Behind and on the near side of a steeply tilted camera.
         let behind = screen_direction(Vec3::new(0.0, -0.2, 5.0), right, up);
@@ -343,7 +343,7 @@ mod tests {
     /// EDGE-01 (F4-08): a direction pins to the edge, inside the margin;
     /// no direction pins nowhere.
     #[test]
-    fn edge_01_directions_pin_to_the_edge() {
+    fn directions_pin_to_the_edge() {
         let down = pin_direction_to_edge(Vec2::Y, VIEWPORT, MARGIN).unwrap();
         assert!((down.y - (VIEWPORT.y - MARGIN)).abs() < 0.01);
         assert!((down.x - VIEWPORT.x / 2.0).abs() < 0.01);
@@ -355,7 +355,7 @@ mod tests {
     /// EDGE-01: the arrow points away from the centre, towards the gate -
     /// 0 is up, and the angle turns clockwise with the glyph.
     #[test]
-    fn edge_01_arrow_points_towards_the_gate() {
+    fn arrow_points_towards_the_gate() {
         let centre = VIEWPORT / 2.0;
         let up = edge_arrow_angle(Vec2::new(centre.x, MARGIN), VIEWPORT);
         assert!(up.abs() < 1e-6);

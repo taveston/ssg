@@ -193,15 +193,16 @@ mod tests {
     /// CAM-22 (F5-08): the brackets clear the marker and its ring, and are
     /// never smaller than `focus_bracket_px`.
     #[test]
-    fn cam_22_brackets_clear_the_selection_ring() {
+    fn brackets_clear_the_selection_ring() {
         // A planet: 6 px half-size, ring 2 px out and 2 px wide.
         let side = bracket_side(14.0, 10.0);
         assert!(side / 2.0 > 10.0, "outside the ring");
         assert_eq!(bracket_side(40.0, 5.0), 40.0, "never below the tunable");
     }
 
+    /// Covers CAM-09.
     #[test]
-    fn cam_09_chip_reads_focus_and_the_name() {
+    fn chip_reads_focus_and_the_name() {
         assert_eq!(chip_label("Halden IV"), "Focus: Halden IV");
     }
 }

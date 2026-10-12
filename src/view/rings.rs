@@ -258,8 +258,9 @@ mod tests {
     }
 
     /// From afar, a ring is the same 128 chords as ever, all in view.
+    /// Covers MRK-05.
     #[test]
-    fn mrk_05_a_distant_ring_is_unchanged() {
+    fn a_distant_ring_is_unchanged() {
         // Morrow's orbit (4.3 AU) seen from the system frame.
         let view = looking_at(Vec3::new(0.0, 975.0, 436.0), Vec3::ZERO);
         let segments = ring_segments(Vec3::ZERO, 387.0, view);
@@ -269,8 +270,9 @@ mod tests {
     /// F4-26: zoomed in on Halden IV, its own 2 AU orbit is drawn through
     /// the planet and within half a pixel of the true circle, where 128
     /// fixed chords missed it by tens of pixels or dropped out entirely.
+    /// Covers MRK-05.
     #[test]
-    fn mrk_05_a_ring_near_the_camera_follows_the_circle() {
+    fn a_ring_near_the_camera_follows_the_circle() {
         let radius = 180.0;
         let planet = ring_point(Vec3::ZERO, radius, 4.4);
         // The satellite frame: about one unit away at the default tilt.
@@ -302,8 +304,9 @@ mod tests {
     }
 
     /// F4-26: a chord crossing the near limit is cut there, not dropped.
+    /// Covers MRK-05.
     #[test]
-    fn mrk_05_chords_through_the_near_limit_are_cut_not_dropped() {
+    fn chords_through_the_near_limit_are_cut_not_dropped() {
         let view = looking_at(Vec3::ZERO, Vec3::NEG_Z);
         let crossing = (Vec3::new(0.0, 0.0, -5.0), Vec3::new(0.0, 0.0, 5.0));
         let (kept_from, kept_to) = clip_to_front(crossing, view).unwrap();

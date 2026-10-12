@@ -192,7 +192,7 @@ mod tests {
 
     /// INS-05: inside out, whatever order the satellites were spawned in.
     #[test]
-    fn ins_05_entries_run_from_the_inside_out() {
+    fn entries_run_from_the_inside_out() {
         let mut world = World::new();
         let entry = |name: &str, radius: f64, world: &mut World| OrbitEntry {
             body: world.spawn_empty().id(),

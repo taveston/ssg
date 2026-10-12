@@ -129,7 +129,7 @@ fn fov() -> f32 {
 /// ARCH-13: the simulation runs headless with `MinimalPlugins` and the sim
 /// plugin alone - with no content it simply starts empty.
 #[test]
-fn arch_13_simulation_runs_headless() {
+fn simulation_runs_headless() {
     let mut app = App::new();
     app.add_plugins((MinimalPlugins, SimPlugin));
     run(&mut app, 5);
@@ -145,7 +145,7 @@ fn arch_13_simulation_runs_headless() {
 /// ARCH-11 / ARCH-31 / SCL-04: after a known time, every body is where its
 /// orbit says, in km, read from the sim component with no `Transform`.
 #[test]
-fn arch_31_orbital_positions_after_a_known_time() {
+fn orbital_positions_after_a_known_time() {
     // Tenth-second frames: Bevy's virtual time caps a frame at 250 ms.
     let mut app = headless_app(Duration::from_millis(100));
     app.add_plugins((ContentPlugin, SimPlugin));
@@ -185,7 +185,7 @@ fn arch_31_orbital_positions_after_a_known_time() {
 /// its outer moons unfold while the close-in station stays folded; and back
 /// out, everything folds again.
 #[test]
-fn arch_31_fold_state_after_a_scale_change() {
+fn fold_state_after_a_scale_change() {
     let mut app = headless_app(FRAME);
     app.add_plugins((ContentPlugin, SimPlugin)).add_plugins((
         TunablesPlugin,
@@ -261,7 +261,7 @@ fn arch_31_fold_state_after_a_scale_change() {
 
 /// ARCH-31 / MOT-01 to MOT-04: the motion mode follows the time rate.
 #[test]
-fn arch_31_motion_mode_after_a_rate_change() {
+fn motion_mode_after_a_rate_change() {
     let mut app = headless_app(FRAME);
     app.add_plugins((ContentPlugin, SimPlugin))
         .add_plugins((TunablesPlugin, ProjectionPlugin, MotionPlugin))
@@ -301,7 +301,7 @@ fn arch_31_motion_mode_after_a_rate_change() {
 
 /// ARCH-31 / ZOOM-15: the stops come from Corvane's real orbits.
 #[test]
-fn arch_31_zoom_stops_for_corvane() {
+fn zoom_stops_come_from_corvanes_orbits() {
     let mut app = headless_app(FRAME);
     app.add_plugins((ContentPlugin, SimPlugin, StopsPlugin));
     run(&mut app, 1);
@@ -339,7 +339,7 @@ fn arch_31_zoom_stops_for_corvane() {
 /// the screen edge - including gates behind the camera, which have no
 /// projected position at all.
 #[test]
-fn edge_01_every_gate_has_an_arrow_when_zoomed_in() {
+fn every_gate_has_an_arrow_when_zoomed_in() {
     let mut app = headless_app(FRAME);
     app.add_plugins((ContentPlugin, SimPlugin))
         .add_plugins((TunablesPlugin, ProjectionPlugin, StopsPlugin))
@@ -405,7 +405,7 @@ fn compute_camera_headless(app: &mut App) {
 /// frame; following it a frame late made it shake. With zero offset it
 /// must sit at the screen centre on every frame.
 #[test]
-fn cam_05_focused_body_keeps_its_place_on_screen() {
+fn focused_body_keeps_its_place_on_screen() {
     let mut app = headless_app(FRAME);
     app.add_plugins((ContentPlugin, SimPlugin, InputPlugin))
         .add_plugins((
@@ -503,7 +503,7 @@ fn camera_app() -> App {
 /// frame, with no jump; zoom stops at its satellite frame; zooming back out
 /// to the system frame ends the focus.
 #[test]
-fn cam_21_zoom_focuses_and_cam_08_zoom_out_ends_it() {
+fn zooming_in_focuses_and_zooming_out_ends_focus() {
     let mut app = camera_app();
     let halden = body(&mut app, "Halden IV");
     let halden_pos = app.world().resource::<WorldPositions>().0[&halden];
@@ -559,7 +559,7 @@ fn cam_21_zoom_focuses_and_cam_08_zoom_out_ends_it() {
 /// ZOOM-13 / CAM-08: zooming while focused keeps the focused body where it
 /// is on screen, and keeps the focus.
 #[test]
-fn zoom_13_focused_zoom_keeps_the_body_in_place() {
+fn focused_zoom_keeps_the_body_in_place() {
     let mut app = camera_app();
     let halden = body(&mut app, "Halden IV");
     *app.world_mut().resource_mut::<Focus>() = Focus {
@@ -621,7 +621,7 @@ fn drag_star(app: &mut App, star: Entity, to: Vec2) {
 /// the cursor - also when tilted - and a press that barely moves is a
 /// click, which doesn't pan.
 #[test]
-fn cam_10_left_drag_keeps_the_grabbed_point_under_the_cursor() {
+fn left_drag_keeps_the_grabbed_point_under_the_cursor() {
     let mut app = camera_app();
     let star = body(&mut app, "Corvane");
 
@@ -653,7 +653,7 @@ fn cam_10_left_drag_keeps_the_grabbed_point_under_the_cursor() {
 
 /// CAM-07: panning while focused moves the offset and keeps the focus.
 #[test]
-fn cam_07_panning_while_focused_keeps_focus() {
+fn panning_while_focused_keeps_focus() {
     let mut app = camera_app();
     let halden = body(&mut app, "Halden IV");
     *app.world_mut().resource_mut::<Focus>() = Focus {
@@ -677,7 +677,7 @@ fn cam_07_panning_while_focused_keeps_focus() {
 /// keeping pivot and scale; Home returns to the system frame, level and
 /// north up, and ends the focus.
 #[test]
-fn zoom_16_cam_03_cam_04_focus_north_and_home_moves() {
+fn focus_north_and_home_move_the_real_camera() {
     let mut app = camera_app();
     let halden = body(&mut app, "Halden IV");
     let system_distance = app.world().resource::<CameraRig>().distance;
@@ -758,7 +758,7 @@ fn press_key(app: &mut App, key: KeyCode) {
 /// stations and parked ships - and not the gates. At 5 d/s Pell (an 86-day
 /// orbit, 17 s apparent) becomes an exposure ring like any satellite.
 #[test]
-fn mot_08_the_rule_applies_to_every_orbiting_object() {
+fn the_rule_applies_to_every_orbiting_object() {
     let mut app = headless_app(FRAME);
     app.add_plugins((ContentPlugin, SimPlugin))
         .add_plugins((TunablesPlugin, ProjectionPlugin, MotionPlugin))
@@ -796,7 +796,7 @@ fn mot_08_the_rule_applies_to_every_orbiting_object() {
 /// marker on screen or an arrow on the edge, and no arrow hides under the
 /// top bar.
 #[test]
-fn edge_01_every_gate_has_an_arrow_as_the_heading_turns() {
+fn every_gate_has_an_arrow_as_the_heading_turns() {
     let mut app = camera_app();
     app.add_plugins(EdgePlugin)
         .insert_resource(placeholder_fonts());

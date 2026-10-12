@@ -90,7 +90,7 @@ mod tests {
 
     /// MRK-04: the triangle points up: wide at the base, a point at the top.
     #[test]
-    fn mrk_04_triangle_points_up() {
+    fn triangle_points_up() {
         assert!(in_triangle(0.5, 0.5));
         assert!(in_triangle(0.05, 0.99), "bottom corners are inside");
         assert!(!in_triangle(0.05, 0.05), "top corners are outside");
@@ -101,7 +101,7 @@ mod tests {
     /// MRK-04: the diamond touches each side's middle and leaves the
     /// corners empty.
     #[test]
-    fn mrk_04_diamond_touches_the_sides_and_not_the_corners() {
+    fn diamond_touches_the_sides_and_not_the_corners() {
         for (u, v) in [
             (0.5, 0.01),
             (0.99, 0.5),
@@ -118,8 +118,9 @@ mod tests {
 
     /// The shapes are *filled*: a pixel well inside is fully covered, one
     /// well outside not at all, and an edge pixel is in between.
+    /// Covers MRK-04.
     #[test]
-    fn mrk_04_shapes_are_filled_with_soft_edges() {
+    fn shapes_are_filled_with_soft_edges() {
         assert_eq!(pixel_coverage(in_diamond, 16, 16, 32), 1.0);
         assert_eq!(pixel_coverage(in_diamond, 0, 0, 32), 0.0);
         let edge = pixel_coverage(in_diamond, 7, 8, 32);

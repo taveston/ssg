@@ -155,7 +155,7 @@ mod tests {
     /// CAM-01: tilt stops at straight down and at the limit; never below
     /// the plane.
     #[test]
-    fn cam_01_tilt_is_clamped() {
+    fn tilt_is_clamped() {
         assert_eq!(clamp_tilt(-0.3, 65.0), 0.0);
         assert!((clamp_tilt(2.0, 65.0) - 65f32.to_radians()).abs() < 1e-6);
         assert_eq!(clamp_tilt(0.5, 65.0), 0.5);
@@ -164,7 +164,7 @@ mod tests {
     /// CAM-01: heading is unlimited - a full turn and more gives the same
     /// view as the remainder, with no clamp anywhere.
     #[test]
-    fn cam_01_heading_is_unlimited() {
+    fn heading_is_unlimited() {
         let tilt = 0.4;
         let once = camera_transform(Vec3::ZERO, 0.7, tilt, 10.0);
         let thrice = camera_transform(Vec3::ZERO, 0.7 + 2.0 * std::f32::consts::TAU, tilt, 10.0);
@@ -175,7 +175,7 @@ mod tests {
     /// CAM-02: the start state looks straight down with north at the top of
     /// the screen.
     #[test]
-    fn cam_02_level_and_north_up() {
+    fn a_level_camera_looks_straight_down_with_north_up() {
         let pivot = Vec3::new(5.0, 0.0, -3.0);
         let camera = camera_transform(pivot, 0.0, 0.0, 10.0);
         assert!(close(camera.translation, pivot + Vec3::Y * 10.0));
@@ -186,8 +186,9 @@ mod tests {
 
     /// Tilting leans the camera back from the pivot, away from north, and
     /// it keeps looking at the pivot at the same distance.
+    /// Covers CAM-12.
     #[test]
-    fn cam_12_tilt_leans_the_camera_and_keeps_the_pivot_centred() {
+    fn tilt_leans_the_camera_and_keeps_the_pivot_centred() {
         let pivot = Vec3::new(1.0, 0.0, 1.0);
         for (heading, tilt) in [(0.0, 0.5), (1.3, 1.0), (-2.0, 0.2)] {
             let camera = camera_transform(pivot, heading, tilt, 8.0);
@@ -204,8 +205,9 @@ mod tests {
     }
 
     /// The plane axes match the screen's at any heading.
+    /// Covers CAM-14.
     #[test]
-    fn cam_14_plane_axes_follow_the_screen() {
+    fn plane_axes_follow_the_screen() {
         for heading in [0.0, 0.9, -2.4] {
             let camera = camera_transform(Vec3::ZERO, heading, 0.0, 5.0);
             let (right, up) = plane_axes(heading);
@@ -217,7 +219,7 @@ mod tests {
     /// CAM-03: north up is the nearest heading that is a whole number of
     /// turns, reached the short way round.
     #[test]
-    fn cam_03_north_up_turns_the_short_way() {
+    fn north_up_turns_the_short_way() {
         use std::f32::consts::{PI, TAU};
         assert!((nearest_heading(0.3, 0.0) - 0.0).abs() < 1e-6);
         assert!((nearest_heading(2.0 * TAU + 0.3, 0.0) - 2.0 * TAU).abs() < 1e-5);
@@ -228,7 +230,7 @@ mod tests {
 
     /// CAM-06: recalling a bookmark turns to its heading the short way.
     #[test]
-    fn cam_06_bookmark_heading_is_reached_the_short_way() {
+    fn bookmark_heading_is_reached_the_short_way() {
         use std::f32::consts::TAU;
         let target = nearest_heading(0.1, 3.0 * TAU - 0.1);
         assert!((target - -0.1).abs() < 1e-4);
@@ -241,7 +243,7 @@ mod tests {
 
     /// CAM-14: the same fraction of the view per second at every zoom.
     #[test]
-    fn cam_14_key_pan_scales_with_the_view() {
+    fn key_pan_scales_with_the_view() {
         let near = key_pan_velocity(Vec2::X, visible_height_at_pivot(1.0, 0.8), 0.0, false, PAN);
         let far = key_pan_velocity(
             Vec2::X,
@@ -257,7 +259,7 @@ mod tests {
     /// CAM-14: up the screen is sped up by the tilt's foreshortening, so it
     /// looks as fast as sideways; Shift multiplies; diagonals aren't faster.
     #[test]
-    fn cam_14_key_pan_looks_the_same_at_every_tilt() {
+    fn key_pan_looks_the_same_at_every_tilt() {
         let tilt = 1.0_f32;
         let up = key_pan_velocity(Vec2::Y, 10.0, tilt, false, PAN);
         let side = key_pan_velocity(Vec2::X, 10.0, tilt, false, PAN);
@@ -275,7 +277,7 @@ mod tests {
     /// CAM-14: the ramp reaches full speed in the ramp time, and stops in
     /// it too.
     #[test]
-    fn cam_14_key_pan_ramps_up_and_down() {
+    fn key_pan_ramps_up_and_down() {
         let full = Vec2::new(10.0, 0.0);
         let mut v = Vec2::ZERO;
         let dt = 0.01;
@@ -295,7 +297,7 @@ mod tests {
 
     /// CAM-17: only within the edge band does the cursor scroll.
     #[test]
-    fn cam_17_edge_scroll_direction() {
+    fn edge_scroll_points_towards_the_edge_the_cursor_is_on() {
         let window = Vec2::new(1600.0, 900.0);
         assert_eq!(
             edge_scroll_direction(Vec2::new(800.0, 450.0), window, 8.0),
@@ -318,7 +320,7 @@ mod tests {
     /// ZOOM-13 / CAM-10: a ray down onto the plane meets it; one along it or
     /// away from it doesn't.
     #[test]
-    fn zoom_13_ray_meets_the_orbital_plane() {
+    fn ray_meets_the_orbital_plane() {
         let down = Ray3d::new(Vec3::new(3.0, 10.0, -2.0), Dir3::NEG_Y);
         assert_eq!(plane_point(down), Some(Vec3::new(3.0, 0.0, -2.0)));
         let slant = Ray3d::new(

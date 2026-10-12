@@ -69,7 +69,7 @@ mod tests {
 
     /// INS-01: selecting a body opens its inset, replacing the unpinned one.
     #[test]
-    fn ins_01_select_replaces_the_unpinned_inset() {
+    fn select_replaces_the_unpinned_inset() {
         let (a, b) = bodies();
         let mut selection = Selection::default();
         selection.select(a);
@@ -82,7 +82,7 @@ mod tests {
     /// INS-03: a pinned inset stays open through a new selection, so two
     /// objects can be compared, and Esc only closes the unpinned one.
     #[test]
-    fn ins_03_pinned_inset_survives_selection_and_esc() {
+    fn pinned_inset_survives_selection_and_esc() {
         let (a, b) = bodies();
         let mut selection = Selection::default();
         selection.select(a);
@@ -96,7 +96,7 @@ mod tests {
 
     /// INS-03: selecting a pinned body doesn't open a second inset for it.
     #[test]
-    fn ins_03_selecting_a_pinned_body_keeps_one_inset() {
+    fn selecting_a_pinned_body_keeps_one_inset() {
         let (a, _) = bodies();
         let mut selection = Selection::default();
         selection.select(a);
@@ -106,8 +106,9 @@ mod tests {
         assert_eq!(selection.pinned, vec![a]);
     }
 
+    /// Covers INS-02.
     #[test]
-    fn ins_02_close_and_unpin() {
+    fn closing_or_unpinning_an_inset() {
         let (a, b) = bodies();
         let mut selection = Selection::default();
         selection.select(a);
