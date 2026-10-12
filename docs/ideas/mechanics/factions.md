@@ -1,14 +1,26 @@
-# Orphan Worlds: Faction History Options
+# Orphan Worlds: Factions & Ideology
 
-**In short:** a faction's ideology profile comes from three history choices: **origins** (what the settlement was before the collapse), **turmoil** (how it survived the collapse) and **recovery** (how social and political order was restored). Each of the six options per phase gives 4 ideology points, so three choices fill the pool of 12, and each option also sets Outlook, Militancy, starting assets and scars. The ideology rules are specced in `docs/spec/ideology.md`; this doc holds the option tables, flavour text and reasoning.
+**In short:** factions differ mechanically, not through hand-crafted back story. Their main differentiator is an ideology profile: a position in a triangle of Cohesion, Authority and Autonomy, plus Outlook and Militancy. The profile comes from three history choices: **origins** (what the settlement was before the collapse), **turmoil** (how it survived the collapse) and **recovery** (how social and political order was restored). Each of the six options per phase gives 4 ideology points, so three choices fill the pool of 12, and each option also sets Outlook, Militancy, starting assets and scars. The ideology rules are specced in `docs/spec/ideology.md`; this doc holds the option tables, flavour text and reasoning.
 
-*Status:* draft. All numbers are placeholders for balancing. See the design document, 4.7, and the diagram *ideology-triangle.svg*. A summary label and history blurb can be generated from the choices.
+*Status:* draft. All numbers are placeholders for balancing. Status tags as in the design document. See the diagram *ideology-triangle.svg*. A summary label and history blurb can be generated from the choices.
 
 **Timeline:** the old network collapses, then years of turmoil, then order is restored on the ground, then **game start**, when the faction is just venturing back into space. Recovery is political and social, not industrial: there are no interplanetary fleets or trade yet. Orbital yards and stations from before the collapse exist but sit dormant or barely maintained.
 
 *Terminology:* "organisation" is the mechanical term. In the setting, firms are corporations, guilds and institutes.
 
 ---
+
+## Overview (direction)
+
+- **Differentiation:** mechanical, not hand-crafted back story. Other possible differentiators (candidate): geography and gates, starting organisations, seeded designs and understanding, government form, leader traits.
+- **Popular ideology:** a position in a triangle of three forces: **Cohesion** (shared ownership and burdens), **Authority** (central direction) and **Autonomy** (private initiative). Representation, labels and events are in section 1 and section 8.
+- **Extra axes:** **Outlook** (Insular to Outward: contact, trade, diplomacy) and **Militancy** (Pacifist to Militant: readiness, mobilisation, willingness to use force, the military's political weight). Every position should be a different way to play, not a handicap.
+- **Possible effects (candidate):** Cohesion makes state ownership cheaper and state organisations stronger, but shrinks the private sector. Authority makes direct control cheaper, but strains organisations and raises unrest. Autonomy boosts the private economy, but makes direct control costlier and revenue weaker.
+- **Ideology is not government form or policy.** Government form is how decisions are made; policy is what the state does. A gap between ideology and policy causes friction. Ideology may vary by settlement and drift over time. Characters may hold positions in the same triangle (*Characters, Organisations & Events*).
+- **History:** the player picks a history in three phases (sections 2 to 5) and the profile emerges from those choices. AI factions draw histories too, with weighted probabilities instead of strict balance.
+- **Shelved:** regional specialisation (each state missing something). It risks unbalancing factions.
+- **Rejected:** Reverent/Pragmatic as a faction axis: a reverent faction would struggle in a salvage game.
+- **Later:** feudal-style government as an optional twist.
 
 ## 1. How ideology is represented (decided)
 
@@ -149,3 +161,5 @@ The first row as prose: a trading faction with dormant yards and a vibrant priva
 - How history sets government form and how that interacts with ideology.
 - Character ideology: how it is set and changes.
 - Typical event sizes and how fast ideology should drift.
+- Continuous or discrete extra axes.
+- Whether a research-oriented modifier is needed.

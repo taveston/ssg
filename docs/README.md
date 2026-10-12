@@ -7,9 +7,9 @@ This folder is the single source of truth for the design. Ideas are worked out i
 | Path | What goes in it | Rules |
 |---|---|---|
 | `ideas/` | Thinking: vision, mechanics, back story, presentation, open questions, rejected options | Free-form. Not a basis for code. Settled points are marked **Decided** in place, with a line on why. |
-| `ideas/gdd.md` | The overview: vision, pillars, structure, every system in brief, risks, open questions | Start here. |
+| `ideas/gdd.md` | The overview: vision, pillars, structure, core loop, a one-line map of every system and its doc, risks, cross-cutting questions | Start here. Detail goes in the system's own doc, not here. |
 | `ideas/world/` | Setting, back story, tone, history of the old network | May never become spec; shapes names and flavour. |
-| `ideas/mechanics/` | Systems design: ideology and faction history, components and ship assembly, requirements and bids, drives and transit, gates, world generation | Feeds the spec gradually. |
+| `ideas/mechanics/` | Systems design, one doc per system: economy, characters and organisations, factions and ideology, salvage and research, requirements and bids, components and ship assembly, drives and transit, gates, world generation, combat and raiders | Feeds the spec gradually. Each doc keeps its own open questions. |
 | `ideas/presentation/` | Views and visual style, reference sketches, mock-ups | Mock-ups illustrate; the spec decides behaviour. |
 | `ideas/scratch.md` | Half-formed notes | Anything goes. |
 | `spec/` | The committed design, written to code from | Every requirement has a stable ID. No open questions inside a requirement. |

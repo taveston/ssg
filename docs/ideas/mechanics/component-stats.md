@@ -6,7 +6,7 @@
 
 > **Repo note:** `scripts/components/` isn't in this repo yet; the tables below are as last generated.
 
-*Companion documents:* *Design Document* (4.4 bids, 4.5 salvage and research), *Component Catalogue* (this answers its open questions on which numbers a component carries, how they combine, and how as-built versions are handled), *Drives & Transit* (orbits, drive families, transit times) and *Requirements & Bids* (uses the stat names, understanding modifiers and HR-1 distributions defined here).
+*Companion documents:* *Design Document*, *Salvage & Research*, *Component Catalogue* (this answers its open questions on which numbers a component carries, how they combine, and how as-built versions are handled), *Drives & Transit* (orbits, drive families, transit times) and *Requirements & Bids* (uses the stat names, understanding modifiers and HR-1 distributions defined here).
 
 ---
 
@@ -242,7 +242,7 @@ Quadratic means give large early gains (Basic 4 to Competent 6 more than halves 
 **Learning.**
 - *Production:* completing the n-th unit of a type adds 0.6 / n to u, up to the cap of the best documentation held for that type. Cumulative gain after n units: 1 unit +0.60, 2 units +0.90, 4 units +1.25, 8 units +1.63, 16 units +2.03, 32 units +2.44. That is about +0.4 per doubling (0.6 × ln 2): Wright's law in understanding terms.
 - *Use:* each instance-year in service adds 0.05 to the operator's u for that type (same cap). This is how a shipping firm learns about the ships it runs.
-- Study of finds, staff moves, spillover and decay are research and character matters (design document 4.5) acting on the same scale.
+- Study of finds, staff moves, spillover and decay are research and character matters (*Salvage & Research*) acting on the same scale.
 
 ## 7. Worked example: HR-1 bulk hauler **(Candidate)**
 

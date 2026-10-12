@@ -1,6 +1,6 @@
 # Orphan Worlds: Component Catalogue
 
-**In short:** the catalogue of ship component types, grouped by category, each with a rough reproducibility tier. Component designs are the technology layer: mostly from before the collapse or reverse engineered. Organisations assemble ship designs from them in response to the player's requirements (design document, 4.4 and 4.5).
+**In short:** the catalogue of ship component types, grouped by category, each with a rough reproducibility tier. Component designs are the technology layer: mostly from before the collapse or reverse engineered. Organisations assemble ship designs from them in response to the player's requirements (*Requirements & Bids*, *Salvage & Research*).
 
 *Status:* draft structure. *Scope:* ship components first. Ground equipment and infrastructure (stations, mass drivers, refineries) need their own catalogues later.
 

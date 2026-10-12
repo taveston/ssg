@@ -8,12 +8,13 @@
 
 > **Speculative.** This document is early ideation. Nothing in it, including the Corvane reference layout and the gate distance, is a requirement. The prototype's Corvane is defined by the spec (TEST-01), not by section 2.
 
-*Companion documents:* *Design Document* (4.2 map and gates, 5 technology, 9 open questions on gate distance and delta-v), *Component Catalogue*, *Component Stats & Ship Assembly* (CSA: specific designs and ship assembly, using this document's orbits), *Requirements & Bids*, *Reference Sketches* (Corvane).
+*Companion documents:* *Design Document*, *Gates*, *Setting & Back Story* (technology), *Component Catalogue*, *Component Stats & Ship Assembly* (CSA: specific designs and ship assembly, using this document's orbits), *Requirements & Bids*, *Reference Sketches* (Corvane).
 
 ---
 
 ## 1. Summary
 
+- **Orbits (decided):** realistic but accessible. At these drive performances, transfer windows soften into a trade-off between time, delta-v and timing.
 - **Drives:** the brief's baseline mostly holds, with two revisions.
   - Water in a thermal rocket gives about 3.2 km/s, not 3.5 to 4.5, so water NTR and solar thermal are short-range tugs.
   - NEP is slower than it looks (0.05 mg loaded for ion/Hall, 0.13 mg for plasma), because the power plant, not the thruster, sets acceleration.
@@ -164,4 +165,5 @@ Gate entry tolerance 10 km/s (6.2); best phasing; "rdv" = must match the gate's 
 - **Planetary departure:** include the 2.8 km/s Halden low-orbit escape in ship budgets, or treat Arden Highport as the start of all trips?
 - **NEP:** whether low-thrust trips are solved in-game or estimated (Edelbaum gives 167 days for Iver → Halden IV against 191 from the optimised trajectory).
 - **Torch tuning:** acceleration cap and rarity, so relic drives feel decisive without ending orbital strategy.
+- **Delta-v range and reaction mass model** across the drive families.
 - **Non-circular orbits** and inclination: worth the generator's effort, or keep circular and coplanar?

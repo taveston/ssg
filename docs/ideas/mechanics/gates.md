@@ -4,7 +4,7 @@
 
 > **Speculative.** Everything here is early ideation and **Candidate** unless marked otherwise. Nothing is a requirement.
 
-*Companion documents:* *Design Document* (4.1 backbone arc, 4.2 map and gates, 9), *Setting & Back Story*, *World Generator* (4, 7), *Drives & Transit* (6, gate placement and entry tolerance), *Faction History Options*.
+*Companion documents:* *Design Document*, *Economy* (6, backbone arc), *Setting & Back Story*, *World Generator* (4, 7), *Drives & Transit* (6, gate placement and entry tolerance), *Factions & Ideology*.
 
 ---
 
@@ -14,7 +14,8 @@ The design document keeps how gates work deliberately unexplained. That still ho
 
 ## 2. What a gate is
 
-- **Paired mouths:** each gate is one mouth of a wormhole. Its partner is the gate it links to. One pair per link, so one gate per destination (design document, 4.2).
+- **The network (decided):** the map is generated. Each system has several gates at its edge, one per destination, each linking to a small handful of nearby systems. The network is largely fixed at the start. Because gates are at the edge, reaching inner bodies takes weeks to months (*Drives & Transit*, 6).
+- **Paired mouths:** each gate is one mouth of a wormhole. Its partner is the gate it links to. One pair per link, so one gate per destination (*Drives & Transit*).
 - **Held open by fields:** a wormhole throat pinches shut on its own. Each mouth is held open by field generators around it, which need power and constant fine control, like magnetic confinement in a fusion reactor. The old age could build these; nobody can now. This fits "advanced fields are reproduced, not invented".
 - **How they got there:** the far mouth of each pair was hauled to its system below light speed, over decades or centuries. The network grew outward from Earth, which is why Earth was the hub. Link range is how far a tow could go. New links can't be made, only old ones kept or reopened.
 
@@ -74,7 +75,7 @@ A dormant gate is faulted, or locked, at one end or both. Which end decides who 
 
 ## 10. Lore hooks
 
-- **The collapse:** the refugee flood on the last ships through the gates (*Faction History Options*) may have helped break the network.
+- **The collapse:** the refugee flood on the last ships through the gates (*Factions & Ideology*) may have helped break the network.
 - **The threat:** rebuilding collapsed links, or reopening long-sealed ones, may let the threat in (*Setting & Back Story*).
 - **Free-floating planets:** a gate at a starless planet (*World Generator*, 3) could be a mouth abandoned mid-tow.
 
@@ -87,3 +88,7 @@ A dormant gate is faulted, or locked, at one end or both. Which end decides who 
 - What the keyhole carries: speech and pictures only, or data and research too.
 - Whether collapsed links can ever be rebuilt, and what that costs.
 - How gate parts are counted: one generic resource, or a few module types.
+- Gate transit time and throughput.
+- Whether gates can be destroyed or captured.
+- Fog of war: what a faction knows of links it hasn't used.
+- Later: links out of the cluster that are dark.

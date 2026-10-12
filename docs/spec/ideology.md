@@ -2,7 +2,7 @@
 
 **In short:** three ideology scores (Cohesion, Authority, Autonomy) that always sum to 12, plus Outlook and Militancy from −6 to +6. Thresholds turn the scores into one of seven labels. Events move one score and take the change from the other two in proportion. A faction's starting profile comes from three history choices.
 
-*Scope:* how a faction's (and later a character's) ideology and attitudes are stored, changed, labelled and displayed. Simulation rules only; where it appears in the UI is not specced yet. *Source ideas:* `docs/ideas/mechanics/faction-history.md` (sections 1, 2 and 8), `docs/ideas/gdd.md` (4.7), diagram `docs/ideas/mechanics/ideology-triangle.svg`. **Built** is ✓ once a requirement is in the code; none is yet.
+*Scope:* how a faction's (and later a character's) ideology and attitudes are stored, changed, labelled and displayed. Simulation rules only; where it appears in the UI is not specced yet. *Source ideas:* `docs/ideas/mechanics/factions.md` (overview and sections 1, 2 and 8), diagram `docs/ideas/mechanics/ideology-triangle.svg`. **Built** is ✓ once a requirement is in the code; none is yet.
 
 ---
 
@@ -42,9 +42,9 @@
 | ID | Requirement | Built |
 |---|---|---|
 | IDEO-30 | A faction picks one option in each of three phases (origins, turmoil, recovery). Each option gives exactly 4 points spread across the three forces, so three options sum to 12; Outlook and Militancy are plain sums of the options from 0. |  |
-| IDEO-31 | The option values are data, loaded from a file, not code. The current values are the tables in `docs/ideas/mechanics/faction-history.md` sections 3 to 5 (placeholders for balancing). |  |
+| IDEO-31 | The option values are data, loaded from a file, not code. The current values are the tables in `docs/ideas/mechanics/factions.md` sections 3 to 5 (placeholders for balancing). |  |
 
 ## Open points (decide before building)
 
 - Tie-break for IDEO-11 when the two lowest scores are equal and both 3 or less, with no score at 7+. It happens on the boundary line between two edge regions: for example Coh 3 · Auth 3 · Auto 6 (reachable from two histories) or, after events, Coh 2.8 · Auth 2.8 · Auto 6.4. Options: a fixed priority order, or Pluralist.
-- Whether characters use exactly the same structure (gdd 4.3 says candidate).
+- Whether characters use exactly the same structure (`docs/ideas/mechanics/people.md`, 1, says candidate).

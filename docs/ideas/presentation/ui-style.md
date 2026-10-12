@@ -71,7 +71,7 @@ Every panel follows the same order (board 2):
 ## 7. Reports
 
 - **Layout (candidate):** a signal header (PREC, DTG, FROM, TO, SUBJ), then a short body, then the figures it rests on in mono, with their certainty notation.
-- **Authored, biased prose (open; a mechanics decision):** the body could be written from the author's point of view and carry their personality and bias (an aggressive commander reads threat into a cold hauler), so the player learns to weigh people against data. Ties into characters with hidden traits (design document, 4.3). The worry is the running clock: at 1 day/s, reports arrive faster than prose can be read, and reading for nuance invites pausing all the time. Options to weigh later: keep bias to a single line or a tag ("Marr assesses: hostile"); put bias only in rare, important reports; or roll routine traffic into digests. Settle with the character and information mechanics.
+- **Authored, biased prose (open; a mechanics decision):** the body could be written from the author's point of view and carry their personality and bias (an aggressive commander reads threat into a cold hauler), so the player learns to weigh people against data. Ties into characters with hidden traits (*Characters, Organisations & Events*). The worry is the running clock: at 1 day/s, reports arrive faster than prose can be read, and reading for nuance invites pausing all the time. Options to weigh later: keep bias to a single line or a tag ("Marr assesses: hostile"); put bias only in rare, important reports; or roll routine traffic into digests. Settle with the character and information mechanics.
 - **Summary first:** every report and collated return opens with a one-sentence conclusion, then the table (board 7).
 - Actions on a report are the decisions it asks for (Authorise / Refuse), plus Show on map and Reply.
 - **Candidate:** reports reach the player at once (no signal delay, per the information model), but carry the date of the observation they describe, which may be older.
@@ -84,7 +84,7 @@ Every panel follows the same order (board 2):
 
 ## 9. Dossiers
 
-- A person's file shows what the state knows: portrait, post, origin; traits seen as chips and traits not yet seen as dashed chips; skills as ranges; ideology label (*Faction History Options*, the ideology triangle) with its certainty; and a dated record of dealings with them.
+- A person's file shows what the state knows: portrait, post, origin; traits seen as chips and traits not yet seen as dashed chips; skills as ranges; ideology label (*Factions & Ideology*, the ideology triangle) with its certainty; and a dated record of dealings with them.
 - Entries from old or second-hand sources are dimmed and name their source.
 - Organisations get the same file layout.
 

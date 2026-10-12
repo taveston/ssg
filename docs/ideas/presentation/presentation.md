@@ -20,7 +20,7 @@ The first three are spatial layers, nested from cluster down to planet. Faction 
 ## 2. Spatial display
 
 - **The problem (context):** at true scale, planets are far smaller than a pixel in a whole-system view, and ships are invisible at any zoom that shows more than one of them. Engagements span thousands of kilometres, so a close-up of one ship tells the player little.
-- **Strategic display (decided):** the system and cluster views are a vector plotting display. Orbits are faint lines, bodies and ships are solid markers, trajectories are lines. System, cluster and combat views share one visual language; combat is the same display with the clock slowed (design document, 4.6). It reads as the government's own instruments, which suits a head of state rather than a pilot.
+- **Strategic display (decided):** the system and cluster views are a vector plotting display. Orbits are faint lines, bodies and ships are solid markers, trajectories are lines. System, cluster and combat views share one visual language; combat is the same display with the clock slowed (*Combat, Raiders & Diplomacy*). It reads as the government's own instruments, which suits a head of state rather than a pilot.
 - **Scale (direction):** positions and orbits are drawn at true scale. Markers are a fixed screen size by class, never physical size. Only the marker is stylised, never the geometry. Zoomed in close enough, a body is drawn as its true disc instead. (Specced for the system view: SCL-02, MRK-03, MRK-04, MRK-07.)
   - Marker shape and weight show the type: planet, moon, station, gate, ship, salvage site.
   - Ship and station symbology (decided, specced as SYM): NATO-style frames for affiliation, icons for ship type, and amplifiers for state, groups and identification. See *Symbology* (`symbology.md`).
@@ -28,7 +28,7 @@ The first three are spatial layers, nested from cluster down to planet. Faction 
   - How gate distance is shown on screen is left open until gate placement is tuned (section 6).
 - **Inspection view (decided):** highlighting any object expands it into a semi-photoreal view. This applies to everything: bodies, stations, gates, sites and ships. Ships appear as blips because of the distances involved, not because they are kept abstract.
   - **Presentation (decided 2026-10-12): one inset, docked at the right of the map.** The inset no longer follows its marker: text that moves across the screen, even slowly, is awkward to read. The white selection ring, on the marker and its orbit, shows what is selected, so there is no leader line. There is no pinning: comparing objects side by side belongs in tables in the administration view, and a fixed dock with several insets would need its own layout rules. (Specced: INS-01 to INS-03, INS-07.)
-  - **Fidelity follows knowledge (candidate):** the view shows the best image the state holds. An unsurveyed body is a grainy telescope frame. A surveyed one is a clean render with overlays (ice, ruins, settlements). An old observation shows the last image with its date. Own ships and stations render fully; foreign contacts only as well as they have been observed. This ties the visuals to the uncertainty pillar and to partly known salvage sites (design document, 4.5). (Only placeholder surveyed and unsurveyed images are specced, INS-04: how information is gathered isn't designed yet, so there is no stale state, status text or date. Foreign contacts not yet.)
+  - **Fidelity follows knowledge (candidate):** the view shows the best image the state holds. An unsurveyed body is a grainy telescope frame. A surveyed one is a clean render with overlays (ice, ruins, settlements). An old observation shows the last image with its date. Own ships and stations render fully; foreign contacts only as well as they have been observed. This ties the visuals to the uncertainty pillar and to partly known salvage sites (*Salvage & Research*). (Only placeholder surveyed and unsurveyed images are specced, INS-04: how information is gathered isn't designed yet, so there is no stale state, status text or date. Foreign contacts not yet.)
   - **Renders from designs (candidate):** ship and station renders are assembled from their component designs. So two bids for the same requirements look visibly different, and as-built variants and refits show.
 - **Information model (decided):** the player has a semi-omniscient view. Signal delay isn't modelled: what the state knows, the player sees at once, in every system.
 - **Abstract uncertainty (candidate):** limits on knowledge are modelled abstractly rather than through physics.
@@ -39,7 +39,7 @@ The first three are spatial layers, nested from cluster down to planet. Faction 
   - Moons, stations and ships in orbit around a body fold into one count marker on that body (specced: GRP).
   - Asteroid belts and debris fields appear as density shading. Surveyed, claimed or active sites get individual markers.
   - Information layers can be switched on and off: ownership, resources, salvage, traffic, sensor coverage.
-- **Motion (candidate):** ship paths are drawn as their actual arcs, including burns. Transfer planning shows a fan of alternative paths, each labelled with transit time and delta-v (design document, 4.2). How fast-orbiting objects are drawn is set by the motion rule (specced: MOT).
+- **Motion (candidate):** ship paths are drawn as their actual arcs, including burns. Transfer planning shows a fan of alternative paths, each labelled with transit time and delta-v (*Drives & Transit*). How fast-orbiting objects are drawn is set by the motion rule (specced: MOT).
 - **Cluster view (decided):** the same style as the system view, with systems as nodes and gates as links. Gate throughput, reliability and ownership could show as line weight, line style and colour (candidate).
 
 ### Navigation, satellites and motion
@@ -102,7 +102,7 @@ The first three are spatial layers, nested from cluster down to planet. Faction 
 - **Purpose (decided):** where settlements are administered and ground combat takes place.
 - **Entry (direction):** from the system view, by the inset's "Open planetary view" button or by double-clicking the focused body; never by scrolling. The inspection view is a look at a body; the planetary view is where the player acts on it.
 - **Style (candidate):** a globe that uses the body's photoreal render as its surface, with vector overlays for settlements, infrastructure, extraction sites, ground formations, landing sites and orbital assets overhead. This joins the two visual styles in one view.
-- **Ground combat (candidate):** delegated and lightly simulated, like space combat (design document, 4.6). The player sets objectives and posture, and watches formations move on the overlay.
+- **Ground combat (candidate):** delegated and lightly simulated, like space combat (*Combat, Raiders & Diplomacy*). The player sets objectives and posture, and watches formations move on the overlay.
 - **Coverage (candidate):** a full planetary view only for bodies with settlements, surface sites or fighting. Small moons and asteroids use the inspection view alone.
 
 ## 4. Faction administration view
@@ -110,7 +110,7 @@ The first three are spatial layers, nested from cluster down to planet. Faction 
 - **Purpose (decided):** managing the faction at a high level: policy, budget, appointments, organisations, collated reports and character interactions.
 - **Style (direction):** a fully 2D UI, separate from the spatial layers. Layout, panels, message traffic, reports, requests and dossiers: *Interface Style* (`ui-style.md`, candidate).
 - **Links to the map (candidate):** reports, requests and alerts link to the place they concern, and spatial objects link back to their owners, staff and records.
-- **Characters (candidate):** shown with what the state knows about them, keeping "average" and "unknown" visibly distinct (design document, 4.3).
+- **Characters (candidate):** shown with what the state knows about them, keeping "average" and "unknown" visibly distinct (*Characters, Organisations & Events*).
 
 ## 5. Art scope (direction)
 

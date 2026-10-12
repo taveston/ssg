@@ -6,7 +6,7 @@
 
 > **Repo note:** `scripts/bids/` isn't in this repo yet; the figures below are as last generated.
 
-Companion documents: *Design Document* (4.4, 4.5, 7), *Component Catalogue*, *Component Stats & Ship Assembly* (understanding modifier curves, cost scale, assembly formulas), *Drives & Transit* (drive baselines, transit times), *Presentation & Visual Style*, *Reference Sketches*.
+Companion documents: *Design Document* (6, risks), *Salvage & Research*, *Component Catalogue*, *Component Stats & Ship Assembly* (understanding modifier curves, cost scale, assembly formulas), *Drives & Transit* (drive baselines, transit times), *Presentation & Visual Style*, *Reference Sketches*.
 
 ---
 
@@ -19,7 +19,7 @@ Companion documents: *Design Document* (4.4, 4.5, 7), *Component Catalogue*, *Co
   - **Honest but uncertain.** Ranges shown to the player are calibrated: about 8 in 10 as-built figures land inside the shown 80% range. Bad assessors give wider ranges, never false ones. The rules are documented in the in-game encyclopedia. What is hidden is the draw and unobserved traits, never the rules.
   - **Drawn once, revealed gradually.** As-built figures are fixed at design freeze and revealed later; nothing is rolled at the moment of reveal. Every surprise has tells the player saw beforehand.
   - **A conversation, not a shop.** The player asks questions, negotiates terms, and lives with the institution afterwards (track record, opinion, grievances, debts).
-- **Answers to the design document's open bid questions:** what varies and why (section 5.1); hidden and visible information (6.1); ground forces and stations (10.2); AI use (10.4); refit or replace (10.5).
+- **Where the main bid questions are answered:** what varies and why (section 5.1); hidden and visible information (6.1); ground forces and stations (10.2); AI use (10.4); refit or replace (10.5).
 
 ## 2. Lifecycle **(Candidate)**
 
@@ -179,7 +179,7 @@ Offsets add. Optimism is clamped to 0.10–0.90. Caps apply last.
 |---|---|---|
 | Claims, price, contract terms offered, declared deviations and flags, dependencies, rights offered, design source and documentation level, track record entries | As-built figures (office estimate), understanding (bands: None, Rudimentary, Basic, Competent, Advanced, Mastery (CSA 6)), people's skills, cost estimate under cost-plus | Organisation's internal medians, the as-built draw, unobserved traits, undisclosed risks |
 
-- **Unknown is not average.** A trait slot never observed shows a dashed "? not yet observed"; an observed absence shows "none". A track record with no deliveries shows "NO RECORD", never an average. This matches the character rule (design document 4.3).
+- **Unknown is not average.** A trait slot never observed shows a dashed "? not yet observed"; an observed absence shows "none". A track record with no deliveries shows "NO RECORD", never an average. This matches the character rule (*Characters, Organisations & Events*).
 
 ### 6.2 Confidence ranges **(Candidate)**
 

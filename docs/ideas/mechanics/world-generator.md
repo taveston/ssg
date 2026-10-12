@@ -2,7 +2,7 @@
 
 **In short:** the generator builds the cluster for a new game: a flattened 3D volume of stars at realistic density and mix, gates only in the systems the old network had a reason to reach, links between them, full detail for gated systems only, and a historical layer of settlements, yards, ruins and salvage. It produces the truth; what each faction knows of it is handled separately (*Presentation & Visual Style*, 2: fidelity follows knowledge).
 
-*Status:* draft. Companion to the design document (2, 4.2, 4.5, 5); status tags as there (**Decided**, **Direction**, **Candidate**). All numbers are placeholders for tuning. The astronomical figures are approximate and should be checked against current surveys before they are fixed.
+*Status:* draft. Companion to the design document (2, structure), *Gates*, *Salvage & Research* and *Setting & Back Story*; status tags as there (**Decided**, **Direction**, **Candidate**). All numbers are placeholders for tuning. The astronomical figures are approximate and should be checked against current surveys before they are fixed.
 
 ---
 
@@ -54,7 +54,7 @@
 
 ### 4.1 Why a system was gated (direction)
 
-The old network's builders knew each system well and built gates where the value justified the cost. The generator scores systems by the motives below and gates the most valuable, plus whatever relays the network needs. The motives line up with the faction origins (*Faction History Options*, 3), which helps place starting factions.
+The old network's builders knew each system well and built gates where the value justified the cost. The generator scores systems by the motives below and gates the most valuable, plus whatever relays the network needs. The motives line up with the faction origins (*Factions & Ideology*, 3), which helps place starting factions.
 
 | Motive | What makes a system attractive | Related origin |
 |---|---|---|
@@ -74,9 +74,9 @@ The old network's builders knew each system well and built gates where the value
 - Each gated system links to a small handful (two to five) of gated systems within a maximum link range. The network is connected.
 - Links prefer near neighbours, so relays and chokepoints arise naturally rather than by decree.
 - A mild preference for links that don't cross in the top-down projection, for readability.
-- Some links lead out of the cluster and are dark (design document, 4.2; parking lot).
+- Some links lead out of the cluster and are dark (*Gates*, 11).
 - **Failed links (candidate, speculative):** the generator builds the old network, then fails most of its links. Fairness checks (section 8) run on the surviving network. Collapsed links leave a gate wreck in each of their two systems, as salvage. Some links are dormant rather than collapsed, faulted or locked at one end or both. See *Gates* (6, 7, 9).
-- Gates sit at the system edge, one per destination (design document, 4.2). The gate's distance from the star, and whether it scales with the star's mass or the extent of its planets, is open (section 9).
+- Gates sit at the system edge, one per destination (*Gates*, 2). The gate's distance from the star, and whether it scales with the star's mass or the extent of its planets, is open (section 9).
 
 ## 5. Gated Systems: Full Detail
 
@@ -109,11 +109,11 @@ Generate from observed occurrence rates and architecture templates rather than s
   - **Candidate:** the test system leaves out distant captured moons, because the satellite frame (ZOOM-15) fits every satellite and a moon at tens of millions of km would shrink the rest to nothing.
   - **Specced:** Morrow's mass and moon periods, in TEST-07 and TEST-08 (`docs/spec/system-view.md`).
 - **Small bodies:** inner rocky or metallic belts, outer icy belts, Trojans, comets. Drawn as density shading, with notable sites as individual markers (*Presentation & Visual Style*, 2).
-- **Orbits:** Keplerian, on rails. How much more detail is modelled is open (design document, 9).
+- **Orbits:** Keplerian, on rails. How much more detail is modelled is open (*Drives & Transit*, 9).
 
 ### 5.3 Worlds that support human life (direction)
 
-Starter worlds support human life in habitats on hostile surfaces (design document, 4.1), not in the open air.
+Starter worlds support human life in habitats on hostile surfaces (*Economy*), not in the open air.
 
 - **Candidate criteria:** gravity roughly 0.3 to 1.5 g; surface temperature and pressure within what habitats can manage; accessible water; a star that isn't too active.
 - Halden IV in the reference sketches (cold terrestrial, 0.82 g, thin nitrogen, −41 °C) is the intended flavour.
@@ -121,7 +121,7 @@ Starter worlds support human life in habitats on hostile surfaces (design docume
 
 ### 5.4 Resources (candidate)
 
-Each body carries rough deposits of the economy's few resources (design document, 4.1):
+Each body carries rough deposits of the economy's few resources (*Economy*):
 
 - **Water (ice):** beyond the snow line, icy moons, comets, polar caps of inner worlds.
 - **Metals:** rocky and metallic asteroids, rocky planets and moons.
@@ -139,17 +139,17 @@ Modelled at catalogue level only:
 
 ## 7. Historical Layer (direction)
 
-Laid down after the physical map, in the same order as the setting's timeline (design document, 5):
+Laid down after the physical map, in the same order as the setting's timeline (*Setting & Back Story*):
 
 1. **Old network:** settlements, yards, stations and gate-maintenance outposts, placed by each system's gate motive.
 2. **Collapse:** destruction, abandonment and decay, varying by system. Most links collapse; some gates are dormant and many survivors are degraded (*Gates*, 6 and 7).
 3. **Turmoil and recovery:** surviving populations consolidate into the starting factions on their worlds.
-4. **Result at game start:** inhabited worlds, dormant yards, salvage sites with partly known contents, ruins and records. Richer sites lie further out or behind dark gates (design document, 4.5).
+4. **Result at game start:** inhabited worlds, dormant yards, salvage sites with partly known contents, ruins and records. Richer sites lie further out or behind dark gates (*Salvage & Research*).
 5. **Authored beats:** placement rules for Earth-mystery clues and external-threat hints. Placement varies by map; the truth stays fixed.
 
 ## 8. Factions & Fairness (candidate)
 
-- Starting factions are placed on systems whose gate motive fits their origin: a shipyard hub where the yards are. This would answer the open question in *Faction History Options* about matching starts to origins.
+- Starting factions are placed on systems whose gate motive fits their origin: a shipyard hub where the yards are. This would answer the open question in *Factions & Ideology* about matching starts to origins.
 - Fairness checks: comparable starter worlds, resources within reach, distance to rivals, and access to gates and salvage. Fairness is in the totals; starts can differ in kind.
 - AI factions draw histories weighted by the map position they receive.
 
@@ -157,7 +157,7 @@ Laid down after the physical map, in the same order as the setting's timeline (d
 
 - Slab proportions, and whether the plan shape is round, irregular or elongated.
 - The ratio of gated to ungated systems; maximum link range; links per system; the share of links that fail, and how they're chosen (*Gates*, 11).
-- Gate distance from the star: fixed, scaled by stellar mass, or beyond the outermost major planet (design document, 9).
+- Gate distance from the star: fixed, scaled by stellar mass, or beyond the outermost major planet (*Drives & Transit*, 9).
 - Which architecture templates are needed, and how many bodies per system.
 - How much orbital detail is modelled (eccentricity, inclination, resonances).
 - Whether native life exists anywhere, and in what form.

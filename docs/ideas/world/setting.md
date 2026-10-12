@@ -4,7 +4,7 @@
 
 Status tags as in the design document; settled points are marked **Decided** in place.
 
-Related: what gates are, why most have failed and how they're maintained in `../mechanics/gates.md` (speculative); faction origins and their flavour text in `../mechanics/faction-history.md`; the historical layer the generator lays down in `../mechanics/world-generator.md` (section 7).
+Related: what gates are, why most have failed and how they're maintained in `../mechanics/gates.md` (speculative); faction origins and their flavour text in `../mechanics/factions.md`; the historical layer the generator lays down in `../mechanics/world-generator.md` (section 7).
 
 ---
 
@@ -26,3 +26,8 @@ Related: what gates are, why most have failed and how they're maintained in `../
 *(Open space for back-story ideas: what the old network was like, how the collapse unfolded, what survives, the Earth mystery and the external threat. Nothing here is committed.)*
 
 - **Gates (speculative):** wormhole pairs whose far mouths were towed out from Earth over centuries, so the network grew outward from it. Most links have collapsed since. Systems cut off entirely are the orphan worlds in a second sense. Details in `../mechanics/gates.md`.
+
+## Open questions
+
+- How the threat is hinted at and escalates, whether it can be switched off, and why it hasn't arrived.
+- The hard sci-fi no-go list.
