@@ -12,13 +12,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **Deliberate focus and two-stop zoom** · ZOOM-10, ZOOM-14 to ZOOM-16, CAM-02 to CAM-04, CAM-06 to CAM-08, CAM-23, CAM-24, MRK-07, SCL-05; withdraws CAM-21
-  - Delete zoom-to-focus (CAM-21) and the region frame, with their code and tests.
-  - Bodies need a physical radius (SCL-05). Give Corvane's bodies plausible ones: the star, Pell, Iver and Halden IV (rocky, a few thousand km), Morrow 71,500 km, moons a few hundred to a few thousand km.
-  - The standard orientation now has a tilt, so tests that assume a top-down start (CAM-02) need updating.
-  - CAM-24 needs the motion mode per object, which MOT-02 already computes.
-  - F-105 (camera sometimes detaches on zoom-out) may go away with this; check it while here.
-
 - [ ] **Ship and station symbols** · SYM-01 to SYM-08, SYM-13 to SYM-15, TEST-05, and the reworded MRK-01, MRK-04, GRP-06, INS-05, TEST-03
   - Replaces the triangle, diamond and hollow-square markers; delete their code. The `Ownership` enum (own, neutral, foreign) gives way to affiliation and command (SYM-01).
   - Reference: mock-up `docs/ideas/presentation/mockups/7-symbology.png` for shapes and proportions. Ignore its installation role icons.
@@ -45,7 +38,7 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 - [ ] **Gate edge labels show the destination alone** · EDGE-01
   - Label reads "Ostra", not "Gate Ostra".
 - [ ] **Camera sometimes stops following the focus on zoom-out** · CAM-05, CAM-08, ZOOM-13
-  - No reliable repro. Check it after "Deliberate focus and two-stop zoom", which rewrites this logic; fix if it remains.
+  - No reliable repro. That item has been built and rewrote this logic; check whether it still happens, and fix if so.
 
 ## Other
 

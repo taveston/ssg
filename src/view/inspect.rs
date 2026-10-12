@@ -37,6 +37,9 @@ struct InspectPanelFor {
 }
 #[derive(Component)]
 struct LeaderFor(Entity);
+/// The inset's Focus button, for the body it would focus (CAM-24).
+#[derive(Component)]
+struct FocusButton(Entity);
 /// The inset line MOT-07 asks for, for the body it describes.
 #[derive(Component)]
 struct PositionNote(Entity);
@@ -181,6 +184,28 @@ type InsetBodies<'w, 's> = Query<
 
 pub struct InspectPlugin;
 
+/// The Focus button's text colour: neutral grey while the body is in
+/// exposure-ring mode, when it can't be focused (CAM-24).
+pub fn focus_button_color(ring_mode: bool) -> Color {
+    if ring_mode {
+        colors::ORBIT_LINE
+    } else {
+        colors::OWN
+    }
+}
+
+/// CAM-24: the Focus button is disabled (dimmed, and the camera ignores its
+/// click) while its body is in exposure-ring mode.
+fn dim_focus_buttons(
+    modes: Query<&MotionModeState>,
+    mut buttons: Query<(&FocusButton, &mut TextColor)>,
+) {
+    for (button, mut color) in &mut buttons {
+        let ring = modes.get(button.0).is_ok_and(|mode| mode.ring_mode);
+        color.0 = focus_button_color(ring);
+    }
+}
+
 impl Plugin for InspectPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
@@ -189,6 +214,7 @@ impl Plugin for InspectPlugin {
                 handle_escape,
                 rebuild_panels,
                 update_position_notes,
+                dim_focus_buttons,
                 reposition_panels,
             )
                 .chain()
@@ -404,7 +430,12 @@ fn spawn_header(panel: &mut ChildSpawnerCommands, fonts: &Fonts, content: &Inset
 fn spawn_actions(actions: &mut ChildSpawnerCommands, fonts: &Fonts, body: Entity, pinned: bool) {
     let font = || fonts.label(BODY_FONT_PX);
     actions
-        .spawn((Text::new("Focus"), font(), TextColor(colors::OWN)))
+        .spawn((
+            FocusButton(body),
+            Text::new("Focus"),
+            font(),
+            TextColor(colors::OWN),
+        ))
         // ZOOM-16: the inset's Focus button focuses and frames the inset's
         // object, as a double-click does.
         .observe(
@@ -546,6 +577,13 @@ fn place(node: &mut Node, anchor: Option<Vec2>, offset: Vec2) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// CAM-24: the Focus button looks disabled only in ring mode.
+    #[test]
+    fn focus_button_is_dimmed_in_ring_mode() {
+        assert_eq!(focus_button_color(false), colors::OWN);
+        assert_ne!(focus_button_color(true), colors::OWN);
+    }
 
     /// MOT-07: the inset says "Position: shown when paused" while its body
     /// is an exposure ring, and hides the line once it is a dot again.

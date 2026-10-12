@@ -31,6 +31,7 @@ use crate::sim::system::{
 use crate::sim::units::{EARTH_MASS_KG, KM_PER_AU, SOLAR_MASS_KG};
 use crate::view::bindings::BindingsPlugin;
 use crate::view::camera::CameraPlugin;
+use crate::view::camera::keep::inside_margin;
 use crate::view::camera::requests::FocusRequest;
 use crate::view::camera::state::{ActiveMove, CameraRig, OrbitCamera};
 use crate::view::camera::stops::{StopsPlugin, ZoomStops, distance_for_radius};
@@ -1314,4 +1315,103 @@ fn a_body_grows_into_a_true_size_disc_when_close() {
         (drawn - expected).abs() < expected * 0.01,
         "drawn {drawn} px, true size {expected} px"
     );
+}
+
+/// CAM-07: panning a long way while focused stops with the body at least
+/// `focus_keep_margin_px` inside the map area, and keeps the focus.
+#[test]
+fn panning_while_focused_keeps_the_body_in_the_map_area() {
+    let mut app = camera_app();
+    let halden = body(&mut app, "Halden IV");
+    *app.world_mut().resource_mut::<Focus>() = Focus {
+        body: Some(halden),
+        offset: Vec3::ZERO,
+    };
+    run(&mut app, 3);
+    let star = body(&mut app, "Corvane");
+    drag_star(&mut app, star, Vec2::new(1590.0, 890.0));
+    run(&mut app, 3);
+    let screen = app
+        .world()
+        .resource::<ScreenPositions>()
+        .get(halden)
+        .unwrap();
+    let margin = app.world().resource::<Tunables>().focus_keep_margin_px;
+    assert!(
+        inside_margin(screen, VIEWPORT.as_vec2(), margin - 1.0),
+        "Halden IV at {screen}"
+    );
+    assert_eq!(app.world().resource::<Focus>().body, Some(halden));
+}
+
+/// A camera app with the motion rule running at `rate` days a second.
+fn motion_camera_app(rate: f64) -> App {
+    let mut app = camera_app_with(|app| {
+        app.add_plugins(MotionPlugin)
+            .insert_resource(placeholder_fonts());
+    });
+    let mut clock = app.world_mut().resource_mut::<GameClock>();
+    clock.toggle_pause();
+    clock.run_at(rate);
+    run(&mut app, SETTLE_FRAMES);
+    app
+}
+
+/// CAM-24: an object in exposure-ring mode can't be focused; a request for
+/// it does nothing.
+#[test]
+fn a_ring_mode_object_cannot_be_focused() {
+    let mut app = motion_camera_app(1.0);
+    let iva = body(&mut app, "Halden IVa");
+    assert!(app.world().get::<MotionModeState>(iva).unwrap().ring_mode);
+    app.world_mut().resource_mut::<FocusRequest>().0 = Some(iva);
+    run(&mut app, 40);
+    assert_eq!(app.world().resource::<Focus>().body, None);
+    assert!(app.world().resource::<ActiveMove>().0.is_none());
+}
+
+/// CAM-24: when the focused object enters ring mode, focus moves to its
+/// parent with the offset that keeps the view where it is.
+#[test]
+fn focus_moves_to_the_parent_when_the_focused_object_becomes_a_ring() {
+    let mut app = motion_camera_app(0.1);
+    let ivc = body(&mut app, "Halden IVc");
+    let halden = body(&mut app, "Halden IV");
+    app.world_mut().resource_mut::<FocusRequest>().0 = Some(ivc);
+    run(&mut app, 40);
+    assert_eq!(app.world().resource::<Focus>().body, Some(ivc));
+    let pivot_before = app.world().resource::<CameraRig>().pivot;
+
+    // IVc's apparent period drops below T_ring.
+    app.world_mut().resource_mut::<GameClock>().run_at(5.0);
+    run(&mut app, SETTLE_FRAMES);
+    let focus = *app.world().resource::<Focus>();
+    assert_eq!(focus.body, Some(halden), "focus moved to the parent");
+    let pivot = app.world().resource::<CameraRig>().pivot;
+    let halden_pos = app.world().resource::<WorldPositions>().0[&halden];
+    assert!(
+        ((pivot - halden_pos) - focus.offset).length() < 1e-3,
+        "the offset keeps the pivot where it is"
+    );
+    assert!(pivot_before.is_finite());
+
+    // Slowing down again does not move focus back.
+    app.world_mut().resource_mut::<GameClock>().run_at(0.1);
+    run(&mut app, SETTLE_FRAMES);
+    assert_eq!(app.world().resource::<Focus>().body, Some(halden));
+}
+
+/// CAM-02: the view starts in the standard orientation: north up, tilted by
+/// `standard_tilt_deg`, over the star at the system frame.
+#[test]
+fn the_view_starts_in_the_standard_orientation() {
+    let app = camera_app();
+    let rig = *app.world().resource::<CameraRig>();
+    let standard = app
+        .world()
+        .resource::<Tunables>()
+        .standard_tilt_deg
+        .to_radians();
+    assert_eq!((rig.heading, rig.pivot), (0.0, Vec3::ZERO));
+    assert!((rig.tilt - standard).abs() < 1e-6);
 }

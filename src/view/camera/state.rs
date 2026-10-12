@@ -24,8 +24,8 @@ pub struct CameraRig {
 const PLACEHOLDER_DISTANCE: f32 = 300.0;
 
 impl Default for CameraRig {
-    /// CAM-02: the start state looks straight down with north up, at the
-    /// star.
+    /// CAM-02: before start-up applies the standard tilt, the rig is north
+    /// up, over the star.
     fn default() -> Self {
         Self {
             pivot: Vec3::ZERO,
@@ -161,9 +161,9 @@ mod tests {
         }
     }
 
-    /// CAM-02: the camera starts level, north up, over the star.
+    /// The default rig is north up over the star; start-up adds the tilt.
     #[test]
-    fn start_state_is_level_and_north_up() {
+    fn default_rig_is_north_up_over_the_star() {
         let start = CameraRig::default();
         assert_eq!(
             (start.heading, start.tilt, start.pivot),

@@ -28,13 +28,13 @@ pub struct Frames<'w, 's> {
 }
 
 impl Frames<'_, '_> {
-    fn fov(&self) -> f32 {
+    pub fn fov(&self) -> f32 {
         self.projections
             .single()
             .map_or(std::f32::consts::FRAC_PI_4, camera_fov)
     }
 
-    fn viewport(&self) -> Vec2 {
+    pub fn viewport(&self) -> Vec2 {
         self.windows.single().map_or(FALLBACK_VIEWPORT, |window| {
             Vec2::new(window.width(), window.height())
         })

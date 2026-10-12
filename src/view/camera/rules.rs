@@ -61,6 +61,31 @@ pub fn plane_point(ray: Ray3d) -> Option<Vec3> {
     })
 }
 
+/// CAM-07: where a point on the orbital plane lands on screen, in pixels
+/// from the top left, for a camera looking at `pivot` from the given
+/// heading, tilt and distance. `None` if the point is behind the camera.
+pub fn project_plane_point(
+    point: Vec3,
+    (pivot, heading, tilt, distance): (Vec3, f32, f32, f32),
+    fov_y: f32,
+    viewport: Vec2,
+) -> Option<Vec2> {
+    let transform = camera_transform(pivot, heading, tilt, distance);
+    let local = transform.rotation.inverse() * (point - transform.translation);
+    if local.z >= -f32::EPSILON {
+        return None;
+    }
+    let half_tan = (fov_y / 2.0).tan();
+    let ndc = Vec2::new(
+        local.x / (-local.z * half_tan * viewport.x / viewport.y),
+        local.y / (-local.z * half_tan),
+    );
+    Some(Vec2::new(
+        viewport.x * (ndc.x + 1.0) / 2.0,
+        viewport.y * (1.0 - ndc.y) / 2.0,
+    ))
+}
+
 /// CAM-03 / CAM-06: the heading equivalent to `target` that is nearest
 /// `current`, so a move to north up or to a bookmark turns the short way
 /// round rather than unwinding whole turns.

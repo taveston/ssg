@@ -21,7 +21,9 @@ pub mod actions;
 pub mod control;
 pub mod drag;
 pub mod frames;
+pub mod keep;
 pub mod keys;
+pub mod release;
 pub mod requests;
 pub mod rig;
 pub mod rules;
@@ -62,6 +64,8 @@ impl Plugin for CameraPlugin {
                     actions::handle_north_up,
                     actions::handle_focus_requests,
                     actions::handle_bookmarks,
+                    keep::keep_focus_in_view,
+                    release::release_ring_mode_focus,
                     rig::advance_move,
                     rig::follow_focus,
                     rig::place_camera,
