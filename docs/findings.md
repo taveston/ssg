@@ -11,12 +11,12 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Affects:** INS-05 Â· **Type:** spec gap
 - **Disposition:** parked (2026-10-12). Option: keep the parent's inset open when a satellite is picked from its list, so selection can be immediate.
 
-### F-108 · The standard tilt of 20° is too close to a top-down view
-- **Observation:** playing the build, 20° from straight down looked too close to a view from directly above. The build now uses 30°. The spec's tunables table still says 20°.
-- **Affects:** CAM-02, CAM-23, `standard_tilt_deg` · **Type:** spec wrong
-- **Disposition:** open. Settle the default (30° in the build) and update the table.
+### F-108 Â· The standard tilt should be shallow, and the steepest tilt shallower still
+- **Observation:** playing the build, the standard view should be close to side-on. The build now uses 60Â° from straight down (the spec says 20Â°), and `max_pitch_deg` is 85Â° (the spec says 65Â°).
+- **Affects:** CAM-01, CAM-02, CAM-23, `standard_tilt_deg`, `max_pitch_deg` Â· **Type:** spec wrong
+- **Disposition:** open. Settle both defaults and update the tunables table.
 
 ### F-109 Â· A focus released by ring mode should bring the parent back into view
-- **Observation:** CAM-24 keeps the view where it is when focus moves to the parent, which can leave the parent off screen. The build now moves to the parent and frames it like a focus jump (ZOOM-16). With no ancestor left, focus ends and the view returns to the system frame over the star.
+- **Observation:** CAM-24 keeps the view where it is when focus moves to the parent, which can leave the parent off screen. The build now moves to the parent and frames it like a focus jump (ZOOM-16). With no ancestor left, focus ends and the view returns to the system frame over the star. The focus chip's Ã— does the same without refocusing: focus ends and the view centres on the parent at its satellite frame (system frame if the body orbits the star).
 - **Affects:** CAM-24 Â· **Type:** spec wrong
 - **Disposition:** open. Reword CAM-24 to describe the framing move.

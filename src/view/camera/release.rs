@@ -7,6 +7,7 @@ use bevy::prelude::*;
 
 use super::control::CameraControl;
 use super::frames::Frames;
+use super::requests::ReleaseFocusRequest;
 use super::state::{MoveTarget, PivotTarget};
 use crate::view::focus::Focus;
 use crate::view::motion_mode::MotionModeState;
@@ -74,6 +75,37 @@ pub fn release_ring_mode_focus(
             )
         }
     };
+    view.start(target, tunables.focus_jump_ms);
+}
+
+/// CAM-08: the focus chip's × ends focus, and the view moves to bring the
+/// focused body's parent back into view: centred on it at its satellite
+/// frame, or the system frame over the star if the body orbits the star.
+/// Nothing is focused afterwards.
+pub fn handle_release_request(
+    mut request: ResMut<ReleaseFocusRequest>,
+    tunables: Res<Tunables>,
+    frames: Frames,
+    parents: Query<&ChildOf>,
+    positions: Res<WorldPositions>,
+    mut view: CameraControl,
+) {
+    if !std::mem::take(&mut request.0) {
+        return;
+    }
+    let Some(body) = view.focus.body else {
+        return;
+    };
+    let tilt = view.rig.tilt;
+    view.settle(&positions);
+    let parent = parents.get(body).ok().map(ChildOf::parent);
+    let parent_at = parent.and_then(|parent| Some((parent, *positions.0.get(&parent)?)));
+    let (pivot, distance) = match parent_at {
+        Some((parent, at)) => (at, frames.framing(parent, tilt)),
+        None => (Vec3::ZERO, frames.system(tilt)),
+    };
+    *view.focus = Focus::default();
+    let target = MoveTarget::keeping_view(&view.rig, PivotTarget::Fixed(pivot), distance);
     view.start(target, tunables.focus_jump_ms);
 }
 

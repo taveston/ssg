@@ -137,7 +137,7 @@ impl Default for Tunables {
             body_max_screen_fraction: 0.25,
             double_click_window_ms: 350.0,
 
-            max_pitch_deg: 65.0,
+            max_pitch_deg: 85.0,
             drag_threshold_px: 4.0,
             rotate_deg_per_px: 0.25,
             key_pan_screen_per_s: 0.6,
@@ -146,7 +146,7 @@ impl Default for Tunables {
             key_rotate_deg_per_s: 90.0,
             edge_scroll_enabled: false,
             edge_scroll_px: 8.0,
-            standard_tilt_deg: 45.0,
+            standard_tilt_deg: 60.0,
             focus_keep_margin_px: 40.0,
             pan_bound_factor: 1.5,
             focus_bracket_px: 14.0,

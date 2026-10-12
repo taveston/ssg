@@ -43,7 +43,13 @@ impl Frames<'_, '_> {
     /// The camera distance at which a circle of `radius` round the pivot
     /// fits the view at `tilt`.
     pub fn fit(&self, radius: f32, tilt: f32) -> f32 {
-        distance_for_radius(radius, self.fov(), tilt, self.tunables.zoom_fit_margin)
+        distance_for_radius(
+            radius,
+            self.fov(),
+            tilt,
+            self.tunables.zoom_fit_margin,
+            self.viewport(),
+        )
     }
 
     /// ZOOM-15: the system frame, the outer limit.

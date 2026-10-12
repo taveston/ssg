@@ -47,16 +47,21 @@ pub fn start_at_system_frame(
     tunables: Res<Tunables>,
     mut rig: ResMut<CameraRig>,
     camera: Query<&Projection, With<OrbitCamera>>,
+    windows: Query<&Window>,
 ) {
     let Ok(projection) = camera.single() else {
         return;
     };
+    let viewport = windows.single().map_or(Vec2::new(1600.0, 900.0), |window| {
+        Vec2::new(window.width(), window.height())
+    });
     rig.tilt = tunables.standard_tilt_deg.to_radians();
     rig.distance = distance_for_radius(
         stops.system_radius,
         camera_fov(projection),
         rig.tilt,
         tunables.zoom_fit_margin,
+        viewport,
     );
 }
 

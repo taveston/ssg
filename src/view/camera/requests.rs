@@ -11,6 +11,12 @@ use bevy::prelude::*;
 #[derive(Resource, Default)]
 pub struct FocusRequest(pub Option<Entity>);
 
+/// CAM-08: a request to end focus from the focus chip's ×, taken by the
+/// camera next frame so the view can move to bring the focus's parent back
+/// into view instead of staying where the body left it.
+#[derive(Resource, Default)]
+pub struct ReleaseFocusRequest(pub bool);
+
 /// Set when the planetary view is asked for (ZOOM-17). The view doesn't
 /// exist yet; `planetary_view_hook` takes the request.
 #[derive(Resource, Default)]

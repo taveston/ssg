@@ -41,6 +41,7 @@ impl Plugin for CameraPlugin {
             .init_resource::<state::ActiveMove>()
             .init_resource::<state::Bookmarks>()
             .init_resource::<requests::FocusRequest>()
+            .init_resource::<requests::ReleaseFocusRequest>()
             .init_resource::<requests::PlanetaryViewRequest>()
             .init_resource::<requests::ContextMenuRequest>()
             .init_resource::<drag::MouseDrag>()
@@ -66,6 +67,7 @@ impl Plugin for CameraPlugin {
                     actions::handle_bookmarks,
                     keep::keep_focus_in_view,
                     release::release_ring_mode_focus,
+                    release::handle_release_request,
                     rig::advance_move,
                     rig::follow_focus,
                     rig::place_camera,

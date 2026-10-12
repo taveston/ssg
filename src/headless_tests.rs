@@ -32,7 +32,7 @@ use crate::sim::units::{EARTH_MASS_KG, KM_PER_AU, SOLAR_MASS_KG};
 use crate::view::bindings::BindingsPlugin;
 use crate::view::camera::CameraPlugin;
 use crate::view::camera::keep::inside_margin;
-use crate::view::camera::requests::FocusRequest;
+use crate::view::camera::requests::{FocusRequest, ReleaseFocusRequest};
 use crate::view::camera::state::{ActiveMove, CameraRig, OrbitCamera};
 use crate::view::camera::stops::{StopsPlugin, ZoomStops, distance_for_radius};
 use crate::view::edge::{EdgePlugin, GateEdgeTargets};
@@ -133,6 +133,11 @@ fn placeholder_fonts() -> Fonts {
     }
 }
 
+/// The camera distance that fits a circle of `radius` in the test window.
+fn fit_distance(radius: f32, fov_y: f32, tilt: f32, margin: f32) -> f32 {
+    distance_for_radius(radius, fov_y, tilt, margin, VIEWPORT.as_vec2())
+}
+
 fn fov() -> f32 {
     PerspectiveProjection::default().fov
 }
@@ -211,14 +216,14 @@ fn fold_state_after_a_scale_change() {
 
     let margin = app.world().resource::<Tunables>().zoom_fit_margin;
     let system_radius = app.world().resource::<ZoomStops>().system_radius;
-    let system_distance = distance_for_radius(system_radius, fov(), TILT, margin);
+    let system_distance = fit_distance(system_radius, fov(), TILT, margin);
     let halden = body(&mut app, "Halden IV");
     let satellite_radius = app
         .world()
         .resource::<ZoomStops>()
         .satellite_radius(halden)
         .unwrap();
-    let satellite_distance = distance_for_radius(satellite_radius, fov(), TILT, margin);
+    let satellite_distance = fit_distance(satellite_radius, fov(), TILT, margin);
     let halden_pos = app
         .world()
         .get::<GlobalTransform>(halden)
@@ -367,7 +372,7 @@ fn every_gate_has_an_arrow_when_zoomed_in() {
         .resource::<ZoomStops>()
         .satellite_radius(halden)
         .unwrap();
-    let distance = distance_for_radius(radius, fov(), TILT, margin);
+    let distance = fit_distance(radius, fov(), TILT, margin);
     let halden_pos = app
         .world()
         .get::<GlobalTransform>(halden)
@@ -439,8 +444,7 @@ fn focused_body_keeps_its_place_on_screen() {
         .satellite_radius(halden)
         .unwrap();
     let margin = app.world().resource::<Tunables>().zoom_fit_margin;
-    app.world_mut().resource_mut::<CameraRig>().distance =
-        distance_for_radius(radius, fov(), 0.0, margin);
+    app.world_mut().resource_mut::<CameraRig>().distance = fit_distance(radius, fov(), 0.0, margin);
     *app.world_mut().resource_mut::<Focus>() = Focus {
         body: Some(halden),
         offset: Vec3::ZERO,
@@ -527,7 +531,7 @@ fn zooming_in_never_focuses() {
     let tilt = app.world().resource::<CameraRig>().tilt;
     let radius = km_to_render(0.05 * KM_PER_AU);
     let margin = app.world().resource::<Tunables>().zoom_fit_margin;
-    let limit = distance_for_radius(radius, fov(), tilt, margin);
+    let limit = fit_distance(radius, fov(), tilt, margin);
     let distance = app.world().resource::<CameraRig>().distance;
     assert!(
         (distance - limit).abs() < limit * 1e-3,
@@ -554,7 +558,7 @@ fn focused_zoom_has_a_satellite_stop_an_inner_limit_and_ends_at_the_system_frame
         .resource::<ZoomStops>()
         .satellite_radius(halden)
         .unwrap();
-    let satellite_distance = distance_for_radius(satellites, fov(), tilt, margin);
+    let satellite_distance = fit_distance(satellites, fov(), tilt, margin);
 
     // Out a notch, then back in: the step lands exactly on the stop.
     scroll(&mut app, -1.0);
@@ -745,7 +749,7 @@ fn focus_north_and_home_move_the_real_camera() {
         .resource::<Tunables>()
         .standard_tilt_deg
         .to_radians();
-    let framed = distance_for_radius(radius, fov(), standard_tilt, margin);
+    let framed = fit_distance(radius, fov(), standard_tilt, margin);
     let rig = *app.world().resource::<CameraRig>();
     assert!(
         (rig.distance - framed).abs() < framed * 1e-3,
@@ -967,7 +971,7 @@ fn another_system_runs_through_the_same_code() {
     let margin = app.world().resource::<Tunables>().zoom_fit_margin;
     let system_radius = app.world().resource::<ZoomStops>().system_radius;
     assert!((system_radius - km_to_render(1.5 * KM_PER_AU)).abs() < system_radius * 1e-5);
-    let distance = distance_for_radius(system_radius, fov(), TILT, margin);
+    let distance = fit_distance(system_radius, fov(), TILT, margin);
     app.world_mut().spawn(test_camera(Vec3::ZERO, distance));
     run(&mut app, SETTLE_FRAMES);
 
@@ -1393,7 +1397,7 @@ fn focus_moves_to_the_parent_when_the_focused_object_becomes_a_ring() {
     let rig = *app.world().resource::<CameraRig>();
     let stops = app.world().resource::<ZoomStops>();
     let margin = app.world().resource::<Tunables>().zoom_fit_margin;
-    let framed = distance_for_radius(
+    let framed = fit_distance(
         stops.satellite_radius(halden).unwrap(),
         fov(),
         rig.tilt,
@@ -1487,4 +1491,39 @@ fn rapid_large_wheel_inputs_keep_a_fast_focused_body_in_place() {
             );
         }
     }
+}
+
+/// CAM-08: ending focus from the chip's × moves the view to the parent: a
+/// moon's parent is centred at its satellite frame, and nothing stays
+/// focused.
+#[test]
+fn releasing_focus_brings_the_parent_back_into_view() {
+    let mut app = camera_app();
+    let ivc = body(&mut app, "Halden IVc");
+    let halden = body(&mut app, "Halden IV");
+    app.world_mut().resource_mut::<FocusRequest>().0 = Some(ivc);
+    run(&mut app, 40);
+    assert_eq!(app.world().resource::<Focus>().body, Some(ivc));
+
+    app.world_mut().resource_mut::<ReleaseFocusRequest>().0 = true;
+    run(&mut app, 40);
+    assert_eq!(app.world().resource::<Focus>().body, None);
+    let rig = *app.world().resource::<CameraRig>();
+    let radius = app
+        .world()
+        .resource::<ZoomStops>()
+        .satellite_radius(halden)
+        .unwrap();
+    let margin = app.world().resource::<Tunables>().zoom_fit_margin;
+    let framed = fit_distance(radius, fov(), rig.tilt, margin);
+    assert!((rig.distance - framed).abs() < framed * 1e-3);
+    let on_screen = app
+        .world()
+        .resource::<ScreenPositions>()
+        .get(halden)
+        .unwrap();
+    assert!(
+        on_screen.distance(VIEWPORT.as_vec2() / 2.0) < 1.0,
+        "{on_screen}"
+    );
 }

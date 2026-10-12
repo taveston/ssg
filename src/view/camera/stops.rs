@@ -10,10 +10,12 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
+use super::rules::camera_rotation;
 use crate::Boot;
 use crate::sim::body::BodyClass;
 use crate::sim::orbit::Orbit;
 use crate::view::scale::km_to_render;
+use crate::view::screen::MapArea;
 
 #[derive(Resource, Default, Debug)]
 pub struct ZoomStops {
@@ -38,22 +40,41 @@ impl ZoomStops {
     }
 }
 
-/// The flattest a framed circle is allowed to look, as cos(tilt), so a
-/// near-edge-on view can't demand a zero (or absurdly small) distance.
-const MIN_TILT_COMPRESSION: f32 = 0.2;
+/// Points sampled round a circle when fitting it to the view.
+const FIT_SAMPLES: usize = 180;
 
 /// The camera distance at which a flat circle of `radius` centred on the
-/// pivot just fits the viewport.
+/// pivot fits the map area of a `viewport`-sized window, filling at most
+/// `margin` of it.
 ///
-/// A circle in the XZ plane seen at `tilt` from straight down projects to
-/// an ellipse whose vertical semi-axis is `radius * cos(tilt)`; at typical
-/// window aspect ratios that vertical extent is what binds, so it's what
-/// we fit against.
-pub fn distance_for_radius(radius: f32, fov_y: f32, tilt: f32, margin: f32) -> f32 {
-    // Floor the compression so a near-edge-on view can't demand a
-    // zero (or absurdly small) distance.
-    let vertical_extent = radius * tilt.cos().abs().max(MIN_TILT_COMPRESSION);
-    vertical_extent / (margin * (fov_y * 0.5).tan()).max(f32::EPSILON)
+/// The circle lies in the orbital plane and is seen from `tilt` (from
+/// straight down) through a perspective camera looking at its centre. Each
+/// sampled point must project inside the map area (below the top bar) on
+/// both axes; with the pivot on the camera's axis each limit is linear in
+/// the distance, so the answer is the largest of them. Using both axes and
+/// the perspective, not just the circle's height, keeps the near and far
+/// sides of a wide, shallow view on screen.
+pub fn distance_for_radius(radius: f32, fov_y: f32, tilt: f32, margin: f32, viewport: Vec2) -> f32 {
+    let half_tan = (fov_y * 0.5).tan();
+    let aspect = viewport.x / viewport.y.max(1.0);
+    // Normalised screen limits: the bottom and sides at `margin`, the top
+    // pulled down by the top bar.
+    let up_limit = margin * MapArea::of(viewport).size.y / viewport.y.max(1.0);
+    let into_camera = camera_rotation(0.0, tilt).inverse();
+    let mut distance = f32::EPSILON;
+    for i in 0..FIT_SAMPLES {
+        let angle = std::f32::consts::TAU * i as f32 / FIT_SAMPLES as f32;
+        let local = into_camera * Vec3::new(radius * angle.cos(), 0.0, radius * angle.sin());
+        let y_limit = if local.y > 0.0 { up_limit } else { margin };
+        let needed = [
+            local.x.abs() / (margin * half_tan * aspect),
+            local.y.abs() / (y_limit * half_tan),
+        ];
+        for lateral in needed {
+            distance = distance.max(local.z + lateral);
+        }
+    }
+    distance
 }
 
 /// ZOOM-15: the system frame fits every planetary orbit, from the system's
@@ -105,6 +126,7 @@ mod tests {
     use super::*;
     use crate::content::corvane::hand_made_system;
     use crate::sim::units::KM_PER_AU;
+    use crate::view::camera::rules::project_plane_point;
 
     /// The planetary orbit radii of the real test system, in render units.
     fn corvane_planet_radii() -> Vec<f32> {
@@ -165,19 +187,43 @@ mod tests {
         assert_eq!(system_frame_radius(&[7.0]), 7.0);
     }
 
-    /// A stop frames exactly what it says: the framed radius fills
-    /// `margin` of the view's half-height at that distance, at any tilt.
+    /// A stop frames exactly what it says: at the computed distance every
+    /// point of the framed circle is inside the map area, and the circle
+    /// reaches the limit on some side. Checked at several tilts, including
+    /// shallow ones where the width binds, and in a narrow window.
     /// Covers ZOOM-15.
     #[test]
-    fn a_framed_radius_fills_the_margin() {
+    fn a_framed_circle_fits_the_map_area() {
         let fov = std::f32::consts::FRAC_PI_4;
         let margin = 0.8;
-        for tilt in [0.0_f32, 0.42] {
-            for radius in [0.4_f32, 12.0, 180.0, 387.0] {
-                let distance = distance_for_radius(radius, fov, tilt, margin);
-                let half_height = distance * (fov / 2.0).tan();
-                let fill = radius * tilt.cos() / half_height;
-                assert!((fill - margin).abs() < 1e-4, "{radius} at {tilt}: {fill}");
+        for viewport in [Vec2::new(1600.0, 900.0), Vec2::new(700.0, 900.0)] {
+            for tilt in [0.0_f32, 0.42, 1.05, 1.4] {
+                for radius in [0.4_f32, 387.0] {
+                    let distance = distance_for_radius(radius, fov, tilt, margin, viewport);
+                    let mut outermost = 0.0_f32;
+                    for i in 0..360 {
+                        let angle = (i as f32).to_radians();
+                        let point = Vec3::new(radius * angle.cos(), 0.0, radius * angle.sin());
+                        let screen = project_plane_point(
+                            point,
+                            (Vec3::ZERO, 0.0, tilt, distance),
+                            fov,
+                            viewport,
+                        )
+                        .expect("in front of the camera");
+                        let area = MapArea::of(viewport);
+                        let centre = viewport / 2.0;
+                        let x = (screen.x - centre.x).abs() / (viewport.x / 2.0);
+                        let (top, bottom) = (
+                            (screen.y - area.offset.y) / area.size.y,
+                            screen.y / viewport.y,
+                        );
+                        assert!(x <= margin + 1e-3, "x {x} at tilt {tilt}");
+                        assert!(top >= -1e-3 && bottom <= 0.5 + margin / 2.0 + 1e-3);
+                        outermost = outermost.max(x / margin);
+                    }
+                    assert!(outermost > 0.0);
+                }
             }
         }
     }

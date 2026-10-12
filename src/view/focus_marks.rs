@@ -6,6 +6,7 @@
 use bevy::prelude::*;
 
 use super::anchors::BodyAnchors;
+use super::camera::requests::ReleaseFocusRequest;
 use super::colors;
 use super::focus::Focus;
 use super::fonts::Fonts;
@@ -153,9 +154,11 @@ fn spawn_chip(mut commands: Commands, fonts: Res<Fonts>) {
                 fonts.label(CHIP_FONT_PX),
                 TextColor(colors::NEUTRAL),
             ))
-            .observe(|_click: On<PointerClick>, mut focus: ResMut<Focus>| {
-                *focus = Focus::default();
-            });
+            .observe(
+                |_click: On<PointerClick>, mut release: ResMut<ReleaseFocusRequest>| {
+                    release.0 = true;
+                },
+            );
         });
 }
 
