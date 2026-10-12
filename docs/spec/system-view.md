@@ -164,15 +164,16 @@ A **satellite** is anything orbiting a body other than the star: moons, stations
 
 ## 7. Motion rule
 
-The **apparent period** of an orbit is its orbital period divided by the time rate, in real seconds; infinite when paused.
+The **apparent period** of an orbit is its orbital period divided by the selected time rate, in real seconds. Pausing does not change it: the selected rate is kept while paused (CLK-05).
 
 | ID | Requirement | Built |
 |---|---|---|
 | MOT-01 | Apparent period at or above `tail_secs`: the object is a dot at its true position, and its orbit ring carries a tail behind it. The tail is a brightness gradient along the ring itself, one continuous anti-aliased stroke, running from the exposure-ring brightness (MOT-02) at the dot down to the ring's normal alpha at the tail's end. |  |
 | MOT-10 | The tail covers the arc swept in the last `tail_secs` real seconds: 360° × `tail_secs` ÷ apparent period. Its length follows the time rate continuously, with no steps. |  |
-| MOT-02 | Apparent period below `tail_secs`: the tail has closed into the exposure ring. No dot; the whole ring is at full exposure brightness and `exposure_ring_width_px` wide; the label sits on the ring at a fixed spot. |  |
+| MOT-02 | While running, apparent period below `tail_secs`: the tail has closed into the exposure ring. No dot; the whole ring is at full exposure brightness and `exposure_ring_width_px` wide; the label sits on the ring at a fixed spot. |  |
 | MOT-11 | As the tail grows from `dot_fade_from_degrees` to 360°, the dot fades out and the ring width grows to `exposure_ring_width_px`, both linearly, so the closing is seamless. |  |
-| MOT-04 | There is no special case for pause: an infinite apparent period gives dot mode with a zero-length tail. | |
+| MOT-04 | Pausing keeps every tail at its running length, so the view does not jump. |  |
+| MOT-12 | While paused, each tail is capped at `dot_fade_from_degrees`, so every orbiting object shows as a full-brightness dot with its tail, objects in exposure-ring mode included. Unpausing restores the running state. |  |
 | MOT-07 | While the selected object is in ring mode, its inset has the line "Position: shown when paused". | |
 | MOT-08 | The rule applies to every orbiting object (moons, stations, parked ships, close-in planets); ships in transit are ignored. | ✓ |
 
@@ -201,7 +202,7 @@ All in the `Tunables` resource (`src/view/tunables.rs`). Defaults are starting v
 | `fold_below_px` | 20 px | GRP-01 |
 | `fold_unfold_anim_ms` | 200 | GRP-03 |
 | `tail_secs` | 8 s | MOT-01, MOT-02, MOT-10 |
-| `dot_fade_from_degrees` | 300° | MOT-11 |
+| `dot_fade_from_degrees` | 300° | MOT-11, MOT-12 |
 | `exposure_ring_width_px` | 3 | MOT-02 |
 | `zoom_step_factor` | ×2 | ZOOM-01 |
 | `zoom_anim_ms` | 200 (range 150–250) | ZOOM-01 |

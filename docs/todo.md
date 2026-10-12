@@ -24,7 +24,7 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - The inset docks at the right of the map with no leader line. Delete the leader-line drawing, the anchoring and clamping code, and Pin with all pinned-inset state.
   - MOT-05 and MOT-09 are retired: ring hit-testing now covers every drawn orbit (HOV-02), and a docked inset needs no anchor. Delete `inset_offset_px`.
   - `focus_bracket_px` becomes `focus_bracket_margin_px` (F5-08 described the built behaviour; keep it, just as a margin).
-- [ ] **Orbit tails on the ring** · MOT-01, MOT-02, MOT-04, MOT-10, MOT-11, TEST-08
+- [ ] **Orbit tails on the ring** · MOT-01, MOT-02, MOT-04, MOT-10, MOT-11, MOT-12, TEST-08
   - Replaces the sampled dot trail and the two-threshold switch. MOT-03 is retired: delete the cross-fade, `motion_crossfade_ms`, `t_dot_secs`, `t_ring_secs`, `trail_arc_degrees` and the trail sampling. Add `tail_secs` and `dot_fade_from_degrees`.
   - Draw the tail as a gradient on the ring's own stroke (per-vertex alpha), not as separate geometry.
   - Testable through tail arc length and dot alpha for known periods and rates.

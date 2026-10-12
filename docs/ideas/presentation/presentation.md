@@ -44,13 +44,14 @@ The first three are spatial layers, nested from cluster down to planet. Faction 
 
 ### Navigation, satellites and motion
 
-> **Specced** in `docs/spec/system-view.md`: navigation and zoom as ZOOM-01 to ZOOM-11, satellite grouping as GRP-01 to GRP-08, the motion rule as MOT-01 to MOT-11, with the tunables table. This section keeps the reasoning and the parts not yet specced.
+> **Specced** in `docs/spec/system-view.md`: navigation and zoom as ZOOM-01 to ZOOM-11, satellite grouping as GRP-01 to GRP-08, the motion rule as MOT-01 to MOT-12, with the tunables table. This section keeps the reasoning and the parts not yet specced.
 
 - **Why:** the first prototype drew every moon at whole-system zoom, moons orbited too fast to read at 1 day/s, and fully continuous zoom felt odd. Hence:
   - logarithmic stepped zoom, with stops computed from each system's real orbits;
   - satellites fold into a "+N" count marker on their parent below a screen-radius threshold;
-  - a motion rule based on apparent period (orbital period ÷ time rate) that shows fast orbits as bright "exposure rings" rather than smeared dots. Pausing or slowing time brings the dots back with no special case.
-  - **Tails on the ring (decided 2026-10-12).** The first build drew dot-mode trails as a chain of sampled points, which looked bad. Instead the orbit ring itself carries the tail as a brightness gradient behind the dot, so it is one smooth stroke and reinforces the ring as the click target. The tail covers the arc swept in the last few real seconds, so it lengthens as time speeds up; when it reaches a full circle it simply is the exposure ring. One continuous rule replaces the two thresholds and the cross-fade between them. (Specced: MOT-01, MOT-02, MOT-04, MOT-10, MOT-11, `tail_secs`, `dot_fade_from_degrees`.)
+  - a motion rule based on apparent period (orbital period ÷ time rate) that shows fast orbits as bright "exposure rings" rather than smeared dots. Pausing or slowing time brings the dots back.
+  - **Tails on the ring (decided 2026-10-12).** The first build drew dot-mode trails as a chain of sampled points, which looked bad. Instead the orbit ring itself carries the tail as a brightness gradient behind the dot, so it is one smooth stroke and reinforces the ring as the click target. The tail covers the arc swept in the last few real seconds, so it lengthens as time speeds up; when it reaches a full circle it simply is the exposure ring. One continuous rule replaces the two thresholds and the cross-fade between them. 
+    Tails stay visible when paused (decided 2026-10-12), since that's when the map is studied: tail length uses the selected rate, which pausing keeps, and while paused each tail is capped just short of a full circle so ring-mode bodies drop back to dots. The bright head end still shows direction. (Specced: MOT-01, MOT-02, MOT-04, MOT-10, MOT-11, MOT-12, `tail_secs`, `dot_fade_from_degrees`.)
 - **Not yet specced (direction):**
   - Changing layer, to the cluster view or a planetary view, is always deliberate: the breadcrumb, a double-click on the focused body, or the inset button. Scrolling never changes layer.
   - The motion rule also applies to the orbital layer of the planetary view.
