@@ -9,4 +9,4 @@ Format and types are in `docs/README.md`. New findings take the next free number
 ### F5-07 · A single click on an "In orbit" entry waits for the double-click window
 - **Observation:** selecting a satellite replaces the parent's inset, which removes the list before a double-click's second click can land. So a single click selects only after `double_click_window_ms` (350 ms) passes with no second click. List clicks feel a third of a second slow.
 - **Affects:** INS-05 · **Type:** spec gap
-- **Disposition:** parked (2026-10-12). Option: keep the parent's inset open when a satellite is picked from its list, so selection can be immediate.
+- **Disposition:** parked (2026-10-12). Pinning is gone, so the parent's inset can't stay open beside the satellite's. Options: select at once and let a second click on the same spot in the satellite's inset do nothing; or give the satellite's inset a "back to parent" line in the list's place.

@@ -5,7 +5,7 @@ This doc proposes how the interface around the map looks and behaves: panels, th
 - **One console register everywhere.** The same dark, quiet look as the map, in the spatial views and in Administration. Flavour comes from structure (signal headers, file stamps), not from a change of skin.
 - **Figures carry their certainty.** One notation for exact, estimated, ranged, unknown and stale values, used in every panel, report and table.
 - **Reports have authors.** Each comes from a named person or office, with the state's own figures underneath. Whether the prose carries the author's bias is a mechanics question, still open.
-- **No free-floating windows.** Panels dock in fixed places; only insets sit on the map.
+- **No free-floating windows.** Panels dock in fixed places, the inspection inset included.
 
 The console register is **decided** (2026-10-12); everything else is **candidate**. Mock-up: `mockups/8-ui-style.png` (source `mockups/8-ui-style.html`). Builds on *Presentation & Visual Style* (sections 2 and 4) and *Symbology*. Names, figures and the currency ("cr") in the mock-up are placeholders.
 
@@ -45,7 +45,7 @@ The same notation everywhere, so the player can always tell measured from guesse
 
 ## 4. Window model
 
-- **Fixed docks, no free windows.** Top bar across the top; a right-hand detail panel for long content (as in the planetary view); message traffic docked bottom right; insets anchored to markers on the map (INS). Nothing floats or overlaps by accident.
+- **Fixed docks, no free windows.** Top bar across the top; a right-hand detail panel for long content (as in the planetary view); message traffic docked bottom right; the inspection inset docked at the right of the map (INS). Nothing floats or overlaps by accident.
 - **Insets** stay the only map-anchored panels. Pinned insets (INS-03) are the way to compare; **candidate:** a limit of about three pinned, oldest unpinned first.
 - **Modal dialogs** only for decisions that can't be undone, and they never stop the clock unless the player pauses.
 - Every panel closes with Esc, and the top bar (date, rate, traffic count) is visible in every view, including Administration.

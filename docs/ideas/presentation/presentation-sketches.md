@@ -2,7 +2,7 @@
 
 **In short:** a description in words of the six boards on the design canvas [Inspect & Planetary Transition](https://claude.ai/artifact/E8U8j7d2HdB5gGd1S1W5WR), so it can be used as context without opening it. The boards cover the system view, inspecting in place, the transition to the planetary view, the planetary view, inspection fidelity, and satellite grouping with the motion rule. PNG exports are in `mockups/`.
 
-Everything shown is **candidate** unless *Presentation & Visual Style* marks it otherwise. The parts that have been built are specced in `docs/spec/system-view.md`; where a sketch and the spec disagree, the spec wins. Two things the sketches show have since been rejected: the fan-out bubble and magnifier (boards 2 and 6), replaced by focus and the inset's "In orbit" list.
+Everything shown is **candidate** unless *Presentation & Visual Style* marks it otherwise. The parts that have been built are specced in `docs/spec/system-view.md`; where a sketch and the spec disagree, the spec wins. Two things the sketches show have since been rejected: the fan-out bubble and magnifier (boards 2 and 6), replaced by focus and the inset's "In orbit" list; and the anchored, pinnable inset (boards 1 and 2), replaced by one inset docked at the right of the map.
 
 ---
 
