@@ -89,7 +89,7 @@ Shared formatting for every readout in the game, not tied to one panel. Figures 
 | ID | Requirement | Built |
 |---|---|---|
 | UNIT-01 | A distance is shown in km below `distance_au_threshold_au`, and in AU at or above it, to 3 significant figures, with thousands separators (for example "850 km", "182,000 km", "0.362 AU", "12.4 AU"). | |
-| UNIT-02 | A duration is shown in the largest unit it reaches, to 3 significant figures: minutes ("42.0 min"), hours ("5.30 h"), days ("31.2 d") or years of 365.25 days ("2.40 y"). | |
+| UNIT-02 | A duration is shown in the largest unit it reaches: whole minutes ("42 min"), or hours, days or years of 365.25 days to one decimal place ("5.3 h", "31.2 d", "2.4 y"). | |
 | UNIT-03 | Distances and durations are formatted by one shared module that any panel calls; no panel formats them itself. *Checked in review.* | |
 
 ## 5. Navigation and zoom
