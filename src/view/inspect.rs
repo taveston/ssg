@@ -7,7 +7,7 @@
 //! the body - by one helper per section, so what an inset says can be
 //! tested apart from how it is laid out.
 //!
-//! Simplifications carried from iteration 2: the leader "line" is a short
+//! Simplifications: the leader "line" is a short
 //! straight connector rather than a drawn diagonal; the rest of the map
 //! isn't dimmed; Esc closes the unpinned inset (INS-03), and clicking empty
 //! space does nothing.
@@ -70,7 +70,7 @@ const STALE_TONE: Color = Color::srgb(0.65, 0.55, 0.4);
 const DISABLED_ALPHA: f32 = 0.4;
 const DISABLED_BORDER_ALPHA: f32 = 0.3;
 
-/// INS-02 (F4-09): the class line's readable class name.
+/// INS-02: the class line's readable class name.
 pub fn class_label(class: BodyClass) -> &'static str {
     match class {
         BodyClass::Star => "Star",
@@ -578,7 +578,7 @@ mod tests {
         assert_eq!(POSITION_SHOWN_WHEN_PAUSED, "Position: shown when paused");
     }
 
-    /// INS-02 (F4-09): classes read as words, not enum names.
+    /// INS-02: classes read as words, not enum names.
     #[test]
     fn class_names_are_readable() {
         assert_eq!(class_label(BodyClass::SalvageSite), "Salvage site");

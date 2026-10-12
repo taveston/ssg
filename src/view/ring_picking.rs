@@ -1,4 +1,4 @@
-//! Hover and click on an exposure ring (MOT-05, F4-14): a small picking
+//! Hover and click on an exposure ring (MOT-05): a small picking
 //! backend that hits a ring anywhere along its length, by distance from
 //! the ring as drawn on screen.
 //!
@@ -175,7 +175,7 @@ mod tests {
         );
     }
 
-    /// MOT-05 (F4-14): a ring is hittable anywhere along its length, not
+    /// MOT-05: a ring is hittable anywhere along its length, not
     /// only at a few points round it.
     #[test]
     fn a_ring_is_hit_anywhere_along_it() {

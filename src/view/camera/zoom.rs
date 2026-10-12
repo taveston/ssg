@@ -229,7 +229,7 @@ mod tests {
     }
 
     /// ZOOM-01: raw wheel deltas are never used. A device reporting pixels
-    /// must not turn one event into dozens of steps (F4-11).
+    /// must not turn one event into dozens of steps.
     #[test]
     fn pixel_scroll_is_converted_not_used_raw() {
         // A line-unit device reports notches directly.

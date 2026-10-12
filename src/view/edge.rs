@@ -76,7 +76,7 @@ pub fn clamp_to_viewport_edge(pos: Vec2, viewport: Vec2, margin_px: f32) -> Opti
     Some(centre + delta * scale.max(0.0))
 }
 
-/// EDGE-01 (F4-08): which way on screen a point lies, from the camera's own
+/// EDGE-01: which way on screen a point lies, from the camera's own
 /// axes. Used for a gate the camera can't project because it is behind it:
 /// its direction is still well defined - a gate behind a steeply tilted
 /// camera reads as "down" - even though it has no screen position.
@@ -85,7 +85,7 @@ pub fn screen_direction(to_target: Vec3, camera_right: Vec3, camera_up: Vec3) ->
     Vec2::new(to_target.dot(camera_right), -to_target.dot(camera_up))
 }
 
-/// EDGE-01 (F4-08): pin an arrow on the edge in a screen direction from the
+/// EDGE-01: pin an arrow on the edge in a screen direction from the
 /// centre. `None` for no direction at all (a point dead behind the lens).
 pub fn pin_direction_to_edge(direction: Vec2, viewport: Vec2, margin_px: f32) -> Option<Vec2> {
     let direction = direction.try_normalize()?;
@@ -102,7 +102,7 @@ pub fn edge_arrow_angle(edge_pos: Vec2, viewport: Vec2) -> f32 {
     dir.x.atan2(-dir.y)
 }
 
-/// EDGE-01 (F5-09): the part of the window the map shows in, below the
+/// EDGE-01: the part of the window the map shows in, below the
 /// top bar. Arrows are pinned to its edges, so none hides under the bar;
 /// the clamping functions work in its own coordinates.
 struct MapArea {
@@ -184,7 +184,7 @@ fn spawn_edge_indicators(
 
 /// EDGE-01: gates that fall outside a small margin get clamped to the
 /// viewport edge instead of being hidden outright. A gate behind the camera
-/// has no projected position; it is pinned in its direction instead (F4-08).
+/// has no projected position; it is pinned in its direction instead.
 fn update_edge_targets(
     screen: Res<ScreenPositions>,
     view: ViewNow,
@@ -328,7 +328,7 @@ mod tests {
         assert!((beside.x - MARGIN).abs() < 0.01);
     }
 
-    /// EDGE-01 (F4-08): a point behind a camera looking down and forward
+    /// EDGE-01: a point behind a camera looking down and forward
     /// reads as "down the screen", and to the right of it as "right".
     #[test]
     fn points_behind_the_camera_still_have_a_direction() {
@@ -340,7 +340,7 @@ mod tests {
         assert!(behind_right.x > 0.0 && behind_right.y > 0.0);
     }
 
-    /// EDGE-01 (F4-08): a direction pins to the edge, inside the margin;
+    /// EDGE-01: a direction pins to the edge, inside the margin;
     /// no direction pins nowhere.
     #[test]
     fn directions_pin_to_the_edge() {

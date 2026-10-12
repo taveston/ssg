@@ -1,4 +1,4 @@
-//! Where everything is *this frame*, in render space (CAM-05, F4-29).
+//! Where everything is *this frame*, in render space (CAM-05).
 //!
 //! Bevy only updates `GlobalTransform` after a frame's systems have run, so
 //! anything that read it saw last frame's world - and a camera following a

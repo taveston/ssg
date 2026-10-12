@@ -57,7 +57,7 @@ type BodyPlacement = (
     Option<&'static ChildOf>,
 );
 
-/// CAM-05 / F4-29: every body's position this frame, relative to the star,
+/// CAM-05: every body's position this frame, relative to the star,
 /// from the simulation's km positions - not last frame's `GlobalTransform`.
 fn update_world_positions(
     bodies: Query<BodyPlacement, With<BodyClass>>,

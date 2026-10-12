@@ -57,7 +57,7 @@ pub fn start_at_system_frame(
     );
 }
 
-/// Where a body is this frame, in render space (CAM-05, F4-29).
+/// Where a body is this frame, in render space (CAM-05).
 pub fn body_position(body: Entity, positions: &WorldPositions) -> Option<Vec3> {
     positions.0.get(&body).copied()
 }

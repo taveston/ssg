@@ -109,7 +109,7 @@ fn marker_half_size(class: BodyClass) -> Vec2 {
 /// MRK-04: filled disc = body; hollow square = station; triangle = own
 /// ship; diamond = foreign contact; X = salvage site. A gate on screen is a
 /// hollow circle (its edge arrow is EDGE-01). The filled triangle and
-/// diamond are generated images (F4-07).
+/// diamond are generated images.
 pub fn marker_shape(class: BodyClass, ownership: Ownership) -> MarkerShape {
     match (class, ownership) {
         (BodyClass::Star | BodyClass::Planet | BodyClass::Moon, _) => MarkerShape::Disc,

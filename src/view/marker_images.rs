@@ -1,4 +1,4 @@
-//! The filled marker shapes UI nodes can't draw themselves (MRK-04, F4-07):
+//! The filled marker shapes UI nodes can't draw themselves (MRK-04):
 //! a triangle for an own ship and a diamond for a foreign contact. Each is a
 //! small white image with antialiased edges, generated once at startup and
 //! tinted per marker through `ImageNode::color`, so it fades and colours

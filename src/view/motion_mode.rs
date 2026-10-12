@@ -158,7 +158,7 @@ mod tests {
     }
 
     /// MOT-03 against the real test content: IVc flips mode between the two
-    /// rates the validation checklist calls for (31 s at 1 d/s, 6.2 s at 5).
+    /// rates in the top bar (31 s at 1 d/s, 6.2 s at 5 d/s).
     #[test]
     fn ivc_changes_mode_between_rates() {
         let period_days = 31.0;

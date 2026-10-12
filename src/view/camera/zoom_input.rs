@@ -116,7 +116,7 @@ impl ZoomContext<'_, '_> {
     /// step, by the focus, else by the body nearest the anchor.
     fn frames(&self, focused: Option<Entity>, anchor: Vec3, tilt: f32) -> StepFrames {
         // Candidates when nothing is focused: whatever orbits the star, but
-        // not the gates, which stay edge indicators (F5-02).
+        // not the gates, which stay edge indicators.
         let candidates: Vec<(Entity, Vec3)> = self
             .bodies
             .iter()
@@ -210,7 +210,7 @@ fn step_pivot(
 ) -> PivotTarget {
     let scale = step.target / rig.distance.max(f32::EPSILON);
     let anchored = anchored_centre(step.anchor, rig.pivot, rig.distance, step.target);
-    // CAM-19: a fixed pivot stays inside the pan bound (F5-03).
+    // CAM-19: a fixed pivot stays inside the pan bound.
     let fixed = PivotTarget::Fixed(clamp_to_pan_bound(anchored, step.bound));
     let zoom_frames = ZoomFrames {
         system: frames.system,
@@ -236,7 +236,7 @@ fn step_pivot(
         }
         // CAM-21: focus with the offset that keeps the view where it is;
         // this step keeps its anchor, and the offset is settled when it
-        // ends (F5-01).
+        // ends.
         (FocusChange::Start(body), _) => {
             if let Some(position) = body_position(body, positions) {
                 *view.focus = Focus {

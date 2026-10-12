@@ -2,7 +2,7 @@
 //!
 //! Rings are drawn for planets and for any *unfolded* satellite (GRP-01),
 //! finer where the camera is close so they stay true to the circle at any
-//! zoom (SCL-02, F4-26).
+//! zoom (SCL-02).
 //! A body in exposure-ring mode (see `motion.rs`) gets a second, brighter
 //! and thicker ring drawn over the dim one, white while it is selected
 //! (MOT-07).
@@ -165,7 +165,7 @@ fn ring_point(center: Vec3, radius: f32, angle: f32) -> Vec3 {
     center + Vec3::new(radius * angle.cos(), 0.0, radius * angle.sin())
 }
 
-/// MRK-05 / SCL-02 (F4-26): the straight segments that draw a ring as the
+/// MRK-05 / SCL-02: the straight segments that draw a ring as the
 /// camera sees it.
 ///
 /// A ring starts as `RING_SEGMENTS` chords, which is plenty from afar. A
@@ -286,7 +286,7 @@ mod tests {
         assert_eq!(segments.len(), RING_SEGMENTS);
     }
 
-    /// F4-26: zoomed in on Halden IV, its own 2 AU orbit is drawn through
+    /// MRK-05: zoomed in on Halden IV, its own 2 AU orbit is drawn through
     /// the planet and within half a pixel of the true circle, where 128
     /// fixed chords missed it by tens of pixels or dropped out entirely.
     /// Covers MRK-05.
@@ -322,7 +322,7 @@ mod tests {
         assert!(segments.len() < 1_000, "{} segments", segments.len());
     }
 
-    /// F4-26: a chord crossing the near limit is cut there, not dropped.
+    /// MRK-05: a chord crossing the near limit is cut there, not dropped.
     /// Covers MRK-05.
     #[test]
     fn chords_through_the_near_limit_are_cut_not_dropped() {

@@ -40,7 +40,7 @@ impl ZoomStops {
 
     /// ZOOM-14 / ZOOM-15: the satellite frame for a body: all its
     /// satellites fit. A body with none (a moon, Pell) uses the frame of
-    /// the body it orbits, or a close-up if it orbits the star (F5-02).
+    /// the body it orbits, or a close-up if it orbits the star.
     pub fn satellite_frame(&self, body: Entity, parent: Option<Entity>) -> f32 {
         self.satellite_radius(body)
             .or_else(|| parent.and_then(|parent| self.satellite_radius(parent)))
@@ -48,7 +48,7 @@ impl ZoomStops {
     }
 
     /// ZOOM-15: the region frame - around the focused planet's orbit (its
-    /// orbit's radius), or the inner system when nothing is focused (F5-02).
+    /// orbit's radius), or the inner system when nothing is focused.
     pub fn region_frame(&self, focused_planet: Option<Entity>) -> f32 {
         focused_planet
             .and_then(|planet| self.star_orbit_radius.get(&planet).copied())
@@ -189,7 +189,7 @@ mod tests {
         assert!((inner - km_to_render(2.0 * KM_PER_AU)).abs() < 0.01);
     }
 
-    /// ZOOM-14 / ZOOM-15 (F5-02): a body with satellites frames them; a
+    /// ZOOM-14 / ZOOM-15: a body with satellites frames them; a
     /// moon frames its planet's; a bare planet gets a close-up.
     #[test]
     fn satellite_frame_falls_back_when_a_body_has_no_satellites() {
@@ -208,7 +208,7 @@ mod tests {
         );
     }
 
-    /// ZOOM-15 (F5-02): the region frame is the focused planet's orbit, or
+    /// ZOOM-15: the region frame is the focused planet's orbit, or
     /// the inner system with nothing focused.
     #[test]
     fn region_frame_follows_the_focus() {

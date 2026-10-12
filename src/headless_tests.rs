@@ -4,8 +4,9 @@
 //! The view's grouping needs a camera that can project, which normally
 //! takes the renderer; `test_camera` fills in the camera's computed values
 //! by hand, as Bevy's own camera tests do, so the real grouping systems run
-//! unchanged. Covers SCL-04, GRP-01, GRP-02, GRP-04, MOT-01 to MOT-04 and
-//! ZOOM-15 against Corvane.
+//! unchanged. Input is simulated as messages (keys, mouse buttons, wheel,
+//! motion), so camera tests drive the real handlers. Each test's doc line
+//! names the IDs it covers.
 
 use std::time::Duration;
 
@@ -59,7 +60,8 @@ const FRAME: Duration = Duration::from_micros(16_667);
 /// cross-fade to finish.
 const SETTLE_FRAMES: usize = 30;
 const VIEWPORT: UVec2 = UVec2::new(1600, 900);
-/// A steep tilt from straight down, like the iteration 1 to 4 default.
+/// A steep tilt from straight down, so projections are checked off the
+/// vertical.
 const TILT: f32 = 0.42;
 
 /// A headless app with the same set ordering as `main`, stepping time by a
@@ -341,7 +343,7 @@ fn zoom_stops_come_from_corvanes_orbits() {
     );
 }
 
-/// EDGE-01 (F4-08): zoomed in and tilted, every gate still has an arrow on
+/// EDGE-01: zoomed in and tilted, every gate still has an arrow on
 /// the screen edge - including gates behind the camera, which have no
 /// projected position at all.
 #[test]
@@ -406,7 +408,7 @@ fn compute_camera_headless(app: &mut App) {
     }
 }
 
-/// CAM-05 / F4-29: a focused planet keeps its place on screen at any time
+/// CAM-05: a focused planet keeps its place on screen at any time
 /// rate. At 5 d/s, Halden IV moves about 65 px a frame at its satellite
 /// frame; following it a frame late made it shake. With zero offset it
 /// must sit at the screen centre on every frame.
@@ -820,7 +822,7 @@ fn the_rule_applies_to_every_orbiting_object() {
     assert!(app.world().get::<MotionModeState>(pell).unwrap().ring_mode);
 }
 
-/// EDGE-01 (F4-20, F5-09): turning the heading a full circle while focused
+/// EDGE-01: turning the heading a full circle while focused
 /// at Halden IV's satellite frame and tilted, every gate always has its
 /// marker on screen or an arrow on the edge, and no arrow hides under the
 /// top bar.
