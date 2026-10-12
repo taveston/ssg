@@ -23,7 +23,7 @@ pub struct CameraControl<'w> {
 impl CameraControl<'_> {
     /// Before a new move replaces one in flight: a focus kept through the
     /// old move takes the offset of where the pivot is now, so nothing
-    /// jumps (ZOOM-02, CAM-21).
+    /// jumps (ZOOM-02).
     pub fn settle(&mut self, positions: &WorldPositions) {
         if self.active.0.is_none() {
             return;

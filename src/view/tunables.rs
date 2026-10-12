@@ -63,6 +63,12 @@ pub struct Tunables {
     /// Below 1.0 so a framed thing has a margin rather than touching the
     /// screen edge.
     pub zoom_fit_margin: f32,
+    /// The inner zoom limit with nothing focused: the view radius at the
+    /// closest, in AU (ZOOM-14).
+    pub min_view_radius_au: f32,
+    /// The inner zoom limit with a body focused: its true diameter spans
+    /// this fraction of the map area's height (ZOOM-14).
+    pub body_max_screen_fraction: f32,
     /// The double-click window. Double-clicks themselves use the picking
     /// backend's click count; a single click on an inset's "In orbit" entry
     /// waits this long for a second one before it selects (INS-05, F5-07).
@@ -94,6 +100,12 @@ pub struct Tunables {
     /// How close to a window edge the cursor must be to edge-scroll
     /// (CAM-17).
     pub edge_scroll_px: f32,
+    /// The standard orientation's tilt from straight down, in degrees
+    /// (CAM-02, CAM-23).
+    pub standard_tilt_deg: f32,
+    /// While focused, panning keeps the focused body at least this far
+    /// inside the map area's edges (CAM-07).
+    pub focus_keep_margin_px: f32,
     /// The pivot stays within this many system-frame radii of the star
     /// (CAM-19).
     pub pan_bound_factor: f32,
@@ -121,6 +133,8 @@ impl Default for Tunables {
             pinch_settle_steps: 1.0,
             focus_jump_ms: 400.0,
             zoom_fit_margin: 0.8,
+            min_view_radius_au: 0.05,
+            body_max_screen_fraction: 0.25,
             double_click_window_ms: 350.0,
 
             max_pitch_deg: 65.0,
@@ -132,6 +146,8 @@ impl Default for Tunables {
             key_rotate_deg_per_s: 90.0,
             edge_scroll_enabled: false,
             edge_scroll_px: 8.0,
+            standard_tilt_deg: 20.0,
+            focus_keep_margin_px: 40.0,
             pan_bound_factor: 1.5,
             focus_bracket_px: 14.0,
         }

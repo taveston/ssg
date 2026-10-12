@@ -6,6 +6,7 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
+use super::topbar::TOP_BAR_HEIGHT_PX;
 use super::world::ViewNow;
 use crate::Stage;
 
@@ -31,6 +32,24 @@ impl ScreenPositions {
 /// Whether a screen position is inside the viewport, edges included.
 pub fn in_viewport(pos: Vec2, viewport: Vec2) -> bool {
     pos.x >= 0.0 && pos.y >= 0.0 && pos.x <= viewport.x && pos.y <= viewport.y
+}
+
+/// The part of the window the map shows in, below the top bar (EDGE-01,
+/// INS-07, ZOOM-14, CAM-07). Gate arrows are pinned to its edges and the
+/// zoom limits and the focus margin are measured in it.
+pub struct MapArea {
+    pub offset: Vec2,
+    pub size: Vec2,
+}
+
+impl MapArea {
+    pub fn of(viewport: Vec2) -> Self {
+        let offset = Vec2::new(0.0, TOP_BAR_HEIGHT_PX);
+        Self {
+            offset,
+            size: (viewport - offset).max(Vec2::ZERO),
+        }
+    }
 }
 
 pub struct ScreenPlugin;

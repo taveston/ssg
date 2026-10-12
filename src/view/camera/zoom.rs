@@ -7,7 +7,7 @@
 //! by it. Everything here is therefore phrased in distances, and the
 //! conversion to and from a framed radius lives in `stops.rs`.
 
-use bevy::prelude::{Entity, Vec3};
+use bevy::prelude::Vec3;
 
 use crate::view::anim::ease_out_cubic;
 
@@ -70,64 +70,15 @@ pub fn zoom_anchor(focused: Option<Vec3>, cursor_point: Option<Vec3>, pivot: Vec
     focused.or(cursor_point).unwrap_or(pivot)
 }
 
-/// ZOOM-14 / ZOOM-15: the body nearest the anchor, whose satellite frame is
-/// the inner limit and the satellite stop when nothing is focused.
-pub fn nearest_body(anchor: Vec3, candidates: &[(Entity, Vec3)]) -> Option<Entity> {
-    candidates
-        .iter()
-        .map(|&(body, position)| (body, position.distance(anchor)))
-        .min_by(|a, b| a.1.total_cmp(&b.1))
-        .map(|(body, _)| body)
-}
-
-/// What a zoom step does to the focus (CAM-08, CAM-21).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FocusChange {
-    Keep,
-    /// CAM-08: a zoom that reaches the system frame ends focus.
-    End,
-    /// CAM-21: with nothing focused, a step in past the region frame
-    /// focuses the body whose satellite frame is the inner limit.
-    Start(Entity),
-}
-
-/// The distances a zoom step is judged against.
-#[derive(Debug, Clone, Copy)]
-pub struct ZoomFrames {
-    pub system: f32,
-    pub region: f32,
-}
-
-/// CAM-08 / CAM-21: whether a zoom step from `current` to `target` keeps,
-/// ends or starts focus. `limit_body` is the body whose satellite frame is
-/// the inner limit (ZOOM-14).
-pub fn zoom_focus_change(
-    focused: bool,
-    current: f32,
-    target: f32,
-    frames: ZoomFrames,
-    limit_body: Option<Entity>,
-) -> FocusChange {
-    // Distances are compared with a little slack, so a step that settles
-    // exactly on a frame counts as reaching it.
-    let reaches = |frame: f32| target >= frame * (1.0 - FRAME_SLACK);
-    if focused {
-        return if reaches(frames.system) {
-            FocusChange::End
-        } else {
-            FocusChange::Keep
-        };
-    }
-    let zooming_in = target < current;
-    let past_region = target < frames.region * (1.0 - FRAME_SLACK);
-    match limit_body {
-        Some(body) if zooming_in && past_region => FocusChange::Start(body),
-        _ => FocusChange::Keep,
-    }
-}
-
 /// Relative slack when comparing a distance with a frame's.
 const FRAME_SLACK: f32 = 1e-3;
+
+/// CAM-08 / CAM-23: whether a zoom-out step to `target` reaches the system
+/// frame. Distances are compared with a little slack, so a step that
+/// settles exactly on the frame counts as reaching it.
+pub fn reaches_system_frame(target: f32, system: f32) -> bool {
+    target >= system * (1.0 - FRAME_SLACK)
+}
 
 /// ZOOM-01: each wheel notch multiplies the view scale by
 /// `step_factor`, i.e. divides the camera distance by it. Positive
@@ -244,8 +195,7 @@ mod tests {
         assert_eq!(notches_from_scroll(9.0, true), 0.0);
     }
 
-    /// ZOOM-05: zooming in from the system frame towards a satellite frame
-    /// stops at the region frame on the way.
+    /// ZOOM-05: a step that would skip a stop lands on it instead.
     #[test]
     fn step_settles_on_a_stop_it_would_skip() {
         let stops = [1.0_f32, 40.0, 180.0];
@@ -366,70 +316,13 @@ mod tests {
         assert_eq!(zoom_anchor(None, None, pivot), pivot);
     }
 
-    fn entities() -> [Entity; 2] {
-        let mut world = bevy::prelude::World::new();
-        [world.spawn_empty().id(), world.spawn_empty().id()]
-    }
-
-    /// Covers ZOOM-14.
+    /// CAM-08 / CAM-23: only a step that gets to the system frame counts,
+    /// and landing exactly on it does.
     #[test]
-    fn nearest_body_to_the_anchor() {
-        let [near, far] = entities();
-        let candidates = [
-            (far, Vec3::new(50.0, 0.0, 0.0)),
-            (near, Vec3::new(2.0, 0.0, 0.0)),
-        ];
-        assert_eq!(nearest_body(Vec3::ZERO, &candidates), Some(near));
-        assert_eq!(nearest_body(Vec3::ZERO, &[]), None);
-    }
-
-    const FRAMES: ZoomFrames = ZoomFrames {
-        system: 1000.0,
-        region: 400.0,
-    };
-
-    /// CAM-08: focus survives zooming that stays inside the system frame,
-    /// and ends on a step that reaches it.
-    #[test]
-    fn reaching_the_system_frame_ends_focus() {
-        let [body, _] = entities();
-        let some = Some(body);
-        assert_eq!(
-            zoom_focus_change(true, 100.0, 200.0, FRAMES, some),
-            FocusChange::Keep
-        );
-        assert_eq!(
-            zoom_focus_change(true, 100.0, 50.0, FRAMES, some),
-            FocusChange::Keep
-        );
-        assert_eq!(
-            zoom_focus_change(true, 600.0, 1000.0, FRAMES, some),
-            FocusChange::End
-        );
-    }
-
-    /// CAM-21: with nothing focused, only a step in past the region frame
-    /// focuses - not one that lands on it, nor one zooming out.
-    #[test]
-    fn zooming_in_past_the_region_frame_focuses() {
-        let [body, _] = entities();
-        let some = Some(body);
-        assert_eq!(
-            zoom_focus_change(false, 800.0, 400.0, FRAMES, some),
-            FocusChange::Keep
-        );
-        assert_eq!(
-            zoom_focus_change(false, 400.0, 200.0, FRAMES, some),
-            FocusChange::Start(body)
-        );
-        assert_eq!(
-            zoom_focus_change(false, 200.0, 300.0, FRAMES, some),
-            FocusChange::Keep
-        );
-        assert_eq!(
-            zoom_focus_change(false, 400.0, 200.0, FRAMES, None),
-            FocusChange::Keep
-        );
+    fn reaching_the_system_frame() {
+        assert!(!reaches_system_frame(600.0, 1000.0));
+        assert!(reaches_system_frame(1000.0, 1000.0));
+        assert!(reaches_system_frame(999.9, 1000.0));
     }
 
     /// ZOOM-02: a notch arriving mid-animation retargets from the *current*

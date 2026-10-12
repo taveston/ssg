@@ -318,12 +318,8 @@ fn zoom_stops_come_from_corvanes_orbits() {
 
     let close = |a: f32, b: f32| (a - b).abs() < b * 1e-5;
     let stops = app.world().resource::<ZoomStops>();
-    // System frame: Morrow at 4.3 AU. Region frame: Halden IV at 2 AU.
+    // System frame: Morrow at 4.3 AU.
     assert!(close(stops.system_radius, km_to_render(4.3 * KM_PER_AU)));
-    assert!(close(
-        stops.inner_system_radius,
-        km_to_render(2.0 * KM_PER_AU)
-    ));
     let satellite_frames = stops.per_body_satellite_radius.clone();
 
     for (planet, outermost_km) in [
@@ -514,62 +510,91 @@ fn camera_app_with(extra: impl FnOnce(&mut App)) -> App {
     app
 }
 
-/// CAM-21 / ZOOM-14 / CAM-08 with the real zoom: with nothing focused over
-/// Halden IV, zooming in focuses it once the step goes past the region
-/// frame, with no jump; zoom stops at its satellite frame; zooming back out
-/// to the system frame ends the focus.
+/// CAM-06 / ZOOM-14 with the real zoom: zooming in with nothing focused
+/// never sets focus and stops at the minimum view radius.
 #[test]
-fn zooming_in_focuses_and_zooming_out_ends_focus() {
+fn zooming_in_never_focuses() {
     let mut app = camera_app();
     let halden = body(&mut app, "Halden IV");
     let halden_pos = app.world().resource::<WorldPositions>().0[&halden];
-    let system_distance = app.world().resource::<CameraRig>().distance;
-    // Put the (unfocused) view over Halden IV.
     app.world_mut().resource_mut::<CameraRig>().pivot = halden_pos;
     run(&mut app, 2);
-
-    let mut focused_at = None;
-    for notch in 0..30 {
-        let before = *app.world().resource::<CameraRig>();
+    for _ in 0..30 {
         scroll(&mut app, 1.0);
-        let focus = *app.world().resource::<Focus>();
-        if focus.body.is_some() && focused_at.is_none() {
-            assert_eq!(focus.body, Some(halden), "CAM-21 focuses the nearest body");
-            let after = *app.world().resource::<CameraRig>();
-            assert!(
-                (after.pivot - before.pivot).length() < 1e-3,
-                "CAM-21: no jump when focus starts"
-            );
-            focused_at = Some(notch);
-        }
     }
-    assert!(focused_at.is_some(), "zooming in focused something");
+    assert_eq!(app.world().resource::<Focus>().body, None, "CAM-06");
+    let tilt = app.world().resource::<CameraRig>().tilt;
+    let radius = km_to_render(0.05 * KM_PER_AU);
+    let margin = app.world().resource::<Tunables>().zoom_fit_margin;
+    let limit = distance_for_radius(radius, fov(), tilt, margin);
+    let distance = app.world().resource::<CameraRig>().distance;
+    assert!(
+        (distance - limit).abs() < limit * 1e-3,
+        "ZOOM-14 stopped at {distance}, limit {limit}"
+    );
+}
 
-    // ZOOM-14: the inner limit is Halden IV's satellite frame.
-    let radius = app
+/// ZOOM-14 / ZOOM-15 / CAM-08 / CAM-23 with the real zoom: focused, zooming
+/// in settles on the satellite frame, then goes on to the body's inner limit
+/// (its diameter a quarter of the map height) and no further; zooming out to
+/// the system frame ends the focus and eases the view to the standard
+/// orientation.
+#[test]
+fn focused_zoom_has_a_satellite_stop_an_inner_limit_and_ends_at_the_system_frame() {
+    let mut app = camera_app();
+    let halden = body(&mut app, "Halden IV");
+    let system_distance = app.world().resource::<CameraRig>().distance;
+    app.world_mut().resource_mut::<FocusRequest>().0 = Some(halden);
+    run(&mut app, 40);
+    let tilt = app.world().resource::<CameraRig>().tilt;
+    let margin = app.world().resource::<Tunables>().zoom_fit_margin;
+    let satellites = app
         .world()
         .resource::<ZoomStops>()
         .satellite_radius(halden)
         .unwrap();
-    let margin = app.world().resource::<Tunables>().zoom_fit_margin;
-    let limit = distance_for_radius(radius, fov(), 0.0, margin);
-    let distance = app.world().resource::<CameraRig>().distance;
-    assert!(
-        (distance - limit).abs() < limit * 1e-3,
-        "stopped at {distance}, limit {limit}"
-    );
+    let satellite_distance = distance_for_radius(satellites, fov(), tilt, margin);
 
-    // CAM-08: zooming back out to the system frame ends focus.
+    // Out a notch, then back in: the step lands exactly on the stop.
+    scroll(&mut app, -1.0);
+    scroll(&mut app, 1.0);
+    let distance = app.world().resource::<CameraRig>().distance;
+    assert!((distance - satellite_distance).abs() < satellite_distance * 1e-3);
+
+    for _ in 0..30 {
+        scroll(&mut app, 1.0);
+    }
+    let radius_km = app.world().get::<PhysicalRadius>(halden).unwrap().0;
+    let diameter_px = 2.0
+        * projected_radius_px(
+            km_to_render(radius_km),
+            app.world().resource::<CameraRig>().distance,
+            fov(),
+            VIEWPORT.y as f32,
+        );
+    let map_height = VIEWPORT.y as f32 - TOP_BAR_HEIGHT_PX;
+    assert!(
+        (diameter_px - 0.25 * map_height).abs() < 1.0,
+        "inner limit: {diameter_px} px of {map_height}"
+    );
+    assert_eq!(app.world().resource::<Focus>().body, Some(halden));
+
+    // Tilt away from the standard, then zoom all the way out.
+    app.world_mut().resource_mut::<CameraRig>().tilt = 0.7;
+    run(&mut app, 2);
     for _ in 0..40 {
         scroll(&mut app, -1.0);
     }
     let rig = *app.world().resource::<CameraRig>();
+    let standard = app
+        .world()
+        .resource::<Tunables>()
+        .standard_tilt_deg
+        .to_radians();
     assert!((rig.distance - system_distance).abs() < system_distance * 1e-3);
-    assert_eq!(
-        app.world().resource::<Focus>().body,
-        None,
-        "CAM-08: focus ended"
-    );
+    assert!((rig.tilt - standard).abs() < 1e-4, "CAM-23 standard tilt");
+    assert!(rig.pivot.length() < 1e-3, "CAM-23 pivot on the star");
+    assert_eq!(app.world().resource::<Focus>().body, None, "CAM-08");
 }
 
 /// ZOOM-13 / CAM-08: zooming while focused keeps the focused body where it
@@ -711,7 +736,12 @@ fn focus_north_and_home_move_the_real_camera() {
         .satellite_radius(halden)
         .unwrap();
     let margin = app.world().resource::<Tunables>().zoom_fit_margin;
-    let framed = distance_for_radius(radius, fov(), 0.0, margin);
+    let standard_tilt = app
+        .world()
+        .resource::<Tunables>()
+        .standard_tilt_deg
+        .to_radians();
+    let framed = distance_for_radius(radius, fov(), standard_tilt, margin);
     let rig = *app.world().resource::<CameraRig>();
     assert!(
         (rig.distance - framed).abs() < framed * 1e-3,
@@ -730,7 +760,10 @@ fn focus_north_and_home_move_the_real_camera() {
     press_key(&mut app, KeyCode::KeyN);
     run(&mut app, 40);
     let after = *app.world().resource::<CameraRig>();
-    assert!(after.tilt.abs() < 1e-5, "CAM-03 levels");
+    assert!(
+        (after.tilt - standard_tilt).abs() < 1e-5,
+        "CAM-03 standard tilt"
+    );
     assert!(
         (after.heading - 2.0 * std::f32::consts::TAU).abs() < 1e-4,
         "north up, the short way"
@@ -752,7 +785,7 @@ fn focus_north_and_home_move_the_real_camera() {
     run(&mut app, 40);
     let home = *app.world().resource::<CameraRig>();
     assert!((home.distance - system_distance).abs() < system_distance * 1e-3);
-    assert!(home.tilt.abs() < 1e-5 && home.pivot.length() < 1e-3);
+    assert!((home.tilt - standard_tilt).abs() < 1e-5 && home.pivot.length() < 1e-3);
     assert_eq!(
         app.world().resource::<Focus>().body,
         None,

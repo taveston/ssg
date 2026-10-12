@@ -10,8 +10,8 @@ use bevy::prelude::*;
 
 use super::colors;
 use super::fonts::Fonts;
+use super::screen::MapArea;
 use super::screen::ScreenPositions;
-use super::topbar::TOP_BAR_HEIGHT_PX;
 use super::world::ViewNow;
 use crate::sim::body::{BodyClass, DisplayName, Ownership};
 use crate::{Boot, Stage};
@@ -100,24 +100,6 @@ pub fn edge_arrow_angle(edge_pos: Vec2, viewport: Vec2) -> f32 {
     let dir = edge_pos - viewport / 2.0;
     // Screen y grows downwards, so "up" is -y.
     dir.x.atan2(-dir.y)
-}
-
-/// EDGE-01: the part of the window the map shows in, below the
-/// top bar. Arrows are pinned to its edges, so none hides under the bar;
-/// the clamping functions work in its own coordinates.
-struct MapArea {
-    offset: Vec2,
-    size: Vec2,
-}
-
-impl MapArea {
-    fn of(viewport: Vec2) -> Self {
-        let offset = Vec2::new(0.0, TOP_BAR_HEIGHT_PX);
-        Self {
-            offset,
-            size: (viewport - offset).max(Vec2::ZERO),
-        }
-    }
 }
 
 pub struct EdgePlugin;

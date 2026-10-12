@@ -39,7 +39,8 @@ pub fn spawn_camera(mut commands: Commands) {
     ));
 }
 
-/// CAM-02: the camera starts at the system frame, level and north up.
+/// CAM-02: the camera starts at the system frame in the standard
+/// orientation: north up, tilted by `standard_tilt_deg`.
 pub fn start_at_system_frame(
     stops: Res<ZoomStops>,
     tunables: Res<Tunables>,
@@ -49,6 +50,7 @@ pub fn start_at_system_frame(
     let Ok(projection) = camera.single() else {
         return;
     };
+    rig.tilt = tunables.standard_tilt_deg.to_radians();
     rig.distance = distance_for_radius(
         stops.system_radius,
         camera_fov(projection),
@@ -94,7 +96,6 @@ pub fn advance_move(
     positions: Res<WorldPositions>,
     mut active: ResMut<ActiveMove>,
     mut rig: ResMut<CameraRig>,
-    mut focus: ResMut<Focus>,
 ) {
     let Some(mut camera_move) = active.0 else {
         return;
@@ -106,11 +107,6 @@ pub fn advance_move(
     next.distance = next.distance.clamp(MIN_DISTANCE, MAX_DISTANCE);
     *rig = next;
     active.0 = (!camera_move.finished()).then_some(camera_move);
-    // A focus kept through a move to a fixed pivot (CAM-21's first step)
-    // takes up from where the move ended.
-    if active.0.is_none() && matches!(camera_move.target.pivot, PivotTarget::Fixed(_)) {
-        settle_focus(&mut focus, &rig, &positions);
-    }
 }
 
 /// The offset that keeps the focused body's pivot where the rig is now,

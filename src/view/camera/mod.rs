@@ -20,6 +20,7 @@ use crate::{Boot, Stage};
 pub mod actions;
 pub mod control;
 pub mod drag;
+pub mod frames;
 pub mod keys;
 pub mod requests;
 pub mod rig;

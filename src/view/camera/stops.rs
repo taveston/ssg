@@ -20,17 +20,9 @@ pub struct ZoomStops {
     /// All planetary orbits fit. Gates are deliberately excluded so they
     /// stay edge-of-screen indicators instead of dragging the frame out.
     pub system_radius: f32,
-    /// The inner system: every planetary orbit but the outermost.
-    pub inner_system_radius: f32,
     /// Per parent body, the radius that fits all of its satellites.
     pub per_body_satellite_radius: HashMap<Entity, f32>,
-    /// Per body orbiting the star, its orbit's radius.
-    pub star_orbit_radius: HashMap<Entity, f32>,
 }
-
-/// A body with no satellites, orbiting the star, is framed at this fraction
-/// of the region frame: a sensible close-up rather than nothing.
-const BARE_BODY_FRAME_FRACTION: f32 = 0.05;
 
 impl ZoomStops {
     /// The satellite-frame radius for a body, if it has satellites.
@@ -38,21 +30,11 @@ impl ZoomStops {
         self.per_body_satellite_radius.get(&body).copied()
     }
 
-    /// ZOOM-14 / ZOOM-15: the satellite frame for a body: all its
-    /// satellites fit. A body with none (a moon, Pell) uses the frame of
-    /// the body it orbits, or a close-up if it orbits the star.
-    pub fn satellite_frame(&self, body: Entity, parent: Option<Entity>) -> f32 {
+    /// ZOOM-16: the radius a focus jump frames: the body's own satellite
+    /// frame, else its parent's. `None` means the body's inner limit.
+    pub fn framing_radius(&self, body: Entity, parent: Option<Entity>) -> Option<f32> {
         self.satellite_radius(body)
             .or_else(|| parent.and_then(|parent| self.satellite_radius(parent)))
-            .unwrap_or(self.inner_system_radius * BARE_BODY_FRAME_FRACTION)
-    }
-
-    /// ZOOM-15: the region frame - around the focused planet's orbit (its
-    /// orbit's radius), or the inner system when nothing is focused.
-    pub fn region_frame(&self, focused_planet: Option<Entity>) -> f32 {
-        focused_planet
-            .and_then(|planet| self.star_orbit_radius.get(&planet).copied())
-            .unwrap_or(self.inner_system_radius)
     }
 }
 
@@ -74,21 +56,13 @@ pub fn distance_for_radius(radius: f32, fov_y: f32, tilt: f32, margin: f32) -> f
     vertical_extent / (margin * (fov_y * 0.5).tan()).max(f32::EPSILON)
 }
 
-/// ZOOM-15 (replaced ZOOM-04): the system frame fits every planetary
-/// orbit; the region frame
-/// is the inner system, i.e. every planetary orbit but the outermost.
-/// Both come from the system's real orbits, never from fixed scales.
+/// ZOOM-15: the system frame fits every planetary orbit, from the system's
+/// real orbits, never from fixed scales.
 ///
 /// Gates are deliberately not passed in: they stay edge indicators rather
 /// than dragging the system frame out to their distance.
-pub fn frame_radii(planet_orbit_radii: &mut [f32]) -> (f32, f32) {
-    planet_orbit_radii.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-    let system = planet_orbit_radii.last().copied().unwrap_or(1.0);
-    let inner = planet_orbit_radii
-        .get(planet_orbit_radii.len().saturating_sub(2))
-        .copied()
-        .unwrap_or(system);
-    (system, inner)
+pub fn system_frame_radius(planet_orbit_radii: &[f32]) -> f32 {
+    planet_orbit_radii.iter().copied().fold(1.0, f32::max)
 }
 
 pub struct StopsPlugin;
@@ -107,16 +81,14 @@ fn compute_stops(
 ) {
     let mut planet_radii: Vec<f32> = Vec::new();
     let mut per_parent: HashMap<Entity, f32> = HashMap::new();
-    let mut star_orbits: HashMap<Entity, f32> = HashMap::new();
 
-    for (entity, orbital, class, child_of) in &bodies {
+    for (_, orbital, class, child_of) in &bodies {
         match child_of {
             Some(child_of) => {
                 let entry = per_parent.entry(child_of.parent()).or_insert(0.0);
                 *entry = entry.max(km_to_render(orbital.radius_km));
             }
             None => {
-                star_orbits.insert(entity, km_to_render(orbital.radius_km));
                 if *class == BodyClass::Planet {
                     planet_radii.push(km_to_render(orbital.radius_km));
                 }
@@ -124,11 +96,8 @@ fn compute_stops(
         }
     }
 
-    let (system_radius, inner_system_radius) = frame_radii(&mut planet_radii);
-    stops.system_radius = system_radius;
-    stops.inner_system_radius = inner_system_radius;
+    stops.system_radius = system_frame_radius(&planet_radii);
     stops.per_body_satellite_radius = per_parent;
-    stops.star_orbit_radius = star_orbits;
 }
 
 #[cfg(test)]
@@ -149,8 +118,8 @@ mod tests {
     /// Covers ZOOM-15.
     #[test]
     fn system_frame_fits_every_planetary_orbit() {
-        let mut radii = corvane_planet_radii();
-        let (system, _) = frame_radii(&mut radii);
+        let radii = corvane_planet_radii();
+        let system = system_frame_radius(&radii);
         for radius in &radii {
             assert!(
                 *radius <= system + f32::EPSILON,
@@ -166,8 +135,7 @@ mod tests {
     #[test]
     fn system_frame_excludes_gates() {
         let system_data = hand_made_system();
-        let mut radii = corvane_planet_radii();
-        let (system, _) = frame_radii(&mut radii);
+        let system = system_frame_radius(&corvane_planet_radii());
         for gate in &system_data.gates {
             assert!(
                 km_to_render(gate.distance_km) > system,
@@ -176,58 +144,25 @@ mod tests {
         }
     }
 
-    /// Covers ZOOM-15.
+    /// ZOOM-16: a body with satellites frames them; a moon frames its
+    /// planet's; a bare planet has no frame of its own (its inner limit
+    /// applies instead).
     #[test]
-    fn region_frame_is_the_inner_system() {
-        let mut radii = corvane_planet_radii();
-        let (system, inner) = frame_radii(&mut radii);
-        assert!(
-            inner < system,
-            "the region frame is tighter than the system"
-        );
-        // Halden IV at 2 AU is the outermost of the inner planets.
-        assert!((inner - km_to_render(2.0 * KM_PER_AU)).abs() < 0.01);
-    }
-
-    /// ZOOM-14 / ZOOM-15: a body with satellites frames them; a
-    /// moon frames its planet's; a bare planet gets a close-up.
-    #[test]
-    fn satellite_frame_falls_back_when_a_body_has_no_satellites() {
+    fn framing_falls_back_to_the_parent_then_to_nothing() {
         let mut world = World::new();
         let [planet, moon, bare] = [(); 3].map(|_| world.spawn_empty().id());
-        let mut stops = ZoomStops {
-            inner_system_radius: 180.0,
-            ..default()
-        };
+        let mut stops = ZoomStops::default();
         stops.per_body_satellite_radius.insert(planet, 0.44);
-        assert_eq!(stops.satellite_frame(planet, None), 0.44);
-        assert_eq!(stops.satellite_frame(moon, Some(planet)), 0.44);
-        assert_eq!(
-            stops.satellite_frame(bare, None),
-            180.0 * BARE_BODY_FRAME_FRACTION
-        );
-    }
-
-    /// ZOOM-15: the region frame is the focused planet's orbit, or
-    /// the inner system with nothing focused.
-    #[test]
-    fn region_frame_follows_the_focus() {
-        let mut world = World::new();
-        let planet = world.spawn_empty().id();
-        let mut stops = ZoomStops {
-            inner_system_radius: 180.0,
-            ..default()
-        };
-        stops.star_orbit_radius.insert(planet, 31.5);
-        assert_eq!(stops.region_frame(Some(planet)), 31.5);
-        assert_eq!(stops.region_frame(None), 180.0);
+        assert_eq!(stops.framing_radius(planet, None), Some(0.44));
+        assert_eq!(stops.framing_radius(moon, Some(planet)), Some(0.44));
+        assert_eq!(stops.framing_radius(bare, None), None);
     }
 
     /// Covers ZOOM-15.
     #[test]
     fn degenerate_systems_still_give_a_frame() {
-        assert_eq!(frame_radii(&mut []), (1.0, 1.0));
-        assert_eq!(frame_radii(&mut [7.0]), (7.0, 7.0));
+        assert_eq!(system_frame_radius(&[]), 1.0);
+        assert_eq!(system_frame_radius(&[7.0]), 7.0);
     }
 
     /// A stop frames exactly what it says: the framed radius fills
