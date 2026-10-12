@@ -11,10 +11,10 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Affects:** INS-05 Â· **Type:** spec gap
 - **Disposition:** parked (2026-10-12). Option: keep the parent's inset open when a satellite is picked from its list, so selection can be immediate.
 
-### F-108 Â· The standard tilt of 20Â° feels too steep
-- **Observation:** playing the build, 20Â° from straight down looked too steep. The build now uses 10Â°. The spec's tunables table still says 20Â°.
-- **Affects:** CAM-02, CAM-23, `standard_tilt_deg` Â· **Type:** spec wrong
-- **Disposition:** open. Settle the default (10Â° in the build) and update the table.
+### F-108 · The standard tilt of 20° is too close to a top-down view
+- **Observation:** playing the build, 20° from straight down looked too close to a view from directly above. The build now uses 30°. The spec's tunables table still says 20°.
+- **Affects:** CAM-02, CAM-23, `standard_tilt_deg` · **Type:** spec wrong
+- **Disposition:** open. Settle the default (30° in the build) and update the table.
 
 ### F-109 Â· A focus released by ring mode should bring the parent back into view
 - **Observation:** CAM-24 keeps the view where it is when focus moves to the parent, which can leave the parent off screen. The build now moves to the parent and frames it like a focus jump (ZOOM-16). With no ancestor left, focus ends and the view returns to the system frame over the star.

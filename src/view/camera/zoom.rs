@@ -124,6 +124,9 @@ pub fn first_stop_crossed(current: f32, naive_target: f32, stops: &[f32]) -> Opt
     stops
         .iter()
         .copied()
+        // A stop the view already sits on (to within rounding) is not in
+        // the way, or a step off it would snag.
+        .filter(|stop| (*stop - current).abs() > current.abs() * FRAME_SLACK)
         .filter(|stop| *stop > low && *stop < high)
         .min_by(|a, b| {
             let da = (a - current).abs();
@@ -230,6 +233,15 @@ mod tests {
         let stops = [50.0_f32, 100.0];
         assert_eq!(first_stop_crossed(100.0, 50.0, &stops), None);
         assert_eq!(first_stop_crossed(100.0, 25.0, &stops), Some(50.0));
+    }
+
+    /// ZOOM-05: sitting a hair off a stop (rounding) doesn't snag a step
+    /// away from it.
+    #[test]
+    fn a_step_off_a_stop_you_sit_on_is_not_snagged() {
+        let stops = [100.0_f32];
+        assert_eq!(first_stop_crossed(99.99, 200.0, &stops), None);
+        assert_eq!(first_stop_crossed(100.01, 50.0, &stops), None);
     }
 
     /// Covers ZOOM-05.

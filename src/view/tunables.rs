@@ -146,7 +146,7 @@ impl Default for Tunables {
             key_rotate_deg_per_s: 90.0,
             edge_scroll_enabled: false,
             edge_scroll_px: 8.0,
-            standard_tilt_deg: 10.0,
+            standard_tilt_deg: 30.0,
             focus_keep_margin_px: 40.0,
             pan_bound_factor: 1.5,
             focus_bracket_px: 14.0,

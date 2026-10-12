@@ -103,6 +103,18 @@ impl CameraMove {
         }
     }
 
+    /// Where the pivot is relative to `focused`, as of the last frame the
+    /// move advanced, if this move is onto that body and has noted where it
+    /// started.
+    pub fn offset_now(&self, focused: Option<Entity>) -> Option<Vec3> {
+        let PivotTarget::Body { body, offset } = self.target.pivot else {
+            return None;
+        };
+        let from = self.origin_offset.filter(|_| focused == Some(body))?;
+        let t = (self.elapsed / self.duration).clamp(0.0, 1.0);
+        Some(from.lerp(offset, ease_out_cubic(t)))
+    }
+
     pub fn finished(&self) -> bool {
         self.elapsed >= self.duration
     }

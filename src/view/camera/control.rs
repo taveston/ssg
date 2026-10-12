@@ -28,6 +28,18 @@ impl CameraControl<'_> {
         if self.active.0.is_none() {
             return;
         }
+        // A move onto the focused body rides along with it, so its current
+        // offset is the one the move has blended to; the rig's pivot is a
+        // frame old, and the body has moved since.
+        if let Some(offset) = self
+            .active
+            .0
+            .as_ref()
+            .and_then(|m| m.offset_now(self.focus.body))
+        {
+            self.focus.offset = offset;
+            return;
+        }
         settle_focus(&mut self.focus, &self.rig, positions);
     }
 

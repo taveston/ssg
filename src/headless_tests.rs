@@ -560,7 +560,10 @@ fn focused_zoom_has_a_satellite_stop_an_inner_limit_and_ends_at_the_system_frame
     scroll(&mut app, -1.0);
     scroll(&mut app, 1.0);
     let distance = app.world().resource::<CameraRig>().distance;
-    assert!((distance - satellite_distance).abs() < satellite_distance * 1e-3);
+    assert!(
+        (distance - satellite_distance).abs() < satellite_distance * 1e-3,
+        "{distance} vs {satellite_distance}"
+    );
 
     for _ in 0..30 {
         scroll(&mut app, 1.0);
@@ -1448,6 +1451,39 @@ fn a_zoom_transition_follows_a_fast_focused_body() {
             assert!(
                 on_screen.distance(VIEWPORT.as_vec2() / 2.0) < 0.5,
                 "frame {frame}: Halden IV at {on_screen}"
+            );
+        }
+    }
+}
+
+/// ZOOM-02 / ZOOM-13: big wheel inputs that retarget a zoom in flight, on a
+/// fast focused body, never move it off its place on screen.
+#[test]
+fn rapid_large_wheel_inputs_keep_a_fast_focused_body_in_place() {
+    let mut app = motion_camera_app(5.0);
+    let halden = body(&mut app, "Halden IV");
+    app.world_mut().resource_mut::<FocusRequest>().0 = Some(halden);
+    run(&mut app, 40);
+    let window = the_window(&mut app);
+    let notches = [3.0, -2.0, 4.0, -5.0, 2.0, 1.0, -3.0];
+    for (index, y) in notches.into_iter().enumerate() {
+        app.world_mut().write_message(MouseWheel {
+            unit: MouseScrollUnit::Line,
+            x: 0.0,
+            y,
+            window,
+            phase: TouchPhase::Moved,
+        });
+        for frame in 0..4 {
+            run(&mut app, 1);
+            let on_screen = app
+                .world()
+                .resource::<ScreenPositions>()
+                .get(halden)
+                .unwrap();
+            assert!(
+                on_screen.distance(VIEWPORT.as_vec2() / 2.0) < 0.5,
+                "input {index}, frame {frame}: Halden IV at {on_screen}"
             );
         }
     }
