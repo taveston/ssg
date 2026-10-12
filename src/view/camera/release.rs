@@ -1,12 +1,16 @@
 //! A focused object that turns into an exposure ring can't stay focused
-//! (CAM-24): focus moves up to the nearest ancestor that isn't in ring mode,
-//! or ends if none is, with the offset that keeps the view where it is.
+//! (CAM-24): focus moves up to the nearest ancestor that isn't in ring mode
+//! and the view moves to frame it, or focus ends and the view returns to the
+//! system frame if none is.
 
 use bevy::prelude::*;
 
-use super::state::{ActiveMove, CameraRig};
+use super::control::CameraControl;
+use super::frames::Frames;
+use super::state::{MoveTarget, PivotTarget};
 use crate::view::focus::Focus;
 use crate::view::motion_mode::MotionModeState;
+use crate::view::tunables::Tunables;
 use crate::view::world::WorldPositions;
 
 /// CAM-24: the nearest ancestor of `body` (starting with its parent) that
@@ -29,33 +33,48 @@ pub fn nearest_unringed_ancestor(
     None
 }
 
-/// CAM-24: move focus off a body in ring mode. Waits for a move in flight to
-/// finish, and never moves focus back when the body leaves ring mode.
+/// CAM-24: move focus off a body in ring mode, with a move that brings the
+/// new focus back into view: the ancestor framed as a focus jump frames it
+/// (ZOOM-16), or the system frame over the star if no ancestor is left.
+/// Waits for a move in flight to finish, and never moves focus back when
+/// the body leaves ring mode.
 pub fn release_ring_mode_focus(
-    active: Res<ActiveMove>,
-    positions: Res<WorldPositions>,
-    rig: Res<CameraRig>,
+    tunables: Res<Tunables>,
+    frames: Frames,
     parents: Query<&ChildOf>,
     modes: Query<&MotionModeState>,
-    mut focus: ResMut<Focus>,
+    positions: Res<WorldPositions>,
+    mut view: CameraControl,
 ) {
-    let Some(body) = focus.body else {
+    let Some(body) = view.focus.body else {
         return;
     };
     let ringed = |entity: Entity| modes.get(entity).is_ok_and(|mode| mode.ring_mode);
-    if active.0.is_some() || !ringed(body) {
+    if view.active.0.is_some() || !ringed(body) {
         return;
     }
     let parent_of = |entity: Entity| parents.get(entity).ok().map(ChildOf::parent);
-    let next = nearest_unringed_ancestor(body, parent_of, ringed)
-        .and_then(|ancestor| Some((ancestor, *positions.0.get(&ancestor)?)));
-    *focus = match next {
-        Some((ancestor, position)) => Focus {
-            body: Some(ancestor),
-            offset: rig.pivot - position,
-        },
-        None => Focus::default(),
+    let tilt = view.rig.tilt;
+    view.settle(&positions);
+    let target = match nearest_unringed_ancestor(body, parent_of, ringed) {
+        Some(ancestor) => MoveTarget::keeping_view(
+            &view.rig,
+            PivotTarget::Body {
+                body: ancestor,
+                offset: Vec3::ZERO,
+            },
+            frames.framing(ancestor, tilt),
+        ),
+        None => {
+            *view.focus = Focus::default();
+            MoveTarget::keeping_view(
+                &view.rig,
+                PivotTarget::Fixed(Vec3::ZERO),
+                frames.system(tilt),
+            )
+        }
     };
+    view.start(target, tunables.focus_jump_ms);
 }
 
 #[cfg(test)]

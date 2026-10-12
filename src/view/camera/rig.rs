@@ -10,6 +10,7 @@ use super::state::{
     PivotTarget, blend_rig, camera_fov,
 };
 use super::stops::{ZoomStops, distance_for_radius};
+use crate::view::anim::ease_out_cubic;
 use crate::view::focus::{Focus, focused_pivot};
 use crate::view::tunables::Tunables;
 use crate::view::world::WorldPositions;
@@ -84,10 +85,16 @@ pub fn start_move(
     target: MoveTarget,
     duration_ms: f32,
 ) {
-    if let PivotTarget::Body { .. } = target.pivot {
+    let mut camera_move = CameraMove::new(*rig, target, duration_ms);
+    if let PivotTarget::Body { body, .. } = target.pivot {
+        // Already focused on this body: the pivot started at its offset,
+        // exactly, however far the body has moved since the rig was set.
+        if focus.body == Some(body) {
+            camera_move.origin_offset = Some(focus.offset);
+        }
         *focus = target.focus();
     }
-    active.0 = Some(CameraMove::new(*rig, target, duration_ms));
+    active.0 = Some(camera_move);
 }
 
 /// ZOOM-01: advance the move in flight and write the rig from it.
@@ -104,6 +111,16 @@ pub fn advance_move(
     let t = (camera_move.elapsed / camera_move.duration).clamp(0.0, 1.0);
     let target_pivot = target_pivot_now(&camera_move.target, &positions, rig.pivot);
     let mut next = blend_rig(&camera_move.start, &camera_move.target, target_pivot, t);
+    // A move onto a body rides along with it: the pivot is the body's
+    // position now plus an offset blended from where the move began.
+    if let PivotTarget::Body { body, offset } = camera_move.target.pivot
+        && let Some(position) = body_position(body, &positions)
+    {
+        let from = *camera_move
+            .origin_offset
+            .get_or_insert(camera_move.start.pivot - position);
+        next.pivot = position + from.lerp(offset, ease_out_cubic(t));
+    }
     next.distance = next.distance.clamp(MIN_DISTANCE, MAX_DISTANCE);
     *rig = next;
     active.0 = (!camera_move.finished()).then_some(camera_move);

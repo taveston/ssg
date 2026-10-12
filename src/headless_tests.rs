@@ -1371,7 +1371,7 @@ fn a_ring_mode_object_cannot_be_focused() {
 }
 
 /// CAM-24: when the focused object enters ring mode, focus moves to its
-/// parent with the offset that keeps the view where it is.
+/// parent and the view moves to frame it.
 #[test]
 fn focus_moves_to_the_parent_when_the_focused_object_becomes_a_ring() {
     let mut app = motion_camera_app(0.1);
@@ -1380,20 +1380,24 @@ fn focus_moves_to_the_parent_when_the_focused_object_becomes_a_ring() {
     app.world_mut().resource_mut::<FocusRequest>().0 = Some(ivc);
     run(&mut app, 40);
     assert_eq!(app.world().resource::<Focus>().body, Some(ivc));
-    let pivot_before = app.world().resource::<CameraRig>().pivot;
 
     // IVc's apparent period drops below T_ring.
     app.world_mut().resource_mut::<GameClock>().run_at(5.0);
     run(&mut app, SETTLE_FRAMES);
     let focus = *app.world().resource::<Focus>();
     assert_eq!(focus.body, Some(halden), "focus moved to the parent");
-    let pivot = app.world().resource::<CameraRig>().pivot;
-    let halden_pos = app.world().resource::<WorldPositions>().0[&halden];
-    assert!(
-        ((pivot - halden_pos) - focus.offset).length() < 1e-3,
-        "the offset keeps the pivot where it is"
+    // The view moved to bring Halden IV back in: framed like a focus jump.
+    let rig = *app.world().resource::<CameraRig>();
+    let stops = app.world().resource::<ZoomStops>();
+    let margin = app.world().resource::<Tunables>().zoom_fit_margin;
+    let framed = distance_for_radius(
+        stops.satellite_radius(halden).unwrap(),
+        fov(),
+        rig.tilt,
+        margin,
     );
-    assert!(pivot_before.is_finite());
+    assert!((rig.distance - framed).abs() < framed * 1e-3, "framed");
+    assert!(focus.offset.length() < 1e-3, "centred on the parent");
 
     // Slowing down again does not move focus back.
     app.world_mut().resource_mut::<GameClock>().run_at(0.1);
@@ -1414,4 +1418,37 @@ fn the_view_starts_in_the_standard_orientation() {
         .to_radians();
     assert_eq!((rig.heading, rig.pivot), (0.0, Vec3::ZERO));
     assert!((rig.tilt - standard).abs() < 1e-6);
+}
+
+/// ZOOM-13 / CAM-05: zooming while focused on a fast-moving body keeps it
+/// at the same place on screen on every frame of the transition, not just
+/// at its end.
+#[test]
+fn a_zoom_transition_follows_a_fast_focused_body() {
+    let mut app = motion_camera_app(5.0);
+    let halden = body(&mut app, "Halden IV");
+    app.world_mut().resource_mut::<FocusRequest>().0 = Some(halden);
+    run(&mut app, 40);
+    let window = the_window(&mut app);
+    for notches in [1.0, -1.0] {
+        app.world_mut().write_message(MouseWheel {
+            unit: MouseScrollUnit::Line,
+            x: 0.0,
+            y: notches,
+            window,
+            phase: TouchPhase::Moved,
+        });
+        for frame in 0..20 {
+            run(&mut app, 1);
+            let on_screen = app
+                .world()
+                .resource::<ScreenPositions>()
+                .get(halden)
+                .unwrap();
+            assert!(
+                on_screen.distance(VIEWPORT.as_vec2() / 2.0) < 0.5,
+                "frame {frame}: Halden IV at {on_screen}"
+            );
+        }
+    }
 }

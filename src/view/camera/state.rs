@@ -85,6 +85,11 @@ pub struct CameraMove {
     pub target: MoveTarget,
     pub elapsed: f32,
     pub duration: f32,
+    /// For a move onto a body: where the pivot started, relative to that
+    /// body, noted on the move's first frame. The pivot blends *this
+    /// offset* into the target's, so the move rides along with the body's
+    /// orbit instead of lerping from a stale world point.
+    pub origin_offset: Option<Vec3>,
 }
 
 impl CameraMove {
@@ -93,6 +98,7 @@ impl CameraMove {
             start,
             target,
             elapsed: 0.0,
+            origin_offset: None,
             duration: (duration_ms / MS_PER_SEC).max(f32::EPSILON),
         }
     }

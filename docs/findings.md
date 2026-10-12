@@ -10,3 +10,13 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Observation:** selecting a satellite replaces the parent's inset, which removes the list before a double-click's second click can land. So a single click selects only after `double_click_window_ms` (350 ms) passes with no second click. List clicks feel a third of a second slow.
 - **Affects:** INS-05 · **Type:** spec gap
 - **Disposition:** parked (2026-10-12). Option: keep the parent's inset open when a satellite is picked from its list, so selection can be immediate.
+
+### F-108 · The standard tilt of 20° feels too steep
+- **Observation:** playing the build, 20° from straight down looked too steep. The build now uses 10°. The spec's tunables table still says 20°.
+- **Affects:** CAM-02, CAM-23, `standard_tilt_deg` · **Type:** spec wrong
+- **Disposition:** open. Settle the default (10° in the build) and update the table.
+
+### F-109 · A focus released by ring mode should bring the parent back into view
+- **Observation:** CAM-24 keeps the view where it is when focus moves to the parent, which can leave the parent off screen. The build now moves to the parent and frames it like a focus jump (ZOOM-16). With no ancestor left, focus ends and the view returns to the system frame over the star.
+- **Affects:** CAM-24 · **Type:** spec wrong
+- **Disposition:** open. Reword CAM-24 to describe the framing move.
