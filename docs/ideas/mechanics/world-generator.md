@@ -102,7 +102,7 @@ Generate from observed occurrence rates and architecture templates rather than s
 
 - **Planets:** rocky (airless, thin atmosphere, dense atmosphere, icy, molten), super-Earths, sub-Neptunes, ice giants, gas giants.
 - **Moons:** giants get moon systems, often with large icy moons, which are the main water sources. Rocky planets get few or none.
-  - **Decided:** the test system (Corvane) is a representative example of generator output, so its giants and their moons use realistic figures. Why: a test system that is unrealistic would hide problems the generator will meet.
+  - **Decided:** the test system (Corvane) is a plausible output of the generator, so its giants and their moons use realistic figures. Its main job is testing, so it may be less typical than the generator's usual output. Why: an implausible test system would hide problems the generator will meet, while an unusual one still exercises them.
   - **Direction, giant mass:** real gas giants run from about a tenth of a Jupiter mass (Saturn is 0.3) to several. Corvane's Morrow is one Jupiter mass.
   - **Direction, moon spacing:** large regular moons sit from about 2 to 30 planet radii out, with periods of about 1 to 20 days (Io 1.8 d, Callisto 16.7 d). None sit inside about 2 radii, where tides tear moons apart. Moons stay within about half the planet's Hill radius (about 24 million km for Morrow). Small inner moons and distant captured moons also occur.
   - **Candidate:** the test system leaves out distant captured moons, because the satellite frame (ZOOM-15) fits every satellite and a moon at tens of millions of km would shrink the rest to nothing.

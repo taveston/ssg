@@ -160,7 +160,7 @@ The **apparent period** of an orbit is its orbital period divided by the time ra
 
 ## 8. Test content: Corvane
 
-The prototype system, kept as data (SCL-03). It exists to exercise the rules above, so its values serve testing first. It is also a representative example of what the generator will produce, so its bodies follow real masses and spacings wherever the tests allow (TEST-07, TEST-08). Its orbits don't match the reference layout in `docs/ideas/mechanics/drives-and-transit.md` section 2 yet (F3-05).
+The prototype system, kept as data (SCL-03). It exists to exercise the rules above, so its values serve testing first. It is also a plausible output of the generator, so its bodies use realistic masses and spacings (TEST-07, TEST-08). Where a test needs it, a body may be less typical than the generator's usual output, but never implausible. Its orbits don't match the reference layout in `docs/ideas/mechanics/drives-and-transit.md` section 2 yet (F3-05).
 
 | ID | Requirement | Built |
 |---|---|---|
