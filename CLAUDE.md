@@ -35,7 +35,7 @@ Hard sci-fi space strategy game for PC. This repo holds the prototype and the wh
 - Every requirement you build gets an automated test. A test comment or doc line names the ID it covers.
 - Prefer testing through what drives the picture (projected positions, fold state, pixel sizes, simulated input in a headless app) over leaving a check to the eye. Only if that truly can't work, add *Manual:* and the reason to the requirement in the spec, and say so in your summary.
 - Name tests for what they check (`satellites_stay_folded_inside_the_hysteresis_band`), not after a spec ID.
-- The rules in `docs/spec/architecture.md` (layout, dependencies, function size, comments, headers) guide how you write code. No test scans the source for them, so follow them anyway; the user checks in review.
+- Requirements about code structure (layout, dependencies, function size, comments, headers, which module reads a key) are marked *Checked in review.* Follow them, but don't write tests that read source text to enforce them. Tests check behaviour.
 - Run `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test` before calling work done.
 
 ## Comments and docs

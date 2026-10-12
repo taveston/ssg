@@ -35,6 +35,7 @@ Status tags in `ideas/`: **Decided** = settled. **Direction** = settled in princ
 - Each requirement is one testable statement. Tunable numbers are named and listed in a table; the code reads them from one config resource.
 - **Built** is ✓ once the requirement is in the code, and blank until then.
 - A requirement that can't be tested automatically ends with *Manual:* and the reason. Use this rarely: most visual rules can be tested through what drives the picture.
+- A requirement about how code is structured (where things live, what imports what, function size, naming, comments, which module reads a key) is guidance for code generation and ends with *Checked in review.* No test reads the source text to enforce it. Tests check behaviour. This is different from *Manual:*, which marks behaviour that can't be tested automatically.
 - Each spec file names its source idea docs, and the idea doc says what was specced (a **Specced** note). That two-way link replaces a separate decision log.
 
 ## Findings

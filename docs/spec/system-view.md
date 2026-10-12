@@ -122,7 +122,7 @@ Selection and focus may be different objects: for example, focus on Halden IV wh
 | CAM-15 | Q and E change heading (Q as dragging left, E as dragging right), Page Up tilts towards the horizon and Page Down towards straight down, all at `key_rotate_deg_per_s`, with tilt clamped (CAM-01). | ✓ |
 | CAM-16 | + (also = and numpad +) zooms in one step and − (also numpad −) zooms out one step, exactly as a wheel notch (ZOOM-01, ZOOM-02, ZOOM-05, ZOOM-14), anchored per ZOOM-13. | ✓ |
 | CAM-17 | Edge scrolling: when `edge_scroll_enabled` is true, a cursor within `edge_scroll_px` of a window edge pans that way at the CAM-14 speed. The default is off. | ✓ |
-| CAM-18 | Every camera and clock key and mouse button is read from one bindings resource; no system hard-codes a key. (A rebinding screen is not yet specced.) | ✓ |
+| CAM-18 | Every camera and clock key and mouse button is read from one bindings resource; no system hard-codes a key. Checked in review, not by a test. (A rebinding screen is not yet specced.) | ✓ |
 | CAM-19 | The pivot never moves further than `pan_bound_factor` × the system frame radius from the star, whether panning freely or by offset while focused. | ✓ |
 | CAM-20 | Pan or rotate input during an animated move (ZOOM-10, ZOOM-11, ZOOM-16, CAM-03) ends the move and takes over from the camera's current state, with no jump. | ✓ |
 | CAM-21 | With nothing focused, a zoom-in step whose target is closer than the region frame focuses the body whose satellite frame is the inner limit (ZOOM-14), with the offset that keeps the view where it is (no jump): the offset is the pivot minus the body's position when focus starts, and is taken again when that step ends. The step in progress keeps its anchor; later steps anchor on the focused body. | ✓ |

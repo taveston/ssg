@@ -4,7 +4,7 @@
 
 *Scope:* how the prototype's code is organised, separated, commented and tested. It applies to all code. **Built** is ✓ once the code meets the requirement.
 
-*Enforcement:* the rules here guide code generation and are checked in review. Tests check behaviour (ARCH-13, ARCH-31, ARCH-35), and `cargo test`, `clippy` and `fmt` must pass (ARCH-32). No test reads the source text to check layout, imports, function length, comments or headers.
+*Enforcement:* structural rules here (sections 1 to 3, ARCH-33, ARCH-34, ARCH-36) guide code generation and are checked in review, as `docs/README.md` sets out for all specs. Tests check behaviour (ARCH-13, ARCH-31, ARCH-35), and `cargo test`, `clippy` and `fmt` must pass (ARCH-32). No test reads the source text to check layout, imports, function length, comments or headers.
 
 ---
 
