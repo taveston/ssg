@@ -1,8 +1,7 @@
 //! Every camera and clock key and mouse button, in one resource (CAM-18).
 //!
-//! No other module names a `KeyCode` or a `MouseButton` (checked by
-//! `arch_*` in `tests/architecture.rs`): systems ask this resource whether
-//! an action's binding is pressed. A rebinding screen is not yet specced;
+//! No other module names a `KeyCode` or a `MouseButton`: systems ask this
+//! resource whether an action's binding is pressed. A rebinding screen is not yet specced;
 //! when it is, it edits this resource and nothing else changes.
 
 use bevy::prelude::*;
