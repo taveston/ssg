@@ -1,8 +1,10 @@
 # Spec: Code architecture
 
-**In short:** the code is split into simulation, content and view domains, with dependencies pointing one way. Simulation works in real units (km, days) and never knows about rendering. Every spec rule is a plain function with tests, systems stay small, and text-scan tests enforce the layout.
+**In short:** the code is split into simulation, content and view domains, with dependencies pointing one way. Simulation works in real units (km, days) and never knows about rendering. Every spec rule is a plain function with tests, and systems stay small. These rules guide how code is written; no test scans the source for them.
 
 *Scope:* how the prototype's code is organised, separated, commented and tested. It applies to all code. **Built** is ✓ once the code meets the requirement.
+
+*Enforcement:* the rules here guide code generation and are checked in review. Tests check behaviour (ARCH-13, ARCH-31, ARCH-35), and `cargo test`, `clippy` and `fmt` must pass (ARCH-32). No test reads the source text to check layout, imports, function length, comments or headers.
 
 ---
 
@@ -39,7 +41,7 @@ The code is split into domains, each a folder under `src/` with its own Bevy plu
 | ID | Requirement | Built |
 |---|---|---|
 | ARCH-20 | Every rule in a spec (fold hysteresis, motion mode, zoom stops, Kepler periods, apparent period, label rules) is a plain function with no Bevy queries or resources in its signature, taking and returning plain values. Systems gather inputs, call the function and apply the result. | ✓ |
-| ARCH-21 | Systems stay small: as a guide, under about 50 lines. Longer systems are split into a gather / decide / apply sequence or into helper functions. UI spawning is split into one helper per panel section. A text-scan test fails any function over 60 lines; content data and tests are exempt. | ✓ |
+| ARCH-21 | Systems stay small: as a guide, under about 50 lines. Longer systems are split into a gather / decide / apply sequence or into helper functions. UI spawning is split into one helper per panel section. Content data and tests are exempt. | ✓ |
 | ARCH-22 | Magic numbers are named constants with a comment saying what they are. Numbers the spec calls tunable stay in `Tunables` (`src/view/tunables.rs`); simulation constants (for example `KM_PER_AU`, `G`) live in `src/sim/`. | ✓ |
 | ARCH-23 | A comment at the function implementing a spec rule explains the rule in its own terms, so the code can be understood without the spec open. It may end with the rule's ID, e.g. `// Satellites fold below fold_px and unfold only above unfold_px, so they don't flicker (GRP-01)`. A comment that is only an ID doesn't meet this. | |
 
@@ -48,9 +50,9 @@ The code is split into domains, each a folder under `src/` with its own Bevy plu
 | ID | Requirement | Built |
 |---|---|---|
 | ARCH-30 | Each rule function from ARCH-20 has unit tests in the same file (`#[cfg(test)] mod tests`). A test's name says what it checks (`satellites_stay_folded_inside_the_hysteresis_band`), never just a spec ID; the ID goes in a comment or doc line on the test. Edge cases include the hysteresis band, paused time (infinite apparent period) and empty inputs. | |
-| ARCH-31 | Headless tests cover at least: orbital positions after a known time; fold state after a scale change; motion mode after a rate change; zoom stop computation for Corvane. They run without a window or GPU. The crate is a binary, so headless apps are `#[cfg(test)]` code in `src/headless_tests.rs`; only text scans, which need no crate access, live in `tests/`. | ✓ |
+| ARCH-31 | Headless tests cover at least: orbital positions after a known time; fold state after a scale change; motion mode after a rate change; zoom stop computation for Corvane. They run without a window or GPU. The crate is a binary, so headless apps are `#[cfg(test)]` code in `src/headless_tests.rs`. | ✓ |
 | ARCH-32 | `cargo test`, `cargo clippy --all-targets -- -D warnings` and `cargo fmt --check` all pass. | ✓ |
 | ARCH-33 | No dead code: no `#[allow(dead_code)]` or unused items, except tunables for requirements not yet built, each marked with the ID they wait for. | ✓ |
 | ARCH-34 | Every module has a `//!` header saying what it owns and which spec IDs it implements. | ✓ |
 | ARCH-35 | A refactor changes no behaviour: every test that passed before still passes, and nothing on screen changes. | ✓ |
-| ARCH-36 | Every built requirement in a feature spec (system view, ideology) has an automated test whose comment or doc names its ID, unless the spec marks the requirement *Manual* with the reason. A text-scan test enforces this. | |
+| ARCH-36 | Every built requirement in a feature spec (system view, ideology) has an automated test whose comment or doc names its ID, unless the spec marks the requirement *Manual* with the reason. Checked in review, not by a test. | |

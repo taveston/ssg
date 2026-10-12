@@ -12,8 +12,11 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
+- [ ] **Architecture rules become guidance** · ARCH-21, ARCH-31, ARCH-36
+  - Delete the source-scanning tests in `tests/architecture.rs`: `arch_01`, `arch_02`, `arch_03`, `arch_12`, `arch_21`, `arch_23`, `arch_33`, `arch_34`, the scanner's own test and the helpers only they use. Keep `unbuilt_requirements_are_on_the_todo_list` (it reads the docs, not the source) and its helpers; move it to `tests/todo_list.rs`.
+  - Leave `cam_18_keys_and_buttons_only_in_the_bindings` for now; it enforces CAM-18, a system-view requirement, not an architecture rule. Whether it stays is a separate design decision.
+  - Remove comments that point at the deleted tests (for example `arch_*` in `src/view/bindings.rs`). The code already meets the rules, so no requirement loses its ✓.
 - [ ] **Test coverage rule** · ARCH-36, and the reworded ARCH-23 and ARCH-30
-  - Add an architecture test that finds every built ID in the feature specs (system view, ideology) and checks that a test comment or doc names it, unless the spec marks it *Manual*. It replaces `arch_23_every_built_spec_id_is_cited_in_a_comment`.
   - Write tests for built requirements that have none. Many visual rules can be checked through what drives the picture: projected positions, fold state, pixel sizes, simulated input in a headless app. Mark *Manual* only what truly can't be tested, with the reason.
   - Rename the tests named after spec IDs (`grp_01_…`) so the name says what they check, with the ID in a comment or doc line.
   - Rewrite comments that are only an ID so they explain the rule on their own. Remove comments that point at deleted docs (the validation checklist, iteration history).
