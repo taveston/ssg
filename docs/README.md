@@ -64,7 +64,7 @@ These apply to everything in `docs/` and to `CLAUDE.md`. Older docs are being br
 ## Working with Claude
 
 - In claude.ai, attach this repo (`taveston/ssg`) to the chat; the Project points here rather than holding copies.
-- Design sessions edit `ideas/`, `spec/`, `todo.md` and `findings.md` directly and commit; nothing is pasted across by hand.
+- Design sessions edit `ideas/`, `spec/`, `todo.md` and `findings.md` directly and commit locally; nothing is pasted across by hand. Before pushing to `master`, the session summarises what changed in each design document and waits for the go-ahead, so the changes can be refined in the conversation first. Refinements go in as further commits. The session pushes only once the user approves.
 - Coding sessions (Claude Code) follow `CLAUDE.md` at the repo root.
 
 ## Not in the repo yet
