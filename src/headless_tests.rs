@@ -327,7 +327,7 @@ fn zoom_stops_come_from_corvanes_orbits() {
     for (planet, outermost_km) in [
         ("Halden IV", 726_432.0),
         ("Iver", 45_000.0),
-        ("Morrow", 290_000.0),
+        ("Morrow", 6_619_046.0),
     ] {
         let entity = body(&mut app, planet);
         let radius = satellite_frames[&entity];

@@ -12,9 +12,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **Realistic Morrow** · TEST-07, TEST-08
-  - Set Morrow's mass to 318 Earth masses and replace its moon radii (now 40,000 km plus 25,000 km a step) with radii from the target periods, as Halden IV's were.
-  - The satellite frame now spans about 6.6 million km instead of 0.3 million, so Morrow's inner moons fold at the satellite frame and unfold as you zoom in (GRP-01, GRP-02). Check any test that depends on where Morrow's moons are.
 - [ ] **Ship and station symbols** · SYM-01 to SYM-08, SYM-13 to SYM-15, TEST-05, and the reworded MRK-01, MRK-04, GRP-06, INS-05, TEST-03
   - Replaces the triangle, diamond and hollow-square markers; delete their code. The `Ownership` enum (own, neutral, foreign) gives way to affiliation and command (SYM-01).
   - Reference: mock-up `docs/ideas/presentation/mockups/7-symbology.png` for shapes and proportions. Ignore its installation role icons.

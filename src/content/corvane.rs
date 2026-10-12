@@ -245,6 +245,22 @@ fn halden_iv() -> BodyBlueprint {
 
 /// TEST-01: Morrow, the outer giant with many moons.
 fn morrow() -> BodyBlueprint {
+    // Radii come from the target periods by the inverse of Kepler's third
+    // law, for Morrow's 318 Earth masses (TEST-08): 0.35, 0.55, 0.9, 1.8,
+    // 3.6, 7.2, 16, 30, 50, 75 and 110 d.
+    const MOON_RADII_KM: [f64; 11] = [
+        143_190.0,
+        193_542.0,
+        268_758.0,
+        426_627.0,
+        677_229.0,
+        1_075_033.0,
+        1_830_685.0,
+        2_783_649.0,
+        3_913_034.0,
+        5_127_525.0,
+        6_619_046.0,
+    ];
     let moons = (0..11)
         .map(|i| {
             let name = MORROW_MOON_NAMES[i];
@@ -255,7 +271,7 @@ fn morrow() -> BodyBlueprint {
                 description: "One of Morrow's eleven moons.",
                 key_facts: vec![("Class", "Moon")],
                 knowledge: surveyed_today(),
-                orbit_radius_km: 40_000.0 + i as f64 * 25_000.0,
+                orbit_radius_km: MOON_RADII_KM[i],
                 phase0_rad: i as f64 * 1.3,
                 mass_kg: 0.0,
                 children: vec![],
@@ -272,7 +288,7 @@ fn morrow() -> BodyBlueprint {
         knowledge: surveyed_today(),
         orbit_radius_km: 4.3 * KM_PER_AU,
         phase0_rad: 1.0,
-        mass_kg: 60.0 * EARTH_MASS_KG,
+        mass_kg: 318.0 * EARTH_MASS_KG,
         children: moons,
     }
 }
@@ -345,6 +361,33 @@ mod tests {
         assert!(satellite_period_days(&halden, "Halden IVb") < 20.0);
         assert!(satellite_period_days(&halden, "Halden IVc") >= 25.0);
         assert!(satellite_period_days(&halden, "Halden IVd") >= 25.0);
+    }
+
+    /// TEST-07, TEST-08: Morrow is Jupiter-sized and its moons keep the
+    /// target periods, split seven in ring mode and four in dot mode.
+    #[test]
+    fn morrow_moon_periods_follow_a_jupiter_mass_giant() {
+        let morrow = planet("Morrow");
+        assert_eq!(morrow.mass_kg, 318.0 * EARTH_MASS_KG);
+        let targets = [
+            0.35, 0.55, 0.9, 1.8, 3.6, 7.2, 16.0, 30.0, 50.0, 75.0, 110.0,
+        ];
+        assert_eq!(morrow.children.len(), targets.len());
+        for (moon, expected) in morrow.children.iter().zip(targets) {
+            let actual = kepler_period_days(moon.orbit_radius_km, morrow.mass_kg);
+            assert!(
+                (actual - expected).abs() < expected * 0.02,
+                "{}: expected about {expected} d, got {actual:.3} d",
+                moon.name
+            );
+        }
+        assert!(morrow.children[0].orbit_radius_km >= 71_500.0);
+        let ring = morrow
+            .children
+            .iter()
+            .filter(|m| kepler_period_days(m.orbit_radius_km, morrow.mass_kg) < 20.0)
+            .count();
+        assert_eq!(ring, 7);
     }
 
     /// TEST-01 / TEST-03: the bodies the other checks lean on are present.

@@ -170,8 +170,8 @@ The prototype system, kept as data (SCL-03). It exists to exercise the rules abo
 | TEST-05 | Corvane has, as static orbiting objects in slow orbits (dot mode at 1 d/s), at least one of each: own fleet tanker; own troop transport with 1st Arden Guard (battalion) embarked; own empty troop transport; own-flag civilian ore carrier (Varga Mining); requisitioned civilian ore carrier; own-flag civilian armed hauler; neutral trader; allied warship; hostile troop transport with unknown load; hostile raider on a stale track last seen 6 days before the start date; unknown-affiliation contact with known class cargo. Iver Yard and Arden Highport are own stations. | |
 | TEST-06 | Corvane also has, as static orbiting objects: own task force TF-1 (4 warships, one damaged so the group's mean condition is below `condition_warn_fraction`); and a loose group of 6 own-flag civilian haulers. | |
 | TEST-04 | The inspection data covers all three knowledge states: Halden IV surveyed, Halden IVc unsurveyed, Lantern stale. | ✓ |
-| TEST-07 | Morrow has the mass of a Jupiter-class gas giant: 318 Earth masses. | |
-| TEST-08 | Morrow's eleven moons have periods of about 0.35, 0.55, 0.9, 1.8, 3.6, 7.2, 16, 30, 50, 75 and 110 d. Radii follow Kepler from Morrow's mass, and the innermost is no closer than 2 × Morrow's radius (71,500 km). The periods straddle both motion modes at 1 d/s: seven moons in ring mode (under 20 s), four in dot mode (at or over 25 s). | |
+| TEST-07 | Morrow has the mass of a Jupiter-class gas giant: 318 Earth masses. | ✓ |
+| TEST-08 | Morrow's eleven moons have periods of about 0.35, 0.55, 0.9, 1.8, 3.6, 7.2, 16, 30, 50, 75 and 110 d. Radii follow Kepler from Morrow's mass, and the innermost is no closer than 2 × Morrow's radius (71,500 km). The periods straddle both motion modes at 1 d/s: seven moons in ring mode (under 20 s), four in dot mode (at or over 25 s). | ✓ |
 
 ## Tunables
 
