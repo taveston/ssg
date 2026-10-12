@@ -375,4 +375,25 @@ mod tests {
             "an own ship should be parked at Halden IV"
         );
     }
+
+    /// TEST-04: the inspection data covers all three knowledge states.
+    #[test]
+    fn inspection_data_covers_every_knowledge_state() {
+        let system = hand_made_system();
+        let halden = planet("Halden IV");
+        assert!(matches!(halden.knowledge, Knowledge::Surveyed { .. }));
+        let ivc = halden
+            .children
+            .iter()
+            .find(|c| c.name == "Halden IVc")
+            .unwrap();
+        assert!(matches!(ivc.knowledge, Knowledge::Unsurveyed));
+        let lantern = system
+            .belt
+            .salvage_sites
+            .iter()
+            .find(|s| s.name == "Lantern")
+            .unwrap();
+        assert!(matches!(lantern.knowledge, Knowledge::Stale { .. }));
+    }
 }

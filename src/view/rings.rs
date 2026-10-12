@@ -112,16 +112,7 @@ fn draw_orbit_rings(
 
         let dim = crate::view::colors::ORBIT_LINE.with_alpha(DIM_RING_ALPHA);
         let strength = motion.map(MotionModeState::ring_strength).unwrap_or(0.0);
-        let bright = (strength > MIN_RING_STRENGTH).then(|| {
-            // MOT-07: a selected object in ring mode keeps its ring
-            // highlighted.
-            let color = if selection.is_open(entity) {
-                crate::view::colors::SELECTION_RING
-            } else {
-                crate::view::colors::NEUTRAL
-            };
-            color.with_alpha(strength)
-        });
+        let bright = exposure_ring_color(strength, selection.is_open(entity));
 
         for (from, to) in ring_segments(center, radius, view) {
             gizmos.line(from, to, dim);
@@ -132,6 +123,20 @@ fn draw_orbit_rings(
             }
         }
     }
+}
+
+/// The bright exposure ring's colour, if it shows at all: it fades in with
+/// the ring mode's strength, and a selected object keeps its ring
+/// highlighted in the selection white (MOT-02, MOT-07).
+pub fn exposure_ring_color(strength: f32, selected: bool) -> Option<Color> {
+    (strength > MIN_RING_STRENGTH).then(|| {
+        let color = if selected {
+            crate::view::colors::SELECTION_RING
+        } else {
+            crate::view::colors::NEUTRAL
+        };
+        color.with_alpha(strength)
+    })
 }
 
 /// `MAX_RING_ERROR_PX` as an angle seen from the camera. Without a viewport
@@ -229,6 +234,20 @@ pub fn clip_to_front((from, to): (Vec3, Vec3), view: RingView) -> Option<(Vec3, 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// MOT-07: a selected object in ring mode keeps its ring highlighted;
+    /// a dot-mode body has no exposure ring to highlight.
+    #[test]
+    fn a_selected_exposure_ring_is_highlighted() {
+        use crate::view::colors::{NEUTRAL, SELECTION_RING};
+        assert_eq!(exposure_ring_color(1.0, true), Some(SELECTION_RING));
+        assert_eq!(exposure_ring_color(1.0, false), Some(NEUTRAL));
+        assert_eq!(
+            exposure_ring_color(0.5, true),
+            Some(SELECTION_RING.with_alpha(0.5))
+        );
+        assert_eq!(exposure_ring_color(0.0, true), None);
+    }
 
     /// Half a pixel at a 900 px tall view with the default 45 degree fov.
     fn half_pixel_rad() -> f32 {

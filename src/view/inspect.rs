@@ -547,6 +547,37 @@ fn place(node: &mut Node, anchor: Option<Vec2>, offset: Vec2) {
 mod tests {
     use super::*;
 
+    /// MOT-07: the inset says "Position: shown when paused" while its body
+    /// is an exposure ring, and hides the line once it is a dot again.
+    #[test]
+    fn position_note_shows_only_in_ring_mode() {
+        let mut world = World::new();
+        let body = world
+            .spawn(MotionModeState {
+                ring_mode: true,
+                crossfade_t: 1.0,
+            })
+            .id();
+        let note = world
+            .spawn((
+                PositionNote(body),
+                Node {
+                    display: Display::None,
+                    ..default()
+                },
+            ))
+            .id();
+        let mut update = IntoSystem::into_system(update_position_notes);
+        update.initialize(&mut world);
+        update.run((), &mut world).unwrap();
+        assert_eq!(world.get::<Node>(note).unwrap().display, Display::Flex);
+
+        world.get_mut::<MotionModeState>(body).unwrap().ring_mode = false;
+        update.run((), &mut world).unwrap();
+        assert_eq!(world.get::<Node>(note).unwrap().display, Display::None);
+        assert_eq!(POSITION_SHOWN_WHEN_PAUSED, "Position: shown when paused");
+    }
+
     /// INS-02 (F4-09): classes read as words, not enum names.
     #[test]
     fn class_names_are_readable() {
