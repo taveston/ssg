@@ -70,6 +70,7 @@ fn child_counts(children: &Children, classes: &Query<&BodyClass>) -> (usize, usi
     (moons, stations)
 }
 
+/// Ownership as the word the tooltip and inset show.
 pub fn ownership_label(ownership: Ownership) -> &'static str {
     match ownership {
         Ownership::Own => "own",

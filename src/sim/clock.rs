@@ -50,6 +50,8 @@ impl GameClock {
         }
     }
 
+    /// Space pauses a running clock and resumes a paused one, keeping the
+    /// rate (CLK-05).
     pub fn toggle_pause(&mut self) {
         self.paused = !self.paused;
     }
@@ -61,10 +63,12 @@ impl GameClock {
         self.speed_days_per_sec = days_per_sec.max(MIN_RATE_DAYS_PER_SEC);
     }
 
+    /// `.` doubles the rate, with no upper limit (CLK-05).
     pub fn double_rate(&mut self) {
         self.speed_days_per_sec *= 2.0;
     }
 
+    /// `,` halves the rate, but never below 1/16 d/s (CLK-05).
     pub fn halve_rate(&mut self) {
         self.speed_days_per_sec = (self.speed_days_per_sec / 2.0).max(MIN_RATE_DAYS_PER_SEC);
     }

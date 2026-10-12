@@ -38,6 +38,8 @@ pub const FOREIGN: Color = Color::srgb(
 );
 pub const SELECTION_RING: Color = Color::WHITE;
 
+/// A marker's colour says whose it is: own blue, foreign orange,
+/// neutral the pale display white.
 pub fn ownership_color(ownership: Ownership) -> Color {
     match ownership {
         Ownership::Own => OWN,

@@ -69,6 +69,7 @@ pub fn date_from_elapsed_days(elapsed_days: f64) -> CalendarDate {
     CalendarDate { year, month, day }
 }
 
+/// The top bar's calendar date, day first: "07 Mar 2847" (CLK-02).
 pub fn format_date(date: &CalendarDate) -> String {
     format!(
         "{:02} {} {}",
