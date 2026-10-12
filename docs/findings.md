@@ -55,3 +55,38 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Observation:** a planet's marker plus its selection ring is about 20 px across, so 14 px brackets (`focus_bracket_px`) were hidden under the ring. The bracket box is now the larger of `focus_bracket_px` and the ring plus 2 px: 24 px on a planet, 30 px on the star.
 - **Affects:** CAM-22, MRK-01 · **Type:** spec wrong
 - **Disposition:** open. Decide whether `focus_bracket_px` should become a margin round the ring rather than a box side.
+
+### F-101 · The inset can go off the screen
+- **Observation:** an inspection inset can be placed partly or wholly outside the window. INS-01 anchors it to the marker by a leader line, but nothing keeps it on screen.
+- **Affects:** INS-01, INS-06 · **Type:** spec gap
+- **Disposition:** open. Decide whether the inset is clamped inside the window (below the top bar), with the leader line stretching to reach the marker.
+
+### F-102 · Focus can land on a body moving too fast to show
+- **Observation:** the camera can focus an object whose apparent orbit is in exposure-ring mode (MOT-02). The view then follows a body that has no readable position.
+- **Affects:** CAM-05, CAM-06, ZOOM-16, MOT-02 · **Type:** spec gap
+- **Disposition:** open. Options: refuse focus in ring mode; focus its parent instead; or keep it, and draw the focused body as a dot while it is focused.
+
+### F-103 · Selecting a fast-orbiting body means pausing
+- **Observation:** selecting a body in exposure-ring mode is awkward, and in practice means pausing first. MOT-05 already makes a click within 7 px of the ring select it, but the playtester didn't find that easy or obvious.
+- **Affects:** MOT-05, MOT-07, INS-05 · **Type:** spec wrong
+- **Disposition:** open. Options: a wider or clearer ring hit area with a hover cue; leaning on the parent's "In orbit" list; or selecting from the ring's label.
+
+### F-104 · The inset sits too close to its body
+- **Observation:** the inset is placed so near its body's marker that it partly hides the marker's label.
+- **Affects:** INS-01 · **Type:** spec wrong
+- **Disposition:** open. Decide the inset's offset from the marker (a tunable), so it clears the marker and its label.
+
+### F-105 · Zooming out sometimes detaches the camera from the focus
+- **Observation:** sometimes, zooming out leaves the camera no longer following the focused object. CAM-08 says focus ends only at the system frame, so this looks like a bug. No reliable repro yet.
+- **Affects:** CAM-05, CAM-08, ZOOM-13 · **Type:** bug
+- **Disposition:** open. Find a repro, then fix. Worth checking with F4-30 (CAM-21), since zoom also changes focus.
+
+### F-106 · Zooming out can leave a confusing orientation
+- **Observation:** zooming out to the outer limit keeps the current heading, tilt and pivot, so the view can end up odd. The playtester would rather see the whole system come back into view.
+- **Affects:** ZOOM-14, ZOOM-15, CAM-08, ZOOM-10 · **Type:** spec wrong
+- **Disposition:** open. Option: reaching the system frame by zooming eases the pivot back to the star (and perhaps levels the tilt), as Home does.
+
+### F-107 · Show some astronomical data for the selected body
+- **Observation:** a selected body's inset would be more useful with limited astronomical data, such as its orbit radius in AU (and perhaps its period).
+- **Affects:** INS-02 · **Type:** idea
+- **Disposition:** open. Decide which figures the inset shows, and in what units.
