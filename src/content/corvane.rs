@@ -20,6 +20,7 @@ pub fn hand_made_system() -> SystemData {
         star_name: "Corvane",
         star_class: "K2V",
         star_mass_kg,
+        star_radius_km: 508_000.0, // 0.73 solar radii
         star_knowledge: surveyed_today(),
         planets: vec![pell(), iver(), halden_iv(), morrow()],
         belt: BeltBlueprint {
@@ -34,6 +35,7 @@ pub fn hand_made_system() -> SystemData {
                     key_facts: vec![("Contents", "unknown")],
                     knowledge: Knowledge::Unsurveyed,
                     orbit_radius_km: 1.3 * KM_PER_AU,
+                    radius_km: 2.0,
                     phase0_rad: 1.1,
                     mass_kg: 0.0,
                     children: vec![],
@@ -48,6 +50,7 @@ pub fn hand_made_system() -> SystemData {
                         last_imaged_day: -1_006.0,
                     },
                     orbit_radius_km: 1.22 * KM_PER_AU,
+                    radius_km: 0.5,
                     phase0_rad: 4.0,
                     mass_kg: 0.0,
                     children: vec![],
@@ -58,18 +61,21 @@ pub fn hand_made_system() -> SystemData {
             GateBlueprint {
                 name: "Gate Ostra",
                 destination: "Ostra",
+                radius_km: 5.0,
                 distance_km: 6.0 * KM_PER_AU,
                 angle_deg: 40.0,
             },
             GateBlueprint {
                 name: "Gate Brenn",
                 destination: "Brenn",
+                radius_km: 5.0,
                 distance_km: 6.3 * KM_PER_AU,
                 angle_deg: 190.0,
             },
             GateBlueprint {
                 name: "Gate Soll",
                 destination: "Soll",
+                radius_km: 5.0,
                 distance_km: 6.1 * KM_PER_AU,
                 angle_deg: 300.0,
             },
@@ -87,6 +93,7 @@ fn pell() -> BodyBlueprint {
         key_facts: vec![("Class", "Hot rocky planet"), ("Orbit", "0.35 AU")],
         knowledge: surveyed_today(),
         orbit_radius_km: 0.35 * KM_PER_AU,
+        radius_km: 2400.0,
         phase0_rad: 0.4,
         mass_kg: 0.28 * EARTH_MASS_KG,
         children: vec![],
@@ -103,6 +110,7 @@ fn iver() -> BodyBlueprint {
         key_facts: vec![("Class", "Rocky planet"), ("Orbit", "0.7 AU")],
         knowledge: surveyed_today(),
         orbit_radius_km: 0.7 * KM_PER_AU,
+        radius_km: 5800.0,
         phase0_rad: 2.1,
         mass_kg: 0.9 * EARTH_MASS_KG,
         children: vec![BodyBlueprint {
@@ -113,6 +121,7 @@ fn iver() -> BodyBlueprint {
             key_facts: vec![("Status", "Dormant"), ("Owner", "State")],
             knowledge: surveyed_today(),
             orbit_radius_km: 45_000.0,
+            radius_km: 1.0,
             phase0_rad: 0.9,
             mass_kg: 0.0,
             children: vec![],
@@ -137,6 +146,7 @@ fn halden_iv() -> BodyBlueprint {
         ],
         knowledge: Knowledge::Surveyed { imaged_day: -40.0 },
         orbit_radius_km: 2.0 * KM_PER_AU,
+        radius_km: 6700.0,
         phase0_rad: 4.4,
         mass_kg: 1.1 * EARTH_MASS_KG,
         children: vec![
@@ -153,6 +163,7 @@ fn halden_iv() -> BodyBlueprint {
                 // IVa 1.5 d, IVb 4.2 d, IVc 31 d, IVd 68 d,
                 // Arden Highport 0.1 d.
                 orbit_radius_km: 57_137.0,
+                radius_km: 600.0,
                 phase0_rad: 0.0,
                 mass_kg: 0.0,
                 children: vec![],
@@ -165,6 +176,7 @@ fn halden_iv() -> BodyBlueprint {
                 key_facts: vec![("Class", "Moon")],
                 knowledge: surveyed_today(),
                 orbit_radius_km: 113_507.0,
+                radius_km: 1100.0,
                 phase0_rad: 1.7,
                 mass_kg: 0.0,
                 children: vec![],
@@ -180,6 +192,7 @@ fn halden_iv() -> BodyBlueprint {
                 ],
                 knowledge: Knowledge::Unsurveyed,
                 orbit_radius_km: 430_292.0,
+                radius_km: 2100.0,
                 phase0_rad: 3.3,
                 mass_kg: 0.0,
                 children: vec![],
@@ -192,6 +205,7 @@ fn halden_iv() -> BodyBlueprint {
                 key_facts: vec![("Class", "Moon")],
                 knowledge: surveyed_today(),
                 orbit_radius_km: 726_432.0,
+                radius_km: 900.0,
                 phase0_rad: 5.0,
                 mass_kg: 0.0,
                 children: vec![],
@@ -204,6 +218,7 @@ fn halden_iv() -> BodyBlueprint {
                 key_facts: vec![("Status", "Active"), ("Owner", "State")],
                 knowledge: surveyed_today(),
                 orbit_radius_km: 9_394.0,
+                radius_km: 1.0,
                 phase0_rad: 2.4,
                 mass_kg: 0.0,
                 children: vec![],
@@ -223,6 +238,7 @@ fn halden_iv() -> BodyBlueprint {
                 // stays a dot and reads as a diamond), but not so
                 // far that it stretches the satellite frame.
                 orbit_radius_km: 550_000.0,
+                radius_km: 0.05,
                 phase0_rad: 2.6,
                 mass_kg: 0.0,
                 children: vec![],
@@ -235,6 +251,7 @@ fn halden_iv() -> BodyBlueprint {
                 key_facts: vec![("Class", "Parked ship"), ("Owner", "State")],
                 knowledge: surveyed_today(),
                 orbit_radius_km: 25_000.0,
+                radius_km: 0.1,
                 phase0_rad: 1.0,
                 mass_kg: 0.0,
                 children: vec![],
@@ -261,6 +278,10 @@ fn morrow() -> BodyBlueprint {
         5_127_525.0,
         6_619_046.0,
     ];
+    // Mean physical radii of the moons, a few hundred to a few thousand km.
+    const MOON_BODY_RADII_KM: [f64; 11] = [
+        350.0, 500.0, 800.0, 1_200.0, 2_600.0, 1_800.0, 700.0, 450.0, 1_000.0, 320.0, 600.0,
+    ];
     let moons = (0..11)
         .map(|i| {
             let name = MORROW_MOON_NAMES[i];
@@ -272,6 +293,7 @@ fn morrow() -> BodyBlueprint {
                 key_facts: vec![("Class", "Moon")],
                 knowledge: surveyed_today(),
                 orbit_radius_km: MOON_RADII_KM[i],
+                radius_km: MOON_BODY_RADII_KM[i],
                 phase0_rad: i as f64 * 1.3,
                 mass_kg: 0.0,
                 children: vec![],
@@ -287,6 +309,7 @@ fn morrow() -> BodyBlueprint {
         key_facts: vec![("Class", "Gas giant"), ("Moons", "11")],
         knowledge: surveyed_today(),
         orbit_radius_km: 4.3 * KM_PER_AU,
+        radius_km: 71500.0,
         phase0_rad: 1.0,
         mass_kg: 318.0 * EARTH_MASS_KG,
         children: moons,

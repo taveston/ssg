@@ -18,6 +18,8 @@ pub struct BodyBlueprint {
     pub key_facts: Vec<(&'static str, &'static str)>,
     pub knowledge: Knowledge,
     pub orbit_radius_km: f64,
+    /// Mean physical radius (SCL-05).
+    pub radius_km: f64,
     pub phase0_rad: f64,
     /// This body's own mass, used to compute its children's periods. Leave
     /// at 0.0 for bodies with no children.
@@ -34,6 +36,7 @@ pub struct BeltBlueprint {
 pub struct GateBlueprint {
     pub name: &'static str,
     pub destination: &'static str,
+    pub radius_km: f64,
     pub distance_km: f64,
     pub angle_deg: f64,
 }
@@ -43,6 +46,8 @@ pub struct SystemData {
     /// The star's spectral class, shown as its key fact.
     pub star_class: &'static str,
     pub star_mass_kg: f64,
+    /// The star's mean physical radius (SCL-05).
+    pub star_radius_km: f64,
     pub star_knowledge: Knowledge,
     pub planets: Vec<BodyBlueprint>,
     pub belt: BeltBlueprint,

@@ -47,6 +47,12 @@ pub struct Description(pub String);
 #[derive(Component, Clone, Debug, Default)]
 pub struct KeyFacts(pub Vec<(String, String)>);
 
+/// A body's mean physical radius in km (SCL-05). Presentation uses it for
+/// true-size discs (MRK-07) and the zoom's inner limit (ZOOM-14); it never
+/// sets a marker's size.
+#[derive(Component, Clone, Copy, Debug, PartialEq)]
+pub struct PhysicalRadius(pub f64);
+
 /// The system's asteroid belt, an annulus in the orbital plane round the
 /// star (MRK-05).
 #[derive(Component, Clone, Copy, Debug)]

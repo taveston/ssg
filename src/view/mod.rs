@@ -41,6 +41,7 @@ pub mod screen;
 pub mod selection;
 pub mod targets;
 pub mod topbar;
+pub mod true_size;
 pub mod tunables;
 pub mod world;
 

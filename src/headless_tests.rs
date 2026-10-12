@@ -22,7 +22,7 @@ use bevy::window::WindowResolution;
 
 use crate::content::ContentPlugin;
 use crate::sim::SimPlugin;
-use crate::sim::body::{BodyClass, DisplayName, Knowledge, Ownership};
+use crate::sim::body::{BodyClass, DisplayName, Knowledge, Ownership, PhysicalRadius};
 use crate::sim::clock::GameClock;
 use crate::sim::orbit::{Orbit, OrbitPositionKm, orbit_position_km};
 use crate::sim::system::{
@@ -40,7 +40,8 @@ use crate::view::fold::SatelliteFoldState;
 use crate::view::fonts::Fonts;
 use crate::view::gesture::PressStart;
 use crate::view::grouping::GroupingPlugin;
-use crate::view::markers::ring_outer_half;
+use crate::view::marker_images::MarkerImages;
+use crate::view::markers::{MarkersPlugin, ring_outer_half};
 use crate::view::motion::MotionPlugin;
 use crate::view::motion_mode::MotionModeState;
 use crate::view::pills::PillsPlugin;
@@ -48,8 +49,9 @@ use crate::view::projection::ProjectionPlugin;
 use crate::view::scale::km_to_render;
 use crate::view::screen::{ScreenPlugin, ScreenPositions};
 use crate::view::selection::Selection;
-use crate::view::targets::GroupPillFor;
+use crate::view::targets::{GroupPillFor, MarkerFor};
 use crate::view::topbar::TOP_BAR_HEIGHT_PX;
+use crate::view::true_size::projected_radius_px;
 use crate::view::tunables::{Tunables, TunablesPlugin};
 use crate::view::world::WorldPositions;
 use crate::{Boot, Stage};
@@ -870,6 +872,7 @@ fn blueprint(name: &'static str, class: BodyClass, radius_km: f64) -> BodyBluepr
         key_facts: vec![],
         knowledge: Knowledge::Unsurveyed,
         orbit_radius_km: radius_km,
+        radius_km: 1_000.0,
         phase0_rad: 0.0,
         mass_kg: 0.0,
         children: vec![],
@@ -886,6 +889,7 @@ fn generated_system() -> SystemData {
         star_name: "Vey",
         star_class: "G5V",
         star_mass_kg: SOLAR_MASS_KG,
+        star_radius_km: 696_000.0,
         star_knowledge: Knowledge::Unsurveyed,
         planets: vec![
             planet,
@@ -899,6 +903,7 @@ fn generated_system() -> SystemData {
         gates: vec![GateBlueprint {
             name: "Gate Vey",
             destination: "Ostra",
+            radius_km: 5.0,
             distance_km: 4.0 * KM_PER_AU,
             angle_deg: 30.0,
         }],
@@ -1227,4 +1232,53 @@ fn input_during_a_move_takes_over_without_a_jump() {
             "the move stays ended"
         );
     }
+}
+
+/// The marker node drawn for a body, as its width in pixels.
+fn marker_width_px(app: &mut App, body: Entity) -> f32 {
+    let mut markers = app.world_mut().query::<(&MarkerFor, &Node)>();
+    let (_, node) = markers
+        .iter(app.world())
+        .find(|(marker, _)| marker.0 == body)
+        .expect("a marker for the body");
+    match node.width {
+        Val::Px(width) => width,
+        other => panic!("marker width {other:?}"),
+    }
+}
+
+/// MRK-07: at the system frame Halden IV is its class's fixed marker; close
+/// in, where its true diameter is larger than that, the marker is a disc of
+/// the true on-screen size.
+#[test]
+fn a_body_grows_into_a_true_size_disc_when_close() {
+    let mut app = camera_app_with(|app| {
+        app.insert_resource(placeholder_fonts())
+            .insert_resource(MarkerImages {
+                triangle: Handle::default(),
+                diamond: Handle::default(),
+            })
+            .add_plugins((EdgePlugin, MarkersPlugin));
+    });
+    let halden = body(&mut app, "Halden IV");
+    run(&mut app, 2);
+    let far = marker_width_px(&mut app, halden);
+    assert_eq!(far, 12.0, "a planet's fixed marker at the system frame");
+
+    let distance = 0.01;
+    *app.world_mut().resource_mut::<Focus>() = Focus {
+        body: Some(halden),
+        offset: Vec3::ZERO,
+    };
+    app.world_mut().resource_mut::<CameraRig>().distance = distance;
+    run(&mut app, 3);
+    let radius_km = app.world().get::<PhysicalRadius>(halden).unwrap().0;
+    let expected =
+        2.0 * projected_radius_px(km_to_render(radius_km), distance, fov(), VIEWPORT.y as f32);
+    let drawn = marker_width_px(&mut app, halden);
+    assert!(expected > 12.0, "the test view is close enough: {expected}");
+    assert!(
+        (drawn - expected).abs() < expected * 0.01,
+        "drawn {drawn} px, true size {expected} px"
+    );
 }

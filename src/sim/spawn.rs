@@ -9,7 +9,9 @@
 
 use bevy::prelude::*;
 
-use super::body::{Belt, BodyClass, Description, DisplayName, KeyFacts, Knowledge, Ownership};
+use super::body::{
+    Belt, BodyClass, Description, DisplayName, KeyFacts, Knowledge, Ownership, PhysicalRadius,
+};
 use super::orbit::{Orbit, OrbitPositionKm, kepler_period_days, orbit_position_km};
 use super::system::{BodyBlueprint, GateBlueprint, SystemData, SystemDataResource};
 
@@ -23,6 +25,7 @@ pub fn spawn_system(mut commands: Commands, system_data: Option<ResMut<SystemDat
         star_name,
         star_class,
         star_mass_kg,
+        star_radius_km,
         star_knowledge,
         planets,
         belt,
@@ -35,6 +38,7 @@ pub fn spawn_system(mut commands: Commands, system_data: Option<ResMut<SystemDat
         Description("The system's star.".to_string()),
         KeyFacts(vec![("Class".to_string(), star_class.to_string())]),
         BodyClass::Star,
+        PhysicalRadius(star_radius_km),
         Ownership::Neutral,
         star_knowledge,
     ));
@@ -77,6 +81,7 @@ fn spawn_gate(commands: &mut Commands, gate: GateBlueprint, star_mass_kg: f64) {
             gate.destination.to_string(),
         )]),
         BodyClass::Gate,
+        PhysicalRadius(gate.radius_km),
         Ownership::Neutral,
         Knowledge::Surveyed { imaged_day: 0.0 },
         orbit_components(orbit),
@@ -102,6 +107,7 @@ fn spawn_body(
         key_facts,
         knowledge,
         orbit_radius_km,
+        radius_km,
         phase0_rad,
         mass_kg,
         children,
@@ -124,6 +130,7 @@ fn spawn_body(
                 .collect(),
         ),
         class,
+        PhysicalRadius(radius_km),
         ownership,
         knowledge,
         orbit_components(orbit),

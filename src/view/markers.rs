@@ -19,10 +19,13 @@ use super::fonts::Fonts;
 use super::hover;
 use super::marker_images::MarkerImages;
 use super::motion_mode::MotionModeState;
+use super::scale::km_to_render;
 use super::screen::ScreenPositions;
 use super::selection::Selection;
 use super::targets::{Hovered, MarkerFor};
-use crate::sim::body::{BodyClass, DisplayName, Ownership};
+use super::true_size::{disc_half_px, projected_radius_px};
+use super::world::ViewNow;
+use crate::sim::body::{BodyClass, DisplayName, Ownership, PhysicalRadius};
 use crate::{Boot, Stage};
 
 /// Half-size in pixels, so the update system can centre the node on its
@@ -34,6 +37,11 @@ pub struct MarkerHalfSize(pub Vec2);
 /// each frame rather than accumulating rounding.
 #[derive(Component)]
 pub struct MarkerBaseColor(pub Color);
+
+/// A marker's label, which sits just right of the marker and moves out when
+/// the marker grows to a true-size disc (MRK-07).
+#[derive(Component)]
+pub struct MarkerLabel;
 
 /// Where a marker's colour lives, so fading knows what to write to.
 #[derive(Component, Clone, Copy, PartialEq, Eq, Debug)]
@@ -251,6 +259,7 @@ fn spawn_marker_text(
         ));
     }
     parent.spawn((
+        MarkerLabel,
         Node {
             position_type: PositionType::Absolute,
             left: px(half.x * 2.0 + LABEL_GAP_PX),
@@ -271,6 +280,7 @@ type MarkerBodies<'w, 's> = Query<
         Option<&'static ChildOf>,
         Option<&'static SatelliteFoldState>,
         Option<&'static MotionModeState>,
+        Option<&'static PhysicalRadius>,
     ),
     With<BodyClass>,
 >;
@@ -357,19 +367,52 @@ fn ring_markers(
     }
 }
 
-/// MRK-03: place, fade and colour every marker for this frame.
+/// MRK-07: the half-size a body's marker is drawn at. A disc is as large as
+/// its true radius on screen when that beats the class's fixed size; every
+/// other shape keeps its fixed size.
+fn drawn_half_size(
+    view: &ViewNow,
+    projection: Option<&Projection>,
+    viewport_height: f32,
+    (body, shape_is_disc, class_half): (Entity, bool, f32),
+    radius: Option<&PhysicalRadius>,
+) -> f32 {
+    let (Some(radius), true, Some(Projection::Perspective(perspective))) =
+        (radius, shape_is_disc, projection)
+    else {
+        return class_half;
+    };
+    let (Some((_, camera)), Some(position)) = (view.camera(), view.position(body)) else {
+        return class_half;
+    };
+    let depth = (position - camera.translation()).dot(*camera.forward());
+    let true_radius = projected_radius_px(
+        km_to_render(radius.0),
+        depth,
+        perspective.fov,
+        viewport_height,
+    );
+    disc_half_px(class_half, true_radius)
+}
+
+/// MRK-03 / MRK-07: place, fade and colour every marker for this frame.
+#[allow(clippy::too_many_arguments)]
 fn update_markers(
     screen: Res<ScreenPositions>,
     edges: Res<GateEdgeTargets>,
+    view: ViewNow,
+    projections: Query<&Projection, With<Camera3d>>,
     bodies: MarkerBodies,
     mut markers: MarkerNodes,
+    mut labels: Query<&mut Node, (With<MarkerLabel>, Without<MarkerFor>)>,
     mut text_colors: Query<&mut TextColor>,
 ) {
+    let projection = projections.single().ok();
     for (marker_for, half, base_color, style, mut node, background, border, image, children) in
         &mut markers
     {
         let body = marker_for.0;
-        let Ok((child_of, fold, motion)) = bodies.get(body) else {
+        let Ok((child_of, fold, motion, radius)) = bodies.get(body) else {
             node.display = Display::None;
             continue;
         };
@@ -391,9 +434,18 @@ fn update_markers(
         let parent = child_of.and_then(|child_of| screen.get(child_of.parent()));
         let pos = marker_position(own, parent, fold_anim_t);
 
+        let drawn = drawn_half_size(
+            &view,
+            projection,
+            screen.viewport.y,
+            (body, *style == MarkerStyle::Fill, half.0.x),
+            radius,
+        );
         node.display = Display::Flex;
-        node.left = px(pos.x - half.0.x);
-        node.top = px(pos.y - half.0.y);
+        node.width = px(drawn * 2.0);
+        node.height = px(drawn * 2.0);
+        node.left = px(pos.x - drawn);
+        node.top = px(pos.y - drawn);
 
         let color = base_color.0.with_alpha(alpha);
         match (style, background, border, image) {
@@ -408,6 +460,9 @@ fn update_markers(
         for child in children.into_iter().flat_map(|children| children.iter()) {
             if let Ok(mut text_color) = text_colors.get_mut(child) {
                 text_color.0 = color;
+            }
+            if let Ok(mut label) = labels.get_mut(child) {
+                label.left = px(drawn * 2.0 + LABEL_GAP_PX);
             }
         }
     }
