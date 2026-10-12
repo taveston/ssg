@@ -6,7 +6,7 @@
 
 *How to read it:* each requirement has a stable ID. **Built** is ✓ once the requirement is in the code. Numbers in `code` are tunables (table at the end), read from `src/view/tunables.rs`, never hard-coded.
 
-*Retired IDs* (never reuse): CAM-21, CLK-03, ZOOM-03, ZOOM-04, ZOOM-06, ZOOM-08, ZOOM-09, ZOOM-12, MAG-01 to MAG-08, MOT-06.
+*Retired IDs* (never reuse): CAM-21, CLK-03, ZOOM-03, ZOOM-04, ZOOM-06, ZOOM-07, ZOOM-08, ZOOM-09, ZOOM-12, MAG-01 to MAG-08, MOT-06.
 
 ---
 
@@ -28,6 +28,7 @@
 | CLK-02 | The top bar shows the breadcrumb ("Cluster / Corvane system"), the calendar date, and Pause, 1 d/s and 5 d/s buttons; the active rate is highlighted. | ✓ |
 | CLK-05 | Space toggles pause; `.` doubles and `,` halves the rate (minimum 1/16 d/s). | ✓ |
 | CLK-04 | Pausing stops all orbital motion; every view stays fully interactive while paused. | ✓ |
+| CLK-06 | A debug readout of frames per second can show in the top bar. It is hidden by default and toggled by a binding (default F3). | |
 
 ## 3. Markers and palette
 
@@ -39,6 +40,7 @@
 | MRK-04 | Marker shapes: filled disc = body; X = salvage site. Ships, groups of ships and stations are drawn as symbols (section 3a). | |
 | MRK-05 | Orbits are faint rings; the belt is a translucent shaded band. A ring stays within half a pixel of the true circle, also when the camera is close to it, and a ring passing behind the camera is cut at the near limit, not dropped. | ✓ |
 | MRK-06 | Separate planets are never merged, however close on screen. | ✓ |
+| MRK-08 | Every marker and symbol has a hit area of at least `min_hit_radius_px` round its centre, even where the drawn marker is smaller. Where hit areas overlap, the marker whose centre is nearest the pointer wins. | |
 | MRK-07 | A body whose true diameter on screen is larger than its marker is drawn as a filled disc at its true size, in its marker's colour, in place of the marker. | |
 | EDGE-01 | A gate outside the viewport is shown as an arrow pinned to the edge of the map area (below the top bar) in its direction, labelled with its destination. A gate behind the camera is pinned by its direction in the camera's own right and up axes. Arrows slide round the edge as the heading turns. | ✓ |
 
@@ -73,9 +75,10 @@ Ships and stations are drawn as symbols adapted from NATO APP-6: the **frame** s
 | HOV-01 | Hovering a marker draws a white ring and a tooltip: name · ownership · contents summary — "Click: inspect · Double-click: frame its moons · Double-click again: planetary view". | ✓ |
 | INS-01 | Clicking a marker selects it and opens an inspection inset anchored to the marker by a leader line; the clock keeps running. Only the primary button selects, and only when the release is within `drag_threshold_px` of the press, so the end of a pan never selects. | ✓ |
 | INS-02 | The inset shows: header (name, class and ownership line), Focus, Pin and Close buttons; an image for the knowledge state (INS-04); key facts; and an "Open planetary view" button, disabled until the planetary view exists. | ✓ |
-| INS-03 | Pin keeps an inset open when the selection changes, so two objects can be compared; Esc closes the unpinned inset. | ✓ |
-| INS-04 | The inset image follows knowledge: **surveyed** = clean render, status "SURVEYED · *date*"; **unsurveyed** = grainy telescope frame, "TELESCOPE FRAME · UNSURVEYED" in orange, estimates as ranges; **stale** = sepia image, "LAST IMAGED · *date*". | ✓ |
+| INS-03 | Pin keeps an inset open when the selection changes, so two objects can be compared. Esc closes the unpinned inset, and so does a click on empty map space (a press and release within `drag_threshold_px` that hits no marker, pill, ring or panel). | |
+| INS-04 | The inset image is a placeholder for the knowledge state: **surveyed** = clean render; **unsurveyed** = grainy telescope frame. There is no status text or date, and no stale state, until information gathering is designed. | |
 | INS-05 | The inset of a body with satellites has an "In orbit" list: one entry per satellite (its symbol per section 3a at `list_symbol_px`, or the body disc, and its name), in orbit order from the inside out. Clicking an entry selects that satellite (its inset replaces the parent's unless pinned) once `double_click_window_ms` passes without a second click; double-clicking it behaves as ZOOM-16 and ZOOM-17. | |
+| INS-07 | The inset is placed `inset_offset_px` from its anchor (the marker, or as INS-06 and MOT-09 say), clear of the marker and its label. It is kept wholly inside the map area (below the top bar); when clamped, it stays as close to that placement as fits. The leader line runs from the anchor to the inset's nearest edge in horizontal and vertical segments with one right-angled bend. | |
 | INS-06 | When the selected object is folded into its parent (GRP-01), its inset's leader line goes to the parent's pill, and the pill carries the white selection ring. When the object unfolds, both move to its own marker without a jump. | ✓ |
 
 ## 5. Navigation and zoom
@@ -85,7 +88,6 @@ Ships and stations are drawn as symbols adapted from NATO APP-6: the **frame** s
 | ZOOM-01 | Each wheel notch multiplies the view scale by `zoom_step_factor`, animated over `zoom_anim_ms` with ease-out. Raw wheel deltas are never used: line-unit input counts notches, and pixel-unit input is converted at 20 px per notch, rounded towards zero. | ✓ |
 | ZOOM-02 | New input during a zoom animation retargets from the current scale; it is not queued. | ✓ |
 | ZOOM-05 | A zoom step that lands on a stop takes longer by `zoom_stop_resistance`, then settles exactly on the stop. | ✓ |
-| ZOOM-07 | Trackpad pinch is continuous, and on release settles to the nearest stop if within `pinch_settle_steps`. | |
 | ZOOM-10 | Home returns to the system frame and the standard orientation (CAM-02) with the same animated move, and ends focus. | |
 | ZOOM-11 | Ctrl+1 to Ctrl+4 save a bookmark (scale and centre, or the focused object); 1 to 4 recall it with the same animated move. | ✓ |
 | ZOOM-13 | Zoom is anchored on the focused object when there is one (CAM-05); otherwise on the point where the cursor's ray meets the orbital plane, or the screen centre for keyboard zoom (CAM-16). Selection never sets the anchor. The anchor keeps its screen position through the zoom. The anchored pivot is clamped to the pan bound (CAM-19); a ray that misses the plane anchors on the pivot. | ✓ |
@@ -129,7 +131,7 @@ Selection and focus may be different objects: for example, focus on Halden IV wh
 | CAM-20 | Pan or rotate input during an animated move (ZOOM-10, ZOOM-11, ZOOM-16, CAM-03) ends the move and takes over from the camera's current state, with no jump. | ✓ |
 | CAM-23 | A zoom-out step that reaches the system frame also eases the pivot to the star and the tilt to `standard_tilt_deg`, within the same zoom animation. The heading is kept. This happens whether or not anything was focused. | |
 | CAM-24 | An object in exposure-ring mode (MOT-02) can't be focused, and the inset's Focus button is disabled while it is in that mode. If the focused object enters ring mode, focus moves to its parent (or the nearest ancestor not in ring mode, or ends at the star), with the offset that keeps the view where it is. Focus never moves back when the object leaves ring mode. | |
-| CAM-22 | The focused object's marker carries four corner brackets in the neutral colour (MRK-01), so focus is never mistaken for the white selection ring. Both can show on one marker: the bracket box is `focus_bracket_px`, or the selection ring plus 2 px if that is larger. | ✓ |
+| CAM-22 | The focused object's marker carries four corner brackets in the neutral colour (MRK-01), so focus is never mistaken for the white selection ring. The bracket box encloses the selection ring's size (whether or not the ring is showing) with `focus_bracket_margin_px` to spare on each side. | |
 
 ## 6. Satellite grouping
 
@@ -157,13 +159,14 @@ The **apparent period** of an orbit is its orbital period divided by the time ra
 | MOT-02 | Apparent period below `t_ring_secs`: exposure-ring mode. No dot; the orbit ring is brighter and `exposure_ring_width_px` wide; the label sits on the ring at a fixed spot. | ✓ |
 | MOT-03 | Between the two thresholds the current mode is kept; switching cross-fades over `motion_crossfade_ms`. | ✓ |
 | MOT-04 | There is no special case for pause: an infinite apparent period gives dot mode. | ✓ |
-| MOT-05 | Hover and click on an exposure ring target its object. A pointer within 7 px of the ring hits it; a marker, pill, label or panel over the ring wins, and of two rings in reach the nearer wins. | ✓ |
+| MOT-05 | Hover and click on an exposure ring target its object. A pointer within 7 px of the ring hits it; a marker, pill, label or panel over the ring wins, and of two rings in reach the nearer wins. A hovered ring is drawn in the white hover colour, with the HOV-01 tooltip. | |
 | MOT-07 | A selected object in ring mode keeps its ring highlighted, and its inset has the line "Position: shown when paused" while it is in ring mode. | ✓ |
+| MOT-09 | While the selected object is in ring mode, its inset is anchored to the ring's label spot (MOT-02), not to the moving object, so the inset stays still. When the object returns to dot mode the anchor moves to its marker without a jump. | |
 | MOT-08 | The rule applies to every orbiting object (moons, stations, parked ships, close-in planets); ships in transit are ignored. | ✓ |
 
 ## 8. Test content: Corvane
 
-The prototype system, kept as data (SCL-03). It exists to exercise the rules above, so its values serve testing first. It is also a plausible output of the generator, so its bodies use realistic masses and spacings (TEST-07, TEST-08). Where a test needs it, a body may be less typical than the generator's usual output, but never implausible. Its orbits don't match the reference layout in `docs/ideas/mechanics/drives-and-transit.md` section 2 yet (F3-05).
+The prototype system, kept as data (SCL-03). It exists to exercise the rules above, so its values serve testing first. It is also a plausible output of the generator, so its bodies use realistic masses and spacings (TEST-07, TEST-08). Where a test needs it, a body may be less typical than the generator's usual output, but never implausible.
 
 | ID | Requirement | Built |
 |---|---|---|
@@ -172,7 +175,7 @@ The prototype system, kept as data (SCL-03). It exists to exercise the rules abo
 | TEST-03 | Halden IV also has contact K-3 (unknown affiliation, unknown class, weak track, slow orbit) and one own commanded warship parked in orbit, as static orbiting objects. | |
 | TEST-05 | Corvane has, as static orbiting objects in slow orbits (dot mode at 1 d/s), at least one of each: own fleet tanker; own troop transport with 1st Arden Guard (battalion) embarked; own empty troop transport; own-flag civilian ore carrier (Varga Mining); requisitioned civilian ore carrier; own-flag civilian armed hauler; neutral trader; allied warship; hostile troop transport with unknown load; hostile raider on a stale track last seen 6 days before the start date; unknown-affiliation contact with known class cargo. Iver Yard and Arden Highport are own stations. | |
 | TEST-06 | Corvane also has, as static orbiting objects: own task force TF-1 (4 warships, one damaged so the group's mean condition is below `condition_warn_fraction`); and a loose group of 6 own-flag civilian haulers. | |
-| TEST-04 | The inspection data covers all three knowledge states: Halden IV surveyed, Halden IVc unsurveyed, Lantern stale. | ✓ |
+| TEST-04 | The inspection data covers both knowledge states: Halden IV surveyed, Halden IVc unsurveyed. | |
 | TEST-07 | Morrow has the mass of a Jupiter-class gas giant: 318 Earth masses. | |
 | TEST-08 | Morrow's eleven moons have periods of about 0.35, 0.55, 0.9, 1.8, 3.6, 7.2, 16, 30, 50, 75 and 110 d. Radii follow Kepler from Morrow's mass, and the innermost is no closer than 2 × Morrow's radius (71,500 km). The periods straddle both motion modes at 1 d/s: seven moons in ring mode (under 20 s), four in dot mode (at or over 25 s). | |
 
@@ -193,7 +196,6 @@ All in the `Tunables` resource (`src/view/tunables.rs`). Defaults are starting v
 | `zoom_step_factor` | ×2 | ZOOM-01 |
 | `zoom_anim_ms` | 200 (range 150–250) | ZOOM-01 |
 | `zoom_stop_resistance` | 0.35 | ZOOM-05 |
-| `pinch_settle_steps` | 1 | ZOOM-07 |
 | `focus_jump_ms` | 400 | ZOOM-10, ZOOM-11, ZOOM-16, CAM-03 |
 | `zoom_fit_margin` | 0.8 | ZOOM-15 |
 | `min_view_radius_au` | 0.05 AU | ZOOM-14 |
@@ -211,7 +213,9 @@ All in the `Tunables` resource (`src/view/tunables.rs`). Defaults are starting v
 | `edge_scroll_enabled` | false | CAM-17 |
 | `edge_scroll_px` | 8 px | CAM-17 |
 | `pan_bound_factor` | 1.5 | CAM-19 |
-| `focus_bracket_px` | 14 px (bracket box side) | CAM-22 |
+| `focus_bracket_margin_px` | 2 px | CAM-22 |
+| `min_hit_radius_px` | 10 px | MRK-08 |
+| `inset_offset_px` | 48 px | INS-07 |
 | `ship_symbol_px` | 22 px | SYM-04, SYM-12, SYM-14 |
 | `list_symbol_px` | 14 px | INS-05 |
 | `symbol_stroke_px` | 1.6 px | SYM-02 |
@@ -226,6 +230,7 @@ All in the `Tunables` resource (`src/view/tunables.rs`). Defaults are starting v
 
 ## Open points
 
+- Input targets mouse and keyboard only. Gamepad, touch and trackpad are not targets, but designs should avoid what would be hard to port to them (for example, relying on hover alone or on raw wheel deltas).
 - Per-system camera memory, a frame that rotates with the focused body, selection cycling (Tab), and gamepad and touch input: in `docs/ideas/presentation/presentation.md` (Camera), not yet specced.
 
 ## Not yet specced

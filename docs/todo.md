@@ -30,14 +30,23 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - Needs the symbols item first.
 - [ ] **Velocity leaders** · SYM-11
   - Blocked: ships in transit are not specced yet.
-- [ ] **Trackpad pinch** · ZOOM-07
-  - Blocked: see F3-01.
+- [ ] **Inset placement and dismissal** · INS-03, INS-07
+  - Delete the old leader-line drawing; the leader is now one right-angled bend (INS-07).
+- [ ] **Easier selection** · MRK-08, MOT-05, MOT-09, CAM-22
+  - `focus_bracket_px` becomes `focus_bracket_margin_px` (F5-08 described the built behaviour; keep it, just as a margin).
+- [ ] **Placeholder knowledge images** · INS-04, TEST-04
+  - Remove the stale state, its sepia image and all status text and dates from the inset. Lantern no longer needs stale data.
+- [ ] **FPS debug readout** · CLK-06
+  - Add the toggle binding to the bindings resource (CAM-18).
 - [ ] **Ideology profile** · IDEO-01 to IDEO-31
   - Decide the open points in `docs/spec/ideology.md` first.
 
 ## Fixes
 
-None yet.
+- [ ] **Gate edge labels show the destination alone** · EDGE-01
+  - Label reads "Ostra", not "Gate Ostra".
+- [ ] **Camera sometimes stops following the focus on zoom-out** · CAM-05, CAM-08, ZOOM-13
+  - No reliable repro. Check it after "Deliberate focus and two-stop zoom", which rewrites this logic; fix if it remains.
 
 ## Other
 
