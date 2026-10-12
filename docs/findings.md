@@ -66,10 +66,10 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Affects:** CAM-05, CAM-06, ZOOM-16, MOT-02 · **Type:** spec gap
 - **Disposition:** open. Options: refuse focus in ring mode; focus its parent instead; or keep it, and draw the focused body as a dot while it is focused.
 
-### F-103 · Selecting a fast-orbiting body means pausing
-- **Observation:** selecting a body in exposure-ring mode is awkward, and in practice means pausing first. MOT-05 already makes a click within 7 px of the ring select it, but the playtester didn't find that easy or obvious.
-- **Affects:** MOT-05, MOT-07, INS-05 · **Type:** spec wrong
-- **Disposition:** open. Options: a wider or clearer ring hit area with a hover cue; leaning on the parent's "In orbit" list; or selecting from the ring's label.
+### F-103 · Selecting a fast-orbiting body works but isn't obvious, and its inset is unreadable
+- **Observation:** clicking an exposure ring selects its body without pausing (MOT-05), but nothing suggests the ring can be clicked. Once selected, the inset is anchored to the fast-moving body, so it races round the orbit and can't be read.
+- **Affects:** MOT-05, MOT-07, INS-01, INS-06 · **Type:** spec wrong
+- **Disposition:** open. Options for the cue: a hover highlight on the ring, or a wider hit area. Options for the inset: in ring mode, anchor it to a fixed point (the ring's label spot, as MOT-02 does for the label) or to the parent, instead of the moving body.
 
 ### F-104 · The inset sits too close to its body
 - **Observation:** the inset is placed so near its body's marker that it partly hides the marker's label.
@@ -90,3 +90,8 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Observation:** a selected body's inset would be more useful with limited astronomical data, such as its orbit radius in AU (and perhaps its period).
 - **Affects:** INS-02 · **Type:** idea
 - **Disposition:** open. Decide which figures the inset shows, and in what units.
+
+### F-108 · Small moving markers are hard to click
+- **Observation:** some markers on moving bodies are small (a moon is 6 px across), so they are hard to hit while they move. The hit area is the marker itself.
+- **Affects:** MRK-03, INS-01 · **Type:** spec wrong
+- **Disposition:** open. Option: a minimum hit area round every marker (a tunable in pixels), larger than the drawn marker.
