@@ -21,10 +21,13 @@ use bevy::window::WindowResolution;
 
 use crate::content::ContentPlugin;
 use crate::sim::SimPlugin;
-use crate::sim::body::DisplayName;
+use crate::sim::body::{BodyClass, DisplayName, Knowledge, Ownership};
 use crate::sim::clock::GameClock;
 use crate::sim::orbit::{Orbit, OrbitPositionKm, orbit_position_km};
-use crate::sim::units::KM_PER_AU;
+use crate::sim::system::{
+    BeltBlueprint, BodyBlueprint, GateBlueprint, SystemData, SystemDataResource,
+};
+use crate::sim::units::{EARTH_MASS_KG, KM_PER_AU, SOLAR_MASS_KG};
 use crate::view::bindings::BindingsPlugin;
 use crate::view::camera::CameraPlugin;
 use crate::view::camera::requests::FocusRequest;
@@ -36,12 +39,15 @@ use crate::view::fold::SatelliteFoldState;
 use crate::view::fonts::Fonts;
 use crate::view::gesture::PressStart;
 use crate::view::grouping::GroupingPlugin;
+use crate::view::markers::ring_outer_half;
 use crate::view::motion::MotionPlugin;
 use crate::view::motion_mode::MotionModeState;
+use crate::view::pills::PillsPlugin;
 use crate::view::projection::ProjectionPlugin;
 use crate::view::scale::km_to_render;
 use crate::view::screen::{ScreenPlugin, ScreenPositions};
 use crate::view::selection::Selection;
+use crate::view::targets::GroupPillFor;
 use crate::view::topbar::TOP_BAR_HEIGHT_PX;
 use crate::view::tunables::{Tunables, TunablesPlugin};
 use crate::view::world::WorldPositions;
@@ -475,7 +481,13 @@ fn scroll(app: &mut App, notches: f32) {
 
 /// The real camera in a headless app, paused, with a window to project into.
 fn camera_app() -> App {
+    camera_app_with(|_| {})
+}
+
+/// `camera_app` with more plugins added before startup runs.
+fn camera_app_with(extra: impl FnOnce(&mut App)) -> App {
     let mut app = headless_app(FRAME);
+    extra(&mut app);
     app.add_plugins((ContentPlugin, SimPlugin, InputPlugin))
         .add_plugins((
             TunablesPlugin,
@@ -828,4 +840,158 @@ fn every_gate_has_an_arrow_as_the_heading_turns() {
             }
         }
     }
+}
+
+fn blueprint(name: &'static str, class: BodyClass, radius_km: f64) -> BodyBlueprint {
+    BodyBlueprint {
+        name,
+        class,
+        ownership: Ownership::Neutral,
+        description: "",
+        key_facts: vec![],
+        knowledge: Knowledge::Unsurveyed,
+        orbit_radius_km: radius_km,
+        phase0_rad: 0.0,
+        mass_kg: 0.0,
+        children: vec![],
+    }
+}
+
+/// A small system that isn't Corvane, built the way a generator would: a
+/// planet with a moon, a ship in transit round the star, and a gate.
+fn generated_system() -> SystemData {
+    let mut planet = blueprint("Tessaly", BodyClass::Planet, 1.5 * KM_PER_AU);
+    planet.mass_kg = EARTH_MASS_KG;
+    planet.children = vec![blueprint("Tessaly a", BodyClass::Moon, 200_000.0)];
+    SystemData {
+        star_name: "Vey",
+        star_class: "G5V",
+        star_mass_kg: SOLAR_MASS_KG,
+        star_knowledge: Knowledge::Unsurveyed,
+        planets: vec![
+            planet,
+            blueprint("Courier", BodyClass::Ship, 0.9 * KM_PER_AU),
+        ],
+        belt: BeltBlueprint {
+            inner_radius_km: 0.5 * KM_PER_AU,
+            outer_radius_km: 0.6 * KM_PER_AU,
+            salvage_sites: vec![],
+        },
+        gates: vec![GateBlueprint {
+            name: "Gate Vey",
+            destination: "Ostra",
+            distance_km: 4.0 * KM_PER_AU,
+            angle_deg: 30.0,
+        }],
+    }
+}
+
+/// SCL-03 / GRP-08: a system from other records runs through the same
+/// simulation and view code - bodies placed, zoom stops from its own
+/// orbits, its moon folded at the system frame - and its ship in transit,
+/// which orbits the star, never gets fold state.
+#[test]
+fn another_system_runs_through_the_same_code() {
+    let mut app = headless_app(FRAME);
+    app.insert_resource(SystemDataResource(Some(generated_system())))
+        .add_plugins(SimPlugin)
+        .add_plugins((
+            TunablesPlugin,
+            ProjectionPlugin,
+            StopsPlugin,
+            GroupingPlugin,
+        ));
+    run(&mut app, 2);
+    app.world_mut().resource_mut::<GameClock>().toggle_pause();
+    let margin = app.world().resource::<Tunables>().zoom_fit_margin;
+    let system_radius = app.world().resource::<ZoomStops>().system_radius;
+    assert!((system_radius - km_to_render(1.5 * KM_PER_AU)).abs() < system_radius * 1e-5);
+    let distance = distance_for_radius(system_radius, fov(), TILT, margin);
+    app.world_mut().spawn(test_camera(Vec3::ZERO, distance));
+    run(&mut app, SETTLE_FRAMES);
+
+    let tessaly = body(&mut app, "Tessaly");
+    assert!(
+        app.world()
+            .resource::<WorldPositions>()
+            .0
+            .contains_key(&tessaly)
+    );
+    let moon = body(&mut app, "Tessaly a");
+    assert!(app.world().get::<SatelliteFoldState>(moon).unwrap().folded);
+    let courier = body(&mut app, "Courier");
+    assert!(
+        app.world().get::<SatelliteFoldState>(courier).is_none(),
+        "GRP-08: a ship in transit never folds"
+    );
+    body(&mut app, "Gate Vey");
+}
+
+/// MRK-06: zoomed all the way out, where the inner planets crowd
+/// together, every planet still has its own marker position on screen and
+/// none is ever folded.
+#[test]
+fn planets_are_never_merged() {
+    let mut app = camera_app_with(|app| {
+        app.add_plugins(GroupingPlugin);
+    });
+    for _ in 0..10 {
+        scroll(&mut app, -1.0);
+    }
+    run(&mut app, SETTLE_FRAMES);
+    let moon = body(&mut app, "Halden IVc");
+    assert!(app.world().get::<SatelliteFoldState>(moon).unwrap().folded);
+    let names = ["Pell", "Iver", "Halden IV", "Morrow"];
+    let planets: Vec<Entity> = names.iter().map(|name| body(&mut app, name)).collect();
+    let screen = app.world().resource::<ScreenPositions>();
+    let positions: Vec<Vec2> = planets
+        .iter()
+        .map(|&planet| screen.get(planet).unwrap())
+        .collect();
+    for (i, &planet) in planets.iter().enumerate() {
+        assert!(app.world().get::<SatelliteFoldState>(planet).is_none());
+        assert!(screen.in_viewport(positions[i]), "{} off screen", names[i]);
+        for j in 0..i {
+            assert_ne!(positions[i], positions[j]);
+        }
+    }
+}
+
+/// GRP-05: at the system frame Halden IV shows a "+N" pill counting all
+/// its folded satellites, beside its marker and clear of it and its ring.
+#[test]
+fn a_parent_with_folded_satellites_shows_a_count_pill() {
+    let mut app = camera_app_with(|app| {
+        app.add_plugins((GroupingPlugin, PillsPlugin))
+            .insert_resource(placeholder_fonts());
+    });
+    run(&mut app, SETTLE_FRAMES);
+
+    let halden = body(&mut app, "Halden IV");
+    let satellites = app.world().get::<Children>(halden).unwrap().len();
+    let marker = app
+        .world()
+        .resource::<ScreenPositions>()
+        .get(halden)
+        .unwrap();
+    let mut pills = app.world_mut().query::<(&GroupPillFor, &Node, &Children)>();
+    let (_, node, children) = pills
+        .iter(app.world())
+        .find(|(pill_for, ..)| pill_for.0 == halden)
+        .unwrap();
+    assert_eq!(node.display, Display::Flex);
+    let (Val::Px(left), Val::Px(top)) = (node.left, node.top) else {
+        panic!("pill not placed in pixels");
+    };
+    let clear = ring_outer_half(BodyClass::Planet);
+    assert!(left - marker.x >= clear, "the pill overlaps the marker");
+    assert!(
+        top > marker.y,
+        "the pill sits beside the marker, below its centre"
+    );
+    let count = children
+        .iter()
+        .find_map(|child| app.world().get::<Text>(child))
+        .unwrap();
+    assert_eq!(count.0, format!("+{satellites}"));
 }

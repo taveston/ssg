@@ -193,3 +193,35 @@ fn update_button_styles(
         };
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use bevy::asset::uuid::Uuid;
+    use bevy::ecs::system::RunSystemOnce;
+
+    use super::*;
+
+    /// MRK-02: the top bar's breadcrumb is in the label font and its date
+    /// readout in the mono font.
+    #[test]
+    fn the_date_is_mono_and_the_breadcrumb_is_a_label() {
+        let handle = |n: u128| Handle::<Font>::Uuid(Uuid::from_u128(n), Default::default());
+        let fonts = Fonts {
+            label: handle(1),
+            label_semibold: handle(2),
+            mono: handle(3),
+        };
+        let mut world = World::new();
+        world.insert_resource(fonts.clone());
+        world.run_system_once(spawn_top_bar).unwrap();
+
+        let mut dates = world.query_filtered::<&TextFont, With<DateText>>();
+        assert_eq!(dates.single(&world).unwrap().font, fonts.mono(1.0).font);
+        let mut texts = world.query::<(&Text, &TextFont)>();
+        let (_, breadcrumb) = texts
+            .iter(&world)
+            .find(|(text, _)| text.0.starts_with("Cluster"))
+            .unwrap();
+        assert_eq!(breadcrumb.font, fonts.label(1.0).font);
+    }
+}

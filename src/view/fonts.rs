@@ -45,10 +45,35 @@ impl Plugin for FontsPlugin {
     }
 }
 
+/// Barlow for labels and UI; JetBrains Mono for dates, figures and status
+/// readouts (MRK-02). Paths are relative to `assets/`.
+const LABEL_FONT: &str = "fonts/Barlow-Regular.ttf";
+const LABEL_SEMIBOLD_FONT: &str = "fonts/Barlow-SemiBold.ttf";
+const MONO_FONT: &str = "fonts/JetBrainsMono.ttf";
+
 fn load_fonts(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.insert_resource(Fonts {
-        label: asset_server.load("fonts/Barlow-Regular.ttf"),
-        label_semibold: asset_server.load("fonts/Barlow-SemiBold.ttf"),
-        mono: asset_server.load("fonts/JetBrainsMono.ttf"),
+        label: asset_server.load(LABEL_FONT),
+        label_semibold: asset_server.load(LABEL_SEMIBOLD_FONT),
+        mono: asset_server.load(MONO_FONT),
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use super::*;
+
+    /// MRK-02: labels load Barlow and readouts JetBrains Mono, and the
+    /// files are there to load.
+    #[test]
+    fn labels_are_barlow_and_readouts_are_jetbrains_mono() {
+        assert!(LABEL_FONT.contains("Barlow") && LABEL_SEMIBOLD_FONT.contains("Barlow"));
+        assert!(MONO_FONT.contains("JetBrainsMono"));
+        let assets = Path::new(env!("CARGO_MANIFEST_DIR")).join("assets");
+        for font in [LABEL_FONT, LABEL_SEMIBOLD_FONT, MONO_FONT] {
+            assert!(assets.join(font).is_file(), "{font} missing");
+        }
+    }
 }
