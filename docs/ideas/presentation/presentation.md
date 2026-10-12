@@ -21,7 +21,7 @@ The first three are spatial layers, nested from cluster down to planet. Faction 
 
 - **The problem (context):** at true scale, planets are far smaller than a pixel in a whole-system view, and ships are invisible at any zoom that shows more than one of them. Engagements span thousands of kilometres, so a close-up of one ship tells the player little.
 - **Strategic display (decided):** the system and cluster views are a vector plotting display. Orbits are faint lines, bodies and ships are solid markers, trajectories are lines. System, cluster and combat views share one visual language; combat is the same display with the clock slowed (design document, 4.6). It reads as the government's own instruments, which suits a head of state rather than a pilot.
-- **Scale (direction):** positions and orbits are drawn at true scale. Markers are a fixed screen size by class, never physical size. Only the marker is stylised, never the geometry. (Specced for the system view: SCL-02, MRK-03, MRK-04.)
+- **Scale (direction):** positions and orbits are drawn at true scale. Markers are a fixed screen size by class, never physical size. Only the marker is stylised, never the geometry. Zoomed in close enough, a body is drawn as its true disc instead. (Specced for the system view: SCL-02, MRK-03, MRK-04, MRK-07.)
   - Marker shape and weight show the type: planet, moon, station, gate, ship, salvage site.
   - Ship and station symbology (decided, specced as SYM): NATO-style frames for affiliation, icons for ship type, and amplifiers for state, groups and identification. See *Symbology* (`symbology.md`).
   - Navigation is by stepped zoom with stops, focus jumps and bookmarks (specced: ZOOM). Important off-screen objects get edge indicators (candidate; specced for gates as EDGE-01).
@@ -58,22 +58,28 @@ The first three are spatial layers, nested from cluster down to planet. Faction 
 
 ### Camera
 
-> **Specced** in `docs/spec/system-view.md` as CAM-01 to CAM-22, with ZOOM-13 to ZOOM-17 (anchor, limits, stops, double-click) and CLK-05 (time-rate keys). Optimised for keyboard and mouse; gamepad and touch are kept possible but not specified.
+> **Specced** in `docs/spec/system-view.md` as CAM-01 to CAM-24, with ZOOM-13 to ZOOM-17 (anchor, limits, stops, double-click) and CLK-05 (time-rate keys). Optimised for keyboard and mouse; gamepad and touch are kept possible but not specified.
 
-- **Camera model (decided): a map camera with limited tilt.** The camera always looks at a pivot on the orbital plane. Rotation about the plane's normal is free. Tilt runs from straight down to a limit well short of the horizon, and the camera never goes below the plane. The default is top-down, north up.
+- **Camera model (decided): a map camera with limited tilt.** The camera always looks at a pivot on the orbital plane. Rotation about the plane's normal is free. Tilt runs from straight down to a limit well short of the horizon, and the camera never goes below the plane. The **standard orientation** is north up with a slight tilt, not flat top-down.
   - *Why:* orbits are coplanar and markers are fixed-size, so a free 3D camera adds little except ways to get lost. Some tilt gives depth and matches the planetary-view transition, which is why a pure top-down view was rejected.
-- **Rotation (decided): free, with a one-key reset** to level and north up; Home resets it too. A fixed north would help spatial memory, but free rotation lets the player look across the system from any side, and the reset gives the memory aid back on demand.
-- **Selection and focus (decided): two separate states.**
+- **Rotation (decided): free, with a one-key reset** to the standard orientation; Home resets it too. Neither key is needed in normal play: the mouse alone should always get you back to a clean view (see zoom-out below). A fixed north would help spatial memory, but free rotation lets the player look across the system from any side, and the reset gives the memory aid back on demand.
+- **Selection and focus (decided): two separate states, and focus is always deliberate.**
   - **Selection** is the object whose details are shown (inset, white ring). A click sets it and Esc clears it. It never moves the camera.
-  - **Focus** is the object the camera is locked onto. The player-facing word is "Focus", matching F and the inset button.
-    - Set by: double-click, F (focuses the selection), the inset's Focus button, a bookmark, or **zooming in** past the region frame towards a body's satellites.
-    - Cleared by: Home, **zooming out to the system frame** (at that scale orbital drift is readable), the chip's ×, or focusing something else. Panning moves an offset from the focused body instead of clearing focus.
+  - **Focus** is the object the camera is locked onto: the frame of reference the camera sits in. With nothing focused, the camera sits in the star's frame. The player-facing word is "Focus", matching F and the inset button.
+    - *Why it exists:* at true scale with the clock running, a planet crosses the screen in seconds once you're zoomed in. At the system frame, drift is slow enough to read. So focus matters exactly when you're close.
+    - Set only by double-click, F (focuses the selection), the inset's Focus button, or a bookmark. **Zooming never sets focus.**
+    - Cleared by: Home, zooming out to the system frame, the chip's ×, or focusing something else. Panning moves an offset from the focused body, clamped so the body stays on screen.
     - Shown by a "Focus: *name*" chip and corner brackets on the marker, never the selection ring.
-  - Zoom anchors on the focus, else the cursor. The inner zoom limit is the focused body, else the body nearest the cursor. Double-click on the focused body opens the planetary view: first "look at it", then "go there".
-  - The two zoom rules mirror each other (zooming in locks on, zooming out releases), so most of the time the player doesn't manage focus at all. Keeping selection and focus apart is useful: you can stay on Halden IV while reading about IVc or K-3, without the camera jumping to a fast moon.
+  - **Fast bodies can't be focused.** A body in exposure-ring mode has no readable position, so double-click or F only selects it. If the focused body enters ring mode (the clock speeds up), focus moves to its parent without a jump, and never comes back on its own: a change of clock rate shouldn't move the camera twice.
+  - **Zoom has two stops, both meaningful:** the system frame (everything) and the focused body's satellite frame (its neighbourhood). Every other notch is a plain step. Zoom anchors on the focus, else the cursor.
+  - **Inner limit:** with a body focused, just before its true disc would fill a large part of the screen. Close enough, the body is drawn at its true size instead of as a marker. With nothing focused, a fixed minimum view radius: you can zoom in on a point and watch bodies drift past, and double-click is the way to get closer to anything.
+  - **Zooming out to the system frame resets the view:** the pivot eases back to the star and the tilt to standard, as part of the same zoom, keeping the heading. The wheel alone always brings the whole system back.
+  - Double-click on the focused body opens the planetary view: first "look at it", then "go there".
+  - Keeping selection and focus apart is useful: you can stay on Halden IV while reading about IVc or K-3, without the camera jumping to a fast moon.
   - *Why two states:* an earlier draft had three (selection; focus as a one-off framing move; follow as persistent tracking). Focus and follow were always coupled, "double-click an already-inspected body" was ambiguous, and selection still moved the camera through the zoom anchor, so a selected but untracked planet could be zoomed into and immediately fly off screen.
   - *Rejected:* selection also focuses, as in Stellaris. Clicking a fast moon would swing the camera onto it, and you could no longer read about one thing while watching another.
-  - Whether zooming should set focus at all is open (F4-30 in `docs/findings.md`).
+  - *Rejected:* zooming in sets focus. It changed what the camera followed as a side effect of scrolling, and which body you got depended on the cursor. Playing it felt unpredictable.
+  - *Rejected:* a "region frame" stop between the system and satellite frames (the inner system, or a frame round the focused planet's orbit). It was vague and arbitrary; plain zoom steps do its job.
 - **Magnifier (rejected):** a dashed circle that fanned out a selected planet's folded satellites in true geometry. It looked bad on screen, and once double-click focused and framed a planet in one move, it only showed the same moons at a second scale. The inset's "In orbit" list (INS-05) replaces it: it shows what is in orbit without moving the camera. A selected folded satellite rings its parent's pill (INS-06).
 - **Mouse (decided):** left drag and middle drag pan 1:1 under the cursor, with no inertia. Right drag rotates (horizontal = heading, vertical = tilt). **Right-click is reserved** for context menus and orders; a small movement threshold tells it apart from right drag. Shift+left drag is kept free for a possible box select.
 - **Keyboard (decided):** WASD and the arrows pan at a speed relative to the screen, so it feels the same at every zoom. Q/E rotate, Page Up/Down tilt, + and − zoom one step. **The time rate uses `.` (faster) and `,` (slower)**, so + and − can zoom, as is common in strategy games. Edge scrolling exists but is off by default. All bindings live in one table so they can be rebound later.
@@ -112,7 +118,7 @@ The vector layer is cheap to produce. Photoreal work is needed for generated bod
 - Which limits on knowledge to model abstractly, and how; how sensor coverage is shown.
 - Whether the inspection view is in place or a panel; how much survey detail each fidelity level needs.
 - Faction colours beyond the affiliation colours in `symbology.md`.
-- Zoom: step factor, animation timing, strength of the resistance at stops, and whether small systems need a region frame.
+- Zoom: step factor, animation timing, strength of the resistance at stops, the minimum view radius, and the standard tilt.
 - Camera: the final tilt limit and pan and rotate speeds after testing; the tilt range for the cluster view.
 - Motion rule: switch abruptly between dot and exposure ring, or fade across a band of speeds; final values for R_show, T_dot and T_ring after testing.
 - Planetary view as a globe or a flat map, and how much surface detail is modelled.

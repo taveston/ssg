@@ -12,6 +12,13 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
+- [ ] **Deliberate focus and two-stop zoom** · ZOOM-10, ZOOM-14 to ZOOM-16, CAM-02 to CAM-04, CAM-06 to CAM-08, CAM-23, CAM-24, MRK-07, SCL-05; withdraws CAM-21
+  - Delete zoom-to-focus (CAM-21) and the region frame, with their code and tests.
+  - Bodies need a physical radius (SCL-05). Give Corvane's bodies plausible ones: the star, Pell, Iver and Halden IV (rocky, a few thousand km), Morrow 71,500 km, moons a few hundred to a few thousand km.
+  - The standard orientation now has a tilt, so tests that assume a top-down start (CAM-02) need updating.
+  - CAM-24 needs the motion mode per object, which MOT-02 already computes.
+  - F-105 (camera sometimes detaches on zoom-out) may go away with this; check it while here.
+
 - [ ] **Realistic Morrow** · TEST-07, TEST-08
   - Set Morrow's mass to 318 Earth masses and replace its moon radii (now 40,000 km plus 25,000 km a step) with radii from the target periods, as Halden IV's were.
   - The satellite frame now spans about 6.6 million km instead of 0.3 million, so Morrow's inner moons fold at the satellite frame and unfold as you zoom in (GRP-01, GRP-02). Check any test that depends on where Morrow's moons are.

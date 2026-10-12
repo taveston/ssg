@@ -41,11 +41,6 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Affects:** EDGE-01 · **Type:** conflict
 - **Disposition:** open. Accept the name, or label with the destination alone.
 
-### F4-30 · Should zooming set focus at all?
-- **Observation:** in the iteration 3 build, zooming in hopped focus between satellites. CAM-21 as now built can't hop: it focuses only when nothing is focused, only on the body whose satellite frame is the inner limit, and later steps anchor on that body. The playtester's view is that zooming to focus is poor UX. While the first focusing step is still moving, the body drifts with its orbit (about 0.2 render units at 5 d/s over a 200 ms step).
-- **Affects:** CAM-21, CAM-06 · **Type:** spec wrong (suspected)
-- **Disposition:** open. Play the current build, then keep CAM-21 or withdraw it so focus comes only from double-click, F and the Focus button.
-
 ### F5-07 · A single click on an "In orbit" entry waits for the double-click window
 - **Observation:** selecting a satellite replaces the parent's inset, which removes the list before a double-click's second click can land. So a single click selects only after `double_click_window_ms` (350 ms) passes with no second click. List clicks feel a third of a second slow.
 - **Affects:** INS-05 · **Type:** spec gap
@@ -61,11 +56,6 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Affects:** INS-01, INS-06 · **Type:** spec gap
 - **Disposition:** open. Decide whether the inset is clamped inside the window (below the top bar), with the leader line stretching to reach the marker.
 
-### F-102 · Focus can land on a body moving too fast to show
-- **Observation:** the camera can focus an object whose apparent orbit is in exposure-ring mode (MOT-02). The view then follows a body that has no readable position.
-- **Affects:** CAM-05, CAM-06, ZOOM-16, MOT-02 · **Type:** spec gap
-- **Disposition:** open. Options: refuse focus in ring mode; focus its parent instead; or keep it, and draw the focused body as a dot while it is focused.
-
 ### F-103 · Selecting a fast-orbiting body works but isn't obvious, and its inset is unreadable
 - **Observation:** clicking an exposure ring selects its body without pausing (MOT-05), but nothing suggests the ring can be clicked. Once selected, the inset is anchored to the fast-moving body, so it races round the orbit and can't be read.
 - **Affects:** MOT-05, MOT-07, INS-01, INS-06 · **Type:** spec wrong
@@ -79,12 +69,7 @@ Format and types are in `docs/README.md`. New findings take the next free number
 ### F-105 · Zooming out sometimes detaches the camera from the focus
 - **Observation:** sometimes, zooming out leaves the camera no longer following the focused object. CAM-08 says focus ends only at the system frame, so this looks like a bug. No reliable repro yet.
 - **Affects:** CAM-05, CAM-08, ZOOM-13 · **Type:** bug
-- **Disposition:** open. Find a repro, then fix. Worth checking with F4-30 (CAM-21), since zoom also changes focus.
-
-### F-106 · Zooming out can leave a confusing orientation
-- **Observation:** zooming out to the outer limit keeps the current heading, tilt and pivot, so the view can end up odd. The playtester would rather see the whole system come back into view.
-- **Affects:** ZOOM-14, ZOOM-15, CAM-08, ZOOM-10 · **Type:** spec wrong
-- **Disposition:** open. Option: reaching the system frame by zooming eases the pivot back to the star (and perhaps levels the tilt), as Home does.
+- **Disposition:** open. Find a repro, then fix.
 
 ### F-107 · Show some astronomical data for the selected body
 - **Observation:** a selected body's inset would be more useful with limited astronomical data, such as its orbit radius in AU (and perhaps its period).
