@@ -13,7 +13,7 @@ use bevy::camera::RenderTargetInfo;
 use bevy::input::ButtonState;
 use bevy::input::InputPlugin;
 use bevy::input::keyboard::{Key, KeyboardInput, NativeKey};
-use bevy::input::mouse::{MouseButtonInput, MouseScrollUnit, MouseWheel};
+use bevy::input::mouse::{MouseButtonInput, MouseMotion, MouseScrollUnit, MouseWheel};
 use bevy::input::touch::TouchPhase;
 use bevy::prelude::*;
 use bevy::time::TimeUpdateStrategy;
@@ -31,7 +31,7 @@ use crate::sim::units::{EARTH_MASS_KG, KM_PER_AU, SOLAR_MASS_KG};
 use crate::view::bindings::BindingsPlugin;
 use crate::view::camera::CameraPlugin;
 use crate::view::camera::requests::FocusRequest;
-use crate::view::camera::state::{CameraRig, OrbitCamera};
+use crate::view::camera::state::{ActiveMove, CameraRig, OrbitCamera};
 use crate::view::camera::stops::{StopsPlugin, ZoomStops, distance_for_radius};
 use crate::view::edge::{EdgePlugin, GateEdgeTargets};
 use crate::view::focus::Focus;
@@ -616,16 +616,21 @@ fn mouse(app: &mut App, button: MouseButton, state: ButtonState) {
 
 /// CAM-10: drag the star from where it is to `to`, a few frames at a time.
 fn drag_star(app: &mut App, star: Entity, to: Vec2) {
+    drag_star_with(app, MouseButton::Left, star, to);
+}
+
+/// Drag the star to `to` with `button` held.
+fn drag_star_with(app: &mut App, button: MouseButton, star: Entity, to: Vec2) {
     let from = app.world().resource::<ScreenPositions>().get(star).unwrap();
     move_cursor(app, from);
     run(app, 1);
-    mouse(app, MouseButton::Left, ButtonState::Pressed);
+    mouse(app, button, ButtonState::Pressed);
     run(app, 1);
     for step in 1..=10 {
         move_cursor(app, from.lerp(to, step as f32 / 10.0));
         run(app, 1);
     }
-    mouse(app, MouseButton::Left, ButtonState::Released);
+    mouse(app, button, ButtonState::Released);
     run(app, 2);
 }
 
@@ -752,18 +757,30 @@ fn focus_north_and_home_move_the_real_camera() {
 }
 
 fn press_key(app: &mut App, key: KeyCode) {
-    let window = the_window(app);
     for state in [ButtonState::Pressed, ButtonState::Released] {
-        app.world_mut().write_message(KeyboardInput {
-            key_code: key,
-            logical_key: Key::Unidentified(NativeKey::Unidentified),
-            state,
-            text: None,
-            repeat: false,
-            window,
-        });
+        key_event(app, key, state);
         run(app, 1);
     }
+}
+
+fn key_event(app: &mut App, key: KeyCode, state: ButtonState) {
+    let window = the_window(app);
+    app.world_mut().write_message(KeyboardInput {
+        key_code: key,
+        logical_key: Key::Unidentified(NativeKey::Unidentified),
+        state,
+        text: None,
+        repeat: false,
+        window,
+    });
+}
+
+/// Hold `key` down for `frames` frames, then let it go.
+fn hold_key(app: &mut App, key: KeyCode, frames: usize) {
+    key_event(app, key, ButtonState::Pressed);
+    run(app, frames);
+    key_event(app, key, ButtonState::Released);
+    run(app, 1);
 }
 
 /// MOT-08: the motion rule covers every orbiting object - planets, moons,
@@ -994,4 +1011,218 @@ fn a_parent_with_folded_satellites_shows_a_count_pill() {
         .find_map(|child| app.world().get::<Text>(child))
         .unwrap();
     assert_eq!(count.0, format!("+{satellites}"));
+}
+
+/// CAM-11: middle drag pans exactly as left drag: the grabbed point stays
+/// under the cursor.
+#[test]
+fn middle_drag_pans_like_left_drag() {
+    let mut app = camera_app();
+    let star = body(&mut app, "Corvane");
+    let to = Vec2::new(1000.0, 600.0);
+    drag_star_with(&mut app, MouseButton::Middle, star, to);
+    let at = app.world().resource::<ScreenPositions>().get(star).unwrap();
+    assert!(at.distance(to) < 1.0, "star at {at}, cursor at {to}");
+}
+
+/// Right-drag the cursor `dx` pixels sideways from the screen centre.
+fn right_drag(app: &mut App, dx: f32) {
+    let start = VIEWPORT.as_vec2() / 2.0;
+    move_cursor(app, start);
+    run(app, 1);
+    mouse(app, MouseButton::Right, ButtonState::Pressed);
+    run(app, 1);
+    for step in 1..=10 {
+        move_cursor(app, start + Vec2::new(dx * step as f32 / 10.0, 0.0));
+        app.world_mut().write_message(MouseMotion {
+            delta: Vec2::new(dx / 10.0, 0.0),
+        });
+        run(app, 1);
+    }
+    mouse(app, MouseButton::Right, ButtonState::Released);
+    run(app, 2);
+}
+
+/// CAM-15: Q turns as dragging left does and E as dragging right, at
+/// `key_rotate_deg_per_s`; Page Up tilts towards the horizon and Page
+/// Down back towards straight down, clamped at `max_pitch_deg`.
+#[test]
+fn q_e_and_page_keys_turn_and_tilt_the_camera() {
+    let mut app = camera_app();
+    let tunables = app.world().resource::<Tunables>().clone();
+    let rate = tunables.key_rotate_deg_per_s.to_radians();
+    let heading = |app: &App| app.world().resource::<CameraRig>().heading;
+    let tilt = |app: &App| app.world().resource::<CameraRig>().tilt;
+
+    let before = heading(&app);
+    hold_key(&mut app, KeyCode::KeyQ, 30);
+    let turned = heading(&app) - before;
+    let expected = rate * 30.0 * FRAME.as_secs_f32();
+    assert!(
+        (turned - expected).abs() < expected * 0.1,
+        "Q turned {turned}, expected {expected}"
+    );
+
+    let before = heading(&app);
+    hold_key(&mut app, KeyCode::KeyE, 30);
+    assert!(heading(&app) < before, "E turns the other way");
+
+    let mut dragged = camera_app();
+    let before = heading(&dragged);
+    right_drag(&mut dragged, -100.0);
+    assert!(
+        heading(&dragged) > before,
+        "dragging left turns the way Q does"
+    );
+
+    hold_key(&mut app, KeyCode::PageUp, 30);
+    assert!(tilt(&app) > 0.0, "Page Up leans towards the horizon");
+    hold_key(&mut app, KeyCode::PageUp, 300);
+    let max = tunables.max_pitch_deg.to_radians();
+    assert!((tilt(&app) - max).abs() < 1e-4, "tilt clamped at {max}");
+    hold_key(&mut app, KeyCode::PageDown, 300);
+    assert!(tilt(&app).abs() < 1e-4, "Page Down back to straight down");
+}
+
+/// CAM-16: = and numpad + zoom in one step, and - and numpad - out one
+/// step, landing exactly where a wheel notch does.
+#[test]
+fn plus_and_minus_keys_zoom_like_a_wheel_notch() {
+    let distance = |app: &App| app.world().resource::<CameraRig>().distance;
+    let mut wheel = camera_app();
+    scroll(&mut wheel, 1.0);
+    let wheel_in = distance(&wheel);
+    scroll(&mut wheel, 1.0);
+    scroll(&mut wheel, -1.0);
+    let wheel_out = distance(&wheel);
+
+    for (zoom_in, zoom_out) in [
+        (KeyCode::Equal, KeyCode::Minus),
+        (KeyCode::NumpadAdd, KeyCode::NumpadSubtract),
+    ] {
+        let mut keys = camera_app();
+        press_key(&mut keys, zoom_in);
+        run(&mut keys, 20);
+        assert!((distance(&keys) - wheel_in).abs() < wheel_in * 1e-4);
+        press_key(&mut keys, zoom_in);
+        run(&mut keys, 20);
+        press_key(&mut keys, zoom_out);
+        run(&mut keys, 20);
+        assert!((distance(&keys) - wheel_out).abs() < wheel_out * 1e-4);
+    }
+}
+
+/// Frames in one `focus_jump_ms` move, plus a few to settle.
+fn move_frames() -> usize {
+    let ms = Tunables::default().focus_jump_ms;
+    (ms / 1000.0 / FRAME.as_secs_f32()).ceil() as usize + 5
+}
+
+/// ZOOM-10: Home goes back to the system frame in an animated move, not a
+/// cut: partway through, the camera is between where it was and the frame.
+#[test]
+fn home_is_an_animated_move_to_the_system_frame() {
+    let mut app = camera_app();
+    let system_distance = app.world().resource::<CameraRig>().distance;
+    let halden = body(&mut app, "Halden IV");
+    app.world_mut().resource_mut::<FocusRequest>().0 = Some(halden);
+    run(&mut app, move_frames());
+    let close = app.world().resource::<CameraRig>().distance;
+
+    press_key(&mut app, KeyCode::Home);
+    run(&mut app, move_frames() / 4);
+    let partway = app.world().resource::<CameraRig>().distance;
+    assert!(
+        close < partway && partway < system_distance * 0.999,
+        "partway at {partway}, from {close} to {system_distance}"
+    );
+    run(&mut app, move_frames());
+    let home = app.world().resource::<CameraRig>().distance;
+    assert!((home - system_distance).abs() < system_distance * 1e-3);
+}
+
+/// Press a bookmark slot with Ctrl held, which saves it.
+fn save_bookmark(app: &mut App, slot: KeyCode) {
+    key_event(app, KeyCode::ControlLeft, ButtonState::Pressed);
+    press_key(app, slot);
+    key_event(app, KeyCode::ControlLeft, ButtonState::Released);
+    run(app, 1);
+}
+
+/// ZOOM-11: Ctrl+1 saves the view and 1 recalls it with an animated move;
+/// a bookmark saved while focused brings the focus back.
+#[test]
+fn bookmarks_save_and_recall_the_view() {
+    let mut app = camera_app();
+    let saved = CameraRig {
+        pivot: Vec3::new(3.0, 0.0, -2.0),
+        heading: 0.8,
+        tilt: 0.4,
+        distance: app.world().resource::<CameraRig>().distance * 0.5,
+    };
+    *app.world_mut().resource_mut::<CameraRig>() = saved;
+    run(&mut app, 2);
+    save_bookmark(&mut app, KeyCode::Digit1);
+
+    // Focus Halden IV and save that in slot 2.
+    let halden = body(&mut app, "Halden IV");
+    app.world_mut().resource_mut::<FocusRequest>().0 = Some(halden);
+    run(&mut app, move_frames());
+    save_bookmark(&mut app, KeyCode::Digit2);
+    let focused_distance = app.world().resource::<CameraRig>().distance;
+
+    press_key(&mut app, KeyCode::Digit1);
+    run(&mut app, 3);
+    let early = *app.world().resource::<CameraRig>();
+    assert!(
+        (early.distance - saved.distance).abs() > saved.distance * 1e-3,
+        "recalling is a move, not a cut"
+    );
+    run(&mut app, move_frames());
+    let rig = *app.world().resource::<CameraRig>();
+    assert!((rig.pivot - saved.pivot).length() < 1e-3);
+    assert!((rig.heading - saved.heading).abs() < 1e-4);
+    assert!((rig.tilt - saved.tilt).abs() < 1e-4);
+    assert!((rig.distance - saved.distance).abs() < saved.distance * 1e-4);
+    assert_eq!(app.world().resource::<Focus>().body, None);
+
+    press_key(&mut app, KeyCode::Digit2);
+    run(&mut app, move_frames());
+    assert_eq!(app.world().resource::<Focus>().body, Some(halden));
+    let distance = app.world().resource::<CameraRig>().distance;
+    assert!((distance - focused_distance).abs() < focused_distance * 1e-4);
+}
+
+/// CAM-20: pan or rotate input during an animated move ends the move and
+/// carries on from where the camera is, with no jump.
+#[test]
+fn input_during_a_move_takes_over_without_a_jump() {
+    for interrupt in [KeyCode::KeyQ, KeyCode::KeyD] {
+        let mut app = camera_app();
+        let halden = body(&mut app, "Halden IV");
+        app.world_mut().resource_mut::<FocusRequest>().0 = Some(halden);
+        run(&mut app, move_frames() / 3);
+        assert!(app.world().resource::<ActiveMove>().0.is_some());
+        let before = *app.world().resource::<CameraRig>();
+
+        key_event(&mut app, interrupt, ButtonState::Pressed);
+        run(&mut app, 1);
+        let after = *app.world().resource::<CameraRig>();
+        assert!(
+            app.world().resource::<ActiveMove>().0.is_none(),
+            "{interrupt:?} ends the move"
+        );
+        // One frame of input moves the camera a little, never back to the
+        // start or on to the target.
+        assert!((after.distance - before.distance).abs() < before.distance * 0.01);
+        assert!((after.pivot - before.pivot).length() < before.distance * 0.01);
+        assert!((after.heading - before.heading).abs() < 0.05);
+        key_event(&mut app, interrupt, ButtonState::Released);
+        run(&mut app, 20);
+        let later = app.world().resource::<CameraRig>().distance;
+        assert!(
+            (later - after.distance).abs() < after.distance * 1e-4,
+            "the move stays ended"
+        );
+    }
 }
