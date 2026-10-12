@@ -75,6 +75,7 @@ The old network's builders knew each system well and built gates where the value
 - Links prefer near neighbours, so relays and chokepoints arise naturally rather than by decree.
 - A mild preference for links that don't cross in the top-down projection, for readability.
 - Some links lead out of the cluster and are dark (design document, 4.2; parking lot).
+- **Failed links (candidate, speculative):** the generator builds the old network, then fails most of its links. Fairness checks (section 8) run on the surviving network. Collapsed links leave a gate wreck in each of their two systems, as salvage. Some links are dormant rather than collapsed, faulted or locked at one end or both. See *Gates* (6, 7, 9).
 - Gates sit at the system edge, one per destination (design document, 4.2). The gate's distance from the star, and whether it scales with the star's mass or the extent of its planets, is open (section 9).
 
 ## 5. Gated Systems: Full Detail
@@ -141,7 +142,7 @@ Modelled at catalogue level only:
 Laid down after the physical map, in the same order as the setting's timeline (design document, 5):
 
 1. **Old network:** settlements, yards, stations and gate-maintenance outposts, placed by each system's gate motive.
-2. **Collapse:** destruction, abandonment and decay, varying by system. Some gates are degraded.
+2. **Collapse:** destruction, abandonment and decay, varying by system. Most links collapse; some gates are dormant and many survivors are degraded (*Gates*, 6 and 7).
 3. **Turmoil and recovery:** surviving populations consolidate into the starting factions on their worlds.
 4. **Result at game start:** inhabited worlds, dormant yards, salvage sites with partly known contents, ruins and records. Richer sites lie further out or behind dark gates (design document, 4.5).
 5. **Authored beats:** placement rules for Earth-mystery clues and external-threat hints. Placement varies by map; the truth stays fixed.
@@ -155,7 +156,7 @@ Laid down after the physical map, in the same order as the setting's timeline (d
 ## 9. Open Questions
 
 - Slab proportions, and whether the plan shape is round, irregular or elongated.
-- The ratio of gated to ungated systems; maximum link range; links per system.
+- The ratio of gated to ungated systems; maximum link range; links per system; the share of links that fail, and how they're chosen (*Gates*, 11).
 - Gate distance from the star: fixed, scaled by stellar mass, or beyond the outermost major planet (design document, 9).
 - Which architecture templates are needed, and how many bodies per system.
 - How much orbital detail is modelled (eccentricity, inclination, resonances).

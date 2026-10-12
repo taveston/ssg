@@ -69,6 +69,7 @@ Combat is a small part of play. Most time goes to running the state.
 ### 4.2 Map, gates and orbits (decided)
 
 - The map is generated. Each system has several gates at its edge, one per destination, each linking to a small handful of nearby systems. The network is largely fixed at the start. How gates work is deliberately unexplained.
+- **Gates (candidate, speculative):** paired wormhole mouths held open by field generators. Most of the old network's links have already collapsed, leaving an irregular network, cut-off systems and gate wrecks to salvage for parts. Dormant gates may be faulted or locked from the far side. See *Gates*.
 - Because gates are at the edge, reaching inner bodies takes weeks to months. Links out of the cluster could be dark (candidate). The exact gate distance may need tuning (section 9).
 - Orbits are realistic but accessible. At these drive performances, transfer windows soften into a trade-off between time, delta-v and timing.
 
@@ -188,7 +189,7 @@ In `world/setting.md`: tone, premise, timeline, the Earth mystery, the external 
 - **Vision:** stewardship or conquest; what to take from the references and what to avoid; audience and session length.
 - **Structure:** win and lose conditions; late-game engagement; factions and bodies per system; speed settings and auto-pause rules.
 - **Economy:** state income and spending; how the player sees and influences the private economy; costs and benefits of state ownership; bids for civilian designs; how to measure influence, reputation and opinion.
-- **Map and gates:** fair starts; gate distance from the star and its effect on transit times; gate transit time and throughput; whether gates can be destroyed or captured; fog of war; which orbital details are modelled.
+- **Map and gates:** fair starts; the open questions in *Gates* (11); gate distance from the star and its effect on transit times; gate transit time and throughput; whether gates can be destroyed or captured; fog of war; which orbital details are modelled.
 - **Characters:** growth and ageing; goals and history; cabinet portfolios; what counts as senior; elections and legislature; talent pool and careers; how character ideology is set and changes.
 - **Bids:** what varies and why; hidden and visible information; ground forces and stations; AI use; refit or replace.
 - **Research:** a readable summary of capability; studying or using finds; classification and leaks; operationalisation rules; the size of the research-capacity factor.
