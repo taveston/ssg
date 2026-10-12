@@ -16,7 +16,6 @@ The design document keeps how gates work deliberately unexplained. That still ho
 
 - **Paired mouths:** each gate is one mouth of a wormhole. Its partner is the gate it links to. One pair per link, so one gate per destination (design document, 4.2).
 - **Held open by fields:** a wormhole throat pinches shut on its own. Each mouth is held open by field generators around it, which need power and constant fine control, like magnetic confinement in a fusion reactor. The old age could build these; nobody can now. This fits "advanced fields are reproduced, not invented".
-- **Exotic lining (hidden truth, optional):** underneath the fields, each throat has a lining that nobody can make any more and that slowly wears. It could explain why the network can't last forever without recovering the old knowledge. Players see field generators; the lining is for research and records to reveal.
 - **How they got there:** the far mouth of each pair was hauled to its system below light speed, over decades or centuries. The network grew outward from Earth, which is why Earth was the hub. Link range is how far a tow could go. New links can't be made, only old ones kept or reopened.
 
 ## 3. What a gate looks like
@@ -83,7 +82,6 @@ A dormant gate is faulted, or locked, at one end or both. Which end decides who 
 
 - Share of links collapsed, dormant and working at game start, and whether that varies by map.
 - How the generator chooses which links fail: at random, by distance from Earth (longest without tuning updates), by traffic during the collapse, or a mix.
-- Whether the exotic lining is in the game or only in the lore.
 - Throat size, and whether it varies by gate.
 - How a lock works: who can set it, how long it takes, and whether it can be forced from the far side at a cost.
 - What the keyhole carries: speech and pictures only, or data and research too.
