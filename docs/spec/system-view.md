@@ -6,7 +6,7 @@
 
 *How to read it:* each requirement has a stable ID. **Built** is ✓ once the requirement is in the code. Numbers in `code` are tunables (table at the end), read from `src/view/tunables.rs`, never hard-coded.
 
-*Retired IDs* (never reuse): CAM-21, CLK-03, ZOOM-03, ZOOM-04, ZOOM-06, ZOOM-07, ZOOM-08, ZOOM-09, ZOOM-12, MAG-01 to MAG-08, MOT-05, MOT-06, MOT-09.
+*Retired IDs* (never reuse): CAM-21, CLK-03, ZOOM-03, ZOOM-04, ZOOM-06, ZOOM-07, ZOOM-08, ZOOM-09, ZOOM-12, MAG-01 to MAG-08, MOT-03, MOT-05, MOT-06, MOT-09.
 
 ---
 
@@ -168,10 +168,11 @@ The **apparent period** of an orbit is its orbital period divided by the time ra
 
 | ID | Requirement | Built |
 |---|---|---|
-| MOT-01 | Apparent period at or above `t_dot_secs`: the object is a dot at its true position with a fading trail of `trail_arc_degrees` of arc. | ✓ |
-| MOT-02 | Apparent period below `t_ring_secs`: exposure-ring mode. No dot; the orbit ring is brighter and `exposure_ring_width_px` wide; the label sits on the ring at a fixed spot. | ✓ |
-| MOT-03 | Between the two thresholds the current mode is kept; switching cross-fades over `motion_crossfade_ms`. | ✓ |
-| MOT-04 | There is no special case for pause: an infinite apparent period gives dot mode. | ✓ |
+| MOT-01 | Apparent period at or above `tail_secs`: the object is a dot at its true position, and its orbit ring carries a tail behind it. The tail is a brightness gradient along the ring itself, one continuous anti-aliased stroke, running from the exposure-ring brightness (MOT-02) at the dot down to the ring's normal alpha at the tail's end. |  |
+| MOT-10 | The tail covers the arc swept in the last `tail_secs` real seconds: 360° × `tail_secs` ÷ apparent period. Its length follows the time rate continuously, with no steps. |  |
+| MOT-02 | Apparent period below `tail_secs`: the tail has closed into the exposure ring. No dot; the whole ring is at full exposure brightness and `exposure_ring_width_px` wide; the label sits on the ring at a fixed spot. |  |
+| MOT-11 | As the tail grows from `dot_fade_from_degrees` to 360°, the dot fades out and the ring width grows to `exposure_ring_width_px`, both linearly, so the closing is seamless. |  |
+| MOT-04 | There is no special case for pause: an infinite apparent period gives dot mode with a zero-length tail. | |
 | MOT-07 | While the selected object is in ring mode, its inset has the line "Position: shown when paused". | |
 | MOT-08 | The rule applies to every orbiting object (moons, stations, parked ships, close-in planets); ships in transit are ignored. | ✓ |
 
@@ -188,7 +189,7 @@ The prototype system, kept as data (SCL-03). It exists to exercise the rules abo
 | TEST-06 | Corvane also has, as static orbiting objects: own task force TF-1 (4 warships, one damaged so the group's mean condition is below `condition_warn_fraction`); and a loose group of 6 own-flag civilian haulers. | |
 | TEST-04 | The inspection data covers both knowledge states: Halden IV surveyed, Halden IVc unsurveyed. | |
 | TEST-07 | Morrow has the mass of a Jupiter-class gas giant: 318 Earth masses. | ✓ |
-| TEST-08 | Morrow's eleven moons have periods of about 0.35, 0.55, 0.9, 1.8, 3.6, 7.2, 16, 30, 50, 75 and 110 d. Radii follow Kepler from Morrow's mass, and the innermost is no closer than 2 × Morrow's radius (71,500 km). The periods straddle both motion modes at 1 d/s: six moons in ring mode (under 8 s), five in dot mode (at or over 10 s). | |
+| TEST-08 | Morrow's eleven moons have periods of about 0.35, 0.55, 0.9, 1.8, 3.6, 7.2, 16, 30, 50, 75 and 110 d. Radii follow Kepler from Morrow's mass, and the innermost is no closer than 2 × Morrow's radius (71,500 km). The periods straddle both motion modes at 1 d/s: six moons in ring mode (under 8 s), five in dot mode (8 s or more). | |
 
 ## Tunables
 
@@ -199,10 +200,8 @@ All in the `Tunables` resource (`src/view/tunables.rs`). Defaults are starting v
 | `unfold_at_px` (R_show) | 24 px | GRP-01 |
 | `fold_below_px` | 20 px | GRP-01 |
 | `fold_unfold_anim_ms` | 200 | GRP-03 |
-| `t_dot_secs` (T_dot) | 10 s | MOT-01 |
-| `t_ring_secs` (T_ring) | 8 s | MOT-02 |
-| `motion_crossfade_ms` | 200 | MOT-03 |
-| `trail_arc_degrees` | 30 | MOT-01 |
+| `tail_secs` | 8 s | MOT-01, MOT-02, MOT-10 |
+| `dot_fade_from_degrees` | 300° | MOT-11 |
 | `exposure_ring_width_px` | 3 | MOT-02 |
 | `zoom_step_factor` | ×2 | ZOOM-01 |
 | `zoom_anim_ms` | 200 (range 150–250) | ZOOM-01 |

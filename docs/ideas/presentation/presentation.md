@@ -44,12 +44,13 @@ The first three are spatial layers, nested from cluster down to planet. Faction 
 
 ### Navigation, satellites and motion
 
-> **Specced** in `docs/spec/system-view.md`: navigation and zoom as ZOOM-01 to ZOOM-11, satellite grouping as GRP-01 to GRP-08, the motion rule as MOT-01 to MOT-08, with the tunables table. This section keeps the reasoning and the parts not yet specced.
+> **Specced** in `docs/spec/system-view.md`: navigation and zoom as ZOOM-01 to ZOOM-11, satellite grouping as GRP-01 to GRP-08, the motion rule as MOT-01 to MOT-11, with the tunables table. This section keeps the reasoning and the parts not yet specced.
 
 - **Why:** the first prototype drew every moon at whole-system zoom, moons orbited too fast to read at 1 day/s, and fully continuous zoom felt odd. Hence:
   - logarithmic stepped zoom, with stops computed from each system's real orbits;
   - satellites fold into a "+N" count marker on their parent below a screen-radius threshold;
   - a motion rule based on apparent period (orbital period ÷ time rate) that shows fast orbits as bright "exposure rings" rather than smeared dots. Pausing or slowing time brings the dots back with no special case.
+  - **Tails on the ring (decided 2026-10-12).** The first build drew dot-mode trails as a chain of sampled points, which looked bad. Instead the orbit ring itself carries the tail as a brightness gradient behind the dot, so it is one smooth stroke and reinforces the ring as the click target. The tail covers the arc swept in the last few real seconds, so it lengthens as time speeds up; when it reaches a full circle it simply is the exposure ring. One continuous rule replaces the two thresholds and the cross-fade between them. (Specced: MOT-01, MOT-02, MOT-04, MOT-10, MOT-11, `tail_secs`, `dot_fade_from_degrees`.)
 - **Not yet specced (direction):**
   - Changing layer, to the cluster view or a planetary view, is always deliberate: the breadcrumb, a double-click on the focused body, or the inset button. Scrolling never changes layer.
   - The motion rule also applies to the orbital layer of the planetary view.
@@ -70,7 +71,7 @@ The first three are spatial layers, nested from cluster down to planet. Faction 
     - Set only by double-click, F (focuses the selection), the inset's Focus button, or a bookmark. **Zooming never sets focus.**
     - Cleared by: Home, zooming out to the system frame, the chip's ×, or focusing something else. Panning moves an offset from the focused body, clamped so the body stays on screen.
     - Shown by a "Focus: *name*" chip and corner brackets on the marker, never the selection ring.
-  - **Select by orbit ring (decided 2026-10-12).** Every drawn orbit is a click target for its object, and highlights on hover and selection. The ring stands still while the body moves, so selection no longer means chasing a dot. That lets bodies stay dots at higher speeds, so the ring-mode thresholds came down. Near the star and round a busy parent, rings crowd: the nearest ring wins, and the hover highlight is what tells the player which one they'll get. (Specced: HOV-02, HOV-03, `t_ring_secs`, `t_dot_secs`.)
+  - **Select by orbit ring (decided 2026-10-12).** Every drawn orbit is a click target for its object, and highlights on hover and selection. The ring stands still while the body moves, so selection no longer means chasing a dot. That lets bodies stay dots at higher speeds, so the ring-mode threshold came down. Near the star and round a busy parent, rings crowd: the nearest ring wins, and the hover highlight is what tells the player which one they'll get. (Specced: HOV-02, HOV-03; the threshold is now `tail_secs`.)
   - **Why selection and focus stay separate with a single inset (decided 2026-10-12).** Merging them would make every click move the camera. And a body in ring mode can be selected by its ring but can't be focused, so the two states must differ.
   - **Fast bodies can't be focused.** A body in exposure-ring mode has no readable position, so double-click or F only selects it. If the focused body enters ring mode (the clock speeds up), focus moves to its parent without a jump, and never comes back on its own: a change of clock rate shouldn't move the camera twice.
   - **Zoom has two stops, both meaningful:** the system frame (everything) and the focused body's satellite frame (its neighbourhood). Every other notch is a plain step. Zoom anchors on the focus, else the cursor.
@@ -122,6 +123,6 @@ The vector layer is cheap to produce. Photoreal work is needed for generated bod
 - Faction colours beyond the affiliation colours in `symbology.md`.
 - Zoom: step factor, animation timing, strength of the resistance at stops, the minimum view radius, and the standard tilt.
 - Camera: the final tilt limit and pan and rotate speeds after testing; the tilt range for the cluster view.
-- Motion rule: switch abruptly between dot and exposure ring, or fade across a band of speeds; final values for R_show, T_dot and T_ring after testing.
+- Motion rule: final values for R_show, `tail_secs` and `dot_fade_from_degrees` after testing; whether the label should glide from the dot to its fixed spot on the ring as the tail closes, rather than jump.
 - Planetary view as a globe or a flat map, and how much surface detail is modelled.
 - How the administration view is organised, and how the player moves between it and the spatial layers: candidate in `ui-style.md`.
