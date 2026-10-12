@@ -91,3 +91,36 @@ pub fn format_time_ago(days_ago: f64) -> String {
         format!("{} M AGO", months)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn date(elapsed_days: f64) -> String {
+        format_date(&date_from_elapsed_days(elapsed_days))
+    }
+
+    /// CLK-02: the clock's day count reads as a calendar date from the
+    /// epoch, across month and year ends and leap days.
+    #[test]
+    fn day_counts_read_as_calendar_dates() {
+        assert_eq!(date(0.0), "14 Mar 2341");
+        assert_eq!(date(0.9), "14 Mar 2341", "the fraction of a day is dropped");
+        assert_eq!(date(17.0), "31 Mar 2341");
+        assert_eq!(date(18.0), "01 Apr 2341");
+        assert_eq!(date(-14.0), "28 Feb 2341");
+        assert_eq!(date(1082.0), "29 Feb 2344");
+        assert_eq!(date(1083.0), "01 Mar 2344");
+        assert_eq!(date(292.0), "31 Dec 2341");
+        assert_eq!(date(293.0), "01 Jan 2342");
+    }
+
+    /// INS-04: a stale record's age reads in whole years and months.
+    #[test]
+    fn time_ago_reads_in_years_and_months() {
+        assert_eq!(format_time_ago(1_006.0), "2 Y 9 M AGO");
+        assert_eq!(format_time_ago(40.0), "1 M AGO");
+        assert_eq!(format_time_ago(365.25), "1 Y 0 M AGO");
+        assert_eq!(format_time_ago(-5.0), "0 M AGO", "never in the future");
+    }
+}

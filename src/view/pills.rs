@@ -178,3 +178,22 @@ fn update_pills(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// INS-06: a folded satellite's leader meets its parent's pill at the
+    /// pill's left-middle, which follows the parent on screen.
+    #[test]
+    fn pill_anchor_is_the_pills_left_middle() {
+        let parent = Vec2::new(400.0, 300.0);
+        let anchor = pill_anchor(parent);
+        assert_eq!(anchor.x, parent.x + PILL_OFFSET_PX.x);
+        assert_eq!(anchor.y, parent.y + PILL_OFFSET_PX.y + PILL_HALF_HEIGHT_PX);
+        assert_eq!(
+            pill_anchor(parent + Vec2::X * 50.0),
+            anchor + Vec2::X * 50.0
+        );
+    }
+}
