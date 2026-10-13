@@ -133,6 +133,12 @@ type PhysicalFacts = (
     Option<&'static PhysicalRadius>,
 );
 
+/// INS-08: whether a body is a natural one (star, planet or moon), the
+/// only kind whose mean radius the inset lists.
+pub fn is_natural(class: BodyClass) -> bool {
+    matches!(class, BodyClass::Star | BodyClass::Planet | BodyClass::Moon)
+}
+
 /// INS-08: the astronomical key facts: orbit and period for an orbiting
 /// body, mass in solar masses for the star, and the mean radius. Figures
 /// go through the shared readout formats (UNIT-01, UNIT-02).
@@ -335,6 +341,7 @@ fn gather_content(
     let (name, description, facts, class, affiliation, knowledge, record, children, physics) =
         bodies.get(body).ok()?;
     let (orbit, mass, radius) = physics;
+    let radius = radius.filter(|_| is_natural(*class));
     let mut facts = facts.0.clone();
     facts.extend(astronomical_facts(
         orbit,
@@ -677,6 +684,23 @@ mod tests {
             fact_pairs(&facts),
             vec![("Mass", "0.78 solar masses"), ("Mean radius", "540,000 km")]
         );
+    }
+
+    /// INS-08: only stars, planets and moons list a mean radius; ships,
+    /// stations, gates and salvage sites don't.
+    #[test]
+    fn only_natural_bodies_list_a_mean_radius() {
+        for class in [BodyClass::Star, BodyClass::Planet, BodyClass::Moon] {
+            assert!(is_natural(class), "{class:?}");
+        }
+        for class in [
+            BodyClass::Ship,
+            BodyClass::Station,
+            BodyClass::Gate,
+            BodyClass::SalvageSite,
+        ] {
+            assert!(!is_natural(class), "{class:?}");
+        }
     }
 
     /// INS-04: surveyed is a clean render; unsurveyed a telescope frame.
