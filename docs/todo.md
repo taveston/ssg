@@ -16,8 +16,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - The symbols are built; groups add to them (`view/symbols.rs`, `symbol_draw.rs`).
 - [ ] **Velocity leaders** · SYM-11
   - Blocked: ships in transit are not specced yet.
-- [ ] **FPS debug readout** · CLK-06
-  - Add the toggle binding to the bindings resource (CAM-18).
 - [ ] **Ideology profile** · IDEO-01 to IDEO-31
   - Decide the open points in `docs/spec/ideology.md` first.
 

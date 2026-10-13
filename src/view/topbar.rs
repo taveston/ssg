@@ -2,9 +2,8 @@
 //! slot (filled by `breadcrumb.rs`), date,
 //! the Pause, 1 d/s and 5 d/s buttons with the active rate highlighted, and
 //! the clock keys (CLK-05: Space, `.` and `,`). Every change goes through the clock's
-//! own API (ARCH-14).
-//!
-//! The FPS readout is not specced (F4-12) and stays until triaged.
+//! own API (ARCH-14). A debug frames-per-second readout sits at the end,
+//! hidden until its binding toggles it (CLK-06).
 
 use bevy::diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin};
 use bevy::prelude::*;
@@ -40,6 +39,7 @@ impl Plugin for TopBarPlugin {
                 update_date_text,
                 update_button_styles,
                 update_fps_text,
+                toggle_fps_readout,
             ),
         );
     }
@@ -118,9 +118,13 @@ fn spawn_top_bar(mut commands: Commands, fonts: Res<Fonts>) {
                     },
                 );
             }
-            // Not specced (F4-12), kept until triaged.
+            // CLK-06: hidden by default.
             bar.spawn((
                 FpsText,
+                Node {
+                    display: Display::None,
+                    ..default()
+                },
                 Text::new(""),
                 fonts.mono(BUTTON_FONT_PX),
                 TextColor(colors::PANEL_BORDER),
@@ -169,6 +173,23 @@ fn update_fps_text(diagnostics: Res<DiagnosticsStore>, mut query: Query<&mut Tex
     }
 }
 
+/// CLK-06: the FPS binding shows the readout, or hides it again.
+fn toggle_fps_readout(
+    keys: Res<ButtonInput<KeyCode>>,
+    bindings: Res<Bindings>,
+    mut readouts: Query<&mut Node, With<FpsText>>,
+) {
+    if !pressed(&keys, &bindings.toggle_fps) {
+        return;
+    }
+    for mut node in &mut readouts {
+        node.display = match node.display {
+            Display::None => Display::Flex,
+            _ => Display::None,
+        };
+    }
+}
+
 fn update_button_styles(
     clock: Res<GameClock>,
     mut pause_buttons: Query<&mut BackgroundColor, (With<PauseButton>, Without<SpeedButton>)>,
@@ -199,6 +220,45 @@ mod tests {
 
     use super::*;
     use crate::view::breadcrumb::BreadcrumbRoot;
+
+    fn fps_display(world: &mut World) -> Display {
+        let mut readouts = world.query_filtered::<&Node, With<FpsText>>();
+        readouts.single(world).unwrap().display
+    }
+
+    fn press_fps_key(world: &mut World) {
+        let mut keys = ButtonInput::<KeyCode>::default();
+        keys.press(KeyCode::F3);
+        world.insert_resource(keys);
+        world.run_system_once(toggle_fps_readout).unwrap();
+    }
+
+    /// CLK-06: the FPS readout is hidden at start, and F3 shows and hides it.
+    #[test]
+    fn the_fps_readout_starts_hidden_and_f3_toggles_it() {
+        let mut world = World::new();
+        world.insert_resource(placeholder_fonts());
+        world.insert_resource(Bindings::default());
+        world.insert_resource(ButtonInput::<KeyCode>::default());
+        world.run_system_once(spawn_top_bar).unwrap();
+        assert_eq!(fps_display(&mut world), Display::None);
+
+        world.run_system_once(toggle_fps_readout).unwrap();
+        assert_eq!(fps_display(&mut world), Display::None, "no key, no change");
+        press_fps_key(&mut world);
+        assert_eq!(fps_display(&mut world), Display::Flex);
+        press_fps_key(&mut world);
+        assert_eq!(fps_display(&mut world), Display::None);
+    }
+
+    fn placeholder_fonts() -> Fonts {
+        let handle = |n: u128| Handle::<Font>::Uuid(Uuid::from_u128(n), Default::default());
+        Fonts {
+            label: handle(1),
+            label_semibold: handle(2),
+            mono: handle(3),
+        }
+    }
 
     /// MRK-02: the top bar's date readout is in the mono font; it has a
     /// slot for the breadcrumb (CLK-02).

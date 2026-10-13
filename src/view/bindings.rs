@@ -59,6 +59,10 @@ pub struct Bindings {
     // --- Inspection ---
     /// INS-03: close the unpinned inset.
     pub close_inset: Vec<KeyCode>,
+
+    // --- Debug ---
+    /// CLK-06: show or hide the frames-per-second readout.
+    pub toggle_fps: Vec<KeyCode>,
 }
 
 impl Default for Bindings {
@@ -98,6 +102,8 @@ impl Default for Bindings {
             select_drag_reserved: vec![KeyCode::ShiftLeft, KeyCode::ShiftRight],
 
             close_inset: vec![KeyCode::Escape],
+
+            toggle_fps: vec![KeyCode::F3],
         }
     }
 }

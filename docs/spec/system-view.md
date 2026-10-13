@@ -28,7 +28,7 @@
 | CLK-02 | The top bar shows the breadcrumb (CAM-25), the calendar date, and Pause, 1 d/s and 5 d/s buttons; the active rate is highlighted. | ✓ |
 | CLK-05 | Space toggles pause; `.` doubles and `,` halves the rate (minimum 1/16 d/s). | ✓ |
 | CLK-04 | Pausing stops all orbital motion; every view stays fully interactive while paused. | ✓ |
-| CLK-06 | A debug readout of frames per second can show in the top bar. It is hidden by default and toggled by a binding (default F3). | |
+| CLK-06 | A debug readout of frames per second can show in the top bar. It is hidden by default and toggled by a binding (default F3). | ✓ |
 
 ## 3. Markers and palette
 
