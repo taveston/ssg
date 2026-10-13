@@ -12,8 +12,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **Selected orbit at `orbit_selected_alpha`; thinner highlight** · HOV-03
-  - The ring widths and exposure alpha are built. Left: the selected ring at `orbit_selected_alpha` (new tunable), and `orbit_highlight_width_px` drops to 1 px (was F-116).
 - [ ] **Opaque symbol insides** · SYM-03
   - Was F-123. The fill tunables are now mix fractions into the ground colour, not alpha.
 - [ ] **Sharp symbols** · SYM-16, SYM-17

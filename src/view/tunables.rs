@@ -125,6 +125,9 @@ pub struct Tunables {
     pub ring_hit_px: f32,
     /// A hovered object's orbit ring is drawn white at this alpha (HOV-03).
     pub orbit_hover_alpha: f32,
+    /// The selected object's orbit ring is drawn white at this alpha
+    /// (HOV-03).
+    pub orbit_selected_alpha: f32,
     /// The docked inset's width (INS-07).
     pub inset_width_px: f32,
     /// The docked inset's gap below the top bar and from the right edge
@@ -181,7 +184,7 @@ impl Default for Tunables {
             exposure_ring_width_px: 3.0,
             exposure_ring_alpha: 0.5,
             orbit_ring_width_px: 1.0,
-            orbit_highlight_width_px: 2.0,
+            orbit_highlight_width_px: 1.0,
 
             zoom_step_factor: 2.0,
             zoom_anim_ms: 200.0,
@@ -210,6 +213,7 @@ impl Default for Tunables {
             min_hit_radius_px: 10.0,
             ring_hit_px: 7.0,
             orbit_hover_alpha: 0.6,
+            orbit_selected_alpha: 0.85,
             inset_width_px: 320.0,
             inset_dock_margin_px: 12.0,
             distance_au_threshold_au: 0.1,

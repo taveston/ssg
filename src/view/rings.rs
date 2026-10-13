@@ -11,7 +11,8 @@
 //! to the ring's normal brightness, and an exposure ring is bright all
 //! round. Each ring is its own retained gizmo, so it can widen on its own
 //! as its tail closes (MOT-11). A hovered body's ring is white at
-//! `orbit_hover_alpha`, a selected body's full white (HOV-03).
+//! `orbit_hover_alpha`, a selected body's white at `orbit_selected_alpha`
+//! (HOV-03).
 
 use bevy::color::Mix;
 use bevy::prelude::*;
@@ -139,13 +140,18 @@ pub fn ring_extent(
     }
 }
 
-/// HOV-03: the colour a ring is drawn in instead of its normal one: full
-/// white while its object is selected (selected wins), white at
-/// `hover_alpha` while hovered, otherwise none.
-pub fn ring_highlight(selected: bool, hovered: bool, hover_alpha: f32) -> Option<Color> {
+/// HOV-03: the colour a ring is drawn in instead of its normal one: white
+/// at `selected_alpha` while its object is selected (selected wins), white
+/// at `hover_alpha` while hovered, otherwise none.
+pub fn ring_highlight(
+    selected: bool,
+    hovered: bool,
+    selected_alpha: f32,
+    hover_alpha: f32,
+) -> Option<Color> {
     let white = colors::SELECTION_RING;
     if selected {
-        Some(white)
+        Some(white.with_alpha(selected_alpha))
     } else if hovered {
         Some(white.with_alpha(hover_alpha))
     } else {
@@ -163,7 +169,7 @@ pub struct RingColors {
 
 /// MRK-05 / MOT-01 / MOT-02 / HOV-03: a ring's normal colour is faint, or
 /// the highlight; its exposure colour is the neutral at `exposure_alpha`,
-/// so it never matches the full-white selected ring, or white while
+/// so it never matches the white selected ring, or white while
 /// highlighted.
 pub fn ring_colors(highlight: Option<Color>, exposure_alpha: f32) -> RingColors {
     RingColors {
@@ -274,6 +280,7 @@ fn stroke_look(
     let highlight = ring_highlight(
         selection.is_selected(body),
         hovered.contains(body),
+        tunables.orbit_selected_alpha,
         tunables.orbit_hover_alpha,
     );
     let extent = ring_extent(
@@ -464,18 +471,20 @@ pub fn clip_to_front((from, to): (Vec3, Vec3), view: RingView) -> Option<(Vec3, 
 mod tests {
     use super::*;
 
-    /// HOV-03: a selected ring is full white and wins over hover; a hovered
-    /// one is white at the hover alpha; otherwise the normal colour.
+    /// HOV-03: a selected ring is white at the selected alpha and wins over
+    /// hover; a hovered one is white at the hover alpha; otherwise the
+    /// normal colour.
     #[test]
     fn hovered_and_selected_rings_are_white() {
         use crate::view::colors::SELECTION_RING;
-        assert_eq!(ring_highlight(true, false, 0.6), Some(SELECTION_RING));
-        assert_eq!(ring_highlight(true, true, 0.6), Some(SELECTION_RING));
+        let selected = Some(SELECTION_RING.with_alpha(0.85));
+        assert_eq!(ring_highlight(true, false, 0.85, 0.6), selected);
+        assert_eq!(ring_highlight(true, true, 0.85, 0.6), selected);
         assert_eq!(
-            ring_highlight(false, true, 0.6),
+            ring_highlight(false, true, 0.85, 0.6),
             Some(SELECTION_RING.with_alpha(0.6))
         );
-        assert_eq!(ring_highlight(false, false, 0.6), None);
+        assert_eq!(ring_highlight(false, false, 0.85, 0.6), None);
     }
 
     /// MRK-05 / MRK-09: planets and unfolded moons draw their full ring;
@@ -517,7 +526,7 @@ mod tests {
             ring_color_at(plain, 0.0),
             colors::ORBIT_LINE.with_alpha(DIM_RING_ALPHA)
         );
-        let hovered = ring_colors(ring_highlight(false, true, 0.6), 0.5);
+        let hovered = ring_colors(ring_highlight(false, true, 0.85, 0.6), 0.5);
         assert_eq!(ring_color_at(hovered, 1.0), colors::SELECTION_RING);
         assert_eq!(
             ring_color_at(hovered, 0.0),
@@ -525,21 +534,26 @@ mod tests {
         );
     }
 
-    /// MOT-02 / HOV-03: an exposure ring is partly transparent, so it never
-    /// matches the full-white selected ring.
+    /// MOT-02 / HOV-03: an exposure ring is neutral, so it never matches
+    /// the white selected ring.
     #[test]
     fn an_exposure_ring_never_matches_the_selected_ring() {
         let tunables = Tunables::default();
         let exposure = ring_colors(None, tunables.exposure_ring_alpha).exposure;
         assert!(exposure.alpha() < 1.0);
-        let selected = ring_highlight(true, false, tunables.orbit_hover_alpha);
+        let selected = ring_highlight(
+            true,
+            false,
+            tunables.orbit_selected_alpha,
+            tunables.orbit_hover_alpha,
+        );
         assert_ne!(Some(exposure), selected);
     }
 
     /// MRK-05 / HOV-03: normal rings are `orbit_ring_width_px` wide and
     /// highlighted ones `orbit_highlight_width_px`.
     #[test]
-    fn highlighted_rings_are_wider() {
+    fn highlighted_rings_take_the_highlight_width() {
         let tunables = Tunables::default();
         assert_eq!(
             ring_base_width(false, &tunables),
@@ -549,7 +563,6 @@ mod tests {
             ring_base_width(true, &tunables),
             tunables.orbit_highlight_width_px
         );
-        assert!(tunables.orbit_highlight_width_px > tunables.orbit_ring_width_px);
     }
 
     /// MOT-01: a segment the body sits on is split at the body, so the
