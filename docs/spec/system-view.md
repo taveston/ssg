@@ -46,6 +46,7 @@
 | MRK-08 | Every marker and symbol has a hit area of at least `min_hit_radius_px` round its centre, even where the drawn marker is smaller. Where hit areas overlap, the marker whose centre is nearest the pointer wins. | ✓ |
 | MRK-07 | A body whose true diameter on screen is larger than its marker is drawn as a disc at its true size, in the style of MRK-11, in place of the marker. | |
 | MRK-11 | A natural body's disc is filled with the neutral colour at `body_fill_alpha`, has a neutral rim `body_rim_px` wide, and is ringed outside the rim by a gap `body_gap_px` wide in the ground colour, so overlapping discs stay distinct. | |
+| MRK-12 | Draw order, from the bottom: natural bodies, nearer the camera on top of farther, recomputed as the view turns; then ship, group and station symbols, always above bodies; then labels and pills, above all markers; then edge arrows and the sidebar. Draw order never changes which marker a click hits (MRK-08). | |
 | EDGE-01 | A gate outside the viewport is shown as an arrow pinned to the edge of the map area (below the top bar) in its direction, labelled with its destination. A gate behind the camera is pinned by its direction in the camera's own right and up axes. Arrows slide round the edge as the heading turns. | ✓ |
 
 ## 3a. Ship and station symbols
