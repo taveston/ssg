@@ -15,6 +15,7 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 - [ ] **Partly transparent exposure rings; thinner normal rings** · MOT-01, MOT-02, MRK-05, HOV-03
   - The tail's head uses the same alpha as the exposure ring, so the closing stays seamless (MOT-11).
   - The normal width is hard-coded as `NORMAL_RING_WIDTH_PX` in `view/rings.rs`; move it and the highlight width to `Tunables`.
+- [ ] **Shorter hover tooltip** · HOV-01
 - [ ] **Ship groups and condition** · SYM-09, SYM-10, SYM-12, GRP-09, TEST-06
   - The symbols are built; groups add to them (`view/symbols.rs`, `symbol_draw.rs`).
 - [ ] **Velocity leaders** · SYM-11

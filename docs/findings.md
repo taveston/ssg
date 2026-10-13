@@ -11,11 +11,6 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Affects:** INS-05 · **Type:** spec gap
 - **Disposition:** parked (2026-10-12). Pinning is gone, so the parent's inset can't stay open beside the satellite's. Options: select at once and let a second click on the same spot in the satellite's inset do nothing; or give the satellite's inset a "back to parent" line in the list's place.
 
-### F-103 · The hover tooltip says too much
-- **Observation:** the tooltip carries name, ownership, contents and the full click hints ("Click: inspect · Double-click: frame its moons · Double-click again: planetary view"). It is too long to read at a glance.
-- **Affects:** HOV-01 · **Type:** spec wrong
-- **Disposition:** open; needs design.
-
 ### F-105 · Tails jump when the time rate changes
 - **Observation:** changing the rate (for example 1 d/s to 5 d/s, or pausing) changes every tail's length and mode at once, so tails snap to their new length and bodies pop between dot and exposure ring. It feels abrupt.
 - **Affects:** MOT-04, MOT-10, MOT-11, MOT-12 · **Type:** spec wrong
