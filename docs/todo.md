@@ -12,12 +12,32 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
+- [ ] **Console buttons** · BTN-01, BTN-02, CLK-02, INS-02
+  - Was F-117: Close was orange, Focus and Pause blue. `button_stroke_px` is new.
+- [ ] **Selected orbit at `orbit_selected_alpha`; thinner highlight** · HOV-03
+  - The ring widths and exposure alpha are built. Left: the selected ring at `orbit_selected_alpha` (new tunable), and `orbit_highlight_width_px` drops to 1 px (was F-116).
+- [ ] **Opaque symbol insides** · SYM-03
+  - Was F-123. The fill tunables are now mix fractions into the ground colour, not alpha.
+- [ ] **Sharp symbols** · SYM-16, SYM-17
+  - Was F-124: symbols looked blurred beside the rings. `symbol_stroke_px` default drops from 1.6 to 1.5 px.
+- [ ] **Body markers as outlines** · MRK-03, MRK-04, MRK-07, MRK-11, MRK-12, MRK-13
+  - Was F-125, and replaces the item "Outlined body discs, a size smaller". New sizes 16/12/8 px; `body_fill_alpha` is renamed `body_fill_mix`; `star_tick_count`, `star_tick_px` and `planet_dot_px` are new. Rings now draw below everything (MRK-12).
+- [ ] **Edge arrows as tabs** · EDGE-02, EDGE-03
+  - Was F-119: a label was clipped to "Gat" and one arrow had no label. Do it with the "Gate edge labels" fix below.
+- [ ] **Frame body's orbit as a tail; bearing tick to its parent** · MRK-14, MRK-15
+  - Was F-122: close in, the frame body's own orbit crossed the view as a stray straight line. HOV-02 still applies: the arc is never a target.
+- [ ] **Scale bar and north dial** · MRK-16, MRK-17
+  - Was F-121. Both sit inside the map area, so they move with the sidebar (INS-07). The dial is a click target that wins over the map beneath it.
 - [ ] **Morrow IX's trader at about 9 d** · TEST-09
   - The build already uses 9 d (was F-113); check and mark ✓.
 - [ ] **Remove the hover tooltip** · HOV-01, HOV-02
 - [ ] **Ease tail length on rate changes** · MOT-13
 - [ ] **Inset as a sidebar; "In orbit" outline** · INS-05, INS-07
   - `inset_dock_margin_px` is withdrawn; `sidebar_slide_ms` is new.
+- [ ] **Inset panel anatomy** · INS-09
+  - Was F-120. Build after the sidebar.
+- [ ] **Label placement** · LBL-01 to LBL-04
+  - Was F-115: labels overprinted each other round Halden IV. `label_gap_px` and `label_fade_ms` are new. The hardest item here; keep placement in its own view module.
 - [ ] **Ship groups and condition** · SYM-09, SYM-10, SYM-12, GRP-09, TEST-06
   - The symbols are built; groups add to them (`view/symbols.rs`, `symbol_draw.rs`).
 - [ ] **Velocity leaders** · SYM-11
