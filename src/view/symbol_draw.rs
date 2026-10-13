@@ -8,8 +8,10 @@
 //! whoever draws the symbol can fade it as one by scaling each tint's alpha
 //! (`markers.rs` does, for folding and the motion rule).
 
+use bevy::color::Mix;
 use bevy::prelude::*;
 
+use super::colors;
 use super::fonts::Fonts;
 use super::symbol_images::{SymbolImages, SymbolMask};
 use super::symbols::{Icon, SymbolLook};
@@ -60,6 +62,11 @@ fn icon_mask(icon: Icon) -> Option<SymbolMask> {
     }
 }
 
+/// SYM-03: a frame's opaque inside, its colour mixed into the ground.
+pub fn fill_color(look: &SymbolLook) -> Color {
+    colors::GROUND.mix(&look.color.with_alpha(1.0), look.fill_mix)
+}
+
 /// A node covering the whole symbol square.
 fn full() -> Node {
     Node {
@@ -93,12 +100,10 @@ pub fn spawn_symbol_parts(
             ));
         }
     };
-    if look.fill_alpha > 0.0 {
-        image(
-            SymbolMask::Fill(look.frame),
-            look.color.with_alpha(look.fill_alpha * look.alpha),
-        );
-    }
+    // SYM-03: the inside is always opaque, even on a faded stale track,
+    // so nothing beneath shows through; command shows as how much of the
+    // colour is mixed into the ground.
+    image(SymbolMask::Fill(look.frame), fill_color(look));
     image(
         SymbolMask::Frame {
             shape: look.frame,
@@ -188,5 +193,28 @@ mod tests {
         );
         assert_eq!(icon_mask(Icon::Question), None);
         assert_eq!(icon_mask(Icon::None), None);
+    }
+
+    /// SYM-03: every inside is opaque, even on a faded stale track; a
+    /// civilian's is plain ground, and a larger mix is nearer the colour.
+    #[test]
+    fn symbol_insides_are_opaque_mixes_into_the_ground() {
+        use super::super::symbols::FrameShape;
+        let look = |fill_mix: f32, alpha: f32| SymbolLook {
+            frame: FrameShape::Circle,
+            color: colors::OWN,
+            fill_mix,
+            icon: Icon::None,
+            dashed: false,
+            alpha,
+            echelon: None,
+            installation_bar: false,
+        };
+        assert_eq!(fill_color(&look(0.0, 1.0)), colors::GROUND);
+        for (mix, alpha) in [(0.16, 1.0), (0.30, 1.0), (0.30, 0.55)] {
+            assert_eq!(fill_color(&look(mix, alpha)).alpha(), 1.0);
+        }
+        let blue = |c: Color| c.to_srgba().blue;
+        assert!(blue(fill_color(&look(0.30, 1.0))) > blue(fill_color(&look(0.16, 1.0))));
     }
 }

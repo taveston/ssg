@@ -44,8 +44,9 @@ pub enum Icon {
 pub struct SymbolLook {
     pub frame: FrameShape,
     pub color: Color,
-    /// The fill's alpha: a tint of `color`, or 0 for no fill (SYM-03).
-    pub fill_alpha: f32,
+    /// How much of `color` is mixed into the ground colour for the frame's
+    /// opaque inside: 0 is plain ground (SYM-03).
+    pub fill_mix: f32,
     pub icon: Icon,
     /// A weak or stale track has a dashed frame (SYM-08).
     pub dashed: bool,
@@ -87,9 +88,10 @@ pub fn frame_and_color(affiliation: Affiliation, record: &ShipRecord) -> (FrameS
     (shape, color)
 }
 
-/// SYM-03: fill shows command. A commanded own object has the state tint,
-/// an own-flag civilian none, any other affiliation the lighter tint.
-pub fn fill_alpha(affiliation: Affiliation, record: &ShipRecord, settings: SymbolSettings) -> f32 {
+/// SYM-03: fill shows command. A commanded own object mixes its colour in
+/// at the state fraction, an own-flag civilian not at all, any other
+/// affiliation at the lighter fraction.
+pub fn fill_mix(affiliation: Affiliation, record: &ShipRecord, settings: SymbolSettings) -> f32 {
     match affiliation {
         Affiliation::Own if record.commanded => settings.fill_state,
         Affiliation::Own => 0.0,
@@ -159,7 +161,7 @@ pub fn symbol_look(
     SymbolLook {
         frame,
         color,
-        fill_alpha: fill_alpha(affiliation, record, settings),
+        fill_mix: fill_mix(affiliation, record, settings),
         icon: icon(record),
         dashed: !matches!(record.track, Track::Firm),
         alpha: match record.track {
@@ -266,24 +268,24 @@ mod tests {
     }
 
     /// SYM-03: commanded own objects take the state fill, own-flag
-    /// civilians none, and a requisitioned civilian the state blue and
-    /// fill; every other affiliation the lighter tint.
+    /// civilians plain ground, and a requisitioned civilian the state blue
+    /// and fill; every other affiliation the lighter mix.
     #[test]
     fn fill_shows_command() {
         let cargo = ship(ShipClass::Cargo, false);
-        assert_eq!(fill_alpha(Affiliation::Own, &cargo, SETTINGS), 0.0);
+        assert_eq!(fill_mix(Affiliation::Own, &cargo, SETTINGS), 0.0);
         let requisitioned = ShipRecord {
             commanded: true,
             requisitioned: true,
             ..cargo.clone()
         };
-        assert_eq!(fill_alpha(Affiliation::Own, &requisitioned, SETTINGS), 0.30);
+        assert_eq!(fill_mix(Affiliation::Own, &requisitioned, SETTINGS), 0.30);
         assert_eq!(
             frame_and_color(Affiliation::Own, &requisitioned).1,
             colors::OWN
         );
-        assert_eq!(fill_alpha(Affiliation::Hostile, &cargo, SETTINGS), 0.16);
-        assert_eq!(fill_alpha(Affiliation::Neutral, &cargo, SETTINGS), 0.16);
+        assert_eq!(fill_mix(Affiliation::Hostile, &cargo, SETTINGS), 0.16);
+        assert_eq!(fill_mix(Affiliation::Neutral, &cargo, SETTINGS), 0.16);
     }
 
     /// SYM-05: icons by class; known armed means the warship icon whatever

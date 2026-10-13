@@ -163,10 +163,11 @@ pub struct Tunables {
     /// The outline width of secondary buttons and edge tabs (BTN-01,
     /// EDGE-03).
     pub button_stroke_px: f32,
-    /// The fill's alpha for objects the state commands (SYM-03).
+    /// How much of a symbol's colour is mixed into the ground colour for
+    /// the opaque inside of objects the state commands (SYM-03).
     pub symbol_fill_state: f32,
-    /// The fill's alpha for every other affiliation but own-flag civilians,
-    /// which have none (SYM-03).
+    /// The same mix for every other affiliation but own-flag civilians,
+    /// whose inside is plain ground (SYM-03).
     pub symbol_fill_other: f32,
     /// A stale track's symbol is drawn at this opacity (SYM-08).
     pub stale_symbol_alpha: f32,

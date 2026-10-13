@@ -12,8 +12,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **Opaque symbol insides** · SYM-03
-  - Was F-123. The fill tunables are now mix fractions into the ground colour, not alpha.
 - [ ] **Sharp symbols** · SYM-16, SYM-17
   - Was F-124: symbols looked blurred beside the rings. `symbol_stroke_px` default drops from 1.6 to 1.5 px.
 - [ ] **Body markers as outlines** · MRK-03, MRK-04, MRK-07, MRK-11, MRK-12, MRK-13
