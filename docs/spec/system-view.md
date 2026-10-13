@@ -37,14 +37,15 @@
 |---|---|---|
 | MRK-01 | Palette: ground #070A0E; natural bodies and text #DCE6EC; orbits and secondary text #9FB6C4; own ships, groups and stations #5AA9E6 (blue); warnings #F0A040 (orange); selection and hover as a white ring. Ships, groups and stations take their colour from their affiliation (SYM-02). | ✓ |
 | MRK-02 | Type: Barlow for labels and UI; JetBrains Mono for dates, figures and status readouts. | ✓ |
-| MRK-03 | Each object is a fixed-size screen marker by class, projected from its 3D position each frame; marker size never depends on physical size. Natural bodies have the largest markers: discs of `star_marker_px`, `planet_marker_px` and `moon_marker_px` across, each at least `ship_symbol_px`, so the terrain dominates the view. | ✓ |
+| MRK-03 | Each object is a fixed-size screen marker by class, projected from its 3D position each frame; marker size never depends on physical size. Natural bodies are discs of `star_marker_px`, `planet_marker_px` and `moon_marker_px` across. | |
 | MRK-04 | Marker shapes: filled disc = body; X = salvage site. Ships, groups of ships and stations are drawn as symbols (section 3a). | ✓ |
 | MRK-05 | Orbits of natural bodies are faint rings `orbit_ring_width_px` wide; the belt is a translucent shaded band. A ring stays within half a pixel of the true circle, also when the camera is close to it, and a ring passing behind the camera is cut at the near limit, not dropped. | |
 | MRK-09 | Ships and stations draw no orbit ring of their own in dot mode (MOT-01): only their tail, which fades to transparent at its end rather than to a ring's alpha. Their full ring is drawn only while the object is hovered or selected (HOV-03). In exposure-ring mode (MOT-02) the exposure ring is drawn as usual. | ✓ |
 | MRK-10 | The star, planets and moons are drawn and labelled in the neutral colour (MRK-01) whoever owns them. A body's ownership is not shown on the map. | ✓ |
 | MRK-06 | Separate planets are never merged, however close on screen. | ✓ |
 | MRK-08 | Every marker and symbol has a hit area of at least `min_hit_radius_px` round its centre, even where the drawn marker is smaller. Where hit areas overlap, the marker whose centre is nearest the pointer wins. | ✓ |
-| MRK-07 | A body whose true diameter on screen is larger than its marker is drawn as a filled disc at its true size, in its marker's colour, in place of the marker. | ✓ |
+| MRK-07 | A body whose true diameter on screen is larger than its marker is drawn as a disc at its true size, in the style of MRK-11, in place of the marker. | |
+| MRK-11 | A natural body's disc is filled with the neutral colour at `body_fill_alpha`, has a neutral rim `body_rim_px` wide, and is ringed outside the rim by a gap `body_gap_px` wide in the ground colour, so overlapping discs stay distinct. | |
 | EDGE-01 | A gate outside the viewport is shown as an arrow pinned to the edge of the map area (below the top bar) in its direction, labelled with its destination. A gate behind the camera is pinned by its direction in the camera's own right and up axes. Arrows slide round the edge as the heading turns. | ✓ |
 
 ## 3a. Ship and station symbols
@@ -193,7 +194,7 @@ The prototype system, kept as data (SCL-03). It exists to exercise the rules abo
 | TEST-03 | Halden IV also has contact K-3 (unknown affiliation, unknown class, weak track, slow orbit) and one own commanded warship parked in orbit, as static orbiting objects. | ✓ |
 | TEST-05 | Corvane has, as static orbiting objects in slow orbits (dot mode at 1 d/s), at least one of each: own fleet tanker; own troop transport with 1st Arden Guard (battalion) embarked; own empty troop transport; own-flag civilian ore carrier (Varga Mining); requisitioned civilian ore carrier; own-flag civilian armed hauler; neutral trader; allied warship; hostile troop transport with unknown load; hostile raider on a stale track last seen 6 days before the start date; unknown-affiliation contact with known class cargo. Iver Yard and Arden Highport are own stations. | ✓ |
 | TEST-06 | Corvane also has, as static orbiting objects: own task force TF-1 (4 warships, one damaged so the group's mean condition is below `condition_warn_fraction`); and a loose group of 6 own-flag civilian haulers. | |
-| TEST-09 | Morrow IX has two satellites of its own, as static orbiting objects within its Hill sphere: own station Tern Relay, period about 0.3 d (ring mode at 1 d/s), and a parked neutral trader, period about 4 d (dot mode at 1 d/s). They exercise nested folding, nested pills and a frame three levels deep. | ✓ |
+| TEST-09 | Morrow IX has two satellites of its own, as static orbiting objects within its Hill sphere: own station Tern Relay, period about 0.3 d (ring mode at 1 d/s), and a parked neutral trader, period about 9 d (dot mode at 1 d/s). They exercise nested folding, nested pills and a frame three levels deep. | |
 | TEST-04 | The inspection data covers both knowledge states: Halden IV surveyed, Halden IVc unsurveyed. | ✓ |
 | TEST-07 | Morrow has the mass of a Jupiter-class gas giant: 318 Earth masses. | ✓ |
 | TEST-08 | Morrow's eleven moons have periods of about 0.35, 0.55, 0.9, 1.8, 3.6, 7.2, 16, 30, 50, 75 and 110 d. Radii follow Kepler from Morrow's mass, and the innermost is no closer than 2 × Morrow's radius (71,500 km). The periods straddle both motion modes at 1 d/s: six moons in ring mode (under 8 s), five in dot mode (8 s or more). | ✓ |
@@ -241,9 +242,12 @@ All in the `Tunables` resource (`src/view/tunables.rs`). Defaults are starting v
 | `ring_hit_px` | 7 px | HOV-02 |
 | `orbit_hover_alpha` | 0.6 | HOV-03 |
 | `distance_au_threshold_au` | 0.1 AU | UNIT-01 |
-| `star_marker_px` | 36 px | MRK-03 |
-| `planet_marker_px` | 30 px | MRK-03 |
-| `moon_marker_px` | 24 px | MRK-03 |
+| `star_marker_px` | 28 px | MRK-03 |
+| `planet_marker_px` | 22 px | MRK-03 |
+| `moon_marker_px` | 18 px | MRK-03 |
+| `body_fill_alpha` | 0.32 | MRK-11 |
+| `body_rim_px` | 1.5 px | MRK-11 |
+| `body_gap_px` | 2 px | MRK-11 |
 | `ship_symbol_px` | 22 px | SYM-04, SYM-12, SYM-14 |
 | `list_symbol_px` | 14 px | INS-05 |
 | `symbol_stroke_px` | 1.6 px | SYM-02 |

@@ -15,6 +15,9 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 - [ ] **Partly transparent exposure rings; thinner normal rings** · MOT-01, MOT-02, MRK-05, HOV-03
   - The tail's head uses the same alpha as the exposure ring, so the closing stays seamless (MOT-11).
   - The normal width is hard-coded as `NORMAL_RING_WIDTH_PX` in `view/rings.rs`; move it and the highlight width to `Tunables`.
+- [ ] **Outlined body discs, a size smaller** · MRK-03, MRK-07, MRK-11
+- [ ] **Morrow IX's trader at about 9 d** · TEST-09
+  - The build already uses 9 d (was F-113); check and mark ✓.
 - [ ] **Remove the hover tooltip** · HOV-01, HOV-02
 - [ ] **Ease tail length on rate changes** · MOT-13
 - [ ] **Inset as a sidebar; "In orbit" outline** · INS-05, INS-07

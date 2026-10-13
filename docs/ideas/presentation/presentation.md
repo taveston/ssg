@@ -130,6 +130,7 @@ The vector layer is cheap to produce. Photoreal work is needed for generated bod
 - Whether the inspection view is in place or a panel; how much survey detail each fidelity level needs.
 - How the player first learns that double-click frames an object (a one-time hint or tutorial). There is no hover tooltip (decided 2026-10-13, HOV-01, from playtest finding F-103): the name and type are on the map, and click hints are noise once learned.
 - What owning a planet or moon means (surface assets may belong to different parties), and how to show it. The map draws natural bodies in neutral white and shows no ownership for now (MRK-10, from playtest finding F-108).
+- Body discs (decided 2026-10-13, from F-114): solid white discs at 36/30/24 px looked heavy and merged in the inner system. Bodies are now outlined discs with a dim fill and a dark gap, at 28/22/18 px (Specced: MRK-03, MRK-11). Same size with the outline was the alternative.
 - Faction colours beyond the affiliation colours in `symbology.md`.
 - Zoom: step factor, animation timing, strength of the resistance at stops, the minimum view radius, and the standard tilt.
 - Camera: the final tilt limit and pan and rotate speeds after testing; the tilt range for the cluster view.
