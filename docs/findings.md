@@ -30,9 +30,3 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Observation:** the inset is drawn over the right of the map. The frame body sits at the centre of the window, so with the inset open it looks off-centre in the visible map, and the inset hides part of the view.
 - **Affects:** INS-07, CAM-05 · **Type:** spec wrong
 - **Disposition:** open. Option: an expanding sidebar that shrinks the map area (and the camera viewport) instead of overlaying it, so the frame body stays centred in what's visible.
-
-### F-108 · Planets and moons are the least visible objects
-- **Observation:** natural bodies have the smallest markers (a moon is 6 px, a 22 px ship symbol is nearly four times wider), and own planets and moons share the own-ship blue. In crowded scenes they are hard to pick out and blend in with own ships. As the terrain, they should be the most visually significant objects.
-- **Affects:** MRK-01, MRK-03, SYM-02, SYM-04 · **Type:** spec wrong
-- **Disposition:** open on marker sizes (proposal: moons at least 10 px, planets larger). Body colour and ownership display deferred (2026-10-13): ownership of a body isn't clear cut, since surface assets may belong to different parties.
-

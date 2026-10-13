@@ -125,6 +125,7 @@ The vector layer is cheap to produce. Photoreal work is needed for generated bod
 - How gate distance appears on screen once placement is settled: true scale, compressed, or an optional overview scaling.
 - Which limits on knowledge to model abstractly, and how; how sensor coverage is shown.
 - Whether the inspection view is in place or a panel; how much survey detail each fidelity level needs.
+- What owning a planet or moon means (surface assets may belong to different parties), and how to show it. The map draws natural bodies in neutral white and shows no ownership for now (MRK-10, from playtest finding F-108).
 - Faction colours beyond the affiliation colours in `symbology.md`.
 - Zoom: step factor, animation timing, strength of the resistance at stops, the minimum view radius, and the standard tilt.
 - Camera: the final tilt limit and pan and rotate speeds after testing; the tilt range for the cluster view.

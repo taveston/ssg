@@ -35,12 +35,13 @@
 
 | ID | Requirement | Built |
 |---|---|---|
-| MRK-01 | Palette: ground #070A0E; neutral bodies and text #DCE6EC; orbits and secondary text #9FB6C4; own assets #5AA9E6 (blue); warnings #F0A040 (orange); selection and hover as a white ring. Ships, groups and stations take their colour from their affiliation (SYM-02). | ✓ |
+| MRK-01 | Palette: ground #070A0E; natural bodies and text #DCE6EC; orbits and secondary text #9FB6C4; own ships, groups and stations #5AA9E6 (blue); warnings #F0A040 (orange); selection and hover as a white ring. Ships, groups and stations take their colour from their affiliation (SYM-02). | |
 | MRK-02 | Type: Barlow for labels and UI; JetBrains Mono for dates, figures and status readouts. | ✓ |
-| MRK-03 | Each object is a fixed-size screen marker by class, projected from its 3D position each frame; marker size never depends on physical size. | ✓ |
+| MRK-03 | Each object is a fixed-size screen marker by class, projected from its 3D position each frame; marker size never depends on physical size. Natural bodies have the largest markers: discs of `star_marker_px`, `planet_marker_px` and `moon_marker_px` across, each at least `ship_symbol_px`, so the terrain dominates the view. | |
 | MRK-04 | Marker shapes: filled disc = body; X = salvage site. Ships, groups of ships and stations are drawn as symbols (section 3a). | ✓ |
 | MRK-05 | Orbits of natural bodies are faint rings; the belt is a translucent shaded band. A ring stays within half a pixel of the true circle, also when the camera is close to it, and a ring passing behind the camera is cut at the near limit, not dropped. | |
 | MRK-09 | Ships and stations draw no orbit ring of their own in dot mode (MOT-01): only their tail, which fades to transparent at its end rather than to a ring's alpha. Their full ring is drawn only while the object is hovered or selected (HOV-03). In exposure-ring mode (MOT-02) the exposure ring is drawn as usual. | |
+| MRK-10 | The star, planets and moons are drawn and labelled in the neutral colour (MRK-01) whoever owns them. A body's ownership is not shown on the map. | |
 | MRK-06 | Separate planets are never merged, however close on screen. | ✓ |
 | MRK-08 | Every marker and symbol has a hit area of at least `min_hit_radius_px` round its centre, even where the drawn marker is smaller. Where hit areas overlap, the marker whose centre is nearest the pointer wins. | ✓ |
 | MRK-07 | A body whose true diameter on screen is larger than its marker is drawn as a filled disc at its true size, in its marker's colour, in place of the marker. | ✓ |
@@ -235,6 +236,9 @@ All in the `Tunables` resource (`src/view/tunables.rs`). Defaults are starting v
 | `ring_hit_px` | 7 px | HOV-02 |
 | `orbit_hover_alpha` | 0.6 | HOV-03 |
 | `distance_au_threshold_au` | 0.1 AU | UNIT-01 |
+| `star_marker_px` | 36 px | MRK-03 |
+| `planet_marker_px` | 30 px | MRK-03 |
+| `moon_marker_px` | 24 px | MRK-03 |
 | `ship_symbol_px` | 22 px | SYM-04, SYM-12, SYM-14 |
 | `list_symbol_px` | 14 px | INS-05 |
 | `symbol_stroke_px` | 1.6 px | SYM-02 |

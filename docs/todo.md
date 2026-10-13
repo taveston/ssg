@@ -17,6 +17,8 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 - [ ] **Orbit rings only for natural bodies; frame body's ring not a target** · MRK-05, MRK-09, HOV-02
   - Watch fast ships in dot mode: with no ring they are harder to click. The tail is a target (HOV-02); if that's not enough, add a finding.
 - [ ] **Double-click on an object that can't be a frame moves to its parent's frame** · ZOOM-16
+- [ ] **Natural bodies: neutral colour, larger markers** · MRK-01, MRK-03, MRK-10
+  - Body marker sizes are hard-coded in `marker_half_size` (`view/markers.rs`); move them to `Tunables`. Check pills, labels and frame brackets still clear the bigger discs.
 - [ ] **Satellites of a moon in Corvane** · TEST-09
 - [ ] **Ship groups and condition** · SYM-09, SYM-10, SYM-12, GRP-09, TEST-06
   - The symbols are built; groups add to them (`view/symbols.rs`, `symbol_draw.rs`).
