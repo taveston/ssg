@@ -1754,7 +1754,7 @@ fn an_empty_click_clears_the_selection_and_a_pan_does_not() {
 }
 
 /// HOV-02: every drawn ring is traced for hit-testing, in dot mode too;
-/// a folded satellite's isn't.
+/// a folded satellite's isn't, and nor is the frame body's.
 #[test]
 fn dot_mode_rings_are_hit_targets() {
     let mut app = camera_app_with(|app| {
@@ -1764,6 +1764,7 @@ fn dot_mode_rings_are_hit_targets() {
             .add_plugins((
                 GroupingPlugin,
                 MotionPlugin,
+                HoveredPlugin,
                 crate::view::ring_picking::RingPickingPlugin,
             ));
     });
@@ -1790,6 +1791,9 @@ fn dot_mode_rings_are_hit_targets() {
     };
     assert!(traced(&mut app, halden), "a dot-mode planet's ring");
     assert!(!traced(&mut app, ivc), "IVc is folded at the system fit");
+    set_frame(&mut app, halden, Vec3::ZERO);
+    run(&mut app, 1);
+    assert!(!traced(&mut app, halden), "the frame body's ring");
 }
 
 /// SYM-04 / MRK-03: a ship's symbol fits `ship_symbol_px` at every zoom; it

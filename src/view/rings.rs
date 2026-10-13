@@ -1,7 +1,10 @@
 //! Orbit rings (MRK-05), their tails and exposure rings (MOT-01, MOT-02,
 //! MOT-11), and their hover and selection highlight (HOV-03).
 //!
-//! Rings are drawn for planets and for any *unfolded* satellite (GRP-01),
+//! Full rings are drawn for planets and *unfolded* moons (GRP-01). Ships and
+//! stations draw only their tail in dot mode, fading to nothing at its end,
+//! and their full ring only while hovered or selected or as an exposure
+//! ring (MRK-09). Rings are drawn
 //! finer where the camera is close so they stay true to the circle at any
 //! zoom (SCL-02). Each ring is one stroke whose brightness varies along it:
 //! the tail behind a body runs from the exposure brightness at the dot down
@@ -65,7 +68,7 @@ fn spawn_ring_strokes(
     bodies: Query<(Entity, &BodyClass), With<Orbit>>,
 ) {
     for (body, class) in &bodies {
-        if !ring_is_drawn(*class, false) {
+        if !has_orbit_line(*class) {
             continue;
         }
         commands.spawn((
@@ -96,12 +99,47 @@ type RingBodies<'w, 's> = Query<
     ),
 >;
 
-/// MRK-05 / HOV-02: whether a body's orbit ring is drawn at all. Gates and
-/// salvage sites sit on star orbits that would only add clutter (gates
-/// have their edge arrows instead), and a folded satellite draws nothing:
-/// no marker, label or ring (GRP-01).
-pub fn ring_is_drawn(class: BodyClass, folded_away: bool) -> bool {
-    !matches!(class, BodyClass::Gate | BodyClass::SalvageSite) && !folded_away
+/// How much of a body's orbit is drawn this frame.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RingExtent {
+    /// Nothing at all.
+    Hidden,
+    /// Only the tail behind the dot, fading to nothing at its end.
+    Tail,
+    /// The whole ring.
+    Full,
+}
+
+/// MRK-05 / MRK-09: whether a body ever draws anything on its orbit. Gates
+/// and salvage sites sit on star orbits that would only add clutter (gates
+/// have their edge arrows instead).
+pub fn has_orbit_line(class: BodyClass) -> bool {
+    matches!(
+        class,
+        BodyClass::Planet | BodyClass::Moon | BodyClass::Ship | BodyClass::Station
+    )
+}
+
+/// MRK-05 / MRK-09 / HOV-02: how much of a body's orbit is drawn. Planets
+/// and moons draw their full ring. Ships and stations draw only their tail
+/// in dot mode, and the full ring while hovered or selected or once the
+/// tail has closed into the exposure ring. A folded satellite draws
+/// nothing: no marker, label or ring (GRP-01).
+pub fn ring_extent(
+    class: BodyClass,
+    folded_away: bool,
+    ring_mode: bool,
+    highlighted: bool,
+) -> RingExtent {
+    if folded_away || !has_orbit_line(class) {
+        return RingExtent::Hidden;
+    }
+    let natural = matches!(class, BodyClass::Planet | BodyClass::Moon);
+    if natural || ring_mode || highlighted {
+        RingExtent::Full
+    } else {
+        RingExtent::Tail
+    }
 }
 
 /// HOV-03: the colour a ring is drawn in instead of its normal one: full
@@ -223,23 +261,34 @@ fn stroke_look(
     (selection, hovered, tunables): (&Selection, &HoveredBodies, &Tunables),
 ) -> Option<StrokeLook> {
     let (orbit, local, class, child_of, fold, mode) = bodies.get(body).ok()?;
-    if !ring_is_drawn(*class, fold.is_some_and(|f| f.effective_hidden)) {
-        return None;
-    }
-    let center = child_of
-        .and_then(|c| positions.0.get(&c.parent()).copied())
-        .unwrap_or(star);
+    let mode = mode.copied().unwrap_or_default();
     let highlight = ring_highlight(
         selection.is_selected(body),
         hovered.contains(body),
         tunables.orbit_hover_alpha,
     );
+    let extent = ring_extent(
+        *class,
+        fold.is_some_and(|f| f.effective_hidden),
+        mode.ring_mode,
+        highlight.is_some(),
+    );
+    let mut colors = ring_colors(highlight);
+    match extent {
+        RingExtent::Hidden => return None,
+        // MRK-09: past the tail's end there is no ring to fade into.
+        RingExtent::Tail => colors.normal = colors.normal.with_alpha(0.0),
+        RingExtent::Full => {}
+    }
+    let center = child_of
+        .and_then(|c| positions.0.get(&c.parent()).copied())
+        .unwrap_or(star);
     Some(StrokeLook {
         center,
         radius: km_to_render(orbit.radius_km),
         body_angle: local.0.z.atan2(local.0.x) as f32,
-        mode: mode.copied().unwrap_or_default(),
-        colors: ring_colors(highlight),
+        mode,
+        colors,
     })
 }
 
@@ -419,15 +468,32 @@ mod tests {
         assert_eq!(ring_highlight(false, false, 0.6), None);
     }
 
-    /// HOV-02: planets' and unfolded satellites' rings are drawn (and so
-    /// can be hit); gates', salvage sites' and folded satellites' aren't.
+    /// MRK-05 / MRK-09: planets and unfolded moons draw their full ring;
+    /// gates, salvage sites and folded satellites draw nothing.
     #[test]
-    fn which_rings_are_drawn() {
-        assert!(ring_is_drawn(BodyClass::Planet, false));
-        assert!(ring_is_drawn(BodyClass::Moon, false));
-        assert!(!ring_is_drawn(BodyClass::Moon, true));
-        assert!(!ring_is_drawn(BodyClass::Gate, false));
-        assert!(!ring_is_drawn(BodyClass::SalvageSite, false));
+    fn natural_bodies_draw_full_rings() {
+        use RingExtent::*;
+        assert_eq!(ring_extent(BodyClass::Planet, false, false, false), Full);
+        assert_eq!(ring_extent(BodyClass::Moon, false, false, false), Full);
+        assert_eq!(ring_extent(BodyClass::Moon, true, false, true), Hidden);
+        assert_eq!(ring_extent(BodyClass::Gate, false, false, true), Hidden);
+        assert_eq!(
+            ring_extent(BodyClass::SalvageSite, false, false, true),
+            Hidden
+        );
+    }
+
+    /// MRK-09: ships and stations draw only their tail in dot mode, and the
+    /// full ring while hovered or selected, or as an exposure ring.
+    #[test]
+    fn ships_and_stations_draw_only_their_tail_in_dot_mode() {
+        use RingExtent::*;
+        for class in [BodyClass::Ship, BodyClass::Station] {
+            assert_eq!(ring_extent(class, false, false, false), Tail);
+            assert_eq!(ring_extent(class, false, false, true), Full);
+            assert_eq!(ring_extent(class, false, true, false), Full);
+            assert_eq!(ring_extent(class, true, true, true), Hidden);
+        }
     }
 
     /// MOT-01 / HOV-03: the tail runs from the exposure colour down to the
