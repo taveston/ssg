@@ -29,8 +29,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 - [ ] **Gate edge labels show the destination alone** · EDGE-01
   - Label reads "Ostra", not "Gate Ostra".
-- [ ] **Camera sometimes stops following the focus on zoom-out** · CAM-05, CAM-08, ZOOM-13
-  - No reliable repro. That item has been built and rewrote this logic; check whether it still happens, and fix if so.
 
 ## Other
 
