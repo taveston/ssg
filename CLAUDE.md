@@ -30,6 +30,12 @@ Hard sci-fi space strategy game for PC. This repo holds the prototype and the wh
 - Keep the system as data, so a generator can replace it later (see `docs/ideas/mechanics/world-generator.md`).
 - Organise code by domain (`docs/spec/architecture.md`): simulation, content and view, with Bevy plugins per area; prefer a new module per concern over growing an existing one.
 
+## Seeing the game
+
+- Run with `cargo run`, not the exe in `target/`: assets load from the crate root. Build first; a timeout during the build kills the linker.
+- To check something on screen, take a screenshot of the game window itself: temporarily add a system to `main.rs` that, a few seconds in, sets up the view (frame, distance) and spawns `Screenshot::primary_window()` observed by `save_to_disk(path)`, then exits. Read the image, then restore `main.rs`. Never commit it. Don't capture the desktop: the game window may not be in front, and it would show the user's screen.
+- Bevy 0.20 UI: every `Node` carries a `BackgroundColor` (and often a `BorderColor`), shown or not. When recolouring, write only the slot a part uses (`Tint`/`TintSlot` in `view/symbol_draw.rs`). Text in an absolute container as narrow as a marker wraps per word; use `TextLayout::linebreak(LineBreak::NoWrap)`.
+
 ## Tests
 
 - Every requirement you build gets an automated test. A test comment or doc line names the ID it covers.
