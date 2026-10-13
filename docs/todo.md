@@ -12,8 +12,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **Floating origin at the frame body** · SCL-06
-  - Fixes the wobble of distant frame bodies (was F-101). The subtraction belongs in `view/scale.rs` and `projection.rs`.
 - [ ] **Orbit rings only for natural bodies; frame body's ring not a target** · MRK-05, MRK-09, HOV-02
   - Watch fast ships in dot mode: with no ring they are harder to click. The tail is a target (HOV-02); if that's not enough, add a finding.
 - [ ] **Double-click on an object that can't be a frame moves to its parent's frame** · ZOOM-16

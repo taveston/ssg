@@ -177,7 +177,8 @@ fn step_pivot(
 ) -> PivotTarget {
     if view.frame.in_star_frame() {
         let centre = anchored_centre(anchor, rig.pivot, rig.distance, target);
-        return view.star_pivot(clamp_to_pan_bound(centre, bound));
+        let from_star = centre - view.origin.star;
+        return view.star_pivot(clamp_to_pan_bound(from_star, bound));
     }
     PivotTarget {
         body: view.frame.body,

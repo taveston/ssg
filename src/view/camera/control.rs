@@ -12,10 +12,11 @@ use super::rig::{settle_frame, start_move};
 use super::rules::clamp_tilt;
 use super::state::{ActiveMove, CameraRig, MoveTarget, PivotTarget};
 use crate::view::frame::{Frame, body_position, clamp_offset_to_pan_bound, frame_pivot};
-use crate::view::world::WorldPositions;
+use crate::view::world::{RenderOrigin, WorldPositions};
 
 #[derive(SystemParam)]
 pub struct CameraControl<'w> {
+    pub origin: Res<'w, RenderOrigin>,
     pub rig: ResMut<'w, CameraRig>,
     pub frame: ResMut<'w, Frame>,
     pub active: ResMut<'w, ActiveMove>,
@@ -49,7 +50,8 @@ impl CameraControl<'_> {
         start_move(&mut self.active, &rig, &mut self.frame, target, duration_ms);
     }
 
-    /// A move target in the star's frame, with the pivot at `point`.
+    /// A move target in the star's frame, with the pivot at `point` from
+    /// the star.
     pub fn star_pivot(&self, point: Vec3) -> PivotTarget {
         PivotTarget {
             body: self.frame.star,
@@ -87,7 +89,8 @@ impl CameraControl<'_> {
     pub fn pan(&mut self, delta: Vec3, positions: &WorldPositions, bound: f32) {
         self.interrupt(positions);
         let position = body_position(self.frame.body, positions);
-        let offset = clamp_offset_to_pan_bound(position, self.frame.offset + delta, bound);
+        let from_star = position - self.origin.star;
+        let offset = clamp_offset_to_pan_bound(from_star, self.frame.offset + delta, bound);
         self.frame.offset = offset;
         self.rig.pivot = frame_pivot(position, offset);
     }

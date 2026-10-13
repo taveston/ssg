@@ -115,7 +115,7 @@ pub fn ring_point(body: Entity, angle: f32, bodies: &RingBodies, view: &ViewNow)
     let (orbit, _, child_of, _) = bodies.get(body).ok()?;
     let centre = match child_of {
         Some(child_of) => view.position(child_of.parent())?,
-        None => Vec3::ZERO,
+        None => view.star(),
     };
     let radius = km_to_render(orbit.radius_km);
     let world = centre + Vec3::new(radius * angle.cos(), 0.0, radius * angle.sin());

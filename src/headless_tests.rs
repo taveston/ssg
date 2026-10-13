@@ -48,7 +48,7 @@ use crate::view::motion::MotionPlugin;
 use crate::view::motion_mode::MotionModeState;
 use crate::view::pills::PillsPlugin;
 use crate::view::projection::ProjectionPlugin;
-use crate::view::scale::km_to_render;
+use crate::view::scale::{km_to_render, km_to_render_vec3};
 use crate::view::screen::{ScreenPlugin, ScreenPositions};
 use crate::view::selection::Selection;
 use crate::view::symbol_images::SymbolImages;
@@ -56,7 +56,7 @@ use crate::view::targets::{GroupPillFor, MarkerFor};
 use crate::view::topbar::TOP_BAR_HEIGHT_PX;
 use crate::view::true_size::projected_radius_px;
 use crate::view::tunables::{Tunables, TunablesPlugin};
-use crate::view::world::WorldPositions;
+use crate::view::world::{RenderOrigin, WorldPositions};
 use crate::{Boot, Stage};
 
 /// One frame at 60 fps.
@@ -506,6 +506,45 @@ fn the_frame_body_keeps_its_place_on_screen() {
         assert!(
             on_screen.distance(centre) < 0.5,
             "frame {frame}: Halden IV at {on_screen}, {} px off centre",
+            on_screen.distance(centre)
+        );
+    }
+}
+
+/// SCL-06: render space is centred on the frame body. Framed 4.3 AU out,
+/// Morrow sits exactly at the render origin and on the screen centre on
+/// every frame at a close zoom, the star sits at minus its position, and a
+/// moon's render position is its own offset from Morrow at full precision.
+#[test]
+fn render_space_is_centred_on_a_distant_frame_body() {
+    let mut app = camera_app();
+    let morrow = body(&mut app, "Morrow");
+    let moon = body(&mut app, "Morrow I");
+    let star = frame(&app).star;
+    app.world_mut().resource_mut::<CameraRig>().distance = 0.01;
+    set_frame(&mut app, morrow, Vec3::ZERO);
+    app.world_mut().resource_mut::<GameClock>().run_at(1.0);
+
+    let centre = VIEWPORT.as_vec2() / 2.0;
+    for frame in 0..SETTLE_FRAMES {
+        run(&mut app, 1);
+        let positions = app.world().resource::<WorldPositions>();
+        assert_eq!(positions.0[&morrow], Vec3::ZERO, "frame {frame}");
+        let local = app.world().get::<OrbitPositionKm>(moon).unwrap().0;
+        let expected = km_to_render_vec3(local);
+        let error = (positions.0[&moon] - expected).length() / expected.length();
+        assert!(error < 1e-6, "frame {frame}: moon off by {error}");
+        let morrow_km = app.world().resource::<RenderOrigin>().km;
+        let star_at = positions.0[&star];
+        assert!((star_at - km_to_render_vec3(-morrow_km)).length() < 1e-3);
+        let on_screen = app
+            .world()
+            .resource::<ScreenPositions>()
+            .get(morrow)
+            .unwrap();
+        assert!(
+            on_screen.distance(centre) < 0.01,
+            "frame {frame}: Morrow {} px off centre",
             on_screen.distance(centre)
         );
     }

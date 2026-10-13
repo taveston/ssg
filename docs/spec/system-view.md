@@ -19,7 +19,7 @@
 | SCL-03 | The system is data (a tree of body records) that a generator can replace without changing rendering code. | ✓ |
 | SCL-04 | Orbits are circular and coplanar, with periods from Kepler's third law using the parent's mass. | ✓ |
 | SCL-05 | Each body record holds its mean physical radius in km. | ✓ |
-| SCL-06 | Render positions are taken relative to the frame body: its position is subtracted from each object's in `f64` km before conversion to render space. So objects near the frame body keep full precision however far it is from the star, and a framed body and its satellites hold still on screen at any zoom. | |
+| SCL-06 | Render positions are taken relative to the frame body: its position is subtracted from each object's in `f64` km before conversion to render space. So objects near the frame body keep full precision however far it is from the star, and a framed body and its satellites hold still on screen at any zoom. | ✓ |
 
 ## 2. Clock and top bar
 

@@ -6,8 +6,9 @@ use bevy::color::palettes::css::SLATE_GRAY;
 use bevy::prelude::*;
 
 use super::scale::km_to_render;
-use crate::Boot;
+use super::world::RenderOrigin;
 use crate::sim::body::Belt;
+use crate::{Boot, Stage};
 
 /// MRK-05: the band is faint enough that orbits and markers read through it.
 const BELT_ALPHA: f32 = 0.18;
@@ -18,7 +19,16 @@ pub struct BeltPlugin;
 
 impl Plugin for BeltPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, add_belt_mesh.in_set(Boot::Derive));
+        app.add_systems(Startup, add_belt_mesh.in_set(Boot::Derive))
+            .add_systems(Update, centre_belt_on_star.in_set(Stage::Camera));
+    }
+}
+
+/// The belt circles the star, which sits wherever the floating origin
+/// puts it this frame (SCL-06).
+fn centre_belt_on_star(origin: Res<RenderOrigin>, mut belts: Query<&mut Transform, With<Belt>>) {
+    for mut transform in &mut belts {
+        transform.translation = origin.star;
     }
 }
 

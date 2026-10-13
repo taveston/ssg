@@ -16,9 +16,25 @@ use bevy::ecs::system::SystemParam;
 use bevy::math::DVec3;
 use bevy::prelude::*;
 
-/// Every body's position this frame, in render units, relative to the star.
+/// Every body's position this frame, in render units, relative to the
+/// render origin (`RenderOrigin`). The star has an entry like any body.
 #[derive(Resource, Default, Debug)]
 pub struct WorldPositions(pub HashMap<Entity, Vec3>);
+
+/// SCL-06: the floating origin. Render space is centred on the frame body,
+/// so whatever the camera looks at is near the origin and keeps full `f32`
+/// precision however far the body is from the star.
+///
+/// `km` is the frame body's position relative to the star this frame;
+/// `star` is where the star lands in render space (minus `km`, converted);
+/// `shift` is how far points held from last frame must move to stay put
+/// in this frame's render space.
+#[derive(Resource, Default, Debug, Clone, Copy, PartialEq)]
+pub struct RenderOrigin {
+    pub km: DVec3,
+    pub star: Vec3,
+    pub shift: Vec3,
+}
 
 /// CAM-05 / ARCH-11: each body's position relative to the star, from its
 /// position relative to its parent. `locals` maps a body to its local km
@@ -60,6 +76,7 @@ pub fn world_positions_km(
 #[derive(SystemParam)]
 pub struct ViewNow<'w, 's> {
     positions: Res<'w, WorldPositions>,
+    origin: Res<'w, RenderOrigin>,
     cameras: Query<'w, 's, (&'static Camera, &'static Transform), With<Camera3d>>,
 }
 
@@ -67,6 +84,11 @@ impl ViewNow<'_, '_> {
     /// Where a body is this frame, in render units.
     pub fn position(&self, body: Entity) -> Option<Vec3> {
         self.positions.0.get(&body).copied()
+    }
+
+    /// Where the star is this frame, in render units (SCL-06).
+    pub fn star(&self) -> Vec3 {
+        self.origin.star
     }
 
     /// Every body's position this frame.

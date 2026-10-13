@@ -23,7 +23,7 @@ use crate::view::motion_mode::{MotionModeState, degrees_behind, tail_brightness}
 use crate::view::scale::km_to_render;
 use crate::view::selection::Selection;
 use crate::view::tunables::Tunables;
-use crate::view::world::WorldPositions;
+use crate::view::world::{RenderOrigin, WorldPositions};
 use crate::{Boot, Stage};
 
 /// How many straight chords a ring starts as, enough for any ring seen
@@ -168,6 +168,7 @@ fn draw_orbit_rings(
     camera_q: Query<(&Camera, &Transform, &Projection)>,
     bodies: RingBodies,
     positions: Res<WorldPositions>,
+    origin: Res<RenderOrigin>,
     mut strokes: Query<(&RingStrokeFor, &mut Gizmo)>,
     mut assets: ResMut<Assets<GizmoAsset>>,
 ) {
@@ -187,8 +188,12 @@ fn draw_orbit_rings(
         };
         asset.clear();
         let body = stroke_for.0;
-        let Some(look) = stroke_look(body, &bodies, &positions, (&selection, &hovered, &tunables))
-        else {
+        let Some(look) = stroke_look(
+            body,
+            &bodies,
+            (&positions, origin.star),
+            (&selection, &hovered, &tunables),
+        ) else {
             continue;
         };
         let segments = ring_segments(look.center, look.radius, view);
@@ -214,7 +219,7 @@ fn draw_orbit_rings(
 fn stroke_look(
     body: Entity,
     bodies: &RingBodies,
-    positions: &WorldPositions,
+    (positions, star): (&WorldPositions, Vec3),
     (selection, hovered, tunables): (&Selection, &HoveredBodies, &Tunables),
 ) -> Option<StrokeLook> {
     let (orbit, local, class, child_of, fold, mode) = bodies.get(body).ok()?;
@@ -223,7 +228,7 @@ fn stroke_look(
     }
     let center = child_of
         .and_then(|c| positions.0.get(&c.parent()).copied())
-        .unwrap_or(Vec3::ZERO);
+        .unwrap_or(star);
     let highlight = ring_highlight(
         selection.is_selected(body),
         hovered.contains(body),

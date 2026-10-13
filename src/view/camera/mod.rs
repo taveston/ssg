@@ -58,6 +58,7 @@ impl Plugin for CameraPlugin {
             .add_systems(
                 Update,
                 (
+                    rig::rebase_on_origin,
                     drag::begin_press,
                     drag::update_drag,
                     drag::end_press,

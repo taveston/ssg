@@ -13,7 +13,7 @@ use super::stops::{ZoomStops, distance_for_radius};
 use crate::view::anim::ease_out_cubic;
 use crate::view::frame::{Frame, body_position, frame_pivot};
 use crate::view::tunables::Tunables;
-use crate::view::world::WorldPositions;
+use crate::view::world::{RenderOrigin, WorldPositions};
 
 /// Render-unit clip planes wide enough for a moon's orbit up close and the
 /// whole system with its gates.
@@ -63,6 +63,20 @@ pub fn start_at_system_fit(
         tunables.zoom_fit_margin,
         viewport,
     );
+}
+
+/// SCL-06: render space moved with the frame body since last frame, so the
+/// points the camera holds from then move with it and stay where they were
+/// in the system.
+pub fn rebase_on_origin(
+    origin: Res<RenderOrigin>,
+    mut rig: ResMut<CameraRig>,
+    mut active: ResMut<ActiveMove>,
+) {
+    rig.pivot += origin.shift;
+    if let Some(camera_move) = active.0.as_mut() {
+        camera_move.start.pivot += origin.shift;
+    }
 }
 
 /// Where a move's target pivot is now: its body's position plus offset.
