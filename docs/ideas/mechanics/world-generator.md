@@ -106,7 +106,7 @@ Generate from observed occurrence rates and architecture templates rather than s
   - **Decided:** the test system (Corvane) is a plausible output of the generator, so its giants and their moons use realistic figures. Its main job is testing, so it may be less typical than the generator's usual output. Why: an implausible test system would hide problems the generator will meet, while an unusual one still exercises them.
   - **Direction, giant mass:** real gas giants run from about a tenth of a Jupiter mass (Saturn is 0.3) to several. Corvane's Morrow is one Jupiter mass.
   - **Direction, moon spacing:** large regular moons sit from about 2 to 30 planet radii out, with periods of about 1 to 20 days (Io 1.8 d, Callisto 16.7 d). None sit inside about 2 radii, where tides tear moons apart. Moons stay within about half the planet's Hill radius (about 24 million km for Morrow). Small inner moons and distant captured moons also occur.
-  - **Candidate:** the test system leaves out distant captured moons, because the satellite frame (ZOOM-15) fits every satellite and a moon at tens of millions of km would shrink the rest to nothing.
+  - **Candidate:** the test system leaves out distant captured moons, because the satellite fit (ZOOM-15) fits every satellite and a moon at tens of millions of km would shrink the rest to nothing.
   - **Specced:** Morrow's mass and moon periods, in TEST-07 and TEST-08 (`docs/spec/system-view.md`).
 - **Small bodies:** inner rocky or metallic belts, outer icy belts, Trojans, comets. Drawn as density shading, with notable sites as individual markers (*Presentation & Visual Style*, 2).
 - **Orbits:** Keplerian, on rails. How much more detail is modelled is open (*Drives & Transit*, 9).

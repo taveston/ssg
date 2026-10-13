@@ -28,6 +28,9 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - Replaces the sampled dot trail and the two-threshold switch. MOT-03 is retired: delete the cross-fade, `motion_crossfade_ms`, `t_dot_secs`, `t_ring_secs`, `trail_arc_degrees` and the trail sampling. Add `tail_secs` and `dot_fade_from_degrees`.
   - Draw the tail as a gradient on the ring's own stroke (per-vertex alpha), not as separate geometry.
   - Testable through tail arc length and dot alpha for known periods and rates.
+- [ ] **Reference frame and breadcrumb** · CAM-05 to CAM-08, CAM-19, CAM-23 to CAM-25, CLK-02, ZOOM-10, ZOOM-11, ZOOM-13 to ZOOM-17
+  - Focus becomes the reference frame, which always exists and defaults to the star; delete the "nothing focused" state. CAM-09 (the focus chip) is retired: delete it. CAM-22's brackets are worded for the frame body and stay in "Ring selection and docked inset".
+  - Rename `view/focus.rs` to `view/frame.rs` (ARCH table). Zoom stops are now "system fit" and "satellite fit"; rename in code to match. Tunable names keep `focus_`.
 - [ ] **Placeholder knowledge images** · INS-04, TEST-04
   - Remove the stale state, its sepia image and all status text and dates from the inset. Lantern no longer needs stale data.
 - [ ] **Astronomical facts in the inset** · INS-08, UNIT-01 to UNIT-03

@@ -1,12 +1,12 @@
 # Spec: System view
 
-**In short:** one star system drawn as a vector display at true scale, with fixed-size markers; ships and stations use NATO-style symbols. Clicking an object, or its orbit ring, selects it and opens the inspection inset, docked at the right of the map; there is one selection and one inset; focus locks the camera onto an object. Zoom is stepped, with two stops: the whole system and the focused body's satellites. Focus is only ever set deliberately. Satellites fold into their parent when their orbits get small on screen, and fast orbits are drawn as exposure rings. Corvane is the test system.
+**In short:** one star system drawn as a vector display at true scale, with fixed-size markers; ships and stations use NATO-style symbols. Clicking an object, or its orbit ring, selects it and opens the inspection inset, docked at the right of the map; there is one selection and one inset; the camera always sits in the reference frame of one object, the star by default, shown as a path in the breadcrumb. Zoom is stepped, with two stops: the whole system and the frame body's satellites. The frame is only ever changed deliberately. Satellites fold into their parent when their orbits get small on screen, and fast orbits are drawn as exposure rings. Corvane is the test system.
 
 *Scope:* scale, clock, markers, units in readouts, ship and station symbols, inspection, zoom, camera, satellite grouping, the motion rule and the Corvane test system. *Source ideas:* `docs/ideas/presentation/presentation.md` (section 2), `docs/ideas/presentation/presentation-sketches.md` (boards 1, 2, 5, 6), `docs/ideas/presentation/symbology.md` (symbols), mock-ups in `docs/ideas/presentation/mockups/`. Where a mock-up and this spec disagree, this spec wins.
 
 *How to read it:* each requirement has a stable ID. **Built** is ✓ once the requirement is in the code. Numbers in `code` are tunables (table at the end), read from `src/view/tunables.rs`, never hard-coded.
 
-*Retired IDs* (never reuse): CAM-21, CLK-03, ZOOM-03, ZOOM-04, ZOOM-06, ZOOM-07, ZOOM-08, ZOOM-09, ZOOM-12, MAG-01 to MAG-08, MOT-03, MOT-05, MOT-06, MOT-09.
+*Retired IDs* (never reuse): CAM-21, CLK-03, ZOOM-03, ZOOM-04, ZOOM-06, ZOOM-07, ZOOM-08, ZOOM-09, ZOOM-12, MAG-01 to MAG-08, MOT-03, MOT-05, MOT-06, MOT-09, CAM-09.
 
 ---
 
@@ -25,7 +25,7 @@
 | ID | Requirement | Built |
 |---|---|---|
 | CLK-01 | The game clock runs continuously at a default of 1 game day per real second. | ✓ |
-| CLK-02 | The top bar shows the breadcrumb ("Cluster / Corvane system"), the calendar date, and Pause, 1 d/s and 5 d/s buttons; the active rate is highlighted. | ✓ |
+| CLK-02 | The top bar shows the breadcrumb (CAM-25), the calendar date, and Pause, 1 d/s and 5 d/s buttons; the active rate is highlighted. | |
 | CLK-05 | Space toggles pause; `.` doubles and `,` halves the rate (minimum 1/16 d/s). | ✓ |
 | CLK-04 | Pausing stops all orbital motion; every view stays fully interactive while paused. | ✓ |
 | CLK-06 | A debug readout of frames per second can show in the top bar. It is hidden by default and toggled by a binding (default F3). | |
@@ -65,7 +65,7 @@ Ships and stations are drawn as symbols adapted from NATO APP-6: the **frame** s
 | SYM-11 | A ship or group in transit has a velocity leader: a line from the edge of the frame in the on-screen direction of its velocity relative to the star. Its length rises with the logarithm of speed from `leader_min_px` at `leader_speed_min_kms` to `leader_max_px` at `leader_speed_max_kms`, clamped at both ends; below `leader_speed_min_kms`, and for stale tracks, there is no leader. Orbiting and parked ships have no leader. | |
 | SYM-12 | Own ships and own groups (commanded or civilian) have a condition bar under the frame, `ship_symbol_px` wide and 3 px high, filled to their condition in the symbol's colour, or in orange below `condition_warn_fraction`. A group shows the mean of its members. | |
 | SYM-13 | A symbol's label sits to the right of it, in the symbol's colour: the name in Barlow, then a second line in JetBrains Mono in the secondary text colour summarising the parts that apply, joined by " · ": a group's member count by class ("4 warships"); embarked formations ("1st Arden Guard"); "own flag · civilian" or "requisitioned"; and the stale age (SYM-08). With none of these, there is no second line. | |
-| SYM-14 | Hover and click target a symbol through its `ship_symbol_px` square. The hover ring, the selection ring and the focus brackets (CAM-22) are sized to enclose that square, not the amplifiers. | |
+| SYM-14 | Hover and click target a symbol through its `ship_symbol_px` square. The hover ring, the selection ring and the frame brackets (CAM-22) are sized to enclose that square, not the amplifiers. | |
 | SYM-15 | Ownership text in tooltips and insets uses: "own", "own flag · civilian", "requisitioned", "allied", "neutral", "hostile" or "unknown". | |
 
 ## 4. Hover and inspection
@@ -101,13 +101,13 @@ Shared formatting for every readout in the game, not tied to one panel. Figures 
 | ZOOM-01 | Each wheel notch multiplies the view scale by `zoom_step_factor`, animated over `zoom_anim_ms` with ease-out. Raw wheel deltas are never used: line-unit input counts notches, and pixel-unit input is converted at 20 px per notch, rounded towards zero. | ✓ |
 | ZOOM-02 | New input during a zoom animation retargets from the current scale; it is not queued. | ✓ |
 | ZOOM-05 | A zoom step that lands on a stop takes longer by `zoom_stop_resistance`, then settles exactly on the stop. | ✓ |
-| ZOOM-10 | Home returns to the system frame and the standard orientation (CAM-02) with the same animated move, and ends focus. | ✓ |
-| ZOOM-11 | Ctrl+1 to Ctrl+4 save a bookmark (scale and centre, or the focused object); 1 to 4 recall it with the same animated move. | ✓ |
-| ZOOM-13 | Zoom is anchored on the focused object when there is one (CAM-05); otherwise on the point where the cursor's ray meets the orbital plane, or the screen centre for keyboard zoom (CAM-16). Selection never sets the anchor. The anchor keeps its screen position through the zoom. The anchored pivot is clamped to the pan bound (CAM-19); a ray that misses the plane anchors on the pivot. | ✓ |
-| ZOOM-14 | Hard limits: outer = system frame. Inner, with a body focused: the scale at which that body's true diameter spans `body_max_screen_fraction` of the map area's height. Inner, with nothing focused: a view radius of `min_view_radius_au`. Scrolling past a limit does nothing and never changes layer. | ✓ |
-| ZOOM-15 | There are two stops, computed per system from its real orbits: the **system frame** (all planetary orbits fit inside the map area, on both axes and in perspective, at the current tilt; gates stay as edge indicators) and, while a body with satellites is focused, its **satellite frame** (all its satellites fit). There are no other stops. | ✓ |
-| ZOOM-16 | Double-click on a body that is not focused selects it, focuses it (CAM-06) and frames it in one pan-and-zoom of `focus_jump_ms`. The frame is its satellite frame if it has satellites; otherwise its parent's satellite frame if it orbits a body; otherwise the inner limit (ZOOM-14). F does the same for the current selection, and the inset's Focus button for the inset's object. A body that can't be focused (CAM-24) is only selected. | ✓ |
-| ZOOM-17 | Double-click on the focused body selects it and is the planetary-view trigger. Until that view exists it calls a clearly named hook and does nothing visible. | ✓ |
+| ZOOM-10 | Home returns to the system fit and the standard orientation (CAM-02) with the same animated move, and sets the frame to the star. | |
+| ZOOM-11 | Ctrl+1 to Ctrl+4 save a bookmark (scale, centre and frame, CAM-06); 1 to 4 recall it with the same animated move. | |
+| ZOOM-13 | Zoom is anchored on the frame body when the frame is not the star (CAM-05); in the star's frame, on the point where the cursor's ray meets the orbital plane, or the screen centre for keyboard zoom (CAM-16). Selection never sets the anchor. The anchor keeps its screen position through the zoom. The anchored pivot is clamped to the pan bound (CAM-19); a ray that misses the plane anchors on the pivot. | |
+| ZOOM-14 | Hard limits: outer = system fit. Inner, in a body's frame other than the star's: the scale at which that body's true diameter spans `body_max_screen_fraction` of the map area's height. Inner, in the star's frame: a view radius of `min_view_radius_au`. Scrolling past a limit does nothing and never changes layer. | |
+| ZOOM-15 | There are two stops, computed per system from its real orbits: the **system fit** (all planetary orbits fit inside the map area, on both axes and in perspective, at the current tilt; gates stay as edge indicators) and, while the frame body is not the star and has satellites, its **satellite fit** (all its satellites fit). There are no other stops. | |
+| ZOOM-16 | Double-click on an object that is not the frame body selects it, makes it the frame (CAM-06) and moves the view in one pan-and-zoom of `focus_jump_ms`: to its satellite fit if it has satellites; otherwise its parent's satellite fit if it orbits a body; otherwise the inner limit (ZOOM-14). Double-click on the star selects it, sets the star's frame and moves to the system fit. F does the same for the current selection, and the inset's Focus button for the inset's object. An object that can't be a frame (CAM-24) is only selected. | |
+| ZOOM-17 | Double-click on the frame body, other than the star, selects it and is the planetary-view trigger. Until that view exists it calls a clearly named hook and does nothing visible. | |
 
 ## 5a. Camera
 
@@ -116,9 +116,10 @@ Terms used below:
 - **Heading:** rotation about the plane's normal. **Tilt:** 0° is looking straight down.
 - **North:** a fixed direction in the orbital plane, the same for every system.
 - **Selection** (INS-01): the object whose details are shown. It never moves the camera.
-- **Focus:** the object the camera is locked onto; the camera tracks it as it moves.
+- **Reference frame** (or **frame**): the object whose non-rotating frame the camera sits in; the camera tracks it as it moves. There is always exactly one. By default it is the star, which doesn't move, so the star's frame behaves as a free camera. The **frame body** is that object. The player-facing verb for moving into an object's frame is "Focus" (F, the inset's Focus button).
+- **Ancestors** of an object: its parent, its parent's parent, and so on up to the star.
 
-Selection and focus may be different objects: for example, focus on Halden IV while IVc is selected.
+Selection and frame may be different objects: for example, the frame is Halden IV while IVc is selected.
 
 | ID | Requirement | Built |
 |---|---|---|
@@ -126,11 +127,10 @@ Selection and focus may be different objects: for example, focus on Halden IV wh
 | CAM-02 | The **standard orientation** is north at the top of the screen and tilt `standard_tilt_deg`. The view starts in it. | ✓ |
 | CAM-03 | N animates to the standard orientation (CAM-02) over `focus_jump_ms`, keeping the pivot and the scale. | ✓ |
 | CAM-04 | Home (ZOOM-10) returns to the standard orientation in the same animated move. | ✓ |
-| CAM-05 | While an object is focused, the pivot is recomputed every frame as the object's position plus a pan offset, so the object keeps its place on screen at any time rate. The offset does not rotate with the object's orbit. The pivot and the markers use the same frame's positions. | ✓ |
-| CAM-06 | Focus is set only by double-click, F or the inset's Focus button (ZOOM-16), each with zero offset, and by recalling a bookmark. Zooming never sets focus. A bookmark (ZOOM-11) also stores heading, tilt and any focused object with its offset; recalling it restores all of them. | ✓ |
-| CAM-07 | Panning while focused changes the offset and does not end focus. The offset is clamped so the focused body stays at least `focus_keep_margin_px` inside the map area. | ✓ |
-| CAM-08 | Focus ends on: Home; a zoom that reaches the system frame (CAM-23); focusing another object (which becomes the focus); recalling a bookmark saved without a focused object; the × on the focus chip (CAM-09), which also moves the view to centre on the focused body's parent at its satellite frame (or the system frame over the star if the body orbits the star); and the body becoming unfocusable (CAM-24). Nothing else ends it: not selection, Esc, rotating, panning or zooming inside the system frame. | ✓ |
-| CAM-09 | While an object is focused, a chip under the breadcrumb reads "Focus: *name*" with a × that ends focus. | ✓ |
+| CAM-05 | The pivot is recomputed every frame as the frame body's position plus a pan offset, so the frame body keeps its place on screen at any time rate. The offset does not rotate with the body's orbit. The pivot and the markers use the same frame's positions. | |
+| CAM-06 | The frame is changed only by double-click, F or the inset's Focus button (ZOOM-16), by a breadcrumb entry (CAM-25), each with zero offset; by recalling a bookmark; and as CAM-08 lists. Zooming never changes it. A bookmark (ZOOM-11) stores heading, tilt, the frame and its offset; recalling it restores all of them. | |
+| CAM-07 | Panning changes the offset and never changes the frame. Outside the star's frame, the offset is clamped so the frame body stays at least `focus_keep_margin_px` inside the map area. | |
+| CAM-08 | The frame returns to the star on: Home; a zoom that reaches the system fit (CAM-23); and recalling a bookmark saved in the star's frame. It moves to an ancestor through the breadcrumb (CAM-25) or CAM-24. Nothing else changes it: not selection, Esc, rotating, panning or zooming inside the system fit. | |
 | CAM-10 | Left drag pans: the point on the orbital plane under the cursor when the drag starts stays under the cursor throughout, with no inertia after release. A press and release that moves less than `drag_threshold_px` is a click, never a pan. A press that starts on the top bar or an inset never pans. Shift+left drag is reserved and does nothing. | ✓ |
 | CAM-11 | Middle drag pans exactly as CAM-10. | ✓ |
 | CAM-12 | Right drag rotates about the pivot: horizontal movement changes heading and vertical movement changes tilt, both at `rotate_deg_per_px`, with tilt clamped (CAM-01). Dragging left turns the camera anticlockwise seen from above (the scene turns clockwise on screen); dragging down tilts towards the horizon. | ✓ |
@@ -140,11 +140,12 @@ Selection and focus may be different objects: for example, focus on Halden IV wh
 | CAM-16 | + (also = and numpad +) zooms in one step and − (also numpad −) zooms out one step, exactly as a wheel notch (ZOOM-01, ZOOM-02, ZOOM-05, ZOOM-14), anchored per ZOOM-13. | ✓ |
 | CAM-17 | Edge scrolling: when `edge_scroll_enabled` is true, a cursor within `edge_scroll_px` of a window edge pans that way at the CAM-14 speed. The default is off. | ✓ |
 | CAM-18 | Every camera and clock key and mouse button is read from one bindings resource; no system hard-codes a key. Checked in review, not by a test. (A rebinding screen is not yet specced.) | ✓ |
-| CAM-19 | The pivot never moves further than `pan_bound_factor` × the system frame radius from the star, whether panning freely or by offset while focused. | ✓ |
+| CAM-19 | The pivot never moves further than `pan_bound_factor` × the system fit radius from the star, in any frame. | |
 | CAM-20 | Pan or rotate input during an animated move (ZOOM-10, ZOOM-11, ZOOM-16, CAM-03) ends the move and takes over from the camera's current state, with no jump. | ✓ |
-| CAM-23 | A zoom-out step that reaches the system frame also eases the pivot to the star and the tilt to `standard_tilt_deg`, within the same zoom animation. The heading is kept. This happens whether or not anything was focused. | ✓ |
-| CAM-24 | An object in exposure-ring mode (MOT-02) can't be focused, and the inset's Focus button is disabled while it is in that mode. If the focused object enters ring mode, focus moves to its parent (or the nearest ancestor not in ring mode) and the view moves to frame it as a focus jump does (ZOOM-16); if there is none, focus ends and the view returns to the system frame over the star. Focus never moves back when the object leaves ring mode. | ✓ |
-| CAM-22 | The focused object's marker carries four corner brackets in the neutral colour (MRK-01), so focus is never mistaken for the white selection ring. The bracket box encloses the selection ring's size (whether or not the ring is showing) with `focus_bracket_margin_px` to spare on each side. | |
+| CAM-23 | A zoom-out step that reaches the system fit also sets the star's frame, and eases the pivot to the star and the tilt to `standard_tilt_deg`, within the same zoom animation. The heading is kept. | |
+| CAM-24 | An object in exposure-ring mode (MOT-02) can't be a frame, and the inset's Focus button is disabled while it is in that mode. If the frame body enters ring mode, the frame moves to its nearest ancestor not in ring mode (the star if none) and the view moves as ZOOM-16 would for it, or to the system fit for the star. The frame never moves back when the object leaves ring mode. | |
+| CAM-25 | The breadcrumb in the top bar reads "Cluster / *system name*", then the frame body's ancestors below the star, then the frame body: for example "Cluster / Corvane / Halden IV / Arden Highport". The system entry stands for the star's frame. Clicking an ancestor's entry makes it the frame and moves the view as ZOOM-16 would (the system entry: to the system fit). Clicking the frame body's own entry re-centres it with zero offset at its current scale. The Cluster entry is unchanged until the cluster view exists. | |
+| CAM-22 | The frame body's marker, unless it is the star, carries four corner brackets in the neutral colour (MRK-01), so the frame is never mistaken for the white selection ring. The bracket box encloses the selection ring's size (whether or not the ring is showing) with `focus_bracket_margin_px` to spare on each side. |  |
 
 ## 6. Satellite grouping
 
@@ -155,7 +156,7 @@ A **satellite** is anything orbiting a body other than the star: moons, stations
 | GRP-01 | A satellite is drawn individually only while its orbit's on-screen radius is at least `unfold_at_px`; below `fold_below_px` it folds into its parent and its marker, label, ring and trail are hidden. Between the two it keeps its current state. | ✓ |
 | GRP-02 | The test is per satellite and re-evaluated as zoom changes, so outer satellites unfold before inner ones. | ✓ |
 | GRP-03 | Folding and unfolding animate the satellite into or out of its parent over `fold_unfold_anim_ms`, including during zoom animations. | ✓ |
-| GRP-04 | At the system frame every moon and planetary station is folded. | ✓ |
+| GRP-04 | At the system fit every moon and planetary station is folded. | ✓ |
 | GRP-05 | A parent with folded satellites shows a "+N" pill beside its marker without overlapping it. | ✓ |
 | GRP-06 | The pill's outline takes the colour (SYM-02) of the most pressing affiliation among its folded satellites: hostile, then unknown, then neutral or allied; with none of these it keeps its normal outline. A small blue dot shows if own ships are parked there. | |
 | GRP-07 | Hovering the pill lists the folded satellites; clicking it does exactly what clicking the parent does. | ✓ |
@@ -246,7 +247,7 @@ All in the `Tunables` resource (`src/view/tunables.rs`). Defaults are starting v
 ## Open points
 
 - Input targets mouse and keyboard only. Gamepad, touch and trackpad are not targets, but designs should avoid what would be hard to port to them (for example, relying on hover alone or on raw wheel deltas).
-- Per-system camera memory, a frame that rotates with the focused body, selection cycling (Tab), and gamepad and touch input: in `docs/ideas/presentation/presentation.md` (Camera), not yet specced.
+- Per-system camera memory, a frame that rotates with its body, breadcrumb drop-downs, selection cycling (Tab), and gamepad and touch input: in `docs/ideas/presentation/presentation.md` (Camera), not yet specced.
 
 ## Not yet specced
 

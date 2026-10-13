@@ -17,13 +17,13 @@ The code is split into domains, each a folder under `src/` with its own Bevy plu
 | Simulation | `src/sim/` | The game state and its rules, in real units: clock, bodies, orbits, ownership, knowledge, and the authored text the player's records hold about a body (name, description, key facts). Knows nothing about screens, cameras or input. | `GameClock`, orbital elements, body positions in km, Kepler periods |
 | Content | `src/content/` | Data that seeds the simulation: the Corvane system as records. Replaced later by a generator. | `hand_made_system()` |
 | View | `src/view/` | Everything drawn: scale conversion, markers, rings, pills, grouping, motion rule, inspection inset, top bar, palette, fonts, fidelity images, presentation tunables. | `markers`, `grouping`, `motion`, `inspect` |
-| Camera and input | `src/view/camera/` (or `src/input/` if it grows) | Camera state, zoom stops, zoom animation, navigation keys and mouse. Focus and key bindings are shared view modules (`view/focus.rs`, `view/bindings.rs`) so other view modules can read them. | `camera/rig`, `camera/stops`, bookmarks |
+| Camera and input | `src/view/camera/` (or `src/input/` if it grows) | Camera state, zoom stops, zoom animation, navigation keys and mouse. The reference frame and key bindings are shared view modules (`view/frame.rs`, `view/bindings.rs`) so other view modules can read them. | `camera/rig`, `camera/stops`, bookmarks |
 
 | ID | Requirement | Built |
 |---|---|---|
 | ARCH-01 | Code is organised into the domain folders above. `main.rs` only assembles plugins and configures system sets. | ✓ |
 | ARCH-02 | Dependencies point one way: view → sim → nothing; content → sim types only. No file under `src/sim/` or `src/content/` may `use crate::view` (or camera/input), Bevy rendering, UI, picking, gizmo or window types. | ✓ |
-| ARCH-03 | No dependency cycles between modules inside a domain. When two view modules need the same state (selection, focus, fold state, motion mode), that state lives in a small shared module both read (for example `view/selection.rs`), not in one feature module the others reach into. | ✓ |
+| ARCH-03 | No dependency cycles between modules inside a domain. When two view modules need the same state (selection, frame, fold state, motion mode), that state lives in a small shared module both read (for example `view/selection.rs`), not in one feature module the others reach into. | ✓ |
 | ARCH-04 | Each plugin registers only its own systems, resources and components. Ordering between domains uses the system sets in `main.rs` (simulation before view), not cross-module `.after()` calls. | ✓ |
 
 ## 2. Simulation state
