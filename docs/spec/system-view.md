@@ -172,9 +172,9 @@ The **apparent period** of an orbit is its orbital period divided by the selecte
 
 | ID | Requirement | Built |
 |---|---|---|
-| MOT-01 | Apparent period at or above `tail_secs`: the object is a dot at its true position, and its orbit ring carries a tail behind it. The tail is a brightness gradient along the ring itself, one continuous anti-aliased stroke, running from the exposure-ring brightness (MOT-02) at the dot down to the ring's normal alpha at the tail's end. | ✓ |
+| MOT-01 | Apparent period at or above `tail_secs`: the object is a dot at its true position, and its orbit ring carries a tail behind it. The tail is a brightness gradient along the ring itself, one continuous anti-aliased stroke, running from the exposure ring's look (MOT-02) at the dot down to the ring's normal alpha at the tail's end. | |
 | MOT-10 | The tail covers the arc swept in the last `tail_secs` real seconds: 360° × `tail_secs` ÷ apparent period. Its length follows the time rate continuously, with no steps. | ✓ |
-| MOT-02 | While running, apparent period below `tail_secs`: the tail has closed into the exposure ring. No dot; the whole ring is at full exposure brightness and `exposure_ring_width_px` wide; the label sits on the ring at a fixed spot. | ✓ |
+| MOT-02 | While running, apparent period below `tail_secs`: the tail has closed into the exposure ring. No dot; the whole ring is drawn at `exposure_ring_alpha` and `exposure_ring_width_px` wide; the label sits on the ring at a fixed spot. Being partly transparent, an exposure ring never matches the full-white selected ring (HOV-03). | |
 | MOT-11 | As the tail grows from `dot_fade_from_degrees` to 360°, the dot fades out and the ring width grows to `exposure_ring_width_px`, both linearly, so the closing is seamless. | ✓ |
 | MOT-04 | Pausing keeps every tail at its running length, so the view does not jump. | ✓ |
 | MOT-12 | While paused, each tail is capped at `dot_fade_from_degrees`, so every orbiting object shows as a full-brightness dot with its tail, objects in exposure-ring mode included. Unpausing restores the running state. | ✓ |
@@ -209,6 +209,7 @@ All in the `Tunables` resource (`src/view/tunables.rs`). Defaults are starting v
 | `tail_secs` | 8 s | MOT-01, MOT-02, MOT-10 |
 | `dot_fade_from_degrees` | 300° | MOT-11, MOT-12 |
 | `exposure_ring_width_px` | 3 | MOT-02 |
+| `exposure_ring_alpha` | 0.5 | MOT-01, MOT-02 |
 | `zoom_step_factor` | ×2 | ZOOM-01 |
 | `zoom_anim_ms` | 200 (range 150–250) | ZOOM-01 |
 | `zoom_stop_resistance` | 0.35 | ZOOM-05 |

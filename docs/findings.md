@@ -11,11 +11,6 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Affects:** INS-05 · **Type:** spec gap
 - **Disposition:** parked (2026-10-12). Pinning is gone, so the parent's inset can't stay open beside the satellite's. Options: select at once and let a second click on the same spot in the satellite's inset do nothing; or give the satellite's inset a "back to parent" line in the list's place.
 
-### F-102 · Exposure rings look like selected rings
-- **Observation:** an exposure ring (bright neutral, 3 px) is hard to tell from a selected orbit ring (full white). Still true after the tails rework. Normal rings could also be thinner or darker, to give more contrast to tails, exposure rings and highlights.
-- **Affects:** MRK-01, MRK-05, MOT-02, HOV-03 · **Type:** spec wrong
-- **Disposition:** open; needs a palette decision (ring colours, alphas and the normal ring width, now 2 px).
-
 ### F-103 · The hover tooltip says too much
 - **Observation:** the tooltip carries name, ownership, contents and the full click hints ("Click: inspect · Double-click: frame its moons · Double-click again: planetary view"). It is too long to read at a glance.
 - **Affects:** HOV-01 · **Type:** spec wrong
