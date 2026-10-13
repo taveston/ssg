@@ -27,7 +27,7 @@ use super::motion_mode::MotionModeState;
 use super::scale::km_to_render;
 use super::screen::ScreenPositions;
 use super::selection::Selection;
-use super::symbol_draw::{Tint, spawn_symbol_parts};
+use super::symbol_draw::{Tint, TintSlot, spawn_symbol_parts};
 use super::symbol_images::SymbolImages;
 use super::symbols::{SymbolSettings, label_second_line, symbol_look};
 use super::targets::MarkerFor;
@@ -250,13 +250,16 @@ fn spawn_shape(marker: &mut EntityCommands, assets: MarkerAssets, look: BodyLook
     let color = look.color(tunables);
     match look.shape() {
         MarkerShape::Disc => {
-            marker.insert((BackgroundColor(color), Tint(color)));
+            marker.insert((
+                BackgroundColor(color),
+                Tint::new(color, TintSlot::Background),
+            ));
         }
         MarkerShape::HollowCircle => {
             marker.insert((
                 BackgroundColor(Color::NONE),
                 BorderColor::all(color),
-                Tint(color),
+                Tint::new(color, TintSlot::Border),
             ));
         }
         MarkerShape::Glyph(glyph) => {
@@ -265,7 +268,7 @@ fn spawn_shape(marker: &mut EntityCommands, assets: MarkerAssets, look: BodyLook
                     Text::new(glyph),
                     fonts.label(half * GLYPH_SCALE),
                     TextColor(color),
-                    Tint(color),
+                    Tint::new(color, TintSlot::Text),
                     Pickable::IGNORE,
                 ));
             });
@@ -336,17 +339,21 @@ fn spawn_label(
         .with_children(|label| {
             label.spawn((
                 Text::new(text.name),
+                // The label sits beside a marker a few pixels wide; it must
+                // not wrap to that width.
+                TextLayout::linebreak(LineBreak::NoWrap),
                 fonts.label(LABEL_FONT_PX),
                 TextColor(color),
-                Tint(color),
+                Tint::new(color, TintSlot::Text),
             ));
             if let Some(line) = text.second_line {
                 label.spawn((
                     SecondLineFor(body),
                     Text::new(line),
+                    TextLayout::linebreak(LineBreak::NoWrap),
                     fonts.mono(SECOND_LINE_FONT_PX),
                     TextColor(colors::PANEL_BORDER),
-                    Tint(colors::PANEL_BORDER),
+                    Tint::new(colors::PANEL_BORDER, TintSlot::Text),
                 ));
             }
         })
@@ -490,24 +497,35 @@ type TintedParts<'w, 's> = Query<
     ),
 >;
 
-/// Write each tinted part's colour at `alpha` of its full strength.
+/// Write each tinted part's colour at `alpha` of its full strength, to the
+/// one slot it is drawn with.
 fn fade_parts(root: Entity, alpha: f32, children: &Query<&Children>, parts: &mut TintedParts) {
     for part in std::iter::once(root).chain(children.iter_descendants(root)) {
         let Ok((tint, background, border, image, text)) = parts.get_mut(part) else {
             continue;
         };
-        let color = tint.0.with_alpha(tint.0.alpha() * alpha);
-        if let Some(mut background) = background {
-            background.0 = color;
-        }
-        if let Some(mut border) = border {
-            border.set_all(color);
-        }
-        if let Some(mut image) = image {
-            image.color = color;
-        }
-        if let Some(mut text) = text {
-            text.0 = color;
+        let color = tint.color.with_alpha(tint.color.alpha() * alpha);
+        match tint.slot {
+            TintSlot::Background => {
+                if let Some(mut background) = background {
+                    background.0 = color;
+                }
+            }
+            TintSlot::Border => {
+                if let Some(mut border) = border {
+                    border.set_all(color);
+                }
+            }
+            TintSlot::Image => {
+                if let Some(mut image) = image {
+                    image.color = color;
+                }
+            }
+            TintSlot::Text => {
+                if let Some(mut text) = text {
+                    text.0 = color;
+                }
+            }
         }
     }
 }
@@ -630,6 +648,41 @@ mod tests {
     fn ring_mode_fades_the_dot() {
         assert_eq!(marker_alpha(1.0, false, 0.0), 0.0);
         assert!((marker_alpha(0.5, false, 0.5) - 0.25).abs() < 1e-6);
+    }
+
+    /// SYM-02 / SYM-13: fading writes each part's colour to its own slot
+    /// only, so an image's or a label's node background stays clear.
+    #[test]
+    fn fading_leaves_other_colour_slots_alone() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut world = World::new();
+        let color = colors::OWN;
+        let image = world
+            .spawn((
+                ImageNode::default(),
+                BackgroundColor(Color::NONE),
+                Tint::new(color, TintSlot::Image),
+            ))
+            .id();
+        let text = world
+            .spawn((
+                TextColor(color),
+                BackgroundColor(Color::NONE),
+                Tint::new(color, TintSlot::Text),
+            ))
+            .id();
+        let root = world.spawn_empty().add_children(&[image, text]).id();
+        world
+            .run_system_once(move |children: Query<&Children>, mut parts: TintedParts| {
+                fade_parts(root, 0.5, &children, &mut parts);
+            })
+            .unwrap();
+        let faded = color.with_alpha(0.5);
+        assert_eq!(world.get::<ImageNode>(image).unwrap().color, faded);
+        assert_eq!(world.get::<TextColor>(text).unwrap().0, faded);
+        for part in [image, text] {
+            assert_eq!(world.get::<BackgroundColor>(part).unwrap().0, Color::NONE);
+        }
     }
 
     /// GRP-03: the marker slides from its parent to its true position.

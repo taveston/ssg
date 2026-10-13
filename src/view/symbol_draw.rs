@@ -14,10 +14,29 @@ use super::fonts::Fonts;
 use super::symbol_images::{SymbolImages, SymbolMask};
 use super::symbols::{Icon, SymbolLook};
 
-/// A part's full-strength colour. Fading writes `tint × alpha` to the
-/// part's image, text or background colour.
+/// A part's full-strength colour and the one slot it is drawn with. A UI
+/// node has a background colour (and often a border colour) whether it
+/// shows one or not, so fading writes `color × alpha` to that slot only.
 #[derive(Component, Clone, Copy, Debug, PartialEq)]
-pub struct Tint(pub Color);
+pub struct Tint {
+    pub color: Color,
+    pub slot: TintSlot,
+}
+
+impl Tint {
+    pub fn new(color: Color, slot: TintSlot) -> Self {
+        Self { color, slot }
+    }
+}
+
+/// Where a part's colour lives.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TintSlot {
+    Image,
+    Text,
+    Background,
+    Border,
+}
 
 /// The "?" of an unknown class, as a fraction of the symbol's size.
 const QUESTION_SCALE: f32 = 0.6;
@@ -69,7 +88,7 @@ pub fn spawn_symbol_parts(
             parent.spawn((
                 full(),
                 ImageNode::new(handle).with_color(tint),
-                Tint(tint),
+                Tint::new(tint, TintSlot::Image),
                 Pickable::IGNORE,
             ));
         }
@@ -126,7 +145,7 @@ pub fn spawn_symbol_parts(
                 ..default()
             },
             BackgroundColor(color),
-            Tint(color),
+            Tint::new(color, TintSlot::Background),
             Pickable::IGNORE,
         ));
     }
@@ -146,7 +165,7 @@ fn spawn_text(
                 Text::new(text),
                 font,
                 TextColor(color),
-                Tint(color),
+                Tint::new(color, TintSlot::Text),
                 Pickable::IGNORE,
             ));
         });
