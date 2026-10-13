@@ -40,3 +40,8 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Observation:** in a body's frame, its own orbit ring runs through the middle of the view and catches hovers and clicks meant for its satellites or empty space.
 - **Affects:** HOV-02 · **Type:** spec wrong
 - **Disposition:** open. Option: the frame body's own ring is drawn but not a hover or click target.
+
+### F-107 · The docked inset covers the map and puts the view off-centre
+- **Observation:** the inset is drawn over the right of the map. The frame body sits at the centre of the window, so with the inset open it looks off-centre in the visible map, and the inset hides part of the view.
+- **Affects:** INS-07, CAM-05 · **Type:** spec wrong
+- **Disposition:** open. Option: an expanding sidebar that shrinks the map area (and the camera viewport) instead of overlaying it, so the frame body stays centred in what's visible.
