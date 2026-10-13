@@ -41,7 +41,7 @@ Everything shown is **candidate** unless *Presentation & Visual Style* marks it 
 - **Legend** top left, explaining marker shapes. **Alerts** top right: an orange-bordered "New contact near Halden IV" and a neutral "Bid received: survey tender".
 - **Off-screen gate:** edge-of-screen arrow labelled "Gate → Ostra · off-screen · 41 d from Halden".
 - **No moons are drawn individually at this zoom.** Every planet's moons, stations and parked ships are folded into its count marker (Halden IV "+5", Morrow "+11"), following the grouping rule.
-- **Hover on Halden IV:** a white ring on the marker, the "+5" group pill, and a tooltip: "Halden IV · own · 4 moons, 1 station — Click: inspect · Double-click: frame its moons · Double-click again: planetary view".
+- **Hover on Halden IV:** a white ring on the marker, the "+5" group pill. (The sketch also had a tooltip; there is now none: HOV-01.)
 - 1 AU scale bar bottom-left.
 
 ## Board 2: Inspect in place, with a pinned comparison
@@ -108,7 +108,7 @@ Drawn because the first prototype showed every moon at whole-system zoom, orbiti
 
 ## UX choices proposed by the sketches (candidate)
 
-- Hover gives a tooltip, and click inspects in place. A double-click frames the body's satellites; a second double-click enters the planetary view. (Now decided by focus rather than inspection: ZOOM-16, ZOOM-17.)
+- Hover highlights, and click inspects in place. A double-click frames the body's satellites; a second double-click enters the planetary view. (Now decided by focus rather than inspection: ZOOM-16, ZOOM-17.)
 - The inspection inset is anchored by a leader line and can be pinned for side-by-side comparison.
 - The transition reuses the inset image and keeps moon orbits as anchoring rings. It is reversible and never pauses the clock.
 - Bodies without a full planetary view still appear in the body switcher but open the inspection view.

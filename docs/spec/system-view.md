@@ -69,14 +69,14 @@ Ships and stations are drawn as symbols adapted from NATO APP-6: the **frame** s
 | SYM-12 | Own ships and own groups (commanded or civilian) have a condition bar under the frame, `ship_symbol_px` wide and 3 px high, filled to their condition in the symbol's colour, or in orange below `condition_warn_fraction`. A group shows the mean of its members. | |
 | SYM-13 | A symbol's label sits to the right of it, in the symbol's colour: the name in Barlow, then a second line in JetBrains Mono in the secondary text colour summarising the parts that apply, joined by " · ": a group's member count by class ("4 warships"); embarked formations ("1st Arden Guard"); "own flag · civilian" or "requisitioned"; and the stale age (SYM-08). With none of these, there is no second line. | ✓ |
 | SYM-14 | Hover and click target a symbol through its `ship_symbol_px` square. The hover ring, the selection ring and the frame brackets (CAM-22) are sized to enclose that square, not the amplifiers. | ✓ |
-| SYM-15 | Ownership text in tooltips and insets uses: "own", "own flag · civilian", "requisitioned", "allied", "neutral", "hostile" or "unknown". | ✓ |
+| SYM-15 | Ownership text in insets uses: "own", "own flag · civilian", "requisitioned", "allied", "neutral", "hostile" or "unknown". | ✓ |
 
 ## 4. Hover and inspection
 
 | ID | Requirement | Built |
 |---|---|---|
-| HOV-01 | Hovering a marker draws a white ring and a two-line tooltip. Line 1 is the name. Line 2 is a short status: for a ship, group or station, its class and affiliation (for example "Fleet tanker · own"); for a body, what it is and its parent, plus the number in orbit if any (for example "Moon of Halden IV · 3 in orbit"). The tooltip carries no click hints and shows no body ownership (MRK-10). | |
-| HOV-02 | Every drawn orbit ring, tail or exposure ring (dot mode or ring mode, MOT-01 and MOT-02) is a hover and click target for its object, as its marker is. A pointer within `ring_hit_px` of the ring hits it. A marker, pill, label or panel under the pointer wins over a ring, and of two rings in reach the nearer wins. Clicking a ring selects as clicking the marker does (INS-01); double-clicking it behaves as ZOOM-16 and ZOOM-17. The hover tooltip (HOV-01) sits by the pointer, not by the object. Folded satellites have no drawn orbit and are reached through the pill (GRP-07). An orbit that isn't drawn is not a target, and the frame body's own orbit ring is drawn but is never a target. | ✓ |
+| HOV-01 | Hovering a marker draws a white ring round it. There is no hover tooltip: the name and type are already on the map, and everything else is in the inset. | |
+| HOV-02 | Every drawn orbit ring, tail or exposure ring (dot mode or ring mode, MOT-01 and MOT-02) is a hover and click target for its object, as its marker is. A pointer within `ring_hit_px` of the ring hits it. A marker, pill, label or panel under the pointer wins over a ring, and of two rings in reach the nearer wins. Clicking a ring selects as clicking the marker does (INS-01); double-clicking it behaves as ZOOM-16 and ZOOM-17. Folded satellites have no drawn orbit and are reached through the pill (GRP-07). An orbit that isn't drawn is not a target, and the frame body's own orbit ring is drawn but is never a target. | |
 | HOV-03 | A hovered object's orbit ring is drawn in white at `orbit_hover_alpha`; the selected object's orbit ring is drawn in full white for as long as it is selected, in either motion mode. A ring that is both takes the selected style. Hovering or selecting the marker highlights its ring the same way. A hovered or selected ring is drawn `orbit_highlight_width_px` wide. | |
 | INS-01 | Clicking a marker or its orbit ring (HOV-02) selects that object and opens the inspection inset (INS-07); the clock keeps running. Only the primary button selects, and only when the release is within `drag_threshold_px` of the press, so the end of a pan never selects. | ✓ |
 | INS-02 | The inset shows: header (name, class and ownership line), Focus and Close buttons; an image for the knowledge state (INS-04); key facts; and an "Open planetary view" button, disabled until the planetary view exists. | ✓ |
@@ -176,6 +176,7 @@ The **apparent period** of an orbit is its orbital period divided by the selecte
 | MOT-10 | The tail covers the arc swept in the last `tail_secs` real seconds: 360° × `tail_secs` ÷ apparent period. Its length follows the time rate continuously, with no steps. | ✓ |
 | MOT-02 | While running, apparent period below `tail_secs`: the tail has closed into the exposure ring. No dot; the whole ring is drawn at `exposure_ring_alpha` and `exposure_ring_width_px` wide; the label sits on the ring at a fixed spot. Being partly transparent, an exposure ring never matches the full-white selected ring (HOV-03). | |
 | MOT-11 | As the tail grows from `dot_fade_from_degrees` to 360°, the dot fades out and the ring width grows to `exposure_ring_width_px`, both linearly, so the closing is seamless. | ✓ |
+| MOT-13 | The displayed tail length eases towards the length MOT-10 or MOT-12 gives, reaching it within `tail_ease_ms`, so a change of time rate, a pause or an unpause animates rather than snaps. The dot fade and ring width (MOT-11) follow the displayed length, so a switch between dot and exposure ring animates too. | |
 | MOT-04 | Pausing keeps every tail at its running length, so the view does not jump. | ✓ |
 | MOT-12 | While paused, each tail is capped at `dot_fade_from_degrees`, so every orbiting object shows as a full-brightness dot with its tail, objects in exposure-ring mode included. Unpausing restores the running state. | ✓ |
 | MOT-07 | While the selected object is in ring mode, its inset has the line "Position: shown when paused". | ✓ |
@@ -212,6 +213,7 @@ All in the `Tunables` resource (`src/view/tunables.rs`). Defaults are starting v
 | `orbit_highlight_width_px` | 2 px | HOV-03 |
 | `exposure_ring_width_px` | 3 | MOT-02 |
 | `exposure_ring_alpha` | 0.5 | MOT-01, MOT-02 |
+| `tail_ease_ms` | 300 ms | MOT-13 |
 | `zoom_step_factor` | ×2 | ZOOM-01 |
 | `zoom_anim_ms` | 200 (range 150–250) | ZOOM-01 |
 | `zoom_stop_resistance` | 0.35 | ZOOM-05 |
