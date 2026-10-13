@@ -12,8 +12,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **Body markers as outlines** · MRK-03, MRK-04, MRK-07, MRK-11, MRK-12, MRK-13
-  - Was F-125, and replaces the item "Outlined body discs, a size smaller". New sizes 16/12/8 px; `body_fill_alpha` is renamed `body_fill_mix`; `star_tick_count`, `star_tick_px` and `planet_dot_px` are new. Rings now draw below everything (MRK-12).
 - [ ] **Edge arrows as tabs** · EDGE-02, EDGE-03
   - Was F-119: a label was clipped to "Gat" and one arrow had no label. Do it with the "Gate edge labels" fix below.
 - [ ] **Frame body's orbit as a tail; bearing tick to its parent** · MRK-14, MRK-15

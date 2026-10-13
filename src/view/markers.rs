@@ -2,8 +2,11 @@
 //! its projected screen position each frame (MRK-03, MRK-04, MRK-06), with
 //! its label to the right (SYM-13).
 //!
-//! Natural bodies are faintly filled discs with a rim and a dark gap round
-//! it (MRK-11), drawn nearer over farther (MRK-12); a salvage site an X and a gate on
+//! Natural bodies are body markers: outlined circles with a ground-colour
+//! inside, ticked for the star and dotted for a planet (MRK-13). Close in
+//! they grow into true-size discs, filled and ringed by a dark gap
+//! (MRK-07, MRK-11). They are drawn nearer over farther (MRK-12); a
+//! salvage site is an X and a gate on
 //! screen a hollow circle; ships and stations are symbols (section 3a of
 //! the spec, built in `symbols.rs` and `symbol_draw.rs`). What's drawn is
 //! decided elsewhere - `fold.rs` says whether a satellite is folded into
@@ -16,6 +19,7 @@
 //! MRK-06 holds by construction: only satellites fold, so every planet
 //! keeps its own marker at every zoom.
 
+use bevy::color::Mix;
 use bevy::prelude::*;
 
 use super::colors;
@@ -59,7 +63,8 @@ pub struct SecondLineFor(pub Entity);
 /// MRK-04: the shape a body's marker takes.
 #[derive(Component, Clone, Copy, PartialEq, Eq, Debug)]
 pub enum MarkerShape {
-    /// Filled disc: a natural body. It alone grows to true size (MRK-07).
+    /// Body marker: a natural body. It alone grows to a true-size disc
+    /// (MRK-07, MRK-13).
     Disc,
     /// Hollow circle: a gate on screen (its edge arrow is EDGE-01).
     HollowCircle,
@@ -76,6 +81,11 @@ const MIN_VISIBLE_ALPHA: f32 = 0.02;
 #[derive(Component)]
 pub struct BodyRim;
 
+/// A body marker's class detail - the star's ticks or a planet's dot -
+/// shown only while the body is drawn at its marker size (MRK-13).
+#[derive(Component)]
+pub struct BodyDetail;
+
 /// Outline width of hollow markers.
 const HOLLOW_BORDER_PX: f32 = 1.5;
 /// Gap between the hover ring (an outline) and the marker it rings.
@@ -90,7 +100,7 @@ const LABEL_GAP_PX: f32 = 4.0;
 const LABEL_FONT_PX: f32 = 12.0;
 const SECOND_LINE_FONT_PX: f32 = 10.0;
 
-/// MRK-04: filled disc = natural body; X = salvage site; a gate on screen
+/// MRK-04: body marker = natural body; X = salvage site; a gate on screen
 /// is a hollow circle; ships and stations are symbols.
 pub fn marker_shape(class: BodyClass, has_record: bool) -> MarkerShape {
     match class {
@@ -263,10 +273,12 @@ fn spawn_shape(marker: &mut EntityCommands, assets: MarkerAssets, look: BodyLook
     let color = look.color(tunables);
     match look.shape() {
         MarkerShape::Disc => {
-            // MRK-11: a faint fill inside a full-strength rim.
-            let fill = color.with_alpha(color.alpha() * tunables.body_fill_alpha);
+            // MRK-13: an opaque ground-colour inside a neutral rim;
+            // `update_markers` switches the fill when it grows (MRK-11).
+            let fill = body_fill(false, tunables);
             marker.insert((BackgroundColor(fill), Tint::new(fill, TintSlot::Background)));
             marker.with_children(|parent| {
+                spawn_body_detail(parent, look.class, color, tunables);
                 parent.spawn((
                     BodyRim,
                     Node {
@@ -312,6 +324,87 @@ fn spawn_shape(marker: &mut EntityCommands, assets: MarkerAssets, look: BodyLook
                 });
             }
         }
+    }
+}
+
+/// MRK-11 / MRK-13: a natural body's opaque fill: the ground colour as a
+/// marker, the neutral mixed into the ground as a true-size disc.
+pub fn body_fill(true_size: bool, tunables: &Tunables) -> Color {
+    if true_size {
+        colors::GROUND.mix(&colors::NEUTRAL, tunables.body_fill_mix)
+    } else {
+        colors::GROUND
+    }
+}
+
+/// MRK-13: the class detail inside or round a body marker: radial ticks
+/// outside the star's rim, a centre dot in a planet, nothing for a moon.
+fn spawn_body_detail(
+    parent: &mut ChildSpawnerCommands,
+    class: BodyClass,
+    color: Color,
+    tunables: &Tunables,
+) {
+    let full = || Node {
+        position_type: PositionType::Absolute,
+        left: px(0),
+        top: px(0),
+        width: percent(100),
+        height: percent(100),
+        justify_content: JustifyContent::Center,
+        align_items: AlignItems::Center,
+        ..default()
+    };
+    let part = |node: Node| {
+        (
+            node,
+            BackgroundColor(color),
+            Tint::new(color, TintSlot::Background),
+            Pickable::IGNORE,
+        )
+    };
+    match class {
+        BodyClass::Planet => {
+            let dot = tunables.planet_dot_px;
+            parent
+                .spawn((BodyDetail, full(), Pickable::IGNORE))
+                .with_children(|holder| {
+                    holder.spawn(part(Node {
+                        width: px(dot),
+                        height: px(dot),
+                        border_radius: BorderRadius::MAX,
+                        ..default()
+                    }));
+                });
+        }
+        BodyClass::Star => {
+            let count = tunables.star_tick_count.max(1);
+            let (tick, width) = (tunables.star_tick_px, tunables.body_rim_px);
+            for i in 0..count {
+                // Each tick hangs above the top of a full-size holder,
+                // which is turned about the marker's centre.
+                let angle = std::f32::consts::TAU * i as f32 / count as f32;
+                parent
+                    .spawn((
+                        BodyDetail,
+                        full(),
+                        UiTransform::from_rotation(Rot2::radians(angle)),
+                        Pickable::IGNORE,
+                    ))
+                    .with_children(|holder| {
+                        holder.spawn(part(Node {
+                            position_type: PositionType::Absolute,
+                            top: px(-tick),
+                            left: percent(50),
+                            margin: UiRect::left(px(-width / 2.0)),
+                            width: px(width),
+                            height: px(tick),
+                            ..default()
+                        }));
+                    });
+            }
+        }
+        _ => {}
     }
 }
 
@@ -563,6 +656,32 @@ type MarkerNodes<'w, 's> = Query<
 >;
 
 /// The labels, by the marker they belong to.
+/// Body markers' class details (MRK-13).
+type DetailNodes<'w, 's> = Query<
+    'w,
+    's,
+    &'static mut Node,
+    (With<BodyDetail>, Without<MarkerShape>, Without<MarkerLabel>),
+>;
+
+/// MRK-13: show a body marker's ticks or dot, or hide them on a true-size
+/// disc (MRK-07).
+fn show_body_detail(
+    root: Entity,
+    shown: bool,
+    children: &Query<&Children>,
+    details: &mut DetailNodes,
+) {
+    let display = if shown { Display::Flex } else { Display::None };
+    for child in children.iter_descendants(root) {
+        if let Ok(mut node) = details.get_mut(child)
+            && node.display != display
+        {
+            node.display = display;
+        }
+    }
+}
+
 type LabelNodes<'w, 's> =
     Query<'w, 's, (&'static ChildOf, &'static mut Node), (With<MarkerLabel>, Without<MarkerShape>)>;
 
@@ -571,7 +690,7 @@ type TintedParts<'w, 's> = Query<
     'w,
     's,
     (
-        &'static Tint,
+        &'static mut Tint,
         Option<&'static mut BackgroundColor>,
         Option<&'static mut BorderColor>,
         Option<&'static mut SymbolPart>,
@@ -622,7 +741,8 @@ fn update_markers(
     bodies: MarkerBodies,
     mut markers: MarkerNodes,
     mut labels: LabelNodes,
-    (children, mut parts): (Query<&Children>, TintedParts),
+    (children, mut parts, mut details): (Query<&Children>, TintedParts, DetailNodes),
+    tunables: Res<Tunables>,
 ) {
     let projection = projections.single().ok();
     for (entity, marker_for, half, shape, mut node) in &mut markers {
@@ -661,6 +781,15 @@ fn update_markers(
         node.height = px(drawn * 2.0);
         node.left = px(pos.x - drawn);
         node.top = px(pos.y - drawn);
+        if *shape == MarkerShape::Disc {
+            // MRK-07 / MRK-11 / MRK-13: grown past its marker, a body is
+            // a filled disc without its class detail.
+            let true_size = drawn > half.0.x;
+            if let Ok((mut tint, ..)) = parts.get_mut(entity) {
+                tint.color = body_fill(true_size, &tunables);
+            }
+            show_body_detail(entity, !true_size, &children, &mut details);
+        }
         fade_parts(entity, alpha, &children, &mut parts);
         for (label_of, mut label) in &mut labels {
             if label_of.parent() == entity {
@@ -673,6 +802,51 @@ fn update_markers(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The class details spawned for a body marker of `class`.
+    fn details_of(class: BodyClass) -> (usize, usize) {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut world = World::new();
+        world
+            .run_system_once(move |mut commands: Commands| {
+                commands.spawn(Node::default()).with_children(|parent| {
+                    spawn_body_detail(parent, class, colors::NEUTRAL, &Tunables::default());
+                });
+            })
+            .unwrap();
+        let holders = world
+            .query_filtered::<(), With<BodyDetail>>()
+            .iter(&world)
+            .count();
+        let parts = world
+            .query::<&Tint>()
+            .iter(&world)
+            .filter(|tint| tint.color == colors::NEUTRAL)
+            .count();
+        (holders, parts)
+    }
+
+    /// MRK-13: the star has `star_tick_count` ticks, a planet one centre
+    /// dot, a moon nothing beyond its circle.
+    #[test]
+    fn body_markers_show_their_class_in_their_shape() {
+        let ticks = Tunables::default().star_tick_count as usize;
+        assert_eq!(details_of(BodyClass::Star), (ticks, ticks));
+        assert_eq!(details_of(BodyClass::Planet), (1, 1));
+        assert_eq!(details_of(BodyClass::Moon), (0, 0));
+    }
+
+    /// MRK-11 / MRK-13: a marker's inside is the ground colour; a true-size
+    /// disc's is the neutral mixed into the ground, opaque either way.
+    #[test]
+    fn body_fills_are_opaque_ground_or_a_mix() {
+        let tunables = Tunables::default();
+        assert_eq!(body_fill(false, &tunables), colors::GROUND);
+        let disc = body_fill(true, &tunables);
+        assert_eq!(disc.alpha(), 1.0);
+        assert_ne!(disc, colors::GROUND);
+        assert_ne!(disc, colors::NEUTRAL);
+    }
 
     /// MRK-04: discs for natural bodies, X for salvage, a hollow circle
     /// for a gate, and symbols for ships and stations.

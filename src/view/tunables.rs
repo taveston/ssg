@@ -138,19 +138,27 @@ pub struct Tunables {
     pub distance_au_threshold_au: f64,
 
     // --- Natural body markers ---
-    /// How strongly a natural body's disc is filled (MRK-11).
-    pub body_fill_alpha: f32,
-    /// The width of a natural body's rim (MRK-11).
+    /// How much of the neutral colour is mixed into the ground colour for
+    /// a true-size disc's opaque fill (MRK-11).
+    pub body_fill_mix: f32,
+    /// The width of a natural body's rim, on markers and true-size discs
+    /// (MRK-11, MRK-13).
     pub body_rim_px: f32,
     /// The ground-coloured gap round a natural body's rim, which keeps
     /// overlapping discs apart (MRK-11).
     pub body_gap_px: f32,
-    /// The star's marker disc, in pixels across (MRK-03).
+    /// The star's marker circle, in pixels across (MRK-03, MRK-13).
     pub star_marker_px: f32,
-    /// A planet's marker disc, in pixels across (MRK-03).
+    /// A planet's marker circle, in pixels across (MRK-03, MRK-13).
     pub planet_marker_px: f32,
-    /// A moon's marker disc, in pixels across (MRK-03).
+    /// A moon's marker circle, in pixels across (MRK-03, MRK-13).
     pub moon_marker_px: f32,
+    /// How many radial ticks ring the star's marker (MRK-13).
+    pub star_tick_count: u32,
+    /// The length of each star tick, outside the rim (MRK-13).
+    pub star_tick_px: f32,
+    /// The diameter of a planet marker's centre dot (MRK-13).
+    pub planet_dot_px: f32,
 
     // --- Ship and station symbols ---
     /// A symbol's frame fits a square this many pixels across, at every
@@ -219,12 +227,15 @@ impl Default for Tunables {
             inset_dock_margin_px: 12.0,
             distance_au_threshold_au: 0.1,
 
-            body_fill_alpha: 0.32,
-            body_rim_px: 1.5,
+            body_fill_mix: 0.32,
+            body_rim_px: 1.0,
             body_gap_px: 2.0,
-            star_marker_px: 28.0,
-            planet_marker_px: 22.0,
-            moon_marker_px: 18.0,
+            star_marker_px: 16.0,
+            planet_marker_px: 12.0,
+            moon_marker_px: 8.0,
+            star_tick_count: 8,
+            star_tick_px: 3.0,
+            planet_dot_px: 3.0,
 
             ship_symbol_px: 22.0,
             list_symbol_px: 14.0,

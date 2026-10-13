@@ -43,7 +43,7 @@ use crate::view::frame::{Frame, FramePlugin};
 use crate::view::gesture::PressStart;
 use crate::view::grouping::GroupingPlugin;
 use crate::view::hovered::HoveredPlugin;
-use crate::view::markers::{MarkerHalfSize, MarkersPlugin, ring_outer_half};
+use crate::view::markers::{BodyDetail, MarkerHalfSize, MarkersPlugin, body_fill, ring_outer_half};
 use crate::view::motion::MotionPlugin;
 use crate::view::motion_mode::MotionModeState;
 use crate::view::pills::PillsPlugin;
@@ -51,6 +51,7 @@ use crate::view::projection::ProjectionPlugin;
 use crate::view::scale::{km_to_render, km_to_render_vec3};
 use crate::view::screen::{ScreenPlugin, ScreenPositions};
 use crate::view::selection::Selection;
+use crate::view::symbol_draw::Tint;
 use crate::view::targets::{GroupPillFor, MarkerFor};
 use crate::view::topbar::TOP_BAR_HEIGHT_PX;
 use crate::view::true_size::projected_radius_px;
@@ -1375,6 +1376,26 @@ fn input_during_a_move_takes_over_without_a_jump() {
 }
 
 /// The marker node drawn for a body, as its width in pixels.
+/// A body marker's fill colour and whether its class detail shows.
+fn marker_fill_and_detail(app: &mut App, body: Entity) -> (Color, bool) {
+    let mut markers = app
+        .world_mut()
+        .query_filtered::<(Entity, &MarkerFor, &Tint), With<MarkerHalfSize>>();
+    let (marker, _, tint) = markers
+        .iter(app.world())
+        .find(|(_, marker, _)| marker.0 == body)
+        .expect("a marker for the body");
+    let fill = tint.color;
+    let mut details = app
+        .world_mut()
+        .query_filtered::<(&Node, &ChildOf), With<BodyDetail>>();
+    let shown = details
+        .iter(app.world())
+        .filter(|(_, child_of)| child_of.parent() == marker)
+        .all(|(node, _)| node.display != Display::None);
+    (fill, shown)
+}
+
 fn marker_width_px(app: &mut App, body: Entity) -> f32 {
     let mut markers = app
         .world_mut()
@@ -1406,6 +1427,12 @@ fn a_body_grows_into_a_true_size_disc_when_close() {
     let far = marker_width_px(&mut app, halden);
     let planet_px = Tunables::default().planet_marker_px;
     assert_eq!(far, planet_px, "a planet's fixed marker at the system fit");
+    // MRK-13: as a marker it is a ground-filled outline with its dot.
+    let tunables = Tunables::default();
+    assert_eq!(
+        marker_fill_and_detail(&mut app, halden),
+        (body_fill(false, &tunables), true)
+    );
 
     let distance = 0.01;
     set_frame(&mut app, halden, Vec3::ZERO);
@@ -1422,6 +1449,11 @@ fn a_body_grows_into_a_true_size_disc_when_close() {
     assert!(
         (drawn - expected).abs() < expected * 0.01,
         "drawn {drawn} px, true size {expected} px"
+    );
+    // MRK-11: the true-size disc is filled, without the marker's dot.
+    assert_eq!(
+        marker_fill_and_detail(&mut app, halden),
+        (body_fill(true, &tunables), false)
     );
 }
 
