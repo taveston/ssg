@@ -1,9 +1,8 @@
 //! Procedural placeholder imagery for the inspection inset's fidelity
 //! states (INS-04). There are no art assets yet, so these are generated in
 //! code: a shaded
-//! gradient globe for surveyed, seeded grain for unsurveyed, and a sepia
-//! variant of the globe for stale. One image per *state*, shared by every
-//! body in that state - the per-body date/figures are separate text.
+//! gradient globe for surveyed and seeded grain for unsurveyed. One image
+//! per *state*, shared by every body in that state.
 
 use bevy::asset::RenderAssetUsages;
 use bevy::prelude::*;
@@ -18,7 +17,6 @@ const IMAGE_HEIGHT: u32 = 64;
 pub struct FidelityImages {
     pub surveyed: Handle<Image>,
     pub unsurveyed: Handle<Image>,
-    pub stale: Handle<Image>,
 }
 
 pub struct FidelityPlugin;
@@ -57,7 +55,7 @@ fn hash01(x: u32, y: u32, seed: u32) -> f32 {
 
 /// A lit sphere silhouette: `background` outside the circle, a gradient
 /// from `shadow` to `highlight` (biased toward the upper-left) inside it.
-fn draw_globe(image: &mut Image, shadow: Color, highlight: Color, background: Color, grain: f32) {
+fn draw_globe(image: &mut Image, shadow: Color, highlight: Color, background: Color) {
     let cx = IMAGE_WIDTH as f32 / 2.0;
     let cy = IMAGE_HEIGHT as f32 / 2.0;
     let radius = IMAGE_HEIGHT as f32 * 0.46;
@@ -75,15 +73,7 @@ fn draw_globe(image: &mut Image, shadow: Color, highlight: Color, background: Co
                 let hdy = y as f32 - light_center.1;
                 let hdist = (hdx * hdx + hdy * hdy).sqrt();
                 let t = (1.0 - hdist / (radius * 1.7)).clamp(0.0, 1.0);
-                let mixed = shadow.mix(&highlight, t);
-                if grain > 0.0 {
-                    let n = (hash01(x, y, 11) - 0.5) * grain;
-                    mixed
-                        .mix(&Color::BLACK, n.max(0.0))
-                        .mix(&Color::WHITE, (-n).max(0.0))
-                } else {
-                    mixed
-                }
+                shadow.mix(&highlight, t)
             };
             let _ = image.set_color_at(x, y, color);
         }
@@ -109,24 +99,13 @@ fn generate_images(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
         Color::srgb(0.06, 0.16, 0.24),
         Color::srgb(0.55, 0.72, 0.85),
         colors::PANEL,
-        0.0,
     );
 
     let mut unsurveyed_image = blank_image();
     draw_noise(&mut unsurveyed_image, colors::WARNING);
 
-    let mut stale_image = blank_image();
-    draw_globe(
-        &mut stale_image,
-        Color::srgb(0.22, 0.16, 0.09),
-        Color::srgb(0.58, 0.47, 0.32),
-        colors::PANEL,
-        0.08,
-    );
-
     commands.insert_resource(FidelityImages {
         surveyed: images.add(surveyed_image),
         unsurveyed: images.add(unsurveyed_image),
-        stale: images.add(stale_image),
     });
 }

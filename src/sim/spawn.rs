@@ -83,7 +83,7 @@ fn spawn_gate(commands: &mut Commands, gate: GateBlueprint, star_mass_kg: f64) {
         BodyClass::Gate,
         PhysicalRadius(gate.radius_km),
         Affiliation::Neutral,
-        Knowledge::Surveyed { imaged_day: 0.0 },
+        Knowledge::Surveyed,
         orbit_components(orbit),
     ));
 }

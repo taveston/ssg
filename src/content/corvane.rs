@@ -16,7 +16,7 @@ use crate::sim::units::{
 const HALDEN_IV_MASS_KG: f64 = 1.1 * EARTH_MASS_KG;
 
 fn surveyed_today() -> Knowledge {
-    Knowledge::Surveyed { imaged_day: 0.0 }
+    Knowledge::Surveyed
 }
 
 pub fn hand_made_system() -> SystemData {
@@ -54,9 +54,7 @@ pub fn hand_made_system() -> SystemData {
                     record: None,
                     description: "The wreck of the station Lantern, last imaged years ago.",
                     key_facts: vec![("Recoverable then", "4-6 kt"), ("Since then", "unknown")],
-                    knowledge: Knowledge::Stale {
-                        last_imaged_day: -1_006.0,
-                    },
+                    knowledge: Knowledge::Unsurveyed,
                     orbit_radius_km: 1.22 * KM_PER_AU,
                     radius_km: 0.5,
                     phase0_rad: 4.0,
@@ -156,7 +154,7 @@ fn halden_iv() -> BodyBlueprint {
             ("Surface", "0.82 g, thin N2, -41 C"),
             ("Governor", "A. Voss"),
         ],
-        knowledge: Knowledge::Surveyed { imaged_day: -40.0 },
+        knowledge: Knowledge::Surveyed,
         orbit_radius_km: 2.0 * KM_PER_AU,
         radius_km: 6700.0,
         phase0_rad: 4.4,
@@ -701,24 +699,16 @@ mod tests {
         );
     }
 
-    /// TEST-04: the inspection data covers all three knowledge states.
+    /// TEST-04: the inspection data covers both knowledge states.
     #[test]
     fn inspection_data_covers_every_knowledge_state() {
-        let system = hand_made_system();
         let halden = planet("Halden IV");
-        assert!(matches!(halden.knowledge, Knowledge::Surveyed { .. }));
+        assert!(matches!(halden.knowledge, Knowledge::Surveyed));
         let ivc = halden
             .children
             .iter()
             .find(|c| c.name == "Halden IVc")
             .unwrap();
         assert!(matches!(ivc.knowledge, Knowledge::Unsurveyed));
-        let lantern = system
-            .belt
-            .salvage_sites
-            .iter()
-            .find(|s| s.name == "Lantern")
-            .unwrap();
-        assert!(matches!(lantern.knowledge, Knowledge::Stale { .. }));
     }
 }

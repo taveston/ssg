@@ -14,7 +14,6 @@ use bevy::prelude::*;
 use super::bindings::{Bindings, pressed};
 use super::camera::requests::FrameRequest;
 use super::colors;
-use super::date::{date_from_elapsed_days, format_date, format_time_ago};
 use super::fidelity::FidelityImages;
 use super::fonts::Fonts;
 use super::in_orbit::{OrbitEntry, Satellites, orbit_entries, spawn_in_orbit_list};
@@ -58,9 +57,6 @@ const BRACKET_PX: f32 = 10.0;
 const BRACKET_LINE_PX: f32 = 2.0;
 const HEADER_FONT_PX: f32 = 15.0;
 const BODY_FONT_PX: f32 = 11.0;
-const STATUS_FONT_PX: f32 = 10.0;
-/// INS-04: the sepia tone of a stale record.
-const STALE_TONE: Color = Color::srgb(0.65, 0.55, 0.4);
 /// INS-02: "Open planetary view" is disabled until that view exists.
 const DISABLED_ALPHA: f32 = 0.4;
 const DISABLED_BORDER_ALPHA: f32 = 0.3;
@@ -85,52 +81,14 @@ pub enum InsetImage {
     Surveyed,
     /// A grainy telescope frame, with corner brackets.
     Telescope,
-    /// A sepia image.
-    Stale,
 }
 
-/// INS-04: the colour a status line is drawn in.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum StatusTone {
-    Surveyed,
-    Unsurveyed,
-    Stale,
-}
-
-impl StatusTone {
-    fn color(self) -> Color {
-        match self {
-            StatusTone::Surveyed => colors::OWN,
-            // INS-04: unsurveyed is reported in orange.
-            StatusTone::Unsurveyed => colors::WARNING,
-            StatusTone::Stale => STALE_TONE,
-        }
-    }
-}
-
-/// INS-04: the status line, its tone and the image for a knowledge state.
-/// The stale line gives the time since imaging rather than the date
-/// (F4-10, open for triage).
-pub fn knowledge_status(knowledge: &Knowledge) -> (String, StatusTone, InsetImage) {
+/// INS-04: the placeholder image for a knowledge state. There is no
+/// status text: what is known is shown by the image alone.
+pub fn knowledge_image(knowledge: Knowledge) -> InsetImage {
     match knowledge {
-        Knowledge::Surveyed { imaged_day } => (
-            format!(
-                "SURVEYED · {}",
-                format_date(&date_from_elapsed_days(*imaged_day))
-            ),
-            StatusTone::Surveyed,
-            InsetImage::Surveyed,
-        ),
-        Knowledge::Unsurveyed => (
-            "TELESCOPE FRAME · UNSURVEYED".to_string(),
-            StatusTone::Unsurveyed,
-            InsetImage::Telescope,
-        ),
-        Knowledge::Stale { last_imaged_day } => (
-            format!("LAST IMAGED · {}", format_time_ago(-*last_imaged_day)),
-            StatusTone::Stale,
-            InsetImage::Stale,
-        ),
+        Knowledge::Surveyed => InsetImage::Surveyed,
+        Knowledge::Unsurveyed => InsetImage::Telescope,
     }
 }
 
@@ -139,8 +97,6 @@ struct InsetContent {
     body: Entity,
     name: String,
     class_line: String,
-    status: String,
-    tone: StatusTone,
     image: InsetImage,
     description: String,
     facts: Vec<(String, String)>,
@@ -337,7 +293,7 @@ fn gather_content(
 ) -> Option<InsetContent> {
     let (name, description, facts, class, affiliation, knowledge, record, children) =
         bodies.get(body).ok()?;
-    let (status, tone, image) = knowledge_status(knowledge);
+    let image = knowledge_image(*knowledge);
     let satellites = orbit_entries(children, satellites);
     Some(InsetContent {
         body,
@@ -347,8 +303,6 @@ fn gather_content(
             class_label(*class),
             ownership_text(*affiliation, record)
         ),
-        status,
-        tone,
         image,
         description: description.0.clone(),
         facts: facts.0.clone(),
@@ -356,7 +310,7 @@ fn gather_content(
     })
 }
 
-/// INS-02: header, class line, image, status, description and facts, the
+/// INS-02: header, class line, image, description and facts, the
 /// position note (MOT-07), the satellite list (INS-05), and the disabled
 /// planetary-view button.
 fn fill_panel(
@@ -374,12 +328,6 @@ fn fill_panel(
         colors::PANEL_BORDER,
     );
     spawn_image(panel, fidelity, content.image);
-    spawn_text(
-        panel,
-        &content.status,
-        fonts.mono(STATUS_FONT_PX),
-        content.tone.color(),
-    );
     spawn_text(
         panel,
         &content.description,
@@ -486,7 +434,6 @@ fn spawn_image(panel: &mut ChildSpawnerCommands, fidelity: &FidelityImages, imag
     let handle = match image {
         InsetImage::Surveyed => fidelity.surveyed.clone(),
         InsetImage::Telescope => fidelity.unsurveyed.clone(),
-        InsetImage::Stale => fidelity.stale.clone(),
     };
     panel
         .spawn(Node {
@@ -641,33 +588,13 @@ mod tests {
         );
     }
 
-    /// INS-04: surveyed is a clean render with the survey date.
+    /// INS-04: surveyed is a clean render; unsurveyed a telescope frame.
     #[test]
-    fn surveyed_shows_the_date() {
-        let (status, tone, image) = knowledge_status(&Knowledge::Surveyed { imaged_day: 0.0 });
-        assert_eq!(status, "SURVEYED · 14 Mar 2341");
-        assert_eq!(tone, StatusTone::Surveyed);
-        assert_eq!(image, InsetImage::Surveyed);
-    }
-
-    /// INS-04: unsurveyed is a telescope frame, in orange.
-    #[test]
-    fn unsurveyed_is_a_telescope_frame_in_orange() {
-        let (status, tone, image) = knowledge_status(&Knowledge::Unsurveyed);
-        assert_eq!(status, "TELESCOPE FRAME · UNSURVEYED");
-        assert_eq!(tone.color(), colors::WARNING);
-        assert_eq!(image, InsetImage::Telescope);
-    }
-
-    /// INS-04: stale is a sepia image with the last-imaged line (which
-    /// gives the time since, not the date: F4-10).
-    #[test]
-    fn stale_is_sepia_and_last_imaged() {
-        let (status, tone, image) = knowledge_status(&Knowledge::Stale {
-            last_imaged_day: -1_006.0,
-        });
-        assert_eq!(status, "LAST IMAGED · 2 Y 9 M AGO");
-        assert_eq!(tone, StatusTone::Stale);
-        assert_eq!(image, InsetImage::Stale);
+    fn each_knowledge_state_has_its_placeholder_image() {
+        assert_eq!(knowledge_image(Knowledge::Surveyed), InsetImage::Surveyed);
+        assert_eq!(
+            knowledge_image(Knowledge::Unsurveyed),
+            InsetImage::Telescope
+        );
     }
 }

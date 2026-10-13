@@ -22,13 +22,11 @@ pub enum BodyClass {
 
 pub use super::track::Affiliation;
 
-/// How well a body is known (INS-04). Days are simulated days since the
-/// campaign epoch, negative for before it.
-#[derive(Component, Clone, Debug)]
+/// How well a body is known (INS-04).
+#[derive(Component, Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Knowledge {
-    Surveyed { imaged_day: f64 },
+    Surveyed,
     Unsurveyed,
-    Stale { last_imaged_day: f64 },
 }
 
 #[derive(Component, Clone, Debug, Default)]

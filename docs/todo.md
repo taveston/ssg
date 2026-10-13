@@ -16,8 +16,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - The symbols are built; groups add to them (`view/symbols.rs`, `symbol_draw.rs`).
 - [ ] **Velocity leaders** · SYM-11
   - Blocked: ships in transit are not specced yet.
-- [ ] **Placeholder knowledge images** · INS-04, TEST-04
-  - Remove the stale state, its sepia image and all status text and dates from the inset. Lantern no longer needs stale data.
 - [ ] **Astronomical facts in the inset** · INS-08, UNIT-01 to UNIT-03
   - Needs SCL-05 (body radii) from "Deliberate focus and two-stop zoom" first.
 - [ ] **FPS debug readout** · CLK-06

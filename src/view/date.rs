@@ -1,13 +1,9 @@
 //! A small hand-rolled proleptic Gregorian calendar, just enough to turn a
-//! day-count into a readable date for the top bar (CLK-02) and the inset
-//! status lines (INS-04). No date/time crate needed for this.
+//! day-count into a readable date for the top bar (CLK-02). No date/time crate needed for this.
 
 const EPOCH_YEAR: i64 = 2341;
 const EPOCH_MONTH: u32 = 3;
 const EPOCH_DAY: i64 = 14;
-
-/// The mean Gregorian month, 365.2425 / 12 days.
-const MEAN_DAYS_PER_MONTH: f64 = 30.4368;
 
 const MONTH_NAMES: [&str; 12] = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
@@ -79,19 +75,6 @@ pub fn format_date(date: &CalendarDate) -> String {
     )
 }
 
-/// "2 Y 9 M AGO" style, from a number of days in the past. Approximate
-/// (average month length) - this is flavour text, not a precise duration.
-pub fn format_time_ago(days_ago: f64) -> String {
-    let total_months = (days_ago.max(0.0) / MEAN_DAYS_PER_MONTH).floor() as i64;
-    let years = total_months / 12;
-    let months = total_months % 12;
-    if years > 0 {
-        format!("{} Y {} M AGO", years, months)
-    } else {
-        format!("{} M AGO", months)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -113,14 +96,5 @@ mod tests {
         assert_eq!(date(1083.0), "01 Mar 2344");
         assert_eq!(date(292.0), "31 Dec 2341");
         assert_eq!(date(293.0), "01 Jan 2342");
-    }
-
-    /// INS-04: a stale record's age reads in whole years and months.
-    #[test]
-    fn time_ago_reads_in_years_and_months() {
-        assert_eq!(format_time_ago(1_006.0), "2 Y 9 M AGO");
-        assert_eq!(format_time_ago(40.0), "1 M AGO");
-        assert_eq!(format_time_ago(365.25), "1 Y 0 M AGO");
-        assert_eq!(format_time_ago(-5.0), "0 M AGO", "never in the future");
     }
 }
