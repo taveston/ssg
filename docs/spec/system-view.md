@@ -40,7 +40,7 @@
 | MRK-04 | Marker shapes: filled disc = body; X = salvage site. Ships, groups of ships and stations are drawn as symbols (section 3a). | |
 | MRK-05 | Orbits are faint rings; the belt is a translucent shaded band. A ring stays within half a pixel of the true circle, also when the camera is close to it, and a ring passing behind the camera is cut at the near limit, not dropped. | ✓ |
 | MRK-06 | Separate planets are never merged, however close on screen. | ✓ |
-| MRK-08 | Every marker and symbol has a hit area of at least `min_hit_radius_px` round its centre, even where the drawn marker is smaller. Where hit areas overlap, the marker whose centre is nearest the pointer wins. | |
+| MRK-08 | Every marker and symbol has a hit area of at least `min_hit_radius_px` round its centre, even where the drawn marker is smaller. Where hit areas overlap, the marker whose centre is nearest the pointer wins. | ✓ |
 | MRK-07 | A body whose true diameter on screen is larger than its marker is drawn as a filled disc at its true size, in its marker's colour, in place of the marker. | ✓ |
 | EDGE-01 | A gate outside the viewport is shown as an arrow pinned to the edge of the map area (below the top bar) in its direction, labelled with its destination. A gate behind the camera is pinned by its direction in the camera's own right and up axes. Arrows slide round the edge as the heading turns. | ✓ |
 
@@ -73,16 +73,16 @@ Ships and stations are drawn as symbols adapted from NATO APP-6: the **frame** s
 | ID | Requirement | Built |
 |---|---|---|
 | HOV-01 | Hovering a marker draws a white ring and a tooltip: name · ownership · contents summary — "Click: inspect · Double-click: frame its moons · Double-click again: planetary view". | ✓ |
-| HOV-02 | Every drawn orbit ring (dot mode or ring mode, MOT-01 and MOT-02) is a hover and click target for its object, as its marker is. A pointer within `ring_hit_px` of the ring hits it. A marker, pill, label or panel under the pointer wins over a ring, and of two rings in reach the nearer wins. Clicking a ring selects as clicking the marker does (INS-01); double-clicking it behaves as ZOOM-16 and ZOOM-17. The hover tooltip (HOV-01) sits by the pointer, not by the object. Folded satellites have no drawn orbit and are reached through the pill (GRP-07). | |
-| HOV-03 | A hovered object's orbit ring is drawn in white at `orbit_hover_alpha`; the selected object's orbit ring is drawn in full white for as long as it is selected, in either motion mode. A ring that is both takes the selected style. Hovering or selecting the marker highlights its ring the same way. | |
-| INS-01 | Clicking a marker or its orbit ring (HOV-02) selects that object and opens the inspection inset (INS-07); the clock keeps running. Only the primary button selects, and only when the release is within `drag_threshold_px` of the press, so the end of a pan never selects. | |
-| INS-02 | The inset shows: header (name, class and ownership line), Focus and Close buttons; an image for the knowledge state (INS-04); key facts; and an "Open planetary view" button, disabled until the planetary view exists. | |
-| INS-03 | There is at most one selection and one inset. Selecting another object replaces the inset's contents in place. Close, Esc and a click on empty map space (a press and release within `drag_threshold_px` that hits no marker, pill, ring or panel) clear the selection and close the inset. | |
+| HOV-02 | Every drawn orbit ring (dot mode or ring mode, MOT-01 and MOT-02) is a hover and click target for its object, as its marker is. A pointer within `ring_hit_px` of the ring hits it. A marker, pill, label or panel under the pointer wins over a ring, and of two rings in reach the nearer wins. Clicking a ring selects as clicking the marker does (INS-01); double-clicking it behaves as ZOOM-16 and ZOOM-17. The hover tooltip (HOV-01) sits by the pointer, not by the object. Folded satellites have no drawn orbit and are reached through the pill (GRP-07). | ✓ |
+| HOV-03 | A hovered object's orbit ring is drawn in white at `orbit_hover_alpha`; the selected object's orbit ring is drawn in full white for as long as it is selected, in either motion mode. A ring that is both takes the selected style. Hovering or selecting the marker highlights its ring the same way. | ✓ |
+| INS-01 | Clicking a marker or its orbit ring (HOV-02) selects that object and opens the inspection inset (INS-07); the clock keeps running. Only the primary button selects, and only when the release is within `drag_threshold_px` of the press, so the end of a pan never selects. | ✓ |
+| INS-02 | The inset shows: header (name, class and ownership line), Focus and Close buttons; an image for the knowledge state (INS-04); key facts; and an "Open planetary view" button, disabled until the planetary view exists. | ✓ |
+| INS-03 | There is at most one selection and one inset. Selecting another object replaces the inset's contents in place. Close, Esc and a click on empty map space (a press and release within `drag_threshold_px` that hits no marker, pill, ring or panel) clear the selection and close the inset. | ✓ |
 | INS-04 | The inset image is a placeholder for the knowledge state: **surveyed** = clean render; **unsurveyed** = grainy telescope frame. There is no status text or date, and no stale state, until information gathering is designed. | |
 | INS-05 | The inset of a body with satellites has an "In orbit" list: one entry per satellite (its symbol per section 3a at `list_symbol_px`, or the body disc, and its name), in orbit order from the inside out. Clicking an entry selects that satellite (its inset replaces the parent's) once `double_click_window_ms` passes without a second click; double-clicking it behaves as ZOOM-16 and ZOOM-17. | |
-| INS-07 | The inset is docked at the right edge of the map area, `inset_dock_margin_px` below the top bar and from the right edge, `inset_width_px` wide. It does not move while the selection, camera or clock changes. Content taller than the map area scrolls inside the inset. There is no leader line. | |
+| INS-07 | The inset is docked at the right edge of the map area, `inset_dock_margin_px` below the top bar and from the right edge, `inset_width_px` wide. It does not move while the selection, camera or clock changes. Content taller than the map area scrolls inside the inset. There is no leader line. | ✓ |
 | INS-08 | A body's inset lists, in its key facts: **Orbit** (distance to its parent, UNIT-01) and **Period** (UNIT-02); for the star, **Mass** in solar masses to 2 decimals instead; and **Mean radius** (UNIT-01, from SCL-05). | |
-| INS-06 | When the selected object is folded into its parent (GRP-01), the parent's pill carries the white selection ring. When the object unfolds, the ring moves to its own marker without a jump. | |
+| INS-06 | When the selected object is folded into its parent (GRP-01), the parent's pill carries the white selection ring. When the object unfolds, the ring moves to its own marker without a jump. | ✓ |
 
 ## 4a. Units in readouts
 
@@ -145,7 +145,7 @@ Selection and frame may be different objects: for example, the frame is Halden I
 | CAM-23 | A zoom-out step that reaches the system fit also sets the star's frame, and eases the pivot to the star and the tilt to `standard_tilt_deg`, within the same zoom animation. The heading is kept. | ✓ |
 | CAM-24 | An object in exposure-ring mode (MOT-02) can't be a frame, and the inset's Focus button is disabled while it is in that mode. If the frame body enters ring mode, the frame moves to its nearest ancestor not in ring mode (the star if none) and the view moves as ZOOM-16 would for it, or to the system fit for the star. The frame never moves back when the object leaves ring mode. | ✓ |
 | CAM-25 | The breadcrumb in the top bar reads "Cluster / *system name*", then the frame body's ancestors below the star, then the frame body: for example "Cluster / Corvane / Halden IV / Arden Highport". The system entry stands for the star's frame. Clicking an ancestor's entry makes it the frame and moves the view as ZOOM-16 would (the system entry: to the system fit). Clicking the frame body's own entry re-centres it with zero offset at its current scale. The Cluster entry is unchanged until the cluster view exists. | ✓ |
-| CAM-22 | The frame body's marker, unless it is the star, carries four corner brackets in the neutral colour (MRK-01), so the frame is never mistaken for the white selection ring. The bracket box encloses the selection ring's size (whether or not the ring is showing) with `focus_bracket_margin_px` to spare on each side. |  |
+| CAM-22 | The frame body's marker, unless it is the star, carries four corner brackets in the neutral colour (MRK-01), so the frame is never mistaken for the white selection ring. The bracket box encloses the selection ring's size (whether or not the ring is showing) with `focus_bracket_margin_px` to spare on each side. | ✓ |
 
 ## 6. Satellite grouping
 
@@ -175,7 +175,7 @@ The **apparent period** of an orbit is its orbital period divided by the selecte
 | MOT-11 | As the tail grows from `dot_fade_from_degrees` to 360°, the dot fades out and the ring width grows to `exposure_ring_width_px`, both linearly, so the closing is seamless. |  |
 | MOT-04 | Pausing keeps every tail at its running length, so the view does not jump. |  |
 | MOT-12 | While paused, each tail is capped at `dot_fade_from_degrees`, so every orbiting object shows as a full-brightness dot with its tail, objects in exposure-ring mode included. Unpausing restores the running state. |  |
-| MOT-07 | While the selected object is in ring mode, its inset has the line "Position: shown when paused". | |
+| MOT-07 | While the selected object is in ring mode, its inset has the line "Position: shown when paused". | ✓ |
 | MOT-08 | The rule applies to every orbiting object (moons, stations, parked ships, close-in planets); ships in transit are ignored. | ✓ |
 
 ## 8. Test content: Corvane

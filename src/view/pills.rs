@@ -18,7 +18,7 @@ use crate::{Boot, Stage};
 /// GRP-05: where the pill sits relative to its parent's marker centre -
 /// down and to the right, clear of the largest marker and its label.
 const PILL_OFFSET_PX: Vec2 = Vec2::new(10.0, 8.0);
-/// Half the pill's height: its left-middle is where a leader line or the
+/// Half the pill's height: its left-middle is where the
 /// frame brackets meet it (INS-06).
 const PILL_HALF_HEIGHT_PX: f32 = 8.0;
 /// The white ring on a pill that holds a selected satellite (INS-06), the
@@ -124,7 +124,7 @@ fn ring_pills(
         let holds_selection = folds
             .0
             .get(&pill_for.0)
-            .is_some_and(|group| group.members.iter().any(|&m| selection.is_open(m)));
+            .is_some_and(|group| group.members.iter().any(|&m| selection.is_selected(m)));
         outline.width = px(if holds_selection { RING_PX } else { 0.0 });
         outline.color = if holds_selection {
             colors::SELECTION_RING
@@ -183,7 +183,7 @@ fn update_pills(
 mod tests {
     use super::*;
 
-    /// INS-06: a folded satellite's leader meets its parent's pill at the
+    /// INS-06: a folded satellite is shown at its parent's pill, at the
     /// pill's left-middle, which follows the parent on screen.
     #[test]
     fn pill_anchor_is_the_pills_left_middle() {

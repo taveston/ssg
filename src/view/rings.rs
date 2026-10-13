@@ -1,11 +1,12 @@
-//! Orbit rings (MRK-05) and exposure rings (MOT-02, MOT-07).
+//! Orbit rings (MRK-05), exposure rings (MOT-02) and their hover and
+//! selection highlight (HOV-03).
 //!
 //! Rings are drawn for planets and for any *unfolded* satellite (GRP-01),
 //! finer where the camera is close so they stay true to the circle at any
 //! zoom (SCL-02).
 //! A body in exposure-ring mode (see `motion.rs`) gets a second, brighter
-//! and thicker ring drawn over the dim one, white while it is selected
-//! (MOT-07).
+//! and thicker ring drawn over the dim one. A hovered body's ring is white
+//! at `orbit_hover_alpha`, a selected body's full white (HOV-03).
 
 use bevy::prelude::*;
 
@@ -14,8 +15,10 @@ use crate::sim::body::BodyClass;
 use crate::sim::orbit::Orbit;
 use crate::view::camera::state::camera_fov;
 use crate::view::fold::SatelliteFoldState;
+use crate::view::hovered::HoveredBodies;
 use crate::view::motion_mode::MotionModeState;
 use crate::view::scale::km_to_render;
+use crate::view::selection::Selection;
 use crate::view::tunables::Tunables;
 use crate::view::world::WorldPositions;
 
@@ -72,12 +75,38 @@ type RingBodies<'w, 's> = Query<
     ),
 >;
 
-/// MRK-05 / MOT-02: every visible orbit's faint ring, and the bright one
-/// over it in exposure-ring mode.
+/// MRK-05 / HOV-02: whether a body's orbit ring is drawn at all. Gates and
+/// salvage sites sit on star orbits that would only add clutter (gates
+/// have their edge arrows instead), and a folded satellite draws nothing:
+/// no marker, label, ring or trail (GRP-01).
+pub fn ring_is_drawn(class: BodyClass, folded_away: bool) -> bool {
+    !matches!(class, BodyClass::Gate | BodyClass::SalvageSite) && !folded_away
+}
+
+/// HOV-03: the colour a ring is drawn in instead of its normal one: full
+/// white while its object is selected (selected wins), white at
+/// `hover_alpha` while hovered, otherwise none.
+pub fn ring_highlight(selected: bool, hovered: bool, hover_alpha: f32) -> Option<Color> {
+    let white = crate::view::colors::SELECTION_RING;
+    if selected {
+        Some(white)
+    } else if hovered {
+        Some(white.with_alpha(hover_alpha))
+    } else {
+        None
+    }
+}
+
+/// MRK-05 / MOT-02 / HOV-03: every visible orbit's faint ring, the bright
+/// one over it in exposure-ring mode, and the hover and selection
+/// highlight.
+#[allow(clippy::too_many_arguments)]
 fn draw_orbit_rings(
     mut gizmos: Gizmos,
     mut exposure: Gizmos<ExposureRingGizmos>,
-    selection: Res<crate::view::selection::Selection>,
+    selection: Res<Selection>,
+    hovered: Res<HoveredBodies>,
+    tunables: Res<Tunables>,
     camera_q: Query<(&Camera, &Transform, &Projection)>,
     bodies: RingBodies,
     positions: Res<WorldPositions>,
@@ -94,14 +123,7 @@ fn draw_orbit_rings(
     };
 
     for (entity, orbit, class, child_of, fold, motion) in &bodies {
-        // Gates and salvage sites sit on star orbits that would just add
-        // clutter; gates have their own edge indicators instead.
-        if matches!(class, BodyClass::Gate | BodyClass::SalvageSite) {
-            continue;
-        }
-        // GRP-01: a folded satellite draws nothing - no marker, label,
-        // ring or trail.
-        if fold.map(|f| f.effective_hidden).unwrap_or(false) {
+        if !ring_is_drawn(*class, fold.is_some_and(|f| f.effective_hidden)) {
             continue;
         }
 
@@ -110,9 +132,15 @@ fn draw_orbit_rings(
             .unwrap_or(Vec3::ZERO);
         let radius = km_to_render(orbit.radius_km);
 
-        let dim = crate::view::colors::ORBIT_LINE.with_alpha(DIM_RING_ALPHA);
+        let selected = selection.is_selected(entity);
+        let highlight = ring_highlight(
+            selected,
+            hovered.contains(entity),
+            tunables.orbit_hover_alpha,
+        );
+        let dim = highlight.unwrap_or(crate::view::colors::ORBIT_LINE.with_alpha(DIM_RING_ALPHA));
         let strength = motion.map(MotionModeState::ring_strength).unwrap_or(0.0);
-        let bright = exposure_ring_color(strength, selection.is_open(entity));
+        let bright = exposure_ring_color(strength, highlight.is_some());
 
         for (from, to) in ring_segments(center, radius, view) {
             gizmos.line(from, to, dim);
@@ -126,11 +154,11 @@ fn draw_orbit_rings(
 }
 
 /// The bright exposure ring's colour, if it shows at all: it fades in with
-/// the ring mode's strength, and a selected object keeps its ring
-/// highlighted in the selection white (MOT-02, MOT-07).
-pub fn exposure_ring_color(strength: f32, selected: bool) -> Option<Color> {
+/// the ring mode's strength, and turns white while its object is hovered or
+/// selected (MOT-02, HOV-03).
+pub fn exposure_ring_color(strength: f32, highlighted: bool) -> Option<Color> {
     (strength > MIN_RING_STRENGTH).then(|| {
-        let color = if selected {
+        let color = if highlighted {
             crate::view::colors::SELECTION_RING
         } else {
             crate::view::colors::NEUTRAL
@@ -235,10 +263,35 @@ pub fn clip_to_front((from, to): (Vec3, Vec3), view: RingView) -> Option<(Vec3, 
 mod tests {
     use super::*;
 
-    /// MOT-07: a selected object in ring mode keeps its ring highlighted;
-    /// a dot-mode body has no exposure ring to highlight.
+    /// HOV-03: a selected ring is full white and wins over hover; a hovered
+    /// one is white at the hover alpha; otherwise the normal colour.
     #[test]
-    fn a_selected_exposure_ring_is_highlighted() {
+    fn hovered_and_selected_rings_are_white() {
+        use crate::view::colors::SELECTION_RING;
+        assert_eq!(ring_highlight(true, false, 0.6), Some(SELECTION_RING));
+        assert_eq!(ring_highlight(true, true, 0.6), Some(SELECTION_RING));
+        assert_eq!(
+            ring_highlight(false, true, 0.6),
+            Some(SELECTION_RING.with_alpha(0.6))
+        );
+        assert_eq!(ring_highlight(false, false, 0.6), None);
+    }
+
+    /// HOV-02: planets' and unfolded satellites' rings are drawn (and so
+    /// can be hit); gates', salvage sites' and folded satellites' aren't.
+    #[test]
+    fn which_rings_are_drawn() {
+        assert!(ring_is_drawn(BodyClass::Planet, false));
+        assert!(ring_is_drawn(BodyClass::Moon, false));
+        assert!(!ring_is_drawn(BodyClass::Moon, true));
+        assert!(!ring_is_drawn(BodyClass::Gate, false));
+        assert!(!ring_is_drawn(BodyClass::SalvageSite, false));
+    }
+
+    /// HOV-03: a highlighted object in ring mode has a white exposure
+    /// ring; a dot-mode body has no exposure ring to highlight.
+    #[test]
+    fn a_highlighted_exposure_ring_is_white() {
         use crate::view::colors::{NEUTRAL, SELECTION_RING};
         assert_eq!(exposure_ring_color(1.0, true), Some(SELECTION_RING));
         assert_eq!(exposure_ring_color(1.0, false), Some(NEUTRAL));

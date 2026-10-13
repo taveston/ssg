@@ -15,15 +15,11 @@ use crate::{Boot, Stage};
 
 /// Length of each bracket's arms, as a percentage of the box side.
 const BRACKET_ARM_PERCENT: f32 = 30.0;
-/// Gap between the white selection ring and the brackets, so both read
-/// on one marker (CAM-22).
-const BRACKET_CLEARANCE_PX: f32 = 2.0;
-
-/// CAM-22: the bracket box's side - `focus_bracket_px`, or larger if needed
-/// to clear the marker and its selection ring, so both stay readable on one
-/// marker (F5-08).
-pub fn bracket_side(focus_bracket_px: f32, ring_outer_half: f32) -> f32 {
-    focus_bracket_px.max(2.0 * (ring_outer_half + BRACKET_CLEARANCE_PX))
+/// CAM-22: the bracket box's side. It encloses the selection ring's size,
+/// whether or not the ring shows, with `margin` to spare on each side, so
+/// the brackets and the ring stay readable on one marker.
+pub fn bracket_side(margin: f32, ring_outer_half: f32) -> f32 {
+    2.0 * (ring_outer_half + margin)
 }
 const BRACKET_LINE_PX: f32 = 1.5;
 
@@ -102,7 +98,7 @@ fn place_brackets(
             node.display = Display::None;
             continue;
         };
-        let side = bracket_side(tunables.focus_bracket_px, ring_outer_half(class));
+        let side = bracket_side(tunables.focus_bracket_margin_px, ring_outer_half(class));
         node.display = Display::Flex;
         node.width = px(side);
         node.height = px(side);
@@ -115,13 +111,12 @@ fn place_brackets(
 mod tests {
     use super::*;
 
-    /// CAM-22 (F5-08): the brackets clear the marker and its ring, and are
-    /// never smaller than `focus_bracket_px`.
+    /// CAM-22: the bracket box is the selection ring's size plus the
+    /// margin on each side.
     #[test]
-    fn brackets_clear_the_selection_ring() {
+    fn brackets_enclose_the_selection_ring_with_the_margin() {
         // A planet: 6 px half-size, ring 2 px out and 2 px wide.
-        let side = bracket_side(14.0, 10.0);
-        assert!(side / 2.0 > 10.0, "outside the ring");
-        assert_eq!(bracket_side(40.0, 5.0), 40.0, "never below the tunable");
+        assert_eq!(bracket_side(2.0, 10.0), 24.0);
+        assert_eq!(bracket_side(0.0, 10.0), 20.0);
     }
 }

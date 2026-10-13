@@ -42,8 +42,9 @@ use crate::view::fonts::Fonts;
 use crate::view::frame::{Frame, FramePlugin};
 use crate::view::gesture::PressStart;
 use crate::view::grouping::GroupingPlugin;
+use crate::view::hovered::HoveredPlugin;
 use crate::view::marker_images::MarkerImages;
-use crate::view::markers::{MarkersPlugin, ring_outer_half};
+use crate::view::markers::{MarkerHalfSize, MarkersPlugin, ring_outer_half};
 use crate::view::motion::MotionPlugin;
 use crate::view::motion_mode::MotionModeState;
 use crate::view::pills::PillsPlugin;
@@ -768,7 +769,7 @@ fn panning_keeps_the_frame() {
 
 /// ZOOM-16 / CAM-03 / CAM-04 with the real camera: a frame request moves
 /// to the body's satellite fit in its frame; N levels and turns north up,
-/// keeping pivot and scale; Home returns to the system frame, level and
+/// keeping pivot and scale; Home returns to the system fit, level and
 /// north up, and returns the frame to the star.
 #[test]
 fn frame_north_and_home_move_the_real_camera() {
@@ -1312,7 +1313,9 @@ fn input_during_a_move_takes_over_without_a_jump() {
 
 /// The marker node drawn for a body, as its width in pixels.
 fn marker_width_px(app: &mut App, body: Entity) -> f32 {
-    let mut markers = app.world_mut().query::<(&MarkerFor, &Node)>();
+    let mut markers = app
+        .world_mut()
+        .query_filtered::<(&MarkerFor, &Node), With<MarkerHalfSize>>();
     let (_, node) = markers
         .iter(app.world())
         .find(|(marker, _)| marker.0 == body)
@@ -1334,7 +1337,7 @@ fn a_body_grows_into_a_true_size_disc_when_close() {
                 triangle: Handle::default(),
                 diamond: Handle::default(),
             })
-            .add_plugins((EdgePlugin, MarkersPlugin));
+            .add_plugins((EdgePlugin, MarkersPlugin, HoveredPlugin));
     });
     let halden = body(&mut app, "Halden IV");
     run(&mut app, 2);
@@ -1658,4 +1661,72 @@ fn the_breadcrumb_shows_the_frame_path_and_reframes_on_click() {
     });
     run(&mut app, move_frames());
     assert_eq!(frame_body(&app), halden);
+}
+
+/// A press and release of the left button at `at`, without moving.
+fn click_at(app: &mut App, at: Vec2) {
+    move_cursor(app, at);
+    run(app, 1);
+    mouse(app, MouseButton::Left, ButtonState::Pressed);
+    run(app, 1);
+    mouse(app, MouseButton::Left, ButtonState::Released);
+    run(app, 2);
+}
+
+/// INS-03: a click on empty map space clears the selection; the release
+/// at the end of a pan doesn't.
+#[test]
+fn an_empty_click_clears_the_selection_and_a_pan_does_not() {
+    let mut app = camera_app_with(|app| {
+        app.insert_resource(placeholder_fonts())
+            .add_plugins(crate::view::hover::HoverPlugin);
+    });
+    let halden = body(&mut app, "Halden IV");
+    let star = body(&mut app, "Corvane");
+
+    app.world_mut().resource_mut::<Selection>().select(halden);
+    drag_star(&mut app, star, Vec2::new(900.0, 500.0));
+    assert_eq!(app.world().resource::<Selection>().selected, Some(halden));
+
+    click_at(&mut app, Vec2::new(300.0, 700.0));
+    assert_eq!(app.world().resource::<Selection>().selected, None);
+}
+
+/// HOV-02: every drawn ring is traced for hit-testing, in dot mode too;
+/// a folded satellite's isn't.
+#[test]
+fn dot_mode_rings_are_hit_targets() {
+    let mut app = camera_app_with(|app| {
+        // The backend's output, without the rest of picking.
+        app.add_message::<bevy::picking::backend::PointerHits>()
+            .insert_resource(placeholder_fonts())
+            .add_plugins((
+                GroupingPlugin,
+                MotionPlugin,
+                crate::view::ring_picking::RingPickingPlugin,
+            ));
+    });
+    run(&mut app, SETTLE_FRAMES);
+    let halden = body(&mut app, "Halden IV");
+    let ivc = body(&mut app, "Halden IVc");
+    assert!(
+        !app.world()
+            .get::<MotionModeState>(halden)
+            .unwrap()
+            .ring_mode
+    );
+    let traced = |app: &mut App, body: Entity| {
+        let mut targets = app.world_mut().query::<(Entity, &MarkerFor)>();
+        let target = targets
+            .iter(app.world())
+            .filter(|(_, m)| m.0 == body)
+            .map(|(e, _)| e)
+            .collect::<Vec<_>>();
+        let paths = app
+            .world()
+            .resource::<crate::view::ring_picking::RingPaths>();
+        target.iter().any(|t| paths.0.contains_key(t))
+    };
+    assert!(traced(&mut app, halden), "a dot-mode planet's ring");
+    assert!(!traced(&mut app, ivc), "IVc is folded at the system fit");
 }

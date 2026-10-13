@@ -1,20 +1,16 @@
-//! Inspection insets (INS-01 to INS-04, MOT-07): one panel per open
-//! selection (INS-01, INS-03), anchored to its marker by a leader line and
-//! rebuilt whenever the selection changes, showing the contents INS-02 and
-//! INS-04 list.
+//! The inspection inset (INS-01 to INS-04, INS-07, MOT-07): one panel for
+//! the one selection (INS-03), docked at the right of the map area below
+//! the top bar (INS-07). Its contents are rebuilt in place whenever the
+//! selection changes; content taller than the map scrolls inside it, and
+//! the wheel over it scrolls it instead of zooming the map.
 //!
 //! The panel is built from an `InsetContent` - plain values gathered from
 //! the body - by one helper per section, so what an inset says can be
 //! tested apart from how it is laid out.
-//!
-//! Simplifications: the leader "line" is a short
-//! straight connector rather than a drawn diagonal; the rest of the map
-//! isn't dimmed; Esc closes the unpinned inset (INS-03), and clicking empty
-//! space does nothing.
 
+use bevy::input::mouse::{AccumulatedMouseScroll, MouseScrollUnit};
 use bevy::prelude::*;
 
-use super::anchors::BodyAnchors;
 use super::bindings::{Bindings, pressed};
 use super::camera::requests::FrameRequest;
 use super::colors;
@@ -26,17 +22,20 @@ use super::in_orbit::{OrbitEntry, orbit_entries, spawn_in_orbit_list};
 use super::marker_images::MarkerImages;
 use super::motion_mode::MotionModeState;
 use super::selection::Selection;
-use super::targets::MapInputBlocker;
-use crate::Stage;
+use super::targets::{MapInputBlocker, PointerTargets};
+use super::topbar::TOP_BAR_HEIGHT_PX;
+use super::tunables::Tunables;
 use crate::sim::body::{BodyClass, Description, DisplayName, KeyFacts, Knowledge, Ownership};
 use crate::sim::orbit::Orbit;
+use crate::{Boot, Stage};
 
+/// The dock the inset sits in: the right-hand strip of the map area. It
+/// takes no clicks itself, so the map under its empty part stays live.
 #[derive(Component)]
-struct InspectPanelFor {
-    body: Entity,
-}
+struct InsetDock;
+/// The inset panel, which scrolls (INS-07).
 #[derive(Component)]
-struct LeaderFor(Entity);
+struct InsetPanel;
 /// The inset's Focus button, for the body it would make the frame
 /// (CAM-24).
 #[derive(Component)]
@@ -48,19 +47,10 @@ struct PositionNote(Entity);
 /// MOT-07: what an inset says for the position of a body in ring mode.
 const POSITION_SHOWN_WHEN_PAUSED: &str = "Position: shown when paused";
 
-const PANEL_WIDTH: f32 = 240.0;
 const PANEL_PADDING_PX: f32 = 10.0;
 const PANEL_ROW_GAP_PX: f32 = 5.0;
-/// The panel sits this far above its marker, so the leader meets it near
-/// the header rather than at its top edge.
-const PANEL_RAISE_PX: f32 = 60.0;
-const LEADER_LENGTH: f32 = 28.0;
-const LEADER_THICKNESS_PX: f32 = 2.0;
-/// A pinned inset is drawn quieter than the live one (INS-03), so the
-/// current selection reads first.
-const PINNED_LEADER_ALPHA: f32 = 0.4;
-const LIVE_LEADER_ALPHA: f32 = 0.8;
-const PINNED_BORDER_ALPHA: f32 = 0.5;
+/// How far one wheel line scrolls the inset.
+const SCROLL_LINE_PX: f32 = 24.0;
 const IMAGE_HEIGHT_PX: f32 = 64.0;
 /// The orange corner brackets that frame a telescope image (INS-04).
 const BRACKET_PX: f32 = 10.0;
@@ -146,7 +136,6 @@ pub fn knowledge_status(knowledge: &Knowledge) -> (String, StatusTone, InsetImag
 /// Everything an inset shows, as plain values (INS-02).
 struct InsetContent {
     body: Entity,
-    pinned: bool,
     name: String,
     class_line: String,
     status: String,
@@ -209,66 +198,148 @@ fn dim_focus_buttons(
 
 impl Plugin for InspectPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            (
-                handle_escape,
-                rebuild_panels,
-                update_position_notes,
-                dim_focus_buttons,
-                reposition_panels,
-            )
-                .chain()
-                .in_set(Stage::Overlay),
-        );
+        app.add_systems(Startup, spawn_dock.in_set(Boot::Overlay))
+            .add_systems(
+                Update,
+                (
+                    handle_escape,
+                    rebuild_inset,
+                    update_position_notes,
+                    dim_focus_buttons,
+                    scroll_inset,
+                )
+                    .chain()
+                    .in_set(Stage::Overlay),
+            );
     }
 }
 
-/// INS-03: Esc closes the unpinned inset.
+/// INS-07: the dock at the right edge of the map area,
+/// `inset_dock_margin_px` below the top bar and from the right edge,
+/// `inset_width_px` wide and as tall as the map area allows. The panel in
+/// it never moves; content taller than the dock scrolls.
+fn spawn_dock(mut commands: Commands, tunables: Res<Tunables>) {
+    let margin = tunables.inset_dock_margin_px;
+    commands
+        .spawn((
+            InsetDock,
+            Node {
+                position_type: PositionType::Absolute,
+                top: px(TOP_BAR_HEIGHT_PX + margin),
+                right: px(margin),
+                bottom: px(margin),
+                width: px(tunables.inset_width_px),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Stretch,
+                display: Display::None,
+                ..default()
+            },
+            Pickable::IGNORE,
+        ))
+        .with_children(|dock| {
+            dock.spawn((
+                InsetPanel,
+                // CAM-10: a press on the inset doesn't start a map drag.
+                MapInputBlocker,
+                Node {
+                    max_height: percent(100),
+                    padding: UiRect::all(px(PANEL_PADDING_PX)),
+                    flex_direction: FlexDirection::Column,
+                    row_gap: px(PANEL_ROW_GAP_PX),
+                    border: UiRect::all(px(1)),
+                    overflow: Overflow::scroll_y(),
+                    ..default()
+                },
+                ScrollPosition::default(),
+                BackgroundColor(colors::PANEL),
+                BorderColor::all(colors::PANEL_BORDER),
+            ));
+        });
+}
+
+/// INS-03: Esc closes the inset.
 fn handle_escape(
     keys: Res<ButtonInput<KeyCode>>,
     bindings: Res<Bindings>,
     mut selection: ResMut<Selection>,
 ) {
     if pressed(&keys, &bindings.close_inset) {
-        selection.close_unpinned();
+        selection.clear();
     }
 }
 
-/// INS-01 / INS-03: one inset per open selection, pinned ones first.
+/// The inset's nodes.
+type InsetNodes<'w, 's> = (
+    Query<'w, 's, &'static mut Node, With<InsetDock>>,
+    Query<'w, 's, (Entity, &'static mut ScrollPosition), With<InsetPanel>>,
+);
+
+/// INS-01 / INS-03: whenever the selection changes, the inset's contents
+/// are replaced in place, scrolled back to the top; with nothing selected
+/// the dock is hidden.
 #[allow(clippy::too_many_arguments)]
-fn rebuild_panels(
+fn rebuild_inset(
     selection: Res<Selection>,
     mut commands: Commands,
     fonts: Res<Fonts>,
     fidelity: Res<FidelityImages>,
-    existing_panels: Query<Entity, With<InspectPanelFor>>,
-    existing_leaders: Query<Entity, With<LeaderFor>>,
     bodies: InsetBodies,
     satellites: Satellites,
     images: Res<MarkerImages>,
+    (mut docks, mut panels): InsetNodes,
 ) {
     if !selection.is_changed() {
         return;
     }
-    for entity in existing_panels.iter().chain(&existing_leaders) {
-        commands.entity(entity).despawn();
-    }
-
-    let pinned = selection.pinned.iter().map(|&body| (body, true));
-    let primary = selection.primary.map(|body| (body, false));
-    for (body, pinned) in pinned.chain(primary) {
-        let Some(content) = gather_content(body, pinned, &bodies, &satellites) else {
-            continue;
+    let content = selection
+        .selected
+        .and_then(|body| gather_content(body, &bodies, &satellites));
+    for mut dock in &mut docks {
+        dock.display = if content.is_some() {
+            Display::Flex
+        } else {
+            Display::None
         };
-        spawn_panel(&mut commands, (&fonts, &fidelity, &images), &content);
-        spawn_leader(&mut commands, body, pinned);
     }
+    let Ok((panel, mut scroll)) = panels.single_mut() else {
+        return;
+    };
+    *scroll = ScrollPosition::default();
+    let mut panel = commands.entity(panel);
+    panel.despawn_related::<Children>();
+    if let Some(content) = content {
+        panel.with_children(|panel| fill_panel(panel, (&fonts, &fidelity, &images), &content));
+    }
+}
+
+/// INS-07: the wheel over the inset scrolls it, within its content.
+fn scroll_inset(
+    scroll: Res<AccumulatedMouseScroll>,
+    targets: PointerTargets,
+    mut panels: Query<(Entity, &mut ScrollPosition, &ComputedNode), With<InsetPanel>>,
+) {
+    let Ok((panel, mut position, computed)) = panels.single_mut() else {
+        return;
+    };
+    if scroll.delta.y == 0.0 || targets.panel() != Some(panel) {
+        return;
+    }
+    let lines = match scroll.unit {
+        MouseScrollUnit::Line => SCROLL_LINE_PX,
+        MouseScrollUnit::Pixel => 1.0,
+    };
+    let max = ((computed.content_size() - computed.size()) * computed.inverse_scale_factor()).y;
+    position.y = scrolled(position.y, -scroll.delta.y * lines, max);
+}
+
+/// INS-07: a scroll offset moved by `delta`, kept between the top and the
+/// end of the content.
+pub fn scrolled(offset: f32, delta: f32, max: f32) -> f32 {
+    (offset + delta).clamp(0.0, max.max(0.0))
 }
 
 fn gather_content(
     body: Entity,
-    pinned: bool,
     bodies: &InsetBodies,
     satellites: &Satellites,
 ) -> Option<InsetContent> {
@@ -278,7 +349,6 @@ fn gather_content(
     let satellites = orbit_entries(children, satellites);
     Some(InsetContent {
         body,
-        pinned,
         name: name.0.clone(),
         class_line: format!("{} · {}", class_label(*class), ownership_label(*ownership)),
         status,
@@ -290,84 +360,41 @@ fn gather_content(
     })
 }
 
-fn spawn_leader(commands: &mut Commands, body: Entity, pinned: bool) {
-    let alpha = if pinned {
-        PINNED_LEADER_ALPHA
-    } else {
-        LIVE_LEADER_ALPHA
-    };
-    commands.spawn((
-        LeaderFor(body),
-        Node {
-            position_type: PositionType::Absolute,
-            width: px(LEADER_LENGTH),
-            height: px(LEADER_THICKNESS_PX),
-            display: Display::None,
-            ..default()
-        },
-        BackgroundColor(colors::PANEL_BORDER.with_alpha(alpha)),
-    ));
-}
-
 /// INS-02: header, class line, image, status, description and facts, the
-/// satellite chips, and the disabled planetary-view button.
-fn spawn_panel(
-    commands: &mut Commands,
+/// position note (MOT-07), the satellite list (INS-05), and the disabled
+/// planetary-view button.
+fn fill_panel(
+    panel: &mut ChildSpawnerCommands,
     (fonts, fidelity, images): (&Fonts, &FidelityImages, &MarkerImages),
     content: &InsetContent,
 ) {
-    let border = if content.pinned {
-        colors::PANEL_BORDER.with_alpha(PINNED_BORDER_ALPHA)
-    } else {
-        colors::PANEL_BORDER
-    };
-    commands
-        .spawn((
-            InspectPanelFor { body: content.body },
-            // CAM-10: a press on an inset doesn't start a map drag.
-            MapInputBlocker,
-            Node {
-                position_type: PositionType::Absolute,
-                width: px(PANEL_WIDTH),
-                padding: UiRect::all(px(PANEL_PADDING_PX)),
-                flex_direction: FlexDirection::Column,
-                row_gap: px(PANEL_ROW_GAP_PX),
-                border: UiRect::all(px(1)),
-                display: Display::None,
-                ..default()
-            },
-            BackgroundColor(colors::PANEL),
-            BorderColor::all(border),
-        ))
-        .with_children(|panel| {
-            spawn_header(panel, fonts, content);
-            spawn_text(
-                panel,
-                &content.class_line,
-                fonts.label(BODY_FONT_PX),
-                colors::PANEL_BORDER,
-            );
-            spawn_image(panel, fidelity, content.image);
-            spawn_text(
-                panel,
-                &content.status,
-                fonts.mono(STATUS_FONT_PX),
-                content.tone.color(),
-            );
-            spawn_text(
-                panel,
-                &content.description,
-                fonts.label(BODY_FONT_PX),
-                colors::NEUTRAL,
-            );
-            for (key, value) in &content.facts {
-                let line = format!("{key}: {value}");
-                spawn_text(panel, &line, fonts.mono(BODY_FONT_PX), colors::NEUTRAL);
-            }
-            spawn_position_note(panel, fonts, content.body);
-            spawn_in_orbit_list(panel, fonts, images, &content.satellites);
-            spawn_planetary_view_button(panel, fonts);
-        });
+    spawn_header(panel, fonts, content);
+    spawn_text(
+        panel,
+        &content.class_line,
+        fonts.label(BODY_FONT_PX),
+        colors::PANEL_BORDER,
+    );
+    spawn_image(panel, fidelity, content.image);
+    spawn_text(
+        panel,
+        &content.status,
+        fonts.mono(STATUS_FONT_PX),
+        content.tone.color(),
+    );
+    spawn_text(
+        panel,
+        &content.description,
+        fonts.label(BODY_FONT_PX),
+        colors::NEUTRAL,
+    );
+    for (key, value) in &content.facts {
+        let line = format!("{key}: {value}");
+        spawn_text(panel, &line, fonts.mono(BODY_FONT_PX), colors::NEUTRAL);
+    }
+    spawn_position_note(panel, fonts, content.body);
+    spawn_in_orbit_list(panel, fonts, images, &content.satellites);
+    spawn_planetary_view_button(panel, fonts);
 }
 
 /// MOT-07: the line that stands in for a position while the body is an
@@ -401,7 +428,7 @@ fn spawn_text(parent: &mut ChildSpawnerCommands, text: &str, font: TextFont, col
     parent.spawn((Text::new(text), font, TextColor(color)));
 }
 
-/// INS-02: the name, and the Focus, Pin and Close buttons.
+/// INS-02: the name, and the Focus and Close buttons.
 fn spawn_header(panel: &mut ChildSpawnerCommands, fonts: &Fonts, content: &InsetContent) {
     panel
         .spawn(Node {
@@ -422,13 +449,11 @@ fn spawn_header(panel: &mut ChildSpawnerCommands, fonts: &Fonts, content: &Inset
                     column_gap: px(8),
                     ..default()
                 })
-                .with_children(|actions| {
-                    spawn_actions(actions, fonts, content.body, content.pinned)
-                });
+                .with_children(|actions| spawn_actions(actions, fonts, content.body));
         });
 }
 
-fn spawn_actions(actions: &mut ChildSpawnerCommands, fonts: &Fonts, body: Entity, pinned: bool) {
+fn spawn_actions(actions: &mut ChildSpawnerCommands, fonts: &Fonts, body: Entity) {
     let font = || fonts.label(BODY_FONT_PX);
     actions
         .spawn((
@@ -447,27 +472,12 @@ fn spawn_actions(actions: &mut ChildSpawnerCommands, fonts: &Fonts, body: Entity
                 request.0 = Some(body);
             },
         );
-    // INS-03: Pin keeps the inset open through a new selection.
-    actions
-        .spawn((
-            Text::new(if pinned { "Unpin" } else { "Pin" }),
-            font(),
-            TextColor(colors::NEUTRAL),
-        ))
-        .observe(
-            move |_click: On<PointerClick>, mut selection: ResMut<Selection>| {
-                if pinned {
-                    selection.unpin(body);
-                } else {
-                    selection.pin(body);
-                }
-            },
-        );
+    // INS-03: Close clears the selection and closes the inset.
     actions
         .spawn((Text::new("Close"), font(), TextColor(colors::FOREIGN)))
         .observe(
-            move |_click: On<PointerClick>, mut selection: ResMut<Selection>| {
-                selection.close(body);
+            |_click: On<PointerClick>, mut selection: ResMut<Selection>| {
+                selection.clear();
             },
         );
 }
@@ -548,36 +558,39 @@ fn spawn_planetary_view_button(panel: &mut ChildSpawnerCommands, fonts: &Fonts) 
         });
 }
 
-/// INS-01 / INS-06: insets and their leaders follow their bodies' anchors -
-/// the marker, or the parent's pill while the body is folded.
-fn reposition_panels(
-    anchors: Res<BodyAnchors>,
-    mut panels: Query<(&InspectPanelFor, &mut Node)>,
-    mut leaders: Query<(&LeaderFor, &mut Node), Without<InspectPanelFor>>,
-) {
-    for (panel_for, mut node) in &mut panels {
-        let offset = Vec2::new(LEADER_LENGTH, -PANEL_RAISE_PX);
-        place(&mut node, anchors.get(panel_for.body), offset);
-    }
-    for (leader_for, mut node) in &mut leaders {
-        let offset = Vec2::new(0.0, -LEADER_THICKNESS_PX / 2.0);
-        place(&mut node, anchors.get(leader_for.0), offset);
-    }
-}
-
-fn place(node: &mut Node, anchor: Option<Vec2>, offset: Vec2) {
-    let Some(anchor) = anchor else {
-        node.display = Display::None;
-        return;
-    };
-    node.display = Display::Flex;
-    node.left = px(anchor.x + offset.x);
-    node.top = px(anchor.y + offset.y);
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// INS-07: the inset is docked at the right of the map area, the
+    /// margin below the top bar and from the edge, `inset_width_px` wide;
+    /// it is placed once and nothing moves it afterwards.
+    #[test]
+    fn the_inset_is_docked_at_the_right() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut world = World::new();
+        world.init_resource::<Tunables>();
+        world.run_system_once(spawn_dock).unwrap();
+        let mut docks = world.query_filtered::<&Node, With<InsetDock>>();
+        let dock = docks.single(&world).unwrap();
+        assert_eq!(dock.top, px(TOP_BAR_HEIGHT_PX + 12.0));
+        assert_eq!((dock.right, dock.bottom), (px(12.0), px(12.0)));
+        assert_eq!(dock.width, px(320.0));
+        assert_eq!(dock.position_type, PositionType::Absolute);
+        let mut panels = world.query_filtered::<&Node, With<InsetPanel>>();
+        let panel = panels.single(&world).unwrap();
+        assert_eq!(panel.overflow, Overflow::scroll_y(), "long content scrolls");
+    }
+
+    /// INS-07: scrolling stops at the top and at the end of the content,
+    /// and content that fits doesn't scroll at all.
+    #[test]
+    fn the_inset_scrolls_within_its_content() {
+        assert_eq!(scrolled(0.0, 24.0, 100.0), 24.0);
+        assert_eq!(scrolled(90.0, 24.0, 100.0), 100.0);
+        assert_eq!(scrolled(10.0, -24.0, 100.0), 0.0);
+        assert_eq!(scrolled(0.0, 24.0, -40.0), 0.0);
+    }
 
     /// CAM-24: the Focus button looks disabled only in ring mode.
     #[test]

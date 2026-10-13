@@ -10,8 +10,6 @@
 
 use bevy::ecs::system::SystemParam;
 use bevy::input::mouse::AccumulatedMouseMotion;
-use bevy::picking::hover::HoverMap;
-use bevy::picking::pointer::PointerId;
 use bevy::prelude::*;
 
 use super::control::CameraControl;
@@ -22,7 +20,7 @@ use super::stops::ZoomStops;
 use crate::view::bindings::{Bindings, held};
 use crate::view::frame::body_position;
 use crate::view::gesture::{PressStart, is_drag};
-use crate::view::targets::MapInputBlocker;
+use crate::view::targets::PointerTargets;
 use crate::view::tunables::Tunables;
 use crate::view::world::WorldPositions;
 
@@ -56,9 +54,7 @@ pub struct MouseDrag(Option<Press>);
 pub struct Pointer<'w, 's> {
     windows: Query<'w, 's, &'static Window>,
     camera: Query<'w, 's, &'static Camera, With<OrbitCamera>>,
-    hover: Option<Res<'w, HoverMap>>,
-    parents: Query<'w, 's, &'static ChildOf>,
-    blockers: Query<'w, 's, (), With<MapInputBlocker>>,
+    targets: PointerTargets<'w, 's>,
 }
 
 impl Pointer<'_, '_> {
@@ -68,19 +64,7 @@ impl Pointer<'_, '_> {
 
     /// Whether the pointer is over a panel the map's drags don't start on.
     fn over_panel(&self) -> bool {
-        let Some(hits) = self
-            .hover
-            .as_ref()
-            .and_then(|map| map.0.get(&PointerId::Mouse))
-        else {
-            return false;
-        };
-        hits.keys().any(|&hit| {
-            std::iter::successors(Some(hit), |&node| {
-                self.parents.get(node).ok().map(ChildOf::parent)
-            })
-            .any(|node| self.blockers.contains(node))
-        })
+        self.targets.panel().is_some()
     }
 
     /// CAM-10: the plane point under a screen position, for the camera at

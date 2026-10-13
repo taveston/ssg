@@ -22,6 +22,7 @@ use super::zoom::{
 };
 use crate::view::bindings::{Bindings, pressed};
 use crate::view::frame::{body_position, clamp_to_pan_bound};
+use crate::view::targets::PointerTargets;
 use crate::view::tunables::Tunables;
 use crate::view::world::WorldPositions;
 
@@ -55,6 +56,7 @@ pub struct ZoomContext<'w, 's> {
     positions: Res<'w, WorldPositions>,
     fits: Fits<'w, 's>,
     stops: Res<'w, super::stops::ZoomStops>,
+    targets: PointerTargets<'w, 's>,
 }
 
 impl ZoomContext<'_, '_> {
@@ -64,7 +66,8 @@ impl ZoomContext<'_, '_> {
         // hook in here).
         let unit_is_pixels = self.scroll.unit == MouseScrollUnit::Pixel;
         let wheel = notches_from_scroll(self.scroll.delta.y, unit_is_pixels);
-        if wheel != 0.0 {
+        // INS-07: the wheel over a panel scrolls the panel, not the map.
+        if wheel != 0.0 && self.targets.panel().is_none() {
             return Some(ZoomRequest {
                 notches: wheel,
                 from_wheel: true,

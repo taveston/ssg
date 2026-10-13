@@ -1,7 +1,7 @@
 //! The motion rule on screen (MOT-01 to MOT-03, MOT-08): keeps each
 //! orbiting body's motion mode current, and draws dot-mode trails and the
 //! labels of exposure rings. The rings themselves are drawn in `rings.rs`,
-//! hit-tested in `ring_picking.rs` (MOT-05); the rules are in
+//! hit-tested in `ring_picking.rs` (HOV-02); the rules are in
 //! `motion_mode.rs`.
 //!
 //! MOT-08: applies to everything that orbits, not just satellites -
@@ -308,7 +308,7 @@ fn place_ring_labels(
         node.display = Display::Flex;
         node.left = px(pos.x + RING_LABEL_OFFSET_PX.x);
         node.top = px(pos.y + RING_LABEL_OFFSET_PX.y);
-        let base = if selection.is_open(body) {
+        let base = if selection.is_selected(body) {
             colors::SELECTION_RING
         } else {
             colors::NEUTRAL

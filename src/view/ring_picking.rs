@@ -1,12 +1,12 @@
-//! Hover and click on an exposure ring (MOT-05): a small picking
-//! backend that hits a ring anywhere along its length, by distance from
-//! the ring as drawn on screen.
+//! Hover and click on an orbit ring (HOV-02): a small picking backend that
+//! hits any drawn ring - dot mode or exposure-ring mode - anywhere along
+//! its length, by distance from the ring as drawn on screen.
 //!
 //! Gizmo-drawn rings aren't pickable on their own. Each orbiting body gets
 //! one invisible target entity carrying `MarkerFor` and the ordinary marker
 //! observers, so a ring hit behaves exactly like a hit on the body's marker
-//! (tooltip, select, double-click). Hits are reported below the UI's order,
-//! so a marker or panel over the ring still wins.
+//! (tooltip, select, double-click). Hits are reported below the markers'
+//! and the UI's order, so a marker, pill, label or panel still wins.
 
 use std::collections::HashMap;
 
@@ -16,24 +16,23 @@ use bevy::picking::pointer::{PointerId, PointerLocation};
 use bevy::prelude::*;
 
 use super::hover;
-use super::motion::{RingBodies, ring_point, ring_strength};
+use super::motion::{RingBodies, ring_point};
+use super::rings::ring_is_drawn;
 use super::targets::MarkerFor;
+use super::tunables::Tunables;
 use crate::sim::body::BodyClass;
 use crate::sim::orbit::Orbit;
 use crate::view::world::ViewNow;
 use crate::{Boot, Stage};
 
-/// How close to a ring the pointer must be to hit it, in pixels: the same
-/// reach as the 14 px hit squares this replaces.
-const RING_HIT_TOLERANCE_PX: f32 = 7.0;
 /// Straight segments a ring is traced with for hit-testing.
 const RING_TRACE_SEGMENTS: usize = 64;
 
-/// The invisible hit target standing for a body's exposure ring.
+/// The invisible hit target standing for a body's orbit ring.
 #[derive(Component)]
 pub struct RingTarget;
 
-/// Each active ring's on-screen segments, by its target entity. Rebuilt
+/// Each drawn ring's on-screen segments, by its target entity. Rebuilt
 /// every frame; a ring that isn't showing has no entry.
 #[derive(Resource, Default)]
 pub struct RingPaths(pub HashMap<Entity, Vec<(Vec2, Vec2)>>);
@@ -55,7 +54,7 @@ pub fn distance_to_segments(point: Vec2, segments: &[(Vec2, Vec2)]) -> f32 {
         .fold(f32::INFINITY, f32::min)
 }
 
-/// MOT-05: the ring under `point`, if any is within `tolerance`: the
+/// HOV-02: the ring under `point`, if any is within `tolerance`: the
 /// nearest one, so overlapping rings resolve to the closer line.
 pub fn ring_under(point: Vec2, paths: &RingPaths, tolerance: f32) -> Option<(Entity, f32)> {
     paths
@@ -77,10 +76,10 @@ impl Plugin for RingPickingPlugin {
     }
 }
 
-/// One target per orbiting body; gates keep their edge treatment instead.
+/// One target per body whose orbit ring can be drawn.
 fn spawn_ring_targets(mut commands: Commands, bodies: Query<(Entity, &BodyClass), With<Orbit>>) {
     for (body, class) in &bodies {
-        if *class == BodyClass::Gate {
+        if !ring_is_drawn(*class, false) {
             continue;
         }
         commands
@@ -91,7 +90,8 @@ fn spawn_ring_targets(mut commands: Commands, bodies: Query<(Entity, &BodyClass)
     }
 }
 
-/// MOT-05: trace every active exposure ring on screen.
+/// HOV-02: trace every drawn ring on screen. A folded satellite's ring
+/// isn't drawn, so it has no path (GRP-07: its pill stands for it).
 fn trace_rings(
     view: ViewNow,
     bodies: RingBodies,
@@ -101,7 +101,10 @@ fn trace_rings(
     paths.0.clear();
     for (target, marker_for) in &targets {
         let body = marker_for.0;
-        if ring_strength(body, &bodies).is_none() {
+        let folded = bodies
+            .get(body)
+            .is_ok_and(|(_, _, _, fold)| fold.is_some_and(|f| f.effective_hidden));
+        if folded {
             continue;
         }
         let point = |i: usize| {
@@ -119,6 +122,7 @@ fn trace_rings(
 
 /// The backend: report a hit on a ring's target for each pointer near it.
 fn pick_rings(
+    tunables: Res<Tunables>,
     pointers: Query<(&PointerId, &PointerLocation)>,
     camera_q: Query<(Entity, &Camera)>,
     paths: Res<RingPaths>,
@@ -131,12 +135,12 @@ fn pick_rings(
         let Some(location) = &location.location else {
             continue;
         };
-        let Some((target, distance)) = ring_under(location.position, &paths, RING_HIT_TOLERANCE_PX)
+        let Some((target, distance)) = ring_under(location.position, &paths, tunables.ring_hit_px)
         else {
             continue;
         };
         let hit = HitData::new(camera_entity, distance, None, None);
-        // Below the UI (camera order + 0.5), so markers and panels win.
+        // Below the markers (+0.25) and the UI (+0.5), so they win.
         output.write(PointerHits::new(
             *pointer,
             vec![(target, hit)],
@@ -148,6 +152,9 @@ fn pick_rings(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The default `ring_hit_px`.
+    const RING_HIT_PX: f32 = 7.0;
 
     /// A ring traced as a square of four segments round the origin.
     fn square(world: &mut World, half: f32) -> (Entity, Vec<(Vec2, Vec2)>) {
@@ -175,7 +182,7 @@ mod tests {
         );
     }
 
-    /// MOT-05: a ring is hittable anywhere along its length, not
+    /// HOV-02: a ring is hittable anywhere along its length, not
     /// only at a few points round it.
     #[test]
     fn a_ring_is_hit_anywhere_along_it() {
@@ -185,18 +192,15 @@ mod tests {
         paths.0.insert(ring, segments);
         // Every point along an edge, including midway between "corners".
         for x in [-190.0_f32, -73.0, 0.0, 41.5, 199.0] {
-            let hit = ring_under(Vec2::new(x, 203.0), &paths, RING_HIT_TOLERANCE_PX);
+            let hit = ring_under(Vec2::new(x, 203.0), &paths, RING_HIT_PX);
             assert_eq!(hit.map(|(e, _)| e), Some(ring), "missed at x = {x}");
         }
         // But not in the middle of the ring, or just outside the reach.
-        assert_eq!(ring_under(Vec2::ZERO, &paths, RING_HIT_TOLERANCE_PX), None);
-        assert_eq!(
-            ring_under(Vec2::new(0.0, 210.0), &paths, RING_HIT_TOLERANCE_PX),
-            None
-        );
+        assert_eq!(ring_under(Vec2::ZERO, &paths, RING_HIT_PX), None);
+        assert_eq!(ring_under(Vec2::new(0.0, 210.0), &paths, RING_HIT_PX), None);
     }
 
-    /// MOT-05: where two rings are both within reach, the closer wins.
+    /// HOV-02: where two rings are both within reach, the closer wins.
     #[test]
     fn the_nearer_of_two_rings_wins() {
         let mut world = World::new();
@@ -205,9 +209,9 @@ mod tests {
         let mut paths = RingPaths::default();
         paths.0.insert(inner, inner_segments);
         paths.0.insert(outer, outer_segments);
-        let near_inner = ring_under(Vec2::new(0.0, 101.0), &paths, RING_HIT_TOLERANCE_PX);
+        let near_inner = ring_under(Vec2::new(0.0, 101.0), &paths, RING_HIT_PX);
         assert_eq!(near_inner.map(|(e, _)| e), Some(inner));
-        let near_outer = ring_under(Vec2::new(0.0, 105.0), &paths, RING_HIT_TOLERANCE_PX);
+        let near_outer = ring_under(Vec2::new(0.0, 105.0), &paths, RING_HIT_PX);
         assert_eq!(near_outer.map(|(e, _)| e), Some(outer));
     }
 }

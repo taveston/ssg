@@ -3,6 +3,9 @@
 //! hit targets) and by the pointer handlers in `hover.rs`, so neither side
 //! has to import the other (ARCH-03).
 
+use bevy::ecs::system::SystemParam;
+use bevy::picking::hover::HoverMap;
+use bevy::picking::pointer::PointerId;
 use bevy::prelude::*;
 
 /// A marker (or exposure-ring hit target) -> the body it represents.
@@ -19,6 +22,42 @@ pub struct Hovered;
 /// an inset and dragging doesn't pan or rotate the camera (CAM-10).
 #[derive(Component)]
 pub struct MapInputBlocker;
+
+/// What the mouse pointer is over, as far as the map's own input cares:
+/// a panel (top bar, inset), or anything pickable at all.
+#[derive(SystemParam)]
+pub struct PointerTargets<'w, 's> {
+    hover: Option<Res<'w, HoverMap>>,
+    parents: Query<'w, 's, &'static ChildOf>,
+    blockers: Query<'w, 's, (), With<MapInputBlocker>>,
+}
+
+impl PointerTargets<'_, '_> {
+    /// Everything the mouse is over this frame.
+    fn hits(&self) -> impl Iterator<Item = Entity> + '_ {
+        self.hover
+            .as_ref()
+            .and_then(|map| map.0.get(&PointerId::Mouse))
+            .into_iter()
+            .flat_map(|hits| hits.keys().copied())
+    }
+
+    /// The panel under the mouse, if any: the `MapInputBlocker` that is, or
+    /// holds, something the pointer is over (CAM-10, INS-07).
+    pub fn panel(&self) -> Option<Entity> {
+        self.hits().find_map(|hit| {
+            std::iter::successors(Some(hit), |&node| {
+                self.parents.get(node).ok().map(ChildOf::parent)
+            })
+            .find(|&node| self.blockers.contains(node))
+        })
+    }
+
+    /// Whether the mouse is over nothing pickable: empty map space (INS-03).
+    pub fn over_nothing(&self) -> bool {
+        self.hits().next().is_none()
+    }
+}
 
 /// A "+N" count pill -> the parent whose folded satellites it counts.
 /// Clicking it does what clicking the parent does (GRP-07).

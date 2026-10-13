@@ -27,9 +27,11 @@ pub mod frame_marks;
 pub mod gesture;
 pub mod grouping;
 pub mod hover;
+pub mod hovered;
 pub mod in_orbit;
 pub mod inspect;
 pub mod marker_images;
+pub mod marker_picking;
 pub mod markers;
 pub mod motion;
 pub mod motion_mode;
@@ -57,6 +59,7 @@ impl Plugin for ViewPlugin {
             .init_resource::<gesture::PressStart>()
             .add_plugins((
                 frame::FramePlugin,
+                hovered::HoveredPlugin,
                 tunables::TunablesPlugin,
                 bindings::BindingsPlugin,
                 fonts::FontsPlugin,
@@ -65,6 +68,7 @@ impl Plugin for ViewPlugin {
                 belt::BeltPlugin,
                 camera::CameraPlugin,
                 breadcrumb::BreadcrumbPlugin,
+                marker_picking::MarkerPickingPlugin,
             ))
             .add_plugins((
                 grouping::GroupingPlugin,

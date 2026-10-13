@@ -109,9 +109,23 @@ pub struct Tunables {
     /// The pivot stays within this many system-frame radii of the star
     /// (CAM-19).
     pub pan_bound_factor: f32,
-    /// Side of the box the focused marker's corner brackets outline
-    /// (CAM-22).
-    pub focus_bracket_px: f32,
+    /// Space between the frame brackets and the selection ring's size, on
+    /// each side (CAM-22).
+    pub focus_bracket_margin_px: f32,
+
+    // --- Hover, selection and the inset ---
+    /// Every marker and symbol can be hit at least this far from its
+    /// centre, even where it is drawn smaller (MRK-08).
+    pub min_hit_radius_px: f32,
+    /// A pointer this close to a drawn orbit ring hits it (HOV-02).
+    pub ring_hit_px: f32,
+    /// A hovered object's orbit ring is drawn white at this alpha (HOV-03).
+    pub orbit_hover_alpha: f32,
+    /// The docked inset's width (INS-07).
+    pub inset_width_px: f32,
+    /// The docked inset's gap below the top bar and from the right edge
+    /// (INS-07).
+    pub inset_dock_margin_px: f32,
 }
 
 impl Default for Tunables {
@@ -149,7 +163,13 @@ impl Default for Tunables {
             standard_tilt_deg: 60.0,
             focus_keep_margin_px: 40.0,
             pan_bound_factor: 1.5,
-            focus_bracket_px: 14.0,
+            focus_bracket_margin_px: 2.0,
+
+            min_hit_radius_px: 10.0,
+            ring_hit_px: 7.0,
+            orbit_hover_alpha: 0.6,
+            inset_width_px: 320.0,
+            inset_dock_margin_px: 12.0,
         }
     }
 }

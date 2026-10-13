@@ -90,7 +90,7 @@ pub fn handle_frame_requests(
     mut request: ResMut<FrameRequest>,
     mut view: CameraControl,
 ) {
-    let key = pressed(&keys, &bindings.focus_selection).then_some(selection.primary);
+    let key = pressed(&keys, &bindings.focus_selection).then_some(selection.selected);
     let Some(body) = request.0.take().or(key.flatten()) else {
         return;
     };

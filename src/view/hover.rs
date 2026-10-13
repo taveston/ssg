@@ -9,6 +9,7 @@
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
+use super::bindings::Bindings;
 use super::camera::requests::{FrameRequest, PlanetaryViewRequest};
 use super::colors;
 use super::fold::FoldSummary;
@@ -16,16 +17,57 @@ use super::fonts::Fonts;
 use super::frame::Frame;
 use super::gesture::{PressStart, was_click};
 use super::selection::Selection;
-use super::targets::{GroupPillFor, Hovered, MarkerFor};
+use super::targets::{GroupPillFor, Hovered, MarkerFor, PointerTargets};
 use super::tunables::Tunables;
-use crate::Boot;
 use crate::sim::body::{BodyClass, DisplayName, Ownership};
+use crate::{Boot, Stage};
 
 pub struct HoverPlugin;
 
 impl Plugin for HoverPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_tooltip.in_set(Boot::Overlay));
+        app.add_systems(Startup, spawn_tooltip.in_set(Boot::Overlay))
+            .add_systems(
+                Update,
+                (clear_on_empty_click, place_tooltip).in_set(Stage::Overlay),
+            );
+    }
+}
+
+/// How far the tooltip sits from the pointer, down and to the right.
+const TOOLTIP_OFFSET_PX: Vec2 = Vec2::new(14.0, 18.0);
+
+/// HOV-02: the tooltip sits by the pointer, whatever it is over.
+fn place_tooltip(windows: Query<&Window>, mut tooltips: Query<&mut Node, With<TooltipRoot>>) {
+    let Some(cursor) = windows.single().ok().and_then(Window::cursor_position) else {
+        return;
+    };
+    for mut node in &mut tooltips {
+        node.left = px(cursor.x + TOOLTIP_OFFSET_PX.x);
+        node.top = px(cursor.y + TOOLTIP_OFFSET_PX.y);
+    }
+}
+
+/// INS-03: a click on empty map space - a primary press and release within
+/// `drag_threshold_px` that hits no marker, pill, ring or panel - clears
+/// the selection and closes the inset.
+fn clear_on_empty_click(
+    buttons: Res<ButtonInput<MouseButton>>,
+    bindings: Res<Bindings>,
+    windows: Query<&Window>,
+    press: Res<PressStart>,
+    tunables: Res<Tunables>,
+    targets: PointerTargets,
+    mut selection: ResMut<Selection>,
+) {
+    if !buttons.just_released(bindings.select_button) {
+        return;
+    }
+    let Some(release) = windows.single().ok().and_then(Window::cursor_position) else {
+        return;
+    };
+    if was_click(&press, release, tunables.drag_threshold_px) && targets.over_nothing() {
+        selection.clear();
     }
 }
 
@@ -351,7 +393,7 @@ mod tests {
     /// planetary-view request.
     fn outcome(world: &World) -> (Option<Entity>, Option<Entity>, Option<Entity>) {
         (
-            world.resource::<Selection>().primary,
+            world.resource::<Selection>().selected,
             world.resource::<FrameRequest>().0,
             world.resource::<PlanetaryViewRequest>().0,
         )

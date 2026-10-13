@@ -17,12 +17,13 @@ use super::edge::GateEdgeTargets;
 use super::fold::SatelliteFoldState;
 use super::fonts::Fonts;
 use super::hover;
+use super::hovered::HoveredBodies;
 use super::marker_images::MarkerImages;
 use super::motion_mode::MotionModeState;
 use super::scale::km_to_render;
 use super::screen::ScreenPositions;
 use super::selection::Selection;
-use super::targets::{Hovered, MarkerFor};
+use super::targets::MarkerFor;
 use super::true_size::{disc_half_px, projected_radius_px};
 use super::world::ViewNow;
 use crate::sim::body::{BodyClass, DisplayName, Ownership, PhysicalRadius};
@@ -211,6 +212,9 @@ fn spawn_marker(
         MarkerBaseColor(color),
         style,
         marker_node(shape, half),
+        // Hover and click go through the marker's hit area instead
+        // (MRK-08, `marker_picking.rs`), so the node itself takes none.
+        Pickable::IGNORE,
         // The hover ring (HOV-01): an outline, invisible until hovered.
         Outline {
             width: px(0),
@@ -235,41 +239,45 @@ fn spawn_marker(
         MarkerStyle::Glyph => {}
     }
     marker
-        .observe(hover::on_marker_over)
-        .observe(hover::on_marker_out)
-        .observe(hover::on_marker_click)
-        .with_children(|parent| spawn_marker_text(parent, fonts, shape, half, color, name));
+        .with_children(|parent| spawn_marker_text(parent, fonts, shape, half, color, (body, name)));
 }
 
 /// A glyph marker's glyph, and every marker's label just right of it. Both
-/// are child text, coloured with the marker.
+/// are child text, coloured with the marker. The label is a hover and click
+/// target for its body, and wins over an orbit ring (HOV-02).
 fn spawn_marker_text(
     parent: &mut ChildSpawnerCommands,
     fonts: &Fonts,
     shape: MarkerShape,
     half: Vec2,
     color: Color,
-    name: &DisplayName,
+    (body, name): (Entity, &DisplayName),
 ) {
     if let MarkerShape::Glyph(glyph) = shape {
         parent.spawn((
             Text::new(glyph),
             fonts.label(half.x * GLYPH_SCALE),
             TextColor(color),
+            Pickable::IGNORE,
         ));
     }
-    parent.spawn((
-        MarkerLabel,
-        Node {
-            position_type: PositionType::Absolute,
-            left: px(half.x * 2.0 + LABEL_GAP_PX),
-            top: px(0),
-            ..default()
-        },
-        Text::new(name.0.clone()),
-        fonts.label(LABEL_FONT_PX),
-        TextColor(color),
-    ));
+    parent
+        .spawn((
+            MarkerLabel,
+            MarkerFor(body),
+            Node {
+                position_type: PositionType::Absolute,
+                left: px(half.x * 2.0 + LABEL_GAP_PX),
+                top: px(0),
+                ..default()
+            },
+            Text::new(name.0.clone()),
+            fonts.label(LABEL_FONT_PX),
+            TextColor(color),
+        ))
+        .observe(hover::on_marker_over)
+        .observe(hover::on_marker_out)
+        .observe(hover::on_marker_click);
 }
 
 /// What a marker's look depends on, from its body.
@@ -354,10 +362,12 @@ const RING_PX: f32 = 2.0;
 /// MRK-01: draw the white ring on hovered and selected markers.
 fn ring_markers(
     selection: Res<Selection>,
-    mut markers: Query<(&MarkerFor, Has<Hovered>, &mut Outline), With<MarkerHalfSize>>,
+    hovered: Res<HoveredBodies>,
+    mut markers: Query<(&MarkerFor, &mut Outline), With<MarkerHalfSize>>,
 ) {
-    for (marker_for, hovered, mut outline) in &mut markers {
-        let ring = shows_ring(hovered, selection.is_open(marker_for.0));
+    for (marker_for, mut outline) in &mut markers {
+        let body = marker_for.0;
+        let ring = shows_ring(hovered.contains(body), selection.is_selected(body));
         outline.width = px(if ring { RING_PX } else { 0.0 });
         outline.color = if ring {
             colors::SELECTION_RING
