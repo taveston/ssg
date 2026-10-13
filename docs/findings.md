@@ -21,11 +21,6 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Affects:** INS-02, MRK-01 · **Type:** conflict (build and `ui-style.md` §2)
 - **Disposition:** open. Proposed: adopt the button rules of `ui-style.md` §2 in the spec: primary filled off-white, secondary outlined, quiet as text, orange outline only for actions that can't be undone. The active time rate shown as the primary style.
 
-### F-118 · Unexplained line across the system view
-- **Observation:** a long straight line runs across the whole view, top left to bottom right, through the plot. Nothing in the spec draws it. If it's a gate bearing or a reference axis it needs a label and less weight; if not, it shouldn't be there.
-- **Affects:** new · **Type:** bug, or spec gap if intended
-- **Disposition:** open. Ask the coding session what draws it.
-
 ### F-119 · Gate edge arrows are weak and their labels clip
 - **Observation:** the edge arrows are small chevrons that are easy to miss; the right-hand label is cut to "Gat" by the window edge, and the bottom arrow shows no label at all.
 - **Affects:** EDGE-01 · **Type:** bug (labels), spec gap (look)
