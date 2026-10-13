@@ -17,9 +17,9 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Disposition:** proposed fix: render relative to the frame body (a floating origin). Subtract the frame body's position in `f64` km before converting to `f32`, in `view/scale.rs` and `projection.rs`, so everything near the frame body has full precision.
 
 ### F-102 · Exposure rings look like selected rings
-- **Observation:** an exposure ring (bright, 3 px) is hard to tell from a selected orbit ring (full white). Both read as "highlighted".
-- **Affects:** MOT-02, HOV-03 · **Type:** spec wrong
-- **Disposition:** open. Recheck after "Orbit tails on the ring", which changes how exposure rings are drawn.
+- **Observation:** an exposure ring (bright neutral, 3 px) is hard to tell from a selected orbit ring (full white). Still true after the tails rework. Normal rings could also be thinner or darker, to give more contrast to tails, exposure rings and highlights.
+- **Affects:** MRK-01, MRK-05, MOT-02, HOV-03 · **Type:** spec wrong
+- **Disposition:** open; needs a palette decision (ring colours, alphas and the normal ring width, now 2 px).
 
 ### F-103 · The hover tooltip says too much
 - **Observation:** the tooltip carries name, ownership, contents and the full click hints ("Click: inspect · Double-click: frame its moons · Double-click again: planetary view"). It is too long to read at a glance.
@@ -30,3 +30,13 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Observation:** an object in exposure-ring mode can't be a frame (CAM-24), so double-clicking its ring only selects it. It feels like the double-click should do something.
 - **Affects:** HOV-02, CAM-24, ZOOM-16 · **Type:** spec gap
 - **Disposition:** open. One option: move into the parent's frame at its satellite fit, as CAM-24 does when a frame body turns into a ring.
+
+### F-105 · Tails jump when the time rate changes
+- **Observation:** changing the rate (for example 1 d/s to 5 d/s, or pausing) changes every tail's length and mode at once, so tails snap to their new length and bodies pop between dot and exposure ring. It feels abrupt.
+- **Affects:** MOT-04, MOT-10, MOT-11, MOT-12 · **Type:** spec wrong
+- **Disposition:** open. Option: ease the displayed tail length towards its new value over a short time (as the fold slide does), so a rate change animates.
+
+### F-106 · The frame body's own orbit ring is a click target
+- **Observation:** in a body's frame, its own orbit ring runs through the middle of the view and catches hovers and clicks meant for its satellites or empty space.
+- **Affects:** HOV-02 · **Type:** spec wrong
+- **Disposition:** open. Option: the frame body's own ring is drawn but not a hover or click target.

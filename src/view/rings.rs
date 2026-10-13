@@ -191,7 +191,11 @@ fn draw_orbit_rings(
         else {
             continue;
         };
-        for segment in ring_segments(look.center, look.radius, view) {
+        let segments = ring_segments(look.center, look.radius, view);
+        for segment in segments
+            .into_iter()
+            .flat_map(|segment| split_at_angle(segment, look.body_angle))
+        {
             let at = |angle: f32| {
                 let behind = degrees_behind(look.body_angle, angle);
                 ring_color_at(look.colors, tail_brightness(behind, &look.mode))
@@ -265,6 +269,31 @@ pub struct RingView {
 /// The point at `angle` on a ring in the orbital (XZ) plane.
 fn ring_point(center: Vec3, radius: f32, angle: f32) -> Vec3 {
     center + Vec3::new(radius * angle.cos(), 0.0, radius * angle.sin())
+}
+
+/// MOT-01: a segment split where the body sits on it, so the tail's
+/// brightness never bleeds ahead of the body. A segment the body isn't on
+/// comes back whole.
+pub fn split_at_angle(segment: RingSegment, angle: f32) -> Vec<RingSegment> {
+    use std::f32::consts::TAU;
+    let span = (segment.to_angle - segment.from_angle).rem_euclid(TAU);
+    let into = (angle - segment.from_angle).rem_euclid(TAU);
+    if span <= 0.0 || into <= 0.0 || into >= span {
+        return vec![segment];
+    }
+    let cut = segment.from.lerp(segment.to, into / span);
+    vec![
+        RingSegment {
+            to: cut,
+            to_angle: angle,
+            ..segment
+        },
+        RingSegment {
+            from: cut,
+            from_angle: angle,
+            ..segment
+        },
+    ]
 }
 
 /// One straight piece of a drawn ring, with the orbit angle at each end so
@@ -407,6 +436,30 @@ mod tests {
             ring_color_at(hovered, 0.0),
             colors::SELECTION_RING.with_alpha(0.6)
         );
+    }
+
+    /// MOT-01: a segment the body sits on is split at the body, so the
+    /// part ahead of it isn't shaded as tail; others are left whole.
+    #[test]
+    fn segments_are_split_at_the_body() {
+        let segment = RingSegment {
+            from: Vec3::ZERO,
+            to: Vec3::X * 10.0,
+            from_angle: 1.0,
+            to_angle: 1.2,
+        };
+        let split = split_at_angle(segment, 1.05);
+        assert_eq!(split.len(), 2);
+        assert!((split[0].to - Vec3::X * 2.5).length() < 1e-4);
+        assert_eq!((split[0].to_angle, split[1].from_angle), (1.05, 1.05));
+        assert_eq!(split_at_angle(segment, 2.0), vec![segment]);
+        // Across the wrap from just under a full turn to just over zero.
+        let wrap = RingSegment {
+            from_angle: 6.2,
+            to_angle: 0.05,
+            ..segment
+        };
+        assert_eq!(split_at_angle(wrap, 0.0).len(), 2);
     }
 
     /// MOT-01: each segment carries the orbit angle at its ends, so the
