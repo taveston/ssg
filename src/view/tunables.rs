@@ -123,6 +123,22 @@ pub struct Tunables {
     /// The docked inset's gap below the top bar and from the right edge
     /// (INS-07).
     pub inset_dock_margin_px: f32,
+
+    // --- Ship and station symbols ---
+    /// A symbol's frame fits a square this many pixels across, at every
+    /// zoom (SYM-04, SYM-14).
+    pub ship_symbol_px: f32,
+    /// A symbol's size in lists such as the inset's "In orbit" (INS-05).
+    pub list_symbol_px: f32,
+    /// A symbol's outline width (SYM-02).
+    pub symbol_stroke_px: f32,
+    /// The fill's alpha for objects the state commands (SYM-03).
+    pub symbol_fill_state: f32,
+    /// The fill's alpha for every other affiliation but own-flag civilians,
+    /// which have none (SYM-03).
+    pub symbol_fill_other: f32,
+    /// A stale track's symbol is drawn at this opacity (SYM-08).
+    pub stale_symbol_alpha: f32,
 }
 
 impl Default for Tunables {
@@ -165,6 +181,13 @@ impl Default for Tunables {
             orbit_hover_alpha: 0.6,
             inset_width_px: 320.0,
             inset_dock_margin_px: 12.0,
+
+            ship_symbol_px: 22.0,
+            list_symbol_px: 14.0,
+            symbol_stroke_px: 1.6,
+            symbol_fill_state: 0.30,
+            symbol_fill_other: 0.16,
+            stale_symbol_alpha: 0.55,
         }
     }
 }

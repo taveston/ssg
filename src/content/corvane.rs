@@ -5,9 +5,15 @@
 //! This is the seam a generator replaces (SCL-03): anything that builds a
 //! `SystemData` the same shape can stand in for `hand_made_system`.
 
-use crate::sim::body::{BodyClass, Knowledge, Ownership};
+use crate::sim::body::{Affiliation, BodyClass, Knowledge};
 use crate::sim::system::{BeltBlueprint, BodyBlueprint, GateBlueprint, SystemData};
-use crate::sim::units::{EARTH_MASS_KG, KM_PER_AU, SOLAR_MASS_KG};
+use crate::sim::track::{Echelon, Formation, ShipClass, ShipRecord, Track, TroopLoad};
+use crate::sim::units::{
+    EARTH_MASS_KG, GRAVITATIONAL_CONSTANT, KM_PER_AU, M_PER_KM, SECS_PER_DAY, SOLAR_MASS_KG,
+};
+
+/// Halden IV's mass, which sets its satellites' periods.
+const HALDEN_IV_MASS_KG: f64 = 1.1 * EARTH_MASS_KG;
 
 fn surveyed_today() -> Knowledge {
     Knowledge::Surveyed { imaged_day: 0.0 }
@@ -30,7 +36,8 @@ pub fn hand_made_system() -> SystemData {
                 BodyBlueprint {
                     name: "Wreck Field",
                     class: BodyClass::SalvageSite,
-                    ownership: Ownership::Neutral,
+                    affiliation: Affiliation::Neutral,
+                    record: None,
                     description: "An unsurveyed debris field scattered across the belt.",
                     key_facts: vec![("Contents", "unknown")],
                     knowledge: Knowledge::Unsurveyed,
@@ -43,7 +50,8 @@ pub fn hand_made_system() -> SystemData {
                 BodyBlueprint {
                     name: "Lantern",
                     class: BodyClass::SalvageSite,
-                    ownership: Ownership::Neutral,
+                    affiliation: Affiliation::Neutral,
+                    record: None,
                     description: "The wreck of the station Lantern, last imaged years ago.",
                     key_facts: vec![("Recoverable then", "4-6 kt"), ("Since then", "unknown")],
                     knowledge: Knowledge::Stale {
@@ -88,7 +96,8 @@ fn pell() -> BodyBlueprint {
     BodyBlueprint {
         name: "Pell",
         class: BodyClass::Planet,
-        ownership: Ownership::Own,
+        affiliation: Affiliation::Own,
+        record: None,
         description: "A scorched inner rock, too hot for anything but automated survey gear.",
         key_facts: vec![("Class", "Hot rocky planet"), ("Orbit", "0.35 AU")],
         knowledge: surveyed_today(),
@@ -105,7 +114,8 @@ fn iver() -> BodyBlueprint {
     BodyBlueprint {
         name: "Iver",
         class: BodyClass::Planet,
-        ownership: Ownership::Own,
+        affiliation: Affiliation::Own,
+        record: None,
         description: "A tidally-locked world whose pre-collapse orbital yard has sat dormant for a generation.",
         key_facts: vec![("Class", "Rocky planet"), ("Orbit", "0.7 AU")],
         knowledge: surveyed_today(),
@@ -116,7 +126,8 @@ fn iver() -> BodyBlueprint {
         children: vec![BodyBlueprint {
             name: "Iver Yard",
             class: BodyClass::Station,
-            ownership: Ownership::Own,
+            affiliation: Affiliation::Own,
+            record: Some(ShipRecord::new(ShipClass::Station, true)),
             description: "A dormant pre-collapse shipyard, barely maintained.",
             key_facts: vec![("Status", "Dormant"), ("Owner", "State")],
             knowledge: surveyed_today(),
@@ -135,7 +146,8 @@ fn halden_iv() -> BodyBlueprint {
     BodyBlueprint {
         name: "Halden IV",
         class: BodyClass::Planet,
-        ownership: Ownership::Own,
+        affiliation: Affiliation::Own,
+        record: None,
         description: "Cold terrestrial capital world: three settlements under a thin nitrogen sky.",
         key_facts: vec![
             ("Class", "Cold terrestrial · capital world"),
@@ -148,12 +160,13 @@ fn halden_iv() -> BodyBlueprint {
         orbit_radius_km: 2.0 * KM_PER_AU,
         radius_km: 6700.0,
         phase0_rad: 4.4,
-        mass_kg: 1.1 * EARTH_MASS_KG,
+        mass_kg: HALDEN_IV_MASS_KG,
         children: vec![
             BodyBlueprint {
                 name: "Halden IVa",
                 class: BodyClass::Moon,
-                ownership: Ownership::Own,
+                affiliation: Affiliation::Own,
+                record: None,
                 description: "The innermost of Halden IV's four moons.",
                 key_facts: vec![("Class", "Moon")],
                 knowledge: surveyed_today(),
@@ -171,7 +184,8 @@ fn halden_iv() -> BodyBlueprint {
             BodyBlueprint {
                 name: "Halden IVb",
                 class: BodyClass::Moon,
-                ownership: Ownership::Own,
+                affiliation: Affiliation::Own,
+                record: None,
                 description: "The second of Halden IV's four moons.",
                 key_facts: vec![("Class", "Moon")],
                 knowledge: surveyed_today(),
@@ -184,7 +198,8 @@ fn halden_iv() -> BodyBlueprint {
             BodyBlueprint {
                 name: "Halden IVc",
                 class: BodyClass::Moon,
-                ownership: Ownership::Own,
+                affiliation: Affiliation::Own,
+                record: None,
                 description: "An ice moon the state has not yet surveyed up close.",
                 key_facts: vec![
                     ("Water ice", "likely, 2-9 Gt"),
@@ -200,7 +215,8 @@ fn halden_iv() -> BodyBlueprint {
             BodyBlueprint {
                 name: "Halden IVd",
                 class: BodyClass::Moon,
-                ownership: Ownership::Own,
+                affiliation: Affiliation::Own,
+                record: None,
                 description: "The outermost of Halden IV's four moons.",
                 key_facts: vec![("Class", "Moon")],
                 knowledge: surveyed_today(),
@@ -213,7 +229,8 @@ fn halden_iv() -> BodyBlueprint {
             BodyBlueprint {
                 name: "Arden Highport",
                 class: BodyClass::Station,
-                ownership: Ownership::Own,
+                affiliation: Affiliation::Own,
+                record: Some(ShipRecord::new(ShipClass::Station, true)),
                 description: "Halden IV's primary orbital station.",
                 key_facts: vec![("Status", "Active"), ("Owner", "State")],
                 knowledge: surveyed_today(),
@@ -223,41 +240,197 @@ fn halden_iv() -> BodyBlueprint {
                 mass_kg: 0.0,
                 children: vec![],
             },
-            // Placeholder contacts so the count pill's indicators
-            // have something to report. Both are plain orbiting
-            // objects; there's no ship simulation behind them yet.
-            BodyBlueprint {
-                name: "K-3",
-                class: BodyClass::Ship,
-                ownership: Ownership::Foreign,
-                description: "An unidentified contact holding a slow parking orbit.",
-                key_facts: vec![("Class", "Unidentified contact"), ("Track", "weak")],
-                knowledge: Knowledge::Unsurveyed,
-                // Between IVc and IVd, as board 6 shows it: far
-                // enough out to read as a slow orbit (~45 d, so it
-                // stays a dot and reads as a diamond), but not so
-                // far that it stretches the satellite frame.
-                orbit_radius_km: 550_000.0,
-                radius_km: 0.05,
-                phase0_rad: 2.6,
-                mass_kg: 0.0,
-                children: vec![],
-            },
-            BodyBlueprint {
-                name: "Orison",
-                class: BodyClass::Ship,
-                ownership: Ownership::Own,
-                description: "A state vessel parked in orbit over Halden IV.",
-                key_facts: vec![("Class", "Parked ship"), ("Owner", "State")],
-                knowledge: surveyed_today(),
-                orbit_radius_km: 25_000.0,
-                radius_km: 0.1,
-                phase0_rad: 1.0,
-                mass_kg: 0.0,
-                children: vec![],
-            },
-        ],
+        ]
+        .into_iter()
+        // TEST-03 / TEST-05: the ships and contacts the symbols are
+        // checked against.
+        .chain(ships_at_halden())
+        .collect(),
     }
+}
+
+/// The orbit radius round Halden IV (1.1 Earth masses) for a period in
+/// days, by the inverse of Kepler's third law. Parked ships sit between
+/// IVc (31 d) and IVd (68 d), slow enough to be dots at 1 d/s (TEST-05)
+/// without stretching the satellite fit.
+fn halden_orbit_km(period_days: f64) -> f64 {
+    let mu = GRAVITATIONAL_CONSTANT * HALDEN_IV_MASS_KG;
+    let seconds = period_days * SECS_PER_DAY;
+    let radius_m = (mu * seconds * seconds / std::f64::consts::TAU.powi(2)).cbrt();
+    radius_m / M_PER_KM
+}
+
+/// A ship or contact parked round Halden IV.
+fn parked(
+    name: &'static str,
+    affiliation: Affiliation,
+    record: ShipRecord,
+    description: &'static str,
+    (period_days, phase0_rad): (f64, f64),
+) -> BodyBlueprint {
+    let own = affiliation == Affiliation::Own;
+    BodyBlueprint {
+        name,
+        class: BodyClass::Ship,
+        affiliation,
+        record: Some(record),
+        description,
+        key_facts: vec![],
+        knowledge: if own {
+            surveyed_today()
+        } else {
+            Knowledge::Unsurveyed
+        },
+        orbit_radius_km: halden_orbit_km(period_days),
+        radius_km: 0.1,
+        phase0_rad,
+        mass_kg: 0.0,
+        children: vec![],
+    }
+}
+
+/// TEST-03 / TEST-05: one of each kind of ship and contact the symbols
+/// must tell apart.
+fn ships_at_halden() -> Vec<BodyBlueprint> {
+    let warship = ShipRecord::new(ShipClass::Warship, true);
+    let civilian_cargo = ShipRecord::new(ShipClass::Cargo, false);
+    let transport = |load| ShipRecord {
+        load,
+        ..ShipRecord::new(ShipClass::TroopTransport, true)
+    };
+    vec![
+        parked(
+            "Orison",
+            Affiliation::Own,
+            ShipRecord {
+                condition: Some(0.9),
+                ..warship.clone()
+            },
+            "A state warship parked in orbit over Halden IV.",
+            (12.0, 1.0),
+        ),
+        parked(
+            "RFA Tolland",
+            Affiliation::Own,
+            ShipRecord {
+                condition: Some(0.55),
+                ..ShipRecord::new(ShipClass::FleetSupply, true)
+            },
+            "A fleet tanker on station.",
+            (14.0, 0.2),
+        ),
+        parked(
+            "Transport Cassel",
+            Affiliation::Own,
+            transport(TroopLoad::Embarked(vec![Formation {
+                name: "1st Arden Guard",
+                echelon: Some(Echelon::Battalion),
+            }])),
+            "A troop transport with the 1st Arden Guard embarked.",
+            (16.0, 2.2),
+        ),
+        parked(
+            "Transport Hale",
+            Affiliation::Own,
+            transport(TroopLoad::Empty),
+            "A troop transport, empty.",
+            (18.0, 3.4),
+        ),
+        parked(
+            "Transport Brask",
+            Affiliation::Own,
+            transport(TroopLoad::Embarked(vec![
+                Formation {
+                    name: "2nd Halden Regiment",
+                    echelon: Some(Echelon::Regiment),
+                },
+                Formation {
+                    name: "Halden Field Brigade",
+                    echelon: Some(Echelon::Brigade),
+                },
+            ])),
+            "A troop transport carrying a regiment and a brigade staff.",
+            (20.0, 4.8),
+        ),
+        parked(
+            "Varga Prospector",
+            Affiliation::Own,
+            civilian_cargo.clone(),
+            "An ore carrier of Varga Mining, under its own orders.",
+            (22.0, 4.1),
+        ),
+        parked(
+            "Delve",
+            Affiliation::Own,
+            ShipRecord {
+                commanded: true,
+                requisitioned: true,
+                ..civilian_cargo.clone()
+            },
+            "A civilian ore carrier chartered by the state.",
+            (24.0, 5.0),
+        ),
+        parked(
+            "Marten",
+            Affiliation::Own,
+            ShipRecord {
+                armed: true,
+                ..civilian_cargo.clone()
+            },
+            "A licensed armed hauler under its owner's orders.",
+            (26.0, 5.8),
+        ),
+        parked(
+            "Ostra trader",
+            Affiliation::Neutral,
+            ShipRecord::new(ShipClass::Cargo, false),
+            "A neutral trader of Halvard Lines.",
+            (28.0, 0.7),
+        ),
+        parked(
+            "Sennet",
+            Affiliation::Allied,
+            ShipRecord::new(ShipClass::Warship, false),
+            "An allied frigate.",
+            (35.0, 1.6),
+        ),
+        parked(
+            "Transport T-4",
+            Affiliation::Hostile,
+            ShipRecord::new(ShipClass::TroopTransport, false),
+            "A hostile troop transport; what it carries is unknown.",
+            (40.0, 2.9),
+        ),
+        parked(
+            "K-3",
+            Affiliation::Unknown,
+            ShipRecord {
+                track: Track::Weak,
+                ..ShipRecord::new(ShipClass::Unknown, false)
+            },
+            "An unidentified contact holding a slow parking orbit.",
+            (45.0, 2.6),
+        ),
+        parked(
+            "Raider R-2",
+            Affiliation::Hostile,
+            ShipRecord {
+                track: Track::Stale {
+                    last_observed_day: -6.0,
+                },
+                ..ShipRecord::new(ShipClass::Warship, false)
+            },
+            "A hostile raider, last seen six days ago.",
+            (50.0, 4.6),
+        ),
+        parked(
+            "Contact C-9",
+            Affiliation::Unknown,
+            ShipRecord::new(ShipClass::Cargo, false),
+            "A cargo ship whose flag is not known.",
+            (55.0, 3.9),
+        ),
+    ]
 }
 
 /// TEST-01: Morrow, the outer giant with many moons.
@@ -288,7 +461,8 @@ fn morrow() -> BodyBlueprint {
             BodyBlueprint {
                 name,
                 class: BodyClass::Moon,
-                ownership: Ownership::Own,
+                affiliation: Affiliation::Own,
+                record: None,
                 description: "One of Morrow's eleven moons.",
                 key_facts: vec![("Class", "Moon")],
                 knowledge: surveyed_today(),
@@ -304,7 +478,8 @@ fn morrow() -> BodyBlueprint {
     BodyBlueprint {
         name: "Morrow",
         class: BodyClass::Planet,
-        ownership: Ownership::Own,
+        affiliation: Affiliation::Own,
+        record: None,
         description: "An outer giant with a retinue of eleven moons.",
         key_facts: vec![("Class", "Gas giant"), ("Moons", "11")],
         knowledge: surveyed_today(),
@@ -387,7 +562,8 @@ mod tests {
     }
 
     /// TEST-07, TEST-08: Morrow is Jupiter-sized and its moons keep the
-    /// target periods, split seven in ring mode and four in dot mode.
+    /// target periods, split six in ring mode (under 8 d, so under 8 s at
+    /// 1 d/s) and five in dot mode.
     #[test]
     fn morrow_moon_periods_follow_a_jupiter_mass_giant() {
         let morrow = planet("Morrow");
@@ -408,9 +584,9 @@ mod tests {
         let ring = morrow
             .children
             .iter()
-            .filter(|m| kepler_period_days(m.orbit_radius_km, morrow.mass_kg) < 20.0)
+            .filter(|m| kepler_period_days(m.orbit_radius_km, morrow.mass_kg) < 8.0)
             .count();
-        assert_eq!(ring, 7);
+        assert_eq!(ring, 6);
     }
 
     /// TEST-01 / TEST-03: the bodies the other checks lean on are present.
@@ -426,19 +602,102 @@ mod tests {
         assert!(site_names.contains(&"Wreck Field"));
         assert!(site_names.contains(&"Lantern"));
         assert!(!system.gates.is_empty());
+    }
+
+    /// What the state knows of a body in Halden IV's orbit, by name.
+    fn known(name: &str) -> (Affiliation, ShipRecord) {
+        let halden = planet("Halden IV");
+        let body = halden
+            .children
+            .into_iter()
+            .find(|c| c.name == name)
+            .unwrap_or_else(|| panic!("{name} missing"));
+        (body.affiliation, body.record.expect("a ship record"))
+    }
+
+    /// TEST-03: K-3 is an unknown contact of unknown class on a weak
+    /// track, and an own commanded warship is parked at Halden IV.
+    #[test]
+    fn halden_iv_has_k3_and_an_own_warship() {
+        let (affiliation, k3) = known("K-3");
+        assert_eq!(affiliation, Affiliation::Unknown);
+        assert_eq!((k3.class, k3.track), (ShipClass::Unknown, Track::Weak));
+        let (affiliation, orison) = known("Orison");
+        assert_eq!(affiliation, Affiliation::Own);
+        assert!(orison.commanded && orison.class == ShipClass::Warship);
+    }
+
+    /// TEST-05: one of each kind of ship the symbols tell apart, all in
+    /// slow orbits (dots at 1 d/s, under the 8 s tail), and own stations.
+    #[test]
+    fn corvane_has_one_of_each_kind_of_ship() {
+        let check = |name: &str, want: &dyn Fn(Affiliation, &ShipRecord) -> bool| {
+            let (affiliation, record) = known(name);
+            assert!(want(affiliation, &record), "{name}");
+        };
+        let own = |a: Affiliation| a == Affiliation::Own;
+        check("RFA Tolland", &|a, r| {
+            own(a) && r.commanded && r.class == ShipClass::FleetSupply
+        });
+        check("Transport Cassel", &|a, r| {
+            own(a)
+                && r.load
+                    == TroopLoad::Embarked(vec![Formation {
+                        name: "1st Arden Guard",
+                        echelon: Some(Echelon::Battalion),
+                    }])
+        });
+        check("Transport Hale", &|a, r| {
+            own(a) && r.load == TroopLoad::Empty
+        });
+        check("Varga Prospector", &|a, r| {
+            own(a) && !r.commanded && r.class == ShipClass::Cargo && !r.armed
+        });
+        check("Delve", &|a, r| own(a) && r.commanded && r.requisitioned);
+        check("Marten", &|a, r| own(a) && !r.commanded && r.armed);
+        check("Ostra trader", &|a, r| {
+            a == Affiliation::Neutral && r.class == ShipClass::Cargo
+        });
+        check("Sennet", &|a, r| {
+            a == Affiliation::Allied && r.class == ShipClass::Warship
+        });
+        check("Transport T-4", &|a, r| {
+            a == Affiliation::Hostile
+                && r.class == ShipClass::TroopTransport
+                && r.load == TroopLoad::Unknown
+        });
+        check("Raider R-2", &|a, r| {
+            a == Affiliation::Hostile
+                && r.track
+                    == Track::Stale {
+                        last_observed_day: -6.0,
+                    }
+        });
+        check("Contact C-9", &|a, r| {
+            a == Affiliation::Unknown && r.class == ShipClass::Cargo
+        });
+        check("Arden Highport", &|a, r| {
+            own(a) && r.class == ShipClass::Station
+        });
 
         let halden = planet("Halden IV");
-        let k3 = halden.children.iter().find(|c| c.name == "K-3").unwrap();
-        assert_eq!(k3.class, BodyClass::Ship);
-        assert_eq!(k3.ownership, Ownership::Foreign);
-
-        let parked = halden
+        for ship in halden
             .children
             .iter()
-            .find(|c| c.class == BodyClass::Ship && c.ownership == Ownership::Own);
-        assert!(
-            parked.is_some(),
-            "an own ship should be parked at Halden IV"
+            .filter(|c| c.class == BodyClass::Ship)
+        {
+            let period = kepler_period_days(ship.orbit_radius_km, halden.mass_kg);
+            assert!(
+                period >= 8.0,
+                "{} is a dot at 1 d/s: {period:.1} d",
+                ship.name
+            );
+        }
+        let iver = planet("Iver");
+        let yard = iver.children[0].record.as_ref().unwrap();
+        assert_eq!(
+            (iver.children[0].affiliation, yard.class),
+            (Affiliation::Own, ShipClass::Station)
         );
     }
 

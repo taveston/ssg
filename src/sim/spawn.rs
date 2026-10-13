@@ -10,7 +10,7 @@
 use bevy::prelude::*;
 
 use super::body::{
-    Belt, BodyClass, Description, DisplayName, KeyFacts, Knowledge, Ownership, PhysicalRadius,
+    Affiliation, Belt, BodyClass, Description, DisplayName, KeyFacts, Knowledge, PhysicalRadius,
 };
 use super::orbit::{Orbit, OrbitPositionKm, kepler_period_days, orbit_position_km};
 use super::system::{BodyBlueprint, GateBlueprint, SystemData, SystemDataResource};
@@ -39,7 +39,7 @@ pub fn spawn_system(mut commands: Commands, system_data: Option<ResMut<SystemDat
         KeyFacts(vec![("Class".to_string(), star_class.to_string())]),
         BodyClass::Star,
         PhysicalRadius(star_radius_km),
-        Ownership::Neutral,
+        Affiliation::Neutral,
         star_knowledge,
     ));
 
@@ -82,7 +82,7 @@ fn spawn_gate(commands: &mut Commands, gate: GateBlueprint, star_mass_kg: f64) {
         )]),
         BodyClass::Gate,
         PhysicalRadius(gate.radius_km),
-        Ownership::Neutral,
+        Affiliation::Neutral,
         Knowledge::Surveyed { imaged_day: 0.0 },
         orbit_components(orbit),
     ));
@@ -102,7 +102,8 @@ fn spawn_body(
     let BodyBlueprint {
         name,
         class,
-        ownership,
+        affiliation,
+        record,
         description,
         key_facts,
         knowledge,
@@ -131,10 +132,13 @@ fn spawn_body(
         ),
         class,
         PhysicalRadius(radius_km),
-        ownership,
+        affiliation,
         knowledge,
         orbit_components(orbit),
     ));
+    if let Some(record) = record {
+        entity_commands.insert(record);
+    }
     if let Some(parent) = parent {
         // What it orbits: positions are relative to this body (ARCH-10).
         entity_commands.insert(ChildOf(parent));

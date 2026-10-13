@@ -1,5 +1,5 @@
 //! Simulation (ARCH-01): the game state and its rules, in real units -
-//! the clock, bodies and their orbits, ownership and knowledge.
+//! the clock, bodies and their orbits, affiliation and knowledge.
 //!
 //! Nothing here knows about screens, cameras or input (ARCH-02), so the
 //! whole domain runs in a headless `App` with `MinimalPlugins` and
@@ -15,6 +15,7 @@ pub mod clock;
 pub mod orbit;
 pub mod spawn;
 pub mod system;
+pub mod track;
 pub mod units;
 
 pub struct SimPlugin;

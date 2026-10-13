@@ -17,16 +17,17 @@ use super::colors;
 use super::date::{date_from_elapsed_days, format_date, format_time_ago};
 use super::fidelity::FidelityImages;
 use super::fonts::Fonts;
-use super::hover::ownership_label;
-use super::in_orbit::{OrbitEntry, orbit_entries, spawn_in_orbit_list};
-use super::marker_images::MarkerImages;
+use super::in_orbit::{OrbitEntry, Satellites, orbit_entries, spawn_in_orbit_list};
+use super::markers::MarkerAssets;
 use super::motion_mode::MotionModeState;
 use super::selection::Selection;
+use super::symbol_images::SymbolImages;
+use super::symbols::ownership_text;
 use super::targets::{MapInputBlocker, PointerTargets};
 use super::topbar::TOP_BAR_HEIGHT_PX;
 use super::tunables::Tunables;
-use crate::sim::body::{BodyClass, Description, DisplayName, KeyFacts, Knowledge, Ownership};
-use crate::sim::orbit::Orbit;
+use crate::sim::body::{Affiliation, BodyClass, Description, DisplayName, KeyFacts, Knowledge};
+use crate::sim::track::ShipRecord;
 use crate::{Boot, Stage};
 
 /// The dock the inset sits in: the right-hand strip of the map area. It
@@ -101,7 +102,7 @@ impl StatusTone {
         match self {
             StatusTone::Surveyed => colors::OWN,
             // INS-04: unsurveyed is reported in orange.
-            StatusTone::Unsurveyed => colors::FOREIGN,
+            StatusTone::Unsurveyed => colors::WARNING,
             StatusTone::Stale => STALE_TONE,
         }
     }
@@ -146,18 +147,6 @@ struct InsetContent {
     satellites: Vec<OrbitEntry>,
 }
 
-/// The satellites an inset lists (INS-05).
-type Satellites<'w, 's> = Query<
-    'w,
-    's,
-    (
-        &'static DisplayName,
-        &'static BodyClass,
-        &'static Ownership,
-        &'static Orbit,
-    ),
->;
-
 type InsetBodies<'w, 's> = Query<
     'w,
     's,
@@ -166,8 +155,9 @@ type InsetBodies<'w, 's> = Query<
         &'static Description,
         &'static KeyFacts,
         &'static BodyClass,
-        &'static Ownership,
+        &'static Affiliation,
         &'static Knowledge,
+        Option<&'static ShipRecord>,
         Option<&'static Children>,
     ),
 >;
@@ -285,7 +275,7 @@ fn rebuild_inset(
     fidelity: Res<FidelityImages>,
     bodies: InsetBodies,
     satellites: Satellites,
-    images: Res<MarkerImages>,
+    (images, tunables): (Res<SymbolImages>, Res<Tunables>),
     (mut docks, mut panels): InsetNodes,
 ) {
     if !selection.is_changed() {
@@ -308,7 +298,9 @@ fn rebuild_inset(
     let mut panel = commands.entity(panel);
     panel.despawn_related::<Children>();
     if let Some(content) = content {
-        panel.with_children(|panel| fill_panel(panel, (&fonts, &fidelity, &images), &content));
+        panel.with_children(|panel| {
+            fill_panel(panel, &fidelity, (&fonts, &images, &tunables), &content)
+        });
     }
 }
 
@@ -343,14 +335,18 @@ fn gather_content(
     bodies: &InsetBodies,
     satellites: &Satellites,
 ) -> Option<InsetContent> {
-    let (name, description, facts, class, ownership, knowledge, children) =
+    let (name, description, facts, class, affiliation, knowledge, record, children) =
         bodies.get(body).ok()?;
     let (status, tone, image) = knowledge_status(knowledge);
     let satellites = orbit_entries(children, satellites);
     Some(InsetContent {
         body,
         name: name.0.clone(),
-        class_line: format!("{} · {}", class_label(*class), ownership_label(*ownership)),
+        class_line: format!(
+            "{} · {}",
+            class_label(*class),
+            ownership_text(*affiliation, record)
+        ),
         status,
         tone,
         image,
@@ -365,9 +361,11 @@ fn gather_content(
 /// planetary-view button.
 fn fill_panel(
     panel: &mut ChildSpawnerCommands,
-    (fonts, fidelity, images): (&Fonts, &FidelityImages, &MarkerImages),
+    fidelity: &FidelityImages,
+    assets: MarkerAssets,
     content: &InsetContent,
 ) {
+    let (fonts, ..) = assets;
     spawn_header(panel, fonts, content);
     spawn_text(
         panel,
@@ -393,7 +391,7 @@ fn fill_panel(
         spawn_text(panel, &line, fonts.mono(BODY_FONT_PX), colors::NEUTRAL);
     }
     spawn_position_note(panel, fonts, content.body);
-    spawn_in_orbit_list(panel, fonts, images, &content.satellites);
+    spawn_in_orbit_list(panel, assets, &content.satellites);
     spawn_planetary_view_button(panel, fonts);
 }
 
@@ -474,7 +472,7 @@ fn spawn_actions(actions: &mut ChildSpawnerCommands, fonts: &Fonts, body: Entity
         );
     // INS-03: Close clears the selection and closes the inset.
     actions
-        .spawn((Text::new("Close"), font(), TextColor(colors::FOREIGN)))
+        .spawn((Text::new("Close"), font(), TextColor(colors::WARNING)))
         .observe(
             |_click: On<PointerClick>, mut selection: ResMut<Selection>| {
                 selection.clear();
@@ -533,7 +531,7 @@ fn spawn_corner_bracket(frame: &mut ChildSpawnerCommands, top: bool, right: bool
             },
             ..default()
         },
-        BorderColor::all(colors::FOREIGN),
+        BorderColor::all(colors::WARNING),
     ));
 }
 
@@ -657,7 +655,7 @@ mod tests {
     fn unsurveyed_is_a_telescope_frame_in_orange() {
         let (status, tone, image) = knowledge_status(&Knowledge::Unsurveyed);
         assert_eq!(status, "TELESCOPE FRAME · UNSURVEYED");
-        assert_eq!(tone.color(), colors::FOREIGN);
+        assert_eq!(tone.color(), colors::WARNING);
         assert_eq!(image, InsetImage::Telescope);
     }
 

@@ -22,7 +22,7 @@ use bevy::window::WindowResolution;
 
 use crate::content::ContentPlugin;
 use crate::sim::SimPlugin;
-use crate::sim::body::{BodyClass, DisplayName, Knowledge, Ownership, PhysicalRadius};
+use crate::sim::body::{Affiliation, BodyClass, DisplayName, Knowledge, PhysicalRadius};
 use crate::sim::clock::GameClock;
 use crate::sim::orbit::{Orbit, OrbitPositionKm, orbit_position_km};
 use crate::sim::system::{
@@ -43,7 +43,6 @@ use crate::view::frame::{Frame, FramePlugin};
 use crate::view::gesture::PressStart;
 use crate::view::grouping::GroupingPlugin;
 use crate::view::hovered::HoveredPlugin;
-use crate::view::marker_images::MarkerImages;
 use crate::view::markers::{MarkerHalfSize, MarkersPlugin, ring_outer_half};
 use crate::view::motion::MotionPlugin;
 use crate::view::motion_mode::MotionModeState;
@@ -52,6 +51,7 @@ use crate::view::projection::ProjectionPlugin;
 use crate::view::scale::km_to_render;
 use crate::view::screen::{ScreenPlugin, ScreenPositions};
 use crate::view::selection::Selection;
+use crate::view::symbol_images::SymbolImages;
 use crate::view::targets::{GroupPillFor, MarkerFor};
 use crate::view::topbar::TOP_BAR_HEIGHT_PX;
 use crate::view::true_size::projected_radius_px;
@@ -965,7 +965,8 @@ fn blueprint(name: &'static str, class: BodyClass, radius_km: f64) -> BodyBluepr
     BodyBlueprint {
         name,
         class,
-        ownership: Ownership::Neutral,
+        affiliation: Affiliation::Neutral,
+        record: None,
         description: "",
         key_facts: vec![],
         knowledge: Knowledge::Unsurveyed,
@@ -1105,7 +1106,7 @@ fn a_parent_with_folded_satellites_shows_a_count_pill() {
     let (Val::Px(left), Val::Px(top)) = (node.left, node.top) else {
         panic!("pill not placed in pixels");
     };
-    let clear = ring_outer_half(BodyClass::Planet);
+    let clear = ring_outer_half(BodyClass::Planet, Tunables::default().ship_symbol_px);
     assert!(left - marker.x >= clear, "the pill overlaps the marker");
     assert!(
         top > marker.y,
@@ -1357,10 +1358,7 @@ fn marker_width_px(app: &mut App, body: Entity) -> f32 {
 fn a_body_grows_into_a_true_size_disc_when_close() {
     let mut app = camera_app_with(|app| {
         app.insert_resource(placeholder_fonts())
-            .insert_resource(MarkerImages {
-                triangle: Handle::default(),
-                diamond: Handle::default(),
-            })
+            .init_resource::<SymbolImages>()
             .add_plugins((EdgePlugin, MarkersPlugin, HoveredPlugin));
     });
     let halden = body(&mut app, "Halden IV");
@@ -1753,4 +1751,36 @@ fn dot_mode_rings_are_hit_targets() {
     };
     assert!(traced(&mut app, halden), "a dot-mode planet's ring");
     assert!(!traced(&mut app, ivc), "IVc is folded at the system fit");
+}
+
+/// SYM-04 / MRK-03: a ship's symbol fits `ship_symbol_px` at every zoom; it
+/// never grows to its true size as natural bodies do.
+#[test]
+fn a_symbol_keeps_its_size_at_every_zoom() {
+    let mut app = camera_app_with(|app| {
+        app.insert_resource(placeholder_fonts())
+            .init_resource::<SymbolImages>()
+            .add_plugins((EdgePlugin, MarkersPlugin, HoveredPlugin));
+    });
+    let symbol_px = app.world().resource::<Tunables>().ship_symbol_px;
+    let orison = body(&mut app, "Orison");
+    let halden = body(&mut app, "Halden IV");
+    set_frame(&mut app, halden, Vec3::ZERO);
+    let mut shown = 0;
+    for distance in [2.0, 1.0, 0.5, 0.25] {
+        app.world_mut().resource_mut::<CameraRig>().distance = distance;
+        run(&mut app, 20);
+        let mut markers = app
+            .world_mut()
+            .query_filtered::<(&MarkerFor, &Node), With<MarkerHalfSize>>();
+        let (_, node) = markers
+            .iter(app.world())
+            .find(|(m, _)| m.0 == orison)
+            .unwrap();
+        if node.display == Display::Flex {
+            shown += 1;
+            assert_eq!(node.width, Val::Px(symbol_px), "at {distance}");
+        }
+    }
+    assert!(shown >= 2, "the symbol was on screen at {shown} zooms");
 }

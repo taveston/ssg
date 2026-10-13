@@ -1,11 +1,16 @@
 //! The vector-display overlay: one fixed-size UI marker per body, placed on
-//! its projected screen position each frame (MRK-03, MRK-04, MRK-06).
+//! its projected screen position each frame (MRK-03, MRK-04, MRK-06), with
+//! its label to the right (SYM-13).
 //!
-//! What's drawn is decided elsewhere - `fold.rs` says whether a satellite
-//! is folded into its parent (GRP-01, GRP-03), `motion_mode.rs` whether a
-//! body reads as a dot or as an exposure ring (MOT-02), and `edge.rs`
-//! whether a gate is pinned to the screen edge instead (EDGE-01). This
-//! module turns those into a shape, a position and a strength.
+//! Natural bodies are filled discs, a salvage site an X and a gate on
+//! screen a hollow circle; ships and stations are symbols (section 3a of
+//! the spec, built in `symbols.rs` and `symbol_draw.rs`). What's drawn is
+//! decided elsewhere - `fold.rs` says whether a satellite is folded into
+//! its parent (GRP-01, GRP-03), `motion_mode.rs` how far its dot has faded
+//! into the exposure ring (MOT-11), and `edge.rs` whether a gate is pinned
+//! to the screen edge instead (EDGE-01). This module turns those into a
+//! position and a strength, which fades every coloured part (`Tint`) as
+//! one.
 //!
 //! MRK-06 holds by construction: only satellites fold, so every planet
 //! keeps its own marker at every zoom.
@@ -18,15 +23,20 @@ use super::fold::SatelliteFoldState;
 use super::fonts::Fonts;
 use super::hover;
 use super::hovered::HoveredBodies;
-use super::marker_images::MarkerImages;
 use super::motion_mode::MotionModeState;
 use super::scale::km_to_render;
 use super::screen::ScreenPositions;
 use super::selection::Selection;
+use super::symbol_draw::{Tint, spawn_symbol_parts};
+use super::symbol_images::SymbolImages;
+use super::symbols::{SymbolSettings, label_second_line, symbol_look};
 use super::targets::MarkerFor;
 use super::true_size::{disc_half_px, projected_radius_px};
+use super::tunables::Tunables;
 use super::world::ViewNow;
-use crate::sim::body::{BodyClass, DisplayName, Ownership, PhysicalRadius};
+use crate::sim::body::{Affiliation, BodyClass, DisplayName, PhysicalRadius};
+use crate::sim::clock::GameClock;
+use crate::sim::track::ShipRecord;
 use crate::{Boot, Stage};
 
 /// Half-size in pixels, so the update system can centre the node on its
@@ -34,51 +44,26 @@ use crate::{Boot, Stage};
 #[derive(Component)]
 pub struct MarkerHalfSize(pub Vec2);
 
-/// The marker's full-strength colour, so fading can be recomputed from it
-/// each frame rather than accumulating rounding.
-#[derive(Component)]
-pub struct MarkerBaseColor(pub Color);
-
 /// A marker's label, which sits just right of the marker and moves out when
 /// the marker grows to a true-size disc (MRK-07).
 #[derive(Component)]
 pub struct MarkerLabel;
 
-/// Where a marker's colour lives, so fading knows what to write to.
-#[derive(Component, Clone, Copy, PartialEq, Eq, Debug)]
-pub enum MarkerStyle {
-    /// Filled shape: colour on `BackgroundColor`.
-    Fill,
-    /// Hollow square or circle: colour on `BorderColor`.
-    Border,
-    /// Text glyph: colour on the child `TextColor`.
-    Glyph,
-    /// Generated shape image: colour on the `ImageNode`'s tint.
-    Image,
-}
+/// A symbol label's second line, for the body it describes (SYM-13). It
+/// is rewritten as game time passes, so a stale track's age stays true.
+#[derive(Component)]
+pub struct SecondLineFor(pub Entity);
 
 /// MRK-04: the shape a body's marker takes.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Component, Clone, Copy, PartialEq, Eq, Debug)]
 pub enum MarkerShape {
+    /// Filled disc: a natural body. It alone grows to true size (MRK-07).
     Disc,
-    HollowSquare,
+    /// Hollow circle: a gate on screen (its edge arrow is EDGE-01).
     HollowCircle,
-    /// Filled triangle pointing up, from `MarkerImages`.
-    FilledTriangle,
-    /// Filled diamond, from `MarkerImages`.
-    FilledDiamond,
     Glyph(&'static str),
-}
-
-impl MarkerShape {
-    fn style(self) -> MarkerStyle {
-        match self {
-            MarkerShape::Disc => MarkerStyle::Fill,
-            MarkerShape::HollowSquare | MarkerShape::HollowCircle => MarkerStyle::Border,
-            MarkerShape::FilledTriangle | MarkerShape::FilledDiamond => MarkerStyle::Image,
-            MarkerShape::Glyph(_) => MarkerStyle::Glyph,
-        }
-    }
+    /// A ship or station symbol (SYM-01 to SYM-08).
+    Symbol,
 }
 
 /// Below this combined strength a marker is simply not drawn - which also
@@ -88,46 +73,46 @@ const MIN_VISIBLE_ALPHA: f32 = 0.02;
 const HOLLOW_BORDER_PX: f32 = 1.5;
 /// Gap between the hover ring (an outline) and the marker it rings.
 const HOVER_RING_OFFSET_PX: f32 = 2.0;
+/// Width of the white hover and selection ring.
+const RING_PX: f32 = 2.0;
 /// Glyph markers are drawn a little larger than their box so the glyph's
 /// own side bearings don't shrink it.
 const GLYPH_SCALE: f32 = 1.8;
 /// Gap between a marker and its label, which sits to its right.
 const LABEL_GAP_PX: f32 = 4.0;
 const LABEL_FONT_PX: f32 = 12.0;
+const SECOND_LINE_FONT_PX: f32 = 10.0;
 
-/// MRK-03: marker size is a presentation choice by class, in screen pixels,
-/// never derived from physical size.
-/// How far the white ring reaches from a marker's centre (MRK-01), so
-/// anything drawn round a marker (CAM-22's brackets) can clear it.
-pub fn ring_outer_half(class: BodyClass) -> f32 {
-    marker_half_size(class).max_element() + HOVER_RING_OFFSET_PX + RING_PX
-}
-
-fn marker_half_size(class: BodyClass) -> Vec2 {
+/// MRK-04: filled disc = natural body; X = salvage site; a gate on screen
+/// is a hollow circle; ships and stations are symbols.
+pub fn marker_shape(class: BodyClass, has_record: bool) -> MarkerShape {
     match class {
-        BodyClass::Star => Vec2::splat(9.0),
-        BodyClass::Planet => Vec2::splat(6.0),
-        BodyClass::Moon => Vec2::splat(3.0),
-        BodyClass::Station => Vec2::splat(5.0),
-        BodyClass::Gate => Vec2::splat(5.5),
-        BodyClass::SalvageSite => Vec2::splat(7.0),
-        BodyClass::Ship => Vec2::splat(6.0),
+        BodyClass::Ship | BodyClass::Station if has_record => MarkerShape::Symbol,
+        BodyClass::Gate => MarkerShape::HollowCircle,
+        BodyClass::SalvageSite => MarkerShape::Glyph("X"),
+        _ => MarkerShape::Disc,
     }
 }
 
-/// MRK-04: filled disc = body; hollow square = station; triangle = own
-/// ship; diamond = foreign contact; X = salvage site. A gate on screen is a
-/// hollow circle (its edge arrow is EDGE-01). The filled triangle and
-/// diamond are generated images.
-pub fn marker_shape(class: BodyClass, ownership: Ownership) -> MarkerShape {
-    match (class, ownership) {
-        (BodyClass::Star | BodyClass::Planet | BodyClass::Moon, _) => MarkerShape::Disc,
-        (BodyClass::Station, _) => MarkerShape::HollowSquare,
-        (BodyClass::Gate, _) => MarkerShape::HollowCircle,
-        (BodyClass::SalvageSite, _) => MarkerShape::Glyph("X"),
-        (BodyClass::Ship, Ownership::Foreign) => MarkerShape::FilledDiamond,
-        (BodyClass::Ship, _) => MarkerShape::FilledTriangle,
+/// MRK-03 / SYM-04: marker size is a presentation choice by class, in
+/// screen pixels, never derived from physical size. A symbol's frame fits
+/// a square of `symbol_px`.
+pub fn marker_half_size(class: BodyClass, symbol_px: f32) -> f32 {
+    match class {
+        BodyClass::Star => 9.0,
+        BodyClass::Planet => 6.0,
+        BodyClass::Moon => 3.0,
+        BodyClass::Gate => 5.5,
+        BodyClass::SalvageSite => 7.0,
+        BodyClass::Ship | BodyClass::Station => symbol_px / 2.0,
     }
+}
+
+/// How far the white ring reaches from a marker's centre (MRK-01), so
+/// anything drawn round a marker (CAM-22's brackets) can clear it. For a
+/// symbol it encloses the symbol square, not the amplifiers (SYM-14).
+pub fn ring_outer_half(class: BodyClass, symbol_px: f32) -> f32 {
+    marker_half_size(class, symbol_px) + HOVER_RING_OFFSET_PX + RING_PX
 }
 
 /// GRP-01 / GRP-03 / MOT-11: how strongly a body's marker is drawn. A
@@ -150,6 +135,15 @@ pub fn marker_position(own: Vec2, parent: Option<Vec2>, fold_anim_t: f32) -> Vec
     }
 }
 
+/// SYM-02 / SYM-03 / SYM-08: the symbol settings from the tunables.
+pub fn symbol_settings(tunables: &Tunables) -> SymbolSettings {
+    SymbolSettings {
+        fill_state: tunables.symbol_fill_state,
+        fill_other: tunables.symbol_fill_other,
+        stale_alpha: tunables.stale_symbol_alpha,
+    }
+}
+
 pub struct MarkersPlugin;
 
 impl Plugin for MarkersPlugin {
@@ -157,34 +151,91 @@ impl Plugin for MarkersPlugin {
         app.add_systems(Startup, spawn_markers.in_set(Boot::Overlay))
             .add_systems(
                 Update,
-                (update_markers, ring_markers).in_set(Stage::Overlay),
+                (update_markers, ring_markers, update_second_lines).in_set(Stage::Overlay),
             );
     }
 }
 
+/// What a marker needs from its body.
+type SpawnBodies<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static BodyClass,
+        &'static Affiliation,
+        &'static DisplayName,
+        Option<&'static ShipRecord>,
+    ),
+>;
+
 fn spawn_markers(
     mut commands: Commands,
     fonts: Res<Fonts>,
-    images: Res<MarkerImages>,
-    bodies: Query<(Entity, &BodyClass, &Ownership, &DisplayName)>,
+    images: Res<SymbolImages>,
+    tunables: Res<Tunables>,
+    clock: Res<GameClock>,
+    bodies: SpawnBodies,
 ) {
-    for (entity, class, ownership, name) in &bodies {
-        let look = (*class, *ownership);
-        spawn_marker(&mut commands, &fonts, &images, entity, look, name);
+    for (body, class, affiliation, name, record) in &bodies {
+        let marker = BodyLook {
+            class: *class,
+            affiliation: *affiliation,
+            record,
+        };
+        let assets = (&*fonts, &*images, &*tunables);
+        let label = MarkerText {
+            name: &name.0,
+            second_line: record
+                .and_then(|r| label_second_line(*affiliation, r, clock.elapsed_days())),
+        };
+        spawn_marker(&mut commands, assets, body, marker, label);
     }
 }
 
+/// Who a marker stands for, as far as its look goes.
+#[derive(Clone, Copy)]
+pub struct BodyLook<'a> {
+    pub class: BodyClass,
+    pub affiliation: Affiliation,
+    pub record: Option<&'a ShipRecord>,
+}
+
+impl BodyLook<'_> {
+    fn shape(&self) -> MarkerShape {
+        marker_shape(self.class, self.record.is_some())
+    }
+
+    /// The marker's and label's colour: a symbol's by affiliation and
+    /// command (SYM-02), a body's own blue or neutral white (MRK-01).
+    pub fn color(&self, tunables: &Tunables) -> Color {
+        match self.record {
+            Some(record) => symbol_look(self.affiliation, record, symbol_settings(tunables)).color,
+            None => colors::affiliation_color(self.affiliation),
+        }
+    }
+}
+
+/// What a marker's label says (SYM-13).
+struct MarkerText<'a> {
+    name: &'a str,
+    second_line: Option<String>,
+}
+
+/// The fonts, symbol masks and tunables a marker is built from.
+pub type MarkerAssets<'a> = (&'a Fonts, &'a SymbolImages, &'a Tunables);
+
 /// MRK-03 / MRK-04: the marker's box, sized by class and shaped by
 /// rounding and borders.
-fn marker_node(shape: MarkerShape, half: Vec2) -> Node {
+fn marker_node(shape: MarkerShape, half: f32) -> Node {
     let mut node = Node {
         position_type: PositionType::Absolute,
-        width: px(half.x * 2.0),
-        height: px(half.y * 2.0),
+        width: px(half * 2.0),
+        height: px(half * 2.0),
         display: Display::None,
         ..default()
     };
-    if matches!(shape, MarkerShape::HollowSquare | MarkerShape::HollowCircle) {
+    if shape == MarkerShape::HollowCircle {
         node.border = UiRect::all(px(HOLLOW_BORDER_PX));
     }
     if matches!(shape, MarkerShape::Disc | MarkerShape::HollowCircle) {
@@ -193,24 +244,57 @@ fn marker_node(shape: MarkerShape, half: Vec2) -> Node {
     node
 }
 
+/// The shape itself, spawned on or under `marker`, at `half` pixels.
+fn spawn_shape(marker: &mut EntityCommands, assets: MarkerAssets, look: BodyLook, half: f32) {
+    let (fonts, images, tunables) = assets;
+    let color = look.color(tunables);
+    match look.shape() {
+        MarkerShape::Disc => {
+            marker.insert((BackgroundColor(color), Tint(color)));
+        }
+        MarkerShape::HollowCircle => {
+            marker.insert((
+                BackgroundColor(Color::NONE),
+                BorderColor::all(color),
+                Tint(color),
+            ));
+        }
+        MarkerShape::Glyph(glyph) => {
+            marker.with_children(|parent| {
+                parent.spawn((
+                    Text::new(glyph),
+                    fonts.label(half * GLYPH_SCALE),
+                    TextColor(color),
+                    Tint(color),
+                    Pickable::IGNORE,
+                ));
+            });
+        }
+        MarkerShape::Symbol => {
+            if let Some(record) = look.record {
+                let symbol = symbol_look(look.affiliation, record, symbol_settings(tunables));
+                marker.with_children(|parent| {
+                    spawn_symbol_parts(parent, (images, fonts), &symbol, half * 2.0);
+                });
+            }
+        }
+    }
+}
+
 fn spawn_marker(
     commands: &mut Commands,
-    fonts: &Fonts,
-    images: &MarkerImages,
+    assets: MarkerAssets,
     body: Entity,
-    (class, ownership): (BodyClass, Ownership),
-    name: &DisplayName,
+    look: BodyLook,
+    text: MarkerText,
 ) {
-    let half = marker_half_size(class);
-    let color = colors::ownership_color(ownership);
-    let shape = marker_shape(class, ownership);
-    let style = shape.style();
-
+    let (fonts, _, tunables) = assets;
+    let half = marker_half_size(look.class, tunables.ship_symbol_px);
+    let shape = look.shape();
     let mut marker = commands.spawn((
         MarkerFor(body),
-        MarkerHalfSize(half),
-        MarkerBaseColor(color),
-        style,
+        MarkerHalfSize(Vec2::splat(half)),
+        shape,
         marker_node(shape, half),
         // Hover and click go through the marker's hit area instead
         // (MRK-08, `marker_picking.rs`), so the node itself takes none.
@@ -222,142 +306,100 @@ fn spawn_marker(
             color: Color::NONE,
         },
     ));
-    match style {
-        MarkerStyle::Fill => {
-            marker.insert(BackgroundColor(color));
-        }
-        MarkerStyle::Border => {
-            marker.insert((BackgroundColor(Color::NONE), BorderColor::all(color)));
-        }
-        MarkerStyle::Image => {
-            let image = match shape {
-                MarkerShape::FilledTriangle => images.triangle.clone(),
-                _ => images.diamond.clone(),
-            };
-            marker.insert(ImageNode::new(image).with_color(color));
-        }
-        MarkerStyle::Glyph => {}
-    }
-    marker
-        .with_children(|parent| spawn_marker_text(parent, fonts, shape, half, color, (body, name)));
+    spawn_shape(&mut marker, assets, look, half);
+    let color = look.color(tunables);
+    marker.with_children(|parent| spawn_label(parent, fonts, (body, half, color), text));
 }
 
-/// A glyph marker's glyph, and every marker's label just right of it. Both
-/// are child text, coloured with the marker. The label is a hover and click
-/// target for its body, and wins over an orbit ring (HOV-02).
-fn spawn_marker_text(
+/// SYM-13: the label to the right of the marker, in its colour: the name,
+/// and for a symbol a second line in the secondary text colour. It is a
+/// hover and click target for its body, and wins over an orbit ring
+/// (HOV-02).
+fn spawn_label(
     parent: &mut ChildSpawnerCommands,
     fonts: &Fonts,
-    shape: MarkerShape,
-    half: Vec2,
-    color: Color,
-    (body, name): (Entity, &DisplayName),
+    (body, half, color): (Entity, f32, Color),
+    text: MarkerText,
 ) {
-    if let MarkerShape::Glyph(glyph) = shape {
-        parent.spawn((
-            Text::new(glyph),
-            fonts.label(half.x * GLYPH_SCALE),
-            TextColor(color),
-            Pickable::IGNORE,
-        ));
-    }
     parent
         .spawn((
             MarkerLabel,
             MarkerFor(body),
             Node {
                 position_type: PositionType::Absolute,
-                left: px(half.x * 2.0 + LABEL_GAP_PX),
+                left: px(half * 2.0 + LABEL_GAP_PX),
                 top: px(0),
+                flex_direction: FlexDirection::Column,
                 ..default()
             },
-            Text::new(name.0.clone()),
-            fonts.label(LABEL_FONT_PX),
-            TextColor(color),
         ))
+        .with_children(|label| {
+            label.spawn((
+                Text::new(text.name),
+                fonts.label(LABEL_FONT_PX),
+                TextColor(color),
+                Tint(color),
+            ));
+            if let Some(line) = text.second_line {
+                label.spawn((
+                    SecondLineFor(body),
+                    Text::new(line),
+                    fonts.mono(SECOND_LINE_FONT_PX),
+                    TextColor(colors::PANEL_BORDER),
+                    Tint(colors::PANEL_BORDER),
+                ));
+            }
+        })
         .observe(hover::on_marker_over)
         .observe(hover::on_marker_out)
         .observe(hover::on_marker_click);
 }
 
-/// What a marker's look depends on, from its body.
-type MarkerBodies<'w, 's> = Query<
-    'w,
-    's,
-    (
-        Option<&'static ChildOf>,
-        Option<&'static SatelliteFoldState>,
-        Option<&'static MotionModeState>,
-        Option<&'static PhysicalRadius>,
-    ),
-    With<BodyClass>,
->;
-
-/// The marker nodes themselves.
-type MarkerNodes<'w, 's> = Query<
-    'w,
-    's,
-    (
-        &'static MarkerFor,
-        &'static MarkerHalfSize,
-        &'static MarkerBaseColor,
-        &'static MarkerStyle,
-        &'static mut Node,
-        Option<&'static mut BackgroundColor>,
-        Option<&'static mut BorderColor>,
-        Option<&'static mut ImageNode>,
-        Option<&'static Children>,
-    ),
->;
-
-/// INS-05: a small copy of a body's marker, for lists - the same shape
-/// and colour as on the map, at `half` pixels.
-pub fn spawn_marker_icon(
-    parent: &mut ChildSpawnerCommands,
-    fonts: &Fonts,
-    images: &MarkerImages,
-    (class, ownership): (BodyClass, Ownership),
-    half: f32,
+/// SYM-08 / SYM-13: keep each second line true as game time passes, so a
+/// stale track's age counts up.
+fn update_second_lines(
+    clock: Res<GameClock>,
+    bodies: Query<(&Affiliation, &ShipRecord)>,
+    mut lines: Query<(&SecondLineFor, &mut Text)>,
 ) {
-    let shape = marker_shape(class, ownership);
-    let color = colors::ownership_color(ownership);
-    let mut node = marker_node(shape, Vec2::splat(half));
-    node.position_type = PositionType::Relative;
-    node.display = Display::Flex;
-    let mut icon = parent.spawn(node);
-    match shape {
-        MarkerShape::Disc => {
-            icon.insert(BackgroundColor(color));
-        }
-        MarkerShape::HollowSquare | MarkerShape::HollowCircle => {
-            icon.insert(BorderColor::all(color));
-        }
-        MarkerShape::FilledTriangle => {
-            icon.insert(ImageNode::new(images.triangle.clone()).with_color(color));
-        }
-        MarkerShape::FilledDiamond => {
-            icon.insert(ImageNode::new(images.diamond.clone()).with_color(color));
-        }
-        MarkerShape::Glyph(glyph) => {
-            icon.with_children(|icon| {
-                icon.spawn((
-                    Text::new(glyph),
-                    fonts.label(half * GLYPH_SCALE),
-                    TextColor(color),
-                ));
-            });
+    for (line_for, mut text) in &mut lines {
+        let Ok((affiliation, record)) = bodies.get(line_for.0) else {
+            continue;
+        };
+        let line =
+            label_second_line(*affiliation, record, clock.elapsed_days()).unwrap_or_default();
+        if text.0 != line {
+            text.0 = line;
         }
     }
 }
 
+/// INS-05: a small copy of a body's marker, for lists: a symbol at
+/// `list_symbol_px` for a ship or station, or the body's shape at
+/// `body_half` pixels.
+pub fn spawn_list_icon(
+    parent: &mut ChildSpawnerCommands,
+    assets: MarkerAssets,
+    look: BodyLook,
+    body_half: f32,
+) {
+    let (_, _, tunables) = assets;
+    let half = match look.shape() {
+        MarkerShape::Symbol => tunables.list_symbol_px / 2.0,
+        _ => body_half,
+    };
+    let mut node = marker_node(look.shape(), half);
+    node.position_type = PositionType::Relative;
+    node.display = Display::Flex;
+    let mut icon = parent.spawn(node);
+    spawn_shape(&mut icon, assets, look, half);
+}
+
 /// MRK-01: the white ring - on a marker that is hovered (HOV-01) or
-/// selected, pinned or not (INS-01, CAM-22).
+/// selected (INS-01, CAM-22).
 pub fn shows_ring(hovered: bool, selected: bool) -> bool {
     hovered || selected
 }
-
-/// Width of the white hover and selection ring.
-const RING_PX: f32 = 2.0;
 
 /// MRK-01: draw the white ring on hovered and selected markers.
 fn ring_markers(
@@ -405,6 +447,71 @@ fn drawn_half_size(
     disc_half_px(class_half, true_radius)
 }
 
+/// What a marker's look depends on, from its body.
+type MarkerBodies<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Option<&'static ChildOf>,
+        Option<&'static SatelliteFoldState>,
+        Option<&'static MotionModeState>,
+        Option<&'static PhysicalRadius>,
+    ),
+    With<BodyClass>,
+>;
+
+/// The marker nodes themselves.
+type MarkerNodes<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static MarkerFor,
+        &'static MarkerHalfSize,
+        &'static MarkerShape,
+        &'static mut Node,
+    ),
+>;
+
+/// The labels, by the marker they belong to.
+type LabelNodes<'w, 's> =
+    Query<'w, 's, (&'static ChildOf, &'static mut Node), (With<MarkerLabel>, Without<MarkerShape>)>;
+
+/// Every coloured part of a marker, and where its colour lives.
+type TintedParts<'w, 's> = Query<
+    'w,
+    's,
+    (
+        &'static Tint,
+        Option<&'static mut BackgroundColor>,
+        Option<&'static mut BorderColor>,
+        Option<&'static mut ImageNode>,
+        Option<&'static mut TextColor>,
+    ),
+>;
+
+/// Write each tinted part's colour at `alpha` of its full strength.
+fn fade_parts(root: Entity, alpha: f32, children: &Query<&Children>, parts: &mut TintedParts) {
+    for part in std::iter::once(root).chain(children.iter_descendants(root)) {
+        let Ok((tint, background, border, image, text)) = parts.get_mut(part) else {
+            continue;
+        };
+        let color = tint.0.with_alpha(tint.0.alpha() * alpha);
+        if let Some(mut background) = background {
+            background.0 = color;
+        }
+        if let Some(mut border) = border {
+            border.set_all(color);
+        }
+        if let Some(mut image) = image {
+            image.color = color;
+        }
+        if let Some(mut text) = text {
+            text.0 = color;
+        }
+    }
+}
+
 /// MRK-03 / MRK-07: place, fade and colour every marker for this frame.
 #[allow(clippy::too_many_arguments)]
 fn update_markers(
@@ -414,13 +521,11 @@ fn update_markers(
     projections: Query<&Projection, With<Camera3d>>,
     bodies: MarkerBodies,
     mut markers: MarkerNodes,
-    mut labels: Query<&mut Node, (With<MarkerLabel>, Without<MarkerFor>)>,
-    mut text_colors: Query<&mut TextColor>,
+    mut labels: LabelNodes,
+    (children, mut parts): (Query<&Children>, TintedParts),
 ) {
     let projection = projections.single().ok();
-    for (marker_for, half, base_color, style, mut node, background, border, image, children) in
-        &mut markers
-    {
+    for (entity, marker_for, half, shape, mut node) in &mut markers {
         let body = marker_for.0;
         let Ok((child_of, fold, motion, radius)) = bodies.get(body) else {
             node.display = Display::None;
@@ -448,7 +553,7 @@ fn update_markers(
             &view,
             projection,
             screen.viewport.y,
-            (body, *style == MarkerStyle::Fill, half.0.x),
+            (body, *shape == MarkerShape::Disc, half.0.x),
             radius,
         );
         node.display = Display::Flex;
@@ -456,22 +561,9 @@ fn update_markers(
         node.height = px(drawn * 2.0);
         node.left = px(pos.x - drawn);
         node.top = px(pos.y - drawn);
-
-        let color = base_color.0.with_alpha(alpha);
-        match (style, background, border, image) {
-            (MarkerStyle::Fill, Some(mut background), _, _) => background.0 = color,
-            (MarkerStyle::Border, _, Some(mut border), _) => {
-                border.set_all(color);
-            }
-            (MarkerStyle::Image, _, _, Some(mut image)) => image.color = color,
-            _ => {}
-        }
-        // Labels (and glyph markers) carry their colour on child text.
-        for child in children.into_iter().flat_map(|children| children.iter()) {
-            if let Ok(mut text_color) = text_colors.get_mut(child) {
-                text_color.0 = color;
-            }
-            if let Ok(mut label) = labels.get_mut(child) {
+        fade_parts(entity, alpha, &children, &mut parts);
+        for (label_of, mut label) in &mut labels {
+            if label_of.parent() == entity {
                 label.left = px(drawn * 2.0 + LABEL_GAP_PX);
             }
         }
@@ -482,20 +574,18 @@ fn update_markers(
 mod tests {
     use super::*;
 
-    /// MRK-04: each class gets its own shape, and ships are told apart by
-    /// ownership.
+    /// MRK-04: discs for natural bodies, X for salvage, a hollow circle
+    /// for a gate, and symbols for ships and stations.
     #[test]
     fn marker_shapes_by_class() {
         use BodyClass::*;
-        use Ownership::*;
-        assert_eq!(marker_shape(Planet, Own), MarkerShape::Disc);
-        assert_eq!(marker_shape(Moon, Neutral), MarkerShape::Disc);
-        assert_eq!(marker_shape(Star, Neutral), MarkerShape::Disc);
-        assert_eq!(marker_shape(Station, Own), MarkerShape::HollowSquare);
-        assert_eq!(marker_shape(SalvageSite, Neutral), MarkerShape::Glyph("X"));
-        assert_eq!(marker_shape(Ship, Own), MarkerShape::FilledTriangle);
-        assert_eq!(marker_shape(Ship, Foreign), MarkerShape::FilledDiamond);
-        assert_eq!(MarkerShape::FilledTriangle.style(), MarkerStyle::Image);
+        assert_eq!(marker_shape(Planet, false), MarkerShape::Disc);
+        assert_eq!(marker_shape(Moon, false), MarkerShape::Disc);
+        assert_eq!(marker_shape(Star, false), MarkerShape::Disc);
+        assert_eq!(marker_shape(SalvageSite, false), MarkerShape::Glyph("X"));
+        assert_eq!(marker_shape(Gate, false), MarkerShape::HollowCircle);
+        assert_eq!(marker_shape(Ship, true), MarkerShape::Symbol);
+        assert_eq!(marker_shape(Station, true), MarkerShape::Symbol);
     }
 
     /// MRK-01: hovered or selected markers carry the white ring.
@@ -506,11 +596,24 @@ mod tests {
         assert!(!shows_ring(false, false));
     }
 
-    /// MRK-03: marker size depends on class only.
+    /// MRK-03 / SYM-04: marker size depends on class only; a symbol fits
+    /// `ship_symbol_px`.
     #[test]
     fn marker_size_is_by_class() {
-        assert!(marker_half_size(BodyClass::Star).x > marker_half_size(BodyClass::Planet).x);
-        assert!(marker_half_size(BodyClass::Planet).x > marker_half_size(BodyClass::Moon).x);
+        assert!(
+            marker_half_size(BodyClass::Star, 22.0) > marker_half_size(BodyClass::Planet, 22.0)
+        );
+        assert!(
+            marker_half_size(BodyClass::Planet, 22.0) > marker_half_size(BodyClass::Moon, 22.0)
+        );
+        assert_eq!(marker_half_size(BodyClass::Ship, 22.0), 11.0);
+        assert_eq!(marker_half_size(BodyClass::Station, 30.0), 15.0);
+    }
+
+    /// SYM-14: the ring and brackets enclose the symbol square.
+    #[test]
+    fn the_ring_encloses_the_symbol_square() {
+        assert!(ring_outer_half(BodyClass::Ship, 22.0) > 11.0);
     }
 
     /// GRP-01: a fully folded satellite draws nothing, whatever else says.

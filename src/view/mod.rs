@@ -30,7 +30,6 @@ pub mod hover;
 pub mod hovered;
 pub mod in_orbit;
 pub mod inspect;
-pub mod marker_images;
 pub mod marker_picking;
 pub mod markers;
 pub mod motion;
@@ -42,6 +41,9 @@ pub mod rings;
 pub mod scale;
 pub mod screen;
 pub mod selection;
+pub mod symbol_draw;
+pub mod symbol_images;
+pub mod symbols;
 pub mod targets;
 pub mod topbar;
 pub mod true_size;
@@ -79,7 +81,7 @@ impl Plugin for ViewPlugin {
                 anchors::AnchorsPlugin,
                 frame_marks::FrameMarksPlugin,
                 edge::EdgePlugin,
-                marker_images::MarkerImagesPlugin,
+                symbol_images::SymbolImagesPlugin,
                 markers::MarkersPlugin,
                 pills::PillsPlugin,
                 hover::HoverPlugin,

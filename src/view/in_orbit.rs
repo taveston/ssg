@@ -1,6 +1,7 @@
 //! The inset's "In orbit" list (INS-05): one entry per satellite of the
 //! inspected body, inside out, each with its class marker and its name in
-//! own or foreign colours (MRK-01). Clicking an entry selects that
+//! own or neutral colours (MRK-01), and ships and stations as their symbols
+//! (SYM-02). Clicking an entry selects that
 //! satellite; double-clicking it makes it the frame and moves to it
 //! (ZOOM-16), or on the frame body calls the planetary-view hook (ZOOM-17).
 //!
@@ -13,16 +14,15 @@ use bevy::prelude::*;
 
 use super::camera::requests::{FrameRequest, PlanetaryViewRequest};
 use super::colors;
-use super::fonts::Fonts;
 use super::frame::Frame;
 use super::hover::double_click;
-use super::marker_images::MarkerImages;
-use super::markers::spawn_marker_icon;
+use super::markers::{BodyLook, MarkerAssets, spawn_list_icon};
 use super::selection::Selection;
 use super::tunables::Tunables;
 use crate::Stage;
-use crate::sim::body::{BodyClass, DisplayName, Ownership};
+use crate::sim::body::{Affiliation, BodyClass, DisplayName};
 use crate::sim::orbit::Orbit;
+use crate::sim::track::ShipRecord;
 
 const ENTRY_FONT_PX: f32 = 11.0;
 const HEADING_FONT_PX: f32 = 10.0;
@@ -36,9 +36,24 @@ pub struct OrbitEntry {
     pub body: Entity,
     pub name: String,
     pub class: BodyClass,
-    pub ownership: Ownership,
+    pub affiliation: Affiliation,
+    /// What the state knows of a ship or station, drawn as its symbol.
+    pub record: Option<ShipRecord>,
     pub orbit_radius_km: f64,
 }
+
+/// The satellites a list is built from.
+pub type Satellites<'w, 's> = Query<
+    'w,
+    's,
+    (
+        &'static DisplayName,
+        &'static BodyClass,
+        &'static Affiliation,
+        Option<&'static ShipRecord>,
+        &'static Orbit,
+    ),
+>;
 
 /// INS-05: the entries in orbit order, from the inside out.
 pub fn in_orbit_order(mut entries: Vec<OrbitEntry>) -> Vec<OrbitEntry> {
@@ -47,20 +62,18 @@ pub fn in_orbit_order(mut entries: Vec<OrbitEntry>) -> Vec<OrbitEntry> {
 }
 
 /// A body's satellites, as list entries in orbit order.
-pub fn orbit_entries(
-    children: Option<&Children>,
-    satellites: &Query<(&DisplayName, &BodyClass, &Ownership, &Orbit)>,
-) -> Vec<OrbitEntry> {
+pub fn orbit_entries(children: Option<&Children>, satellites: &Satellites) -> Vec<OrbitEntry> {
     let entries = children
         .into_iter()
         .flat_map(|children| children.iter())
         .filter_map(|child| {
-            let (name, class, ownership, orbit) = satellites.get(child).ok()?;
+            let (name, class, affiliation, record, orbit) = satellites.get(child).ok()?;
             Some(OrbitEntry {
                 body: child,
                 name: name.0.clone(),
                 class: *class,
-                ownership: *ownership,
+                affiliation: *affiliation,
+                record: record.cloned(),
                 orbit_radius_km: orbit.radius_km,
             })
         })
@@ -103,10 +116,10 @@ fn commit_entry_click(
 /// satellites.
 pub fn spawn_in_orbit_list(
     panel: &mut ChildSpawnerCommands,
-    fonts: &Fonts,
-    images: &MarkerImages,
+    assets: MarkerAssets,
     entries: &[OrbitEntry],
 ) {
+    let (fonts, ..) = assets;
     if entries.is_empty() {
         return;
     }
@@ -116,17 +129,20 @@ pub fn spawn_in_orbit_list(
         TextColor(colors::PANEL_BORDER),
     ));
     for entry in entries {
-        spawn_entry(panel, fonts, images, entry);
+        spawn_entry(panel, assets, entry);
     }
 }
 
-fn spawn_entry(
-    panel: &mut ChildSpawnerCommands,
-    fonts: &Fonts,
-    images: &MarkerImages,
-    entry: &OrbitEntry,
-) {
+/// INS-05: one entry: the satellite's symbol at `list_symbol_px` (or its
+/// body disc) and its name, in its colour.
+fn spawn_entry(panel: &mut ChildSpawnerCommands, assets: MarkerAssets, entry: &OrbitEntry) {
+    let (fonts, _, tunables) = assets;
     let body = entry.body;
+    let look = BodyLook {
+        class: entry.class,
+        affiliation: entry.affiliation,
+        record: entry.record.as_ref(),
+    };
     panel
         .spawn(Node {
             flex_direction: FlexDirection::Row,
@@ -135,17 +151,11 @@ fn spawn_entry(
             ..default()
         })
         .with_children(|row| {
-            spawn_marker_icon(
-                row,
-                fonts,
-                images,
-                (entry.class, entry.ownership),
-                ICON_HALF_PX,
-            );
+            spawn_list_icon(row, assets, look, ICON_HALF_PX);
             row.spawn((
                 Text::new(entry.name.clone()),
                 fonts.label(ENTRY_FONT_PX),
-                TextColor(colors::ownership_color(entry.ownership)),
+                TextColor(look.color(tunables)),
             ));
         })
         .observe(move |click: On<PointerClick>, mut actions: EntryActions| {
@@ -200,7 +210,8 @@ mod tests {
             body: world.spawn_empty().id(),
             name: name.to_string(),
             class: BodyClass::Moon,
-            ownership: Ownership::Own,
+            affiliation: Affiliation::Own,
+            record: None,
             orbit_radius_km: radius,
         };
         let entries = vec![

@@ -5,7 +5,8 @@
 
 use bevy::prelude::*;
 
-use super::body::{BodyClass, Knowledge, Ownership};
+use super::body::{Affiliation, BodyClass, Knowledge};
+use super::track::ShipRecord;
 
 /// A node in the system tree. Periods are derived from `orbit_radius_km`
 /// and the parent's mass, not stored, so they can't drift out of sync with
@@ -13,7 +14,10 @@ use super::body::{BodyClass, Knowledge, Ownership};
 pub struct BodyBlueprint {
     pub name: &'static str,
     pub class: BodyClass,
-    pub ownership: Ownership,
+    pub affiliation: Affiliation,
+    /// What the state knows of a ship or station (SYM-01); `None` for
+    /// natural bodies.
+    pub record: Option<ShipRecord>,
     pub description: &'static str,
     pub key_facts: Vec<(&'static str, &'static str)>,
     pub knowledge: Knowledge,

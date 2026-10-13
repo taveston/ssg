@@ -10,7 +10,7 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
-use crate::sim::body::{BodyClass, Ownership};
+use crate::sim::body::{Affiliation, BodyClass};
 
 /// Per-satellite fold state. `folded` is the hysteresis latch;
 /// `effective_hidden` additionally accounts for a folded ancestor, so
@@ -38,30 +38,51 @@ impl Default for SatelliteFoldState {
 #[derive(Default)]
 pub struct FoldedGroup {
     pub members: Vec<Entity>,
-    pub has_foreign: bool,
+    /// The most pressing affiliation among the members, if any presses.
+    pub pressing: Option<Affiliation>,
     pub has_own_ship: bool,
 }
 
-/// GRP-06: what the "+N" pill has to show besides the count - an orange
-/// outline if any folded satellite is foreign, and a blue dot if own ships
-/// are parked there.
+/// GRP-06: what the "+N" pill has to show besides the count - an outline
+/// in the colour of the most pressing affiliation among its folded
+/// satellites, and a blue dot if own ships are parked there.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct PillFlags {
-    pub has_foreign: bool,
+    pub pressing: Option<Affiliation>,
     pub has_own_ship: bool,
+}
+
+/// GRP-06: how pressing an affiliation is for the pill's outline: hostile,
+/// then unknown, then neutral or allied; own presses not at all.
+fn urgency(affiliation: Affiliation) -> u8 {
+    match affiliation {
+        Affiliation::Hostile => 3,
+        Affiliation::Unknown => 2,
+        Affiliation::Neutral | Affiliation::Allied => 1,
+        Affiliation::Own => 0,
+    }
+}
+
+/// GRP-06: the more pressing of two, if either presses at all.
+pub fn more_pressing(a: Option<Affiliation>, b: Option<Affiliation>) -> Option<Affiliation> {
+    [a, b]
+        .into_iter()
+        .flatten()
+        .filter(|aff| urgency(*aff) > 0)
+        .max_by_key(|aff| urgency(*aff))
 }
 
 /// GRP-06, as a plain function over the folded satellites' class and
-/// ownership. "Own ships parked there" is an own *ship*, not any own
-/// satellite: a state-owned moon is not a parked ship.
-pub fn pill_flags(folded: &[(BodyClass, Ownership)]) -> PillFlags {
+/// affiliation. "Own ships parked there" is an own *ship*, not any own
+/// satellite: a state-owned moon or station is not a parked ship.
+pub fn pill_flags(folded: &[(BodyClass, Affiliation)]) -> PillFlags {
     PillFlags {
-        has_foreign: folded
-            .iter()
-            .any(|(_, ownership)| *ownership == Ownership::Foreign),
-        has_own_ship: folded
-            .iter()
-            .any(|(class, ownership)| *ownership == Ownership::Own && *class == BodyClass::Ship),
+        pressing: folded.iter().fold(None, |most, (_, affiliation)| {
+            more_pressing(most, Some(*affiliation))
+        }),
+        has_own_ship: folded.iter().any(|(class, affiliation)| {
+            *affiliation == Affiliation::Own && *class == BodyClass::Ship
+        }),
     }
 }
 
@@ -274,49 +295,37 @@ mod tests {
         );
     }
 
-    /// GRP-06: the pill's orange outline tracks any foreign satellite, and
-    /// the blue dot only an own *ship*.
+    /// GRP-06: the outline takes the most pressing affiliation - hostile,
+    /// then unknown, then neutral or allied - and the blue dot only an own
+    /// *ship*.
     #[test]
     fn pill_flags_follow_the_folded_satellites() {
+        use Affiliation::*;
+        let flags = |folded: &[(BodyClass, Affiliation)]| pill_flags(folded);
         let halden = [
-            (BodyClass::Moon, Ownership::Own),
-            (BodyClass::Station, Ownership::Own),
-            (BodyClass::Ship, Ownership::Foreign),
-            (BodyClass::Ship, Ownership::Own),
+            (BodyClass::Moon, Own),
+            (BodyClass::Ship, Neutral),
+            (BodyClass::Ship, Hostile),
+            (BodyClass::Ship, Unknown),
+            (BodyClass::Ship, Own),
         ];
         assert_eq!(
-            pill_flags(&halden),
+            flags(&halden),
             PillFlags {
-                has_foreign: true,
+                pressing: Some(Hostile),
                 has_own_ship: true
             }
         );
-    }
-
-    /// GRP-06: own moons are not parked ships, and a foreign moon still
-    /// raises the outline.
-    #[test]
-    fn pill_flags_distinguish_ships_from_other_satellites() {
         assert_eq!(
-            pill_flags(&[(BodyClass::Moon, Ownership::Own)]),
-            PillFlags {
-                has_foreign: false,
-                has_own_ship: false
-            }
+            flags(&[(BodyClass::Ship, Allied), (BodyClass::Ship, Unknown)]).pressing,
+            Some(Unknown)
         );
+        assert_eq!(flags(&[(BodyClass::Ship, Allied)]).pressing, Some(Allied));
+        let own_only = flags(&[(BodyClass::Moon, Own), (BodyClass::Station, Own)]);
         assert_eq!(
-            pill_flags(&[(BodyClass::Moon, Ownership::Foreign)]),
-            PillFlags {
-                has_foreign: true,
-                has_own_ship: false
-            }
-        );
-        assert_eq!(
-            pill_flags(&[(BodyClass::Ship, Ownership::Foreign)]),
-            PillFlags {
-                has_foreign: true,
-                has_own_ship: false
-            }
+            own_only,
+            PillFlags::default(),
+            "own moons and stations aren't parked ships"
         );
     }
 

@@ -2,7 +2,7 @@
 
 use bevy::prelude::Color;
 
-use crate::sim::body::Ownership;
+use crate::sim::track::Affiliation;
 
 pub const GROUND: Color = Color::srgb(
     0x07 as f32 / 255.0,
@@ -31,19 +31,52 @@ pub const OWN: Color = Color::srgb(
     0xA9 as f32 / 255.0,
     0xE6 as f32 / 255.0,
 );
-pub const FOREIGN: Color = Color::srgb(
+pub const WARNING: Color = Color::srgb(
     0xF0 as f32 / 255.0,
     0xA0 as f32 / 255.0,
     0x40 as f32 / 255.0,
 );
 pub const SELECTION_RING: Color = Color::WHITE;
 
-/// A marker's colour says whose it is: own blue, foreign orange,
-/// neutral the pale display white.
-pub fn ownership_color(ownership: Ownership) -> Color {
-    match ownership {
-        Ownership::Own => OWN,
-        Ownership::Foreign => FOREIGN,
-        Ownership::Neutral => NEUTRAL,
+/// SYM-02: the paler blue of an own-flag civilian ship.
+pub const CIVILIAN: Color = Color::srgb(
+    0xA9 as f32 / 255.0,
+    0xCB as f32 / 255.0,
+    0xE3 as f32 / 255.0,
+);
+/// SYM-02: allied and neutral ships and stations.
+pub const NEUTRAL_GREEN: Color = Color::srgb(
+    0x8C as f32 / 255.0,
+    0xCB as f32 / 255.0,
+    0x8A as f32 / 255.0,
+);
+/// SYM-02: hostile ships and stations.
+pub const HOSTILE: Color = Color::srgb(
+    0xEE as f32 / 255.0,
+    0x6A as f32 / 255.0,
+    0x5F as f32 / 255.0,
+);
+/// SYM-02: ships and stations of unknown affiliation, in the warning
+/// orange.
+pub const UNKNOWN: Color = WARNING;
+
+/// SYM-02: a symbol's colour by affiliation, as frames and the pill's
+/// outline (GRP-06) use it. Own-flag civilians are paler (`CIVILIAN`).
+pub fn symbol_color(affiliation: Affiliation) -> Color {
+    match affiliation {
+        Affiliation::Own => OWN,
+        Affiliation::Allied | Affiliation::Neutral => NEUTRAL_GREEN,
+        Affiliation::Hostile => HOSTILE,
+        Affiliation::Unknown => UNKNOWN,
+    }
+}
+
+/// MRK-01: a body's colour says whose it is: own assets blue, everything
+/// else the neutral display white. Ships, groups and stations take their
+/// symbol colour instead (SYM-02).
+pub fn affiliation_color(affiliation: Affiliation) -> Color {
+    match affiliation {
+        Affiliation::Own => OWN,
+        _ => NEUTRAL,
     }
 }

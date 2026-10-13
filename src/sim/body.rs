@@ -1,5 +1,5 @@
-//! What a body *is*, as far as the simulation knows: its class, who owns
-//! it, what is known about it, and the authored text that goes with it
+//! What a body *is*, as far as the simulation knows: its class, its
+//! affiliation, what is known about it, and the authored text that goes with it
 //! (SCL-03). These are plain components with no presentation in them; the
 //! view decides how each one is drawn.
 
@@ -15,16 +15,12 @@ pub enum BodyClass {
     Station,
     Gate,
     SalvageSite,
-    /// A ship or contact. Whether it is "ours" is `Ownership`, not class.
+    /// A ship or contact. Whose it is is its `Affiliation`, and what kind
+    /// of ship its `ShipRecord` (SYM-01), not class.
     Ship,
 }
 
-#[derive(Component, Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Ownership {
-    Own,
-    Foreign,
-    Neutral,
-}
+pub use super::track::Affiliation;
 
 /// How well a body is known (INS-04). Days are simulated days since the
 /// campaign epoch, negative for before it.

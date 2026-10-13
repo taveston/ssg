@@ -98,7 +98,10 @@ fn place_brackets(
             node.display = Display::None;
             continue;
         };
-        let side = bracket_side(tunables.focus_bracket_margin_px, ring_outer_half(class));
+        let side = bracket_side(
+            tunables.focus_bracket_margin_px,
+            ring_outer_half(class, tunables.ship_symbol_px),
+        );
         node.display = Display::Flex;
         node.width = px(side);
         node.height = px(side);

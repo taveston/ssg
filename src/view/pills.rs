@@ -1,6 +1,7 @@
 //! The "+N" count pill beside a parent with folded satellites (GRP-05 to
-//! GRP-07): the count, an orange outline if any folded satellite is
-//! foreign, and a blue dot if own ships are parked there. What is folded,
+//! GRP-07): the count, an outline in the colour of the most pressing
+//! affiliation folded into it, and a blue dot if own ships are parked
+//! there. What is folded,
 //! and the flags, come from `fold.rs`; this module only draws them.
 
 use bevy::prelude::*;
@@ -156,12 +157,8 @@ fn update_pills(
         node.display = Display::Flex;
         node.left = px(pos.x + PILL_OFFSET_PX.x);
         node.top = px(pos.y + PILL_OFFSET_PX.y);
-        // GRP-06: orange outline when a foreign contact is among the folded.
-        border.set_all(if group.has_foreign {
-            colors::FOREIGN
-        } else {
-            Color::NONE
-        });
+        // GRP-06: the outline in the most pressing affiliation's colour.
+        border.set_all(group.pressing.map_or(Color::NONE, colors::symbol_color));
 
         for child in children.iter() {
             if let Ok(mut text) = counts.get_mut(child) {

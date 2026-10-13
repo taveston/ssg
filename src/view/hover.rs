@@ -17,9 +17,11 @@ use super::fonts::Fonts;
 use super::frame::Frame;
 use super::gesture::{PressStart, was_click};
 use super::selection::Selection;
+use super::symbols::ownership_text;
 use super::targets::{GroupPillFor, Hovered, MarkerFor, PointerTargets};
 use super::tunables::Tunables;
-use crate::sim::body::{BodyClass, DisplayName, Ownership};
+use crate::sim::body::{Affiliation, BodyClass, DisplayName};
+use crate::sim::track::ShipRecord;
 use crate::{Boot, Stage};
 
 pub struct HoverPlugin;
@@ -112,18 +114,9 @@ fn child_counts(children: &Children, classes: &Query<&BodyClass>) -> (usize, usi
     (moons, stations)
 }
 
-/// Ownership as the word the tooltip and inset show.
-pub fn ownership_label(ownership: Ownership) -> &'static str {
-    match ownership {
-        Ownership::Own => "own",
-        Ownership::Foreign => "foreign",
-        Ownership::Neutral => "neutral",
-    }
-}
-
-/// A marker's tooltip: name, ownership and what orbits it, then how to
+/// A marker's tooltip: name, affiliation and what orbits it, then how to
 /// click it (HOV-01).
-pub fn marker_tooltip(name: &str, ownership: Ownership, moons: usize, stations: usize) -> String {
+pub fn marker_tooltip(name: &str, ownership: &str, moons: usize, stations: usize) -> String {
     let contents = match (moons, stations) {
         (0, 0) => String::new(),
         (m, 0) => format!(" · {m} moons"),
@@ -132,14 +125,19 @@ pub fn marker_tooltip(name: &str, ownership: Ownership, moons: usize, stations: 
     };
     format!(
         "{name} · {}{contents} — Click: inspect · Double-click: frame its moons · Double-click again: planetary view",
-        ownership_label(ownership)
+        ownership
     )
 }
 
 pub fn on_marker_over(
     over: On<PointerOver>,
     markers: Query<&MarkerFor>,
-    bodies: Query<(&DisplayName, &Ownership, Option<&Children>)>,
+    bodies: Query<(
+        &DisplayName,
+        &Affiliation,
+        Option<&ShipRecord>,
+        Option<&Children>,
+    )>,
     classes: Query<&BodyClass>,
     mut commands: Commands,
     mut tooltip_nodes: Query<&mut Node, With<TooltipRoot>>,
@@ -150,11 +148,12 @@ pub fn on_marker_over(
     let Ok(marker_for) = markers.get(over.entity) else {
         return;
     };
-    let Ok((name, ownership, children)) = bodies.get(marker_for.0) else {
+    let Ok((name, affiliation, record, children)) = bodies.get(marker_for.0) else {
         return;
     };
     let (moons, stations) = children.map_or((0, 0), |children| child_counts(children, &classes));
-    let tooltip = marker_tooltip(&name.0, *ownership, moons, stations);
+    let ownership = ownership_text(*affiliation, record);
+    let tooltip = marker_tooltip(&name.0, ownership, moons, stations);
     for mut text in &mut tooltip_labels {
         *text = Text::new(tooltip.clone());
     }
@@ -320,22 +319,19 @@ mod tests {
 
     use super::*;
 
-    /// HOV-01: name, ownership and contents, then the click hints.
+    /// HOV-01: name, affiliation and contents, then the click hints.
     #[test]
     fn marker_tooltip_names_the_body_its_ownership_and_contents() {
         let hints = " — Click: inspect · Double-click: frame its moons · Double-click again: planetary view";
         assert_eq!(
-            marker_tooltip("Halden IV", Ownership::Own, 4, 1),
+            marker_tooltip("Halden IV", "own", 4, 1),
             format!("Halden IV · own · 4 moons, 1 stations{hints}")
         );
         assert_eq!(
-            marker_tooltip("Pell", Ownership::Neutral, 0, 0),
+            marker_tooltip("Pell", "neutral", 0, 0),
             format!("Pell · neutral{hints}")
         );
-        assert!(
-            marker_tooltip("K-3", Ownership::Foreign, 0, 2)
-                .starts_with("K-3 · foreign · 2 stations —")
-        );
+        assert!(marker_tooltip("K-3", "unknown", 0, 2).starts_with("K-3 · unknown · 2 stations —"));
     }
 
     /// GRP-07: the pill's tooltip lists the folded satellites.
@@ -455,7 +451,7 @@ mod tests {
             .id();
         let label = world.spawn((TooltipLabel, Text::new(""))).id();
         let body = world
-            .spawn((DisplayName("Morrow".into()), Ownership::Neutral))
+            .spawn((DisplayName("Morrow".into()), Affiliation::Neutral))
             .id();
         let marker = world
             .spawn(MarkerFor(body))

@@ -17,12 +17,12 @@ use bevy::prelude::*;
 use super::anim::step_per_frame;
 use super::fold::{
     FoldSummary, SatelliteFoldState, advance_fold_anim, fully_folded, hidden_by_ancestry,
-    next_folded, pill_flags,
+    more_pressing, next_folded, pill_flags,
 };
 use super::scale::km_to_render;
 use super::tunables::Tunables;
 use super::world::ViewNow;
-use crate::sim::body::{BodyClass, Ownership};
+use crate::sim::body::{Affiliation, BodyClass};
 use crate::sim::orbit::Orbit;
 use crate::{Boot, Stage};
 
@@ -116,7 +116,7 @@ fn resolve_hidden(mut satellites: Query<(Entity, &ChildOf, &mut SatelliteFoldSta
 /// GRP-05 / GRP-06: what each parent's "+N" pill counts and flags.
 fn summarise_folds(
     satellites: Query<(Entity, &ChildOf, &SatelliteFoldState)>,
-    classes: Query<(&BodyClass, &Ownership)>,
+    classes: Query<(&BodyClass, &Affiliation)>,
     mut summary: ResMut<FoldSummary>,
 ) {
     summary.0.clear();
@@ -138,12 +138,12 @@ fn summarise_folds(
         }
         let group = summary.0.entry(parent).or_default();
         group.members.push(entity);
-        if let Ok((class, ownership)) = classes.get(entity) {
+        if let Ok((class, affiliation)) = classes.get(entity) {
             // GRP-06, one member at a time: the flags are a disjunction, so
             // folding each member's own flags in is the same as asking
             // `pill_flags` about the whole group.
-            let flags = pill_flags(&[(*class, *ownership)]);
-            group.has_foreign |= flags.has_foreign;
+            let flags = pill_flags(&[(*class, *affiliation)]);
+            group.pressing = more_pressing(group.pressing, flags.pressing);
             group.has_own_ship |= flags.has_own_ship;
         }
     }

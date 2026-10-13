@@ -113,7 +113,7 @@ fn generate_images(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     );
 
     let mut unsurveyed_image = blank_image();
-    draw_noise(&mut unsurveyed_image, colors::FOREIGN);
+    draw_noise(&mut unsurveyed_image, colors::WARNING);
 
     let mut stale_image = blank_image();
     draw_globe(
