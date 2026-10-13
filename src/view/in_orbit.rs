@@ -136,7 +136,7 @@ pub fn spawn_in_orbit_list(
 /// INS-05: one entry: the satellite's symbol at `list_symbol_px` (or its
 /// body disc) and its name, in its colour.
 fn spawn_entry(panel: &mut ChildSpawnerCommands, assets: MarkerAssets, entry: &OrbitEntry) {
-    let (fonts, _, tunables) = assets;
+    let (fonts, tunables) = assets;
     let body = entry.body;
     let look = BodyLook {
         class: entry.class,

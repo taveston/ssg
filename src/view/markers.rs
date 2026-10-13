@@ -30,7 +30,7 @@ use super::scale::km_to_render;
 use super::screen::ScreenPositions;
 use super::selection::Selection;
 use super::symbol_draw::{Tint, TintSlot, spawn_symbol_parts};
-use super::symbol_images::SymbolImages;
+use super::symbol_shape::SymbolPart;
 use super::symbols::{SymbolSettings, label_second_line, symbol_look};
 use super::targets::MarkerFor;
 use super::true_size::{disc_half_px, projected_radius_px};
@@ -185,7 +185,6 @@ type SpawnBodies<'w, 's> = Query<
 fn spawn_markers(
     mut commands: Commands,
     fonts: Res<Fonts>,
-    images: Res<SymbolImages>,
     tunables: Res<Tunables>,
     clock: Res<GameClock>,
     bodies: SpawnBodies,
@@ -196,7 +195,7 @@ fn spawn_markers(
             affiliation: *affiliation,
             record,
         };
-        let assets = (&*fonts, &*images, &*tunables);
+        let assets = (&*fonts, &*tunables);
         let label = MarkerText {
             name: &name.0,
             second_line: record
@@ -236,8 +235,8 @@ struct MarkerText<'a> {
     second_line: Option<String>,
 }
 
-/// The fonts, symbol masks and tunables a marker is built from.
-pub type MarkerAssets<'a> = (&'a Fonts, &'a SymbolImages, &'a Tunables);
+/// The fonts and tunables a marker is built from.
+pub type MarkerAssets<'a> = (&'a Fonts, &'a Tunables);
 
 /// MRK-03 / MRK-04: the marker's box, sized by class and shaped by
 /// rounding and borders.
@@ -260,7 +259,7 @@ fn marker_node(shape: MarkerShape, half: f32) -> Node {
 
 /// The shape itself, spawned on or under `marker`, at `half` pixels.
 fn spawn_shape(marker: &mut EntityCommands, assets: MarkerAssets, look: BodyLook, half: f32) {
-    let (fonts, images, tunables) = assets;
+    let (fonts, tunables) = assets;
     let color = look.color(tunables);
     match look.shape() {
         MarkerShape::Disc => {
@@ -309,7 +308,7 @@ fn spawn_shape(marker: &mut EntityCommands, assets: MarkerAssets, look: BodyLook
             if let Some(record) = look.record {
                 let symbol = symbol_look(look.affiliation, record, symbol_settings(tunables));
                 marker.with_children(|parent| {
-                    spawn_symbol_parts(parent, (images, fonts), &symbol, half * 2.0);
+                    spawn_symbol_parts(parent, fonts, &symbol, half * 2.0);
                 });
             }
         }
@@ -323,7 +322,7 @@ fn spawn_marker(
     look: BodyLook,
     text: MarkerText,
 ) {
-    let (fonts, _, tunables) = assets;
+    let (fonts, tunables) = assets;
     let half = marker_half_size(look.class, tunables);
     let shape = look.shape();
     let mut marker = commands.spawn((
@@ -430,7 +429,7 @@ pub fn spawn_list_icon(
     look: BodyLook,
     body_half: f32,
 ) {
-    let (_, _, tunables) = assets;
+    let (_, tunables) = assets;
     let half = match look.shape() {
         MarkerShape::Symbol => tunables.list_symbol_px / 2.0,
         _ => body_half,
@@ -575,7 +574,7 @@ type TintedParts<'w, 's> = Query<
         &'static Tint,
         Option<&'static mut BackgroundColor>,
         Option<&'static mut BorderColor>,
-        Option<&'static mut ImageNode>,
+        Option<&'static mut SymbolPart>,
         Option<&'static mut TextColor>,
     ),
 >;
@@ -584,7 +583,7 @@ type TintedParts<'w, 's> = Query<
 /// one slot it is drawn with.
 fn fade_parts(root: Entity, alpha: f32, children: &Query<&Children>, parts: &mut TintedParts) {
     for part in std::iter::once(root).chain(children.iter_descendants(root)) {
-        let Ok((tint, background, border, image, text)) = parts.get_mut(part) else {
+        let Ok((tint, background, border, shape, text)) = parts.get_mut(part) else {
             continue;
         };
         let color = tint.color.with_alpha(tint.color.alpha() * alpha);
@@ -599,9 +598,9 @@ fn fade_parts(root: Entity, alpha: f32, children: &Query<&Children>, parts: &mut
                     border.set_all(color);
                 }
             }
-            TintSlot::Image => {
-                if let Some(mut image) = image {
-                    image.color = color;
+            TintSlot::Shape => {
+                if let Some(mut shape) = shape {
+                    shape.set_if_neq(SymbolPart { color, ..*shape });
                 }
             }
             TintSlot::Text => {
@@ -771,7 +770,7 @@ mod tests {
     }
 
     /// SYM-02 / SYM-13: fading writes each part's colour to its own slot
-    /// only, so an image's or a label's node background stays clear.
+    /// only, so a symbol part's or a label's node background stays clear.
     #[test]
     fn fading_leaves_other_colour_slots_alone() {
         use bevy::ecs::system::RunSystemOnce;
@@ -779,9 +778,13 @@ mod tests {
         let color = colors::OWN;
         let image = world
             .spawn((
-                ImageNode::default(),
+                SymbolPart {
+                    mask: crate::view::symbol_shape::SymbolMask::Triangle,
+                    color,
+                    size_px: 22.0,
+                },
                 BackgroundColor(Color::NONE),
-                Tint::new(color, TintSlot::Image),
+                Tint::new(color, TintSlot::Shape),
             ))
             .id();
         let text = world
@@ -798,7 +801,7 @@ mod tests {
             })
             .unwrap();
         let faded = color.with_alpha(0.5);
-        assert_eq!(world.get::<ImageNode>(image).unwrap().color, faded);
+        assert_eq!(world.get::<SymbolPart>(image).unwrap().color, faded);
         assert_eq!(world.get::<TextColor>(text).unwrap().0, faded);
         for part in [image, text] {
             assert_eq!(world.get::<BackgroundColor>(part).unwrap().0, Color::NONE);

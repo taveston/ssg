@@ -86,8 +86,8 @@ Ships and stations are drawn as symbols adapted from NATO APP-6: the **frame** s
 | SYM-13 | A symbol's label sits to the right of it, in the symbol's colour: the name in Barlow, then a second line in JetBrains Mono in the secondary text colour summarising the parts that apply, joined by " · ": a group's member count by class ("4 warships"); embarked formations ("1st Arden Guard"); "own flag · civilian" or "requisitioned"; and the stale age (SYM-08). With none of these, there is no second line. | ✓ |
 | SYM-14 | Hover and click target a symbol through its `ship_symbol_px` square. The hover ring, the selection ring and the frame brackets (CAM-22) are sized to enclose that square, not the amplifiers. | ✓ |
 | SYM-15 | Ownership text in insets uses: "own", "own flag · civilian", "requisitioned", "allied", "neutral", "hostile" or "unknown". | ✓ |
-| SYM-16 | Each marker, symbol and pill is placed with its centre on a whole screen pixel, so its outlines are as sharp as the orbit rings. | |
-| SYM-17 | Symbols, icons, body markers and pills are drawn as vector geometry at their screen size each frame, never as bitmaps scaled to size. *Checked in review.* | |
+| SYM-16 | Each marker, symbol and pill is placed with its centre on a whole screen pixel, so its outlines are as sharp as the orbit rings. | ✓ |
+| SYM-17 | Symbols, icons, body markers and pills are drawn as vector geometry at their screen size each frame, never as bitmaps scaled to size. *Checked in review.* | ✓ |
 
 ## 3b. Labels
 

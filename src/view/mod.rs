@@ -45,7 +45,7 @@ pub mod scale;
 pub mod screen;
 pub mod selection;
 pub mod symbol_draw;
-pub mod symbol_images;
+pub mod symbol_shape;
 pub mod symbols;
 pub mod targets;
 pub mod topbar;
@@ -85,7 +85,7 @@ impl Plugin for ViewPlugin {
                 anchors::AnchorsPlugin,
                 frame_marks::FrameMarksPlugin,
                 edge::EdgePlugin,
-                symbol_images::SymbolImagesPlugin,
+                symbol_shape::SymbolShapePlugin,
                 markers::MarkersPlugin,
                 pills::PillsPlugin,
                 hover::HoverPlugin,

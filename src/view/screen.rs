@@ -11,7 +11,8 @@ use super::world::ViewNow;
 use crate::Stage;
 
 /// Each body's projected screen position, in logical pixels from the
-/// window's top left, plus the viewport it was projected into. A body
+/// window's top left and snapped to a whole screen pixel (SYM-16), plus
+/// the viewport it was projected into. A body
 /// behind the camera has no entry.
 #[derive(Resource, Default)]
 pub struct ScreenPositions {
@@ -32,6 +33,13 @@ impl ScreenPositions {
 /// Whether a screen position is inside the viewport, edges included.
 pub fn in_viewport(pos: Vec2, viewport: Vec2) -> bool {
     pos.x >= 0.0 && pos.y >= 0.0 && pos.x <= viewport.x && pos.y <= viewport.y
+}
+
+/// SYM-16: `pos` moved to the nearest whole physical pixel, so a marker,
+/// symbol or pill centred there draws its outlines as sharply as the
+/// orbit rings. `scale` is physical pixels per logical pixel.
+pub fn snap_to_pixel(pos: Vec2, scale: f32) -> Vec2 {
+    (pos * scale).round() / scale
 }
 
 /// The part of the window the map shows in, below the top bar (EDGE-01,
@@ -69,9 +77,10 @@ fn project_bodies(view: ViewNow, windows: Query<&Window>, mut screen: ResMut<Scr
     };
     screen.viewport = Vec2::new(window.width(), window.height());
     screen.bodies.clear();
+    let scale = window.scale_factor();
     for (&body, &world) in view.positions() {
         if let Some(pos) = view.project(world) {
-            screen.bodies.insert(body, pos);
+            screen.bodies.insert(body, snap_to_pixel(pos, scale));
         }
     }
 }
@@ -89,5 +98,18 @@ mod tests {
         assert!(in_viewport(Vec2::new(400.0, 300.0), viewport));
         assert!(!in_viewport(Vec2::new(-0.1, 300.0), viewport));
         assert!(!in_viewport(Vec2::new(400.0, 600.1), viewport));
+    }
+
+    /// SYM-16: positions land on whole physical pixels, at any UI scale.
+    #[test]
+    fn positions_snap_to_whole_screen_pixels() {
+        assert_eq!(
+            snap_to_pixel(Vec2::new(10.4, 7.6), 1.0),
+            Vec2::new(10.0, 8.0)
+        );
+        let snapped = snap_to_pixel(Vec2::new(10.3, 7.1), 1.5);
+        let physical = snapped * 1.5;
+        assert!((physical - physical.round()).abs().max_element() < 1e-4);
+        assert!((snapped - Vec2::new(10.3, 7.1)).abs().max_element() <= 0.5 / 1.5);
     }
 }

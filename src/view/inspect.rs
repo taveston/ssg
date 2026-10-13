@@ -24,7 +24,6 @@ use super::markers::MarkerAssets;
 use super::motion_mode::MotionModeState;
 use super::readout::{format_distance, format_duration};
 use super::selection::Selection;
-use super::symbol_images::SymbolImages;
 use super::symbols::ownership_text;
 use super::targets::{MapInputBlocker, PointerTargets};
 use super::topbar::TOP_BAR_HEIGHT_PX;
@@ -270,7 +269,7 @@ fn rebuild_inset(
     fidelity: Res<FidelityImages>,
     bodies: InsetBodies,
     satellites: Satellites,
-    (images, tunables): (Res<SymbolImages>, Res<Tunables>),
+    tunables: Res<Tunables>,
     (mut docks, mut panels): InsetNodes,
 ) {
     if !selection.is_changed() {
@@ -293,9 +292,7 @@ fn rebuild_inset(
     let mut panel = commands.entity(panel);
     panel.despawn_related::<Children>();
     if let Some(content) = content {
-        panel.with_children(|panel| {
-            fill_panel(panel, &fidelity, (&fonts, &images, &tunables), &content)
-        });
+        panel.with_children(|panel| fill_panel(panel, &fidelity, (&fonts, &tunables), &content));
     }
 }
 

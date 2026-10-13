@@ -228,7 +228,7 @@ impl Default for Tunables {
 
             ship_symbol_px: 22.0,
             list_symbol_px: 14.0,
-            symbol_stroke_px: 1.6,
+            symbol_stroke_px: 1.5,
             button_stroke_px: 1.0,
             symbol_fill_state: 0.30,
             symbol_fill_other: 0.16,

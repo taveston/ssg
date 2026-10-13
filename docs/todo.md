@@ -12,8 +12,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **Sharp symbols** · SYM-16, SYM-17
-  - Was F-124: symbols looked blurred beside the rings. `symbol_stroke_px` default drops from 1.6 to 1.5 px.
 - [ ] **Body markers as outlines** · MRK-03, MRK-04, MRK-07, MRK-11, MRK-12, MRK-13
   - Was F-125, and replaces the item "Outlined body discs, a size smaller". New sizes 16/12/8 px; `body_fill_alpha` is renamed `body_fill_mix`; `star_tick_count`, `star_tick_px` and `planet_dot_px` are new. Rings now draw below everything (MRK-12).
 - [ ] **Edge arrows as tabs** · EDGE-02, EDGE-03

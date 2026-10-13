@@ -51,7 +51,6 @@ use crate::view::projection::ProjectionPlugin;
 use crate::view::scale::{km_to_render, km_to_render_vec3};
 use crate::view::screen::{ScreenPlugin, ScreenPositions};
 use crate::view::selection::Selection;
-use crate::view::symbol_images::SymbolImages;
 use crate::view::targets::{GroupPillFor, MarkerFor};
 use crate::view::topbar::TOP_BAR_HEIGHT_PX;
 use crate::view::true_size::projected_radius_px;
@@ -1396,9 +1395,11 @@ fn marker_width_px(app: &mut App, body: Entity) -> f32 {
 #[test]
 fn a_body_grows_into_a_true_size_disc_when_close() {
     let mut app = camera_app_with(|app| {
-        app.insert_resource(placeholder_fonts())
-            .init_resource::<SymbolImages>()
-            .add_plugins((EdgePlugin, MarkersPlugin, HoveredPlugin));
+        app.insert_resource(placeholder_fonts()).add_plugins((
+            EdgePlugin,
+            MarkersPlugin,
+            HoveredPlugin,
+        ));
     });
     let halden = body(&mut app, "Halden IV");
     run(&mut app, 2);
@@ -1430,9 +1431,11 @@ fn a_body_grows_into_a_true_size_disc_when_close() {
 #[test]
 fn nearer_bodies_draw_over_farther_and_symbols_over_bodies() {
     let mut app = camera_app_with(|app| {
-        app.insert_resource(placeholder_fonts())
-            .init_resource::<SymbolImages>()
-            .add_plugins((EdgePlugin, MarkersPlugin, HoveredPlugin));
+        app.insert_resource(placeholder_fonts()).add_plugins((
+            EdgePlugin,
+            MarkersPlugin,
+            HoveredPlugin,
+        ));
     });
     let names = ["Pell", "Iver", "Halden IV", "Morrow"];
     let bodies: Vec<Entity> = names.iter().map(|n| body(&mut app, n)).collect();
@@ -1911,9 +1914,11 @@ fn dot_mode_rings_are_hit_targets() {
 #[test]
 fn a_symbol_keeps_its_size_at_every_zoom() {
     let mut app = camera_app_with(|app| {
-        app.insert_resource(placeholder_fonts())
-            .init_resource::<SymbolImages>()
-            .add_plugins((EdgePlugin, MarkersPlugin, HoveredPlugin));
+        app.insert_resource(placeholder_fonts()).add_plugins((
+            EdgePlugin,
+            MarkersPlugin,
+            HoveredPlugin,
+        ));
     });
     let symbol_px = app.world().resource::<Tunables>().ship_symbol_px;
     let orison = body(&mut app, "Orison");

@@ -1,6 +1,6 @@
 //! Turns a `SymbolLook` (`symbols.rs`) into UI nodes (SYM-02 to SYM-07):
-//! a square node `size` pixels across, holding the tinted fill, frame and
-//! icon masks (`symbol_images.rs`), the "?" for an unknown class, the
+//! a square node `size` pixels across, holding the fill, frame and icon
+//! as vector parts (`symbol_shape.rs`), the "?" for an unknown class, the
 //! echelon above the frame and a station's installation bar on top.
 //! Amplifiers sit outside the square (SYM-04).
 //!
@@ -13,7 +13,7 @@ use bevy::prelude::*;
 
 use super::colors;
 use super::fonts::Fonts;
-use super::symbol_images::{SymbolImages, SymbolMask};
+use super::symbol_shape::{SymbolMask, SymbolPart};
 use super::symbols::{Icon, SymbolLook};
 
 /// A part's full-strength colour and the one slot it is drawn with. A UI
@@ -34,7 +34,8 @@ impl Tint {
 /// Where a part's colour lives.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TintSlot {
-    Image,
+    /// A symbol part's `SymbolPart` colour.
+    Shape,
     Text,
     Background,
     Border,
@@ -85,20 +86,22 @@ fn full() -> Node {
 /// is the `size`-pixel square they fill.
 pub fn spawn_symbol_parts(
     parent: &mut ChildSpawnerCommands,
-    (images, fonts): (&SymbolImages, &Fonts),
+    fonts: &Fonts,
     look: &SymbolLook,
     size: f32,
 ) {
     let color = look.color.with_alpha(look.alpha);
     let mut image = |mask: SymbolMask, tint: Color| {
-        if let Some(handle) = images.get(mask, size) {
-            parent.spawn((
-                full(),
-                ImageNode::new(handle).with_color(tint),
-                Tint::new(tint, TintSlot::Image),
-                Pickable::IGNORE,
-            ));
-        }
+        parent.spawn((
+            full(),
+            SymbolPart {
+                mask,
+                color: tint,
+                size_px: size,
+            },
+            Tint::new(tint, TintSlot::Shape),
+            Pickable::IGNORE,
+        ));
     };
     // SYM-03: the inside is always opaque, even on a faded stale track,
     // so nothing beneath shows through; command shows as how much of the
