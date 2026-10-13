@@ -11,8 +11,10 @@ use std::collections::HashMap;
 use bevy::prelude::*;
 
 use super::fold::SatelliteFoldState;
+use super::markers::ring_outer_half;
 use super::pills::pill_anchor;
 use super::screen::ScreenPositions;
+use super::tunables::Tunables;
 use crate::Stage;
 use crate::sim::body::BodyClass;
 
@@ -57,15 +59,19 @@ type BodyFold = (
 
 fn update_anchors(
     screen: Res<ScreenPositions>,
+    tunables: Res<Tunables>,
+    classes: Query<&BodyClass>,
     bodies: Query<BodyFold, With<BodyClass>>,
     mut anchors: ResMut<BodyAnchors>,
 ) {
     anchors.0.clear();
     for (body, child_of, fold) in &bodies {
         let own = screen.get(body);
-        let pill = child_of
-            .and_then(|child_of| screen.get(child_of.parent()))
-            .map(pill_anchor);
+        let pill = child_of.and_then(|child_of| {
+            let parent = child_of.parent();
+            let clear = ring_outer_half(*classes.get(parent).ok()?, &tunables);
+            Some(pill_anchor(screen.get(parent)?, clear))
+        });
         let unfold = fold.map_or(1.0, |fold| fold.anim_t);
         let pill = pill.filter(|_| fold.is_some());
         if let Some(at) = shown_at(own, pill, unfold) {

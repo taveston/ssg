@@ -1145,7 +1145,7 @@ fn a_parent_with_folded_satellites_shows_a_count_pill() {
     let (Val::Px(left), Val::Px(top)) = (node.left, node.top) else {
         panic!("pill not placed in pixels");
     };
-    let clear = ring_outer_half(BodyClass::Planet, Tunables::default().ship_symbol_px);
+    let clear = ring_outer_half(BodyClass::Planet, &Tunables::default());
     assert!(left - marker.x >= clear, "the pill overlaps the marker");
     assert!(
         top > marker.y,
@@ -1403,7 +1403,8 @@ fn a_body_grows_into_a_true_size_disc_when_close() {
     let halden = body(&mut app, "Halden IV");
     run(&mut app, 2);
     let far = marker_width_px(&mut app, halden);
-    assert_eq!(far, 12.0, "a planet's fixed marker at the system fit");
+    let planet_px = Tunables::default().planet_marker_px;
+    assert_eq!(far, planet_px, "a planet's fixed marker at the system fit");
 
     let distance = 0.01;
     set_frame(&mut app, halden, Vec3::ZERO);
@@ -1413,7 +1414,10 @@ fn a_body_grows_into_a_true_size_disc_when_close() {
     let expected =
         2.0 * projected_radius_px(km_to_render(radius_km), distance, fov(), VIEWPORT.y as f32);
     let drawn = marker_width_px(&mut app, halden);
-    assert!(expected > 12.0, "the test view is close enough: {expected}");
+    assert!(
+        expected > planet_px,
+        "the test view is close enough: {expected}"
+    );
     assert!(
         (drawn - expected).abs() < expected * 0.01,
         "drawn {drawn} px, true size {expected} px"

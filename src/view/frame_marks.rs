@@ -100,7 +100,7 @@ fn place_brackets(
         };
         let side = bracket_side(
             tunables.focus_bracket_margin_px,
-            ring_outer_half(class, tunables.ship_symbol_px),
+            ring_outer_half(class, &tunables),
         );
         node.display = Display::Flex;
         node.width = px(side);

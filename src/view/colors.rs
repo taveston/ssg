@@ -70,13 +70,3 @@ pub fn symbol_color(affiliation: Affiliation) -> Color {
         Affiliation::Unknown => UNKNOWN,
     }
 }
-
-/// MRK-01: a body's colour says whose it is: own assets blue, everything
-/// else the neutral display white. Ships, groups and stations take their
-/// symbol colour instead (SYM-02).
-pub fn affiliation_color(affiliation: Affiliation) -> Color {
-    match affiliation {
-        Affiliation::Own => OWN,
-        _ => NEUTRAL,
-    }
-}

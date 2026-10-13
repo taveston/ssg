@@ -95,24 +95,24 @@ pub fn marker_shape(class: BodyClass, has_record: bool) -> MarkerShape {
 }
 
 /// MRK-03 / SYM-04: marker size is a presentation choice by class, in
-/// screen pixels, never derived from physical size. A symbol's frame fits
-/// a square of `symbol_px`.
-pub fn marker_half_size(class: BodyClass, symbol_px: f32) -> f32 {
+/// screen pixels, never derived from physical size. Natural bodies have
+/// the largest markers; a symbol's frame fits a square of `ship_symbol_px`.
+pub fn marker_half_size(class: BodyClass, tunables: &Tunables) -> f32 {
     match class {
-        BodyClass::Star => 9.0,
-        BodyClass::Planet => 6.0,
-        BodyClass::Moon => 3.0,
+        BodyClass::Star => tunables.star_marker_px / 2.0,
+        BodyClass::Planet => tunables.planet_marker_px / 2.0,
+        BodyClass::Moon => tunables.moon_marker_px / 2.0,
         BodyClass::Gate => 5.5,
         BodyClass::SalvageSite => 7.0,
-        BodyClass::Ship | BodyClass::Station => symbol_px / 2.0,
+        BodyClass::Ship | BodyClass::Station => tunables.ship_symbol_px / 2.0,
     }
 }
 
 /// How far the white ring reaches from a marker's centre (MRK-01), so
 /// anything drawn round a marker (CAM-22's brackets) can clear it. For a
 /// symbol it encloses the symbol square, not the amplifiers (SYM-14).
-pub fn ring_outer_half(class: BodyClass, symbol_px: f32) -> f32 {
-    marker_half_size(class, symbol_px) + HOVER_RING_OFFSET_PX + RING_PX
+pub fn ring_outer_half(class: BodyClass, tunables: &Tunables) -> f32 {
+    marker_half_size(class, tunables) + HOVER_RING_OFFSET_PX + RING_PX
 }
 
 /// GRP-01 / GRP-03 / MOT-11: how strongly a body's marker is drawn. A
@@ -207,11 +207,12 @@ impl BodyLook<'_> {
     }
 
     /// The marker's and label's colour: a symbol's by affiliation and
-    /// command (SYM-02), a body's own blue or neutral white (MRK-01).
+    /// command (SYM-02); any other body's the neutral white, whoever owns
+    /// it, as the map doesn't show a body's ownership (MRK-01, MRK-10).
     pub fn color(&self, tunables: &Tunables) -> Color {
         match self.record {
             Some(record) => symbol_look(self.affiliation, record, symbol_settings(tunables)).color,
-            None => colors::affiliation_color(self.affiliation),
+            None => colors::NEUTRAL,
         }
     }
 }
@@ -292,7 +293,7 @@ fn spawn_marker(
     text: MarkerText,
 ) {
     let (fonts, _, tunables) = assets;
-    let half = marker_half_size(look.class, tunables.ship_symbol_px);
+    let half = marker_half_size(look.class, tunables);
     let shape = look.shape();
     let mut marker = commands.spawn((
         MarkerFor(body),
@@ -614,24 +615,46 @@ mod tests {
         assert!(!shows_ring(false, false));
     }
 
-    /// MRK-03 / SYM-04: marker size depends on class only; a symbol fits
-    /// `ship_symbol_px`.
+    /// MRK-03 / SYM-04: marker size depends on class only; natural bodies
+    /// are the largest, star over planet over moon, each at least a ship
+    /// symbol across; a symbol fits `ship_symbol_px`.
     #[test]
     fn marker_size_is_by_class() {
-        assert!(
-            marker_half_size(BodyClass::Star, 22.0) > marker_half_size(BodyClass::Planet, 22.0)
-        );
-        assert!(
-            marker_half_size(BodyClass::Planet, 22.0) > marker_half_size(BodyClass::Moon, 22.0)
-        );
-        assert_eq!(marker_half_size(BodyClass::Ship, 22.0), 11.0);
-        assert_eq!(marker_half_size(BodyClass::Station, 30.0), 15.0);
+        let tunables = Tunables::default();
+        let size = |class| 2.0 * marker_half_size(class, &tunables);
+        assert_eq!(size(BodyClass::Star), tunables.star_marker_px);
+        assert_eq!(size(BodyClass::Planet), tunables.planet_marker_px);
+        assert_eq!(size(BodyClass::Moon), tunables.moon_marker_px);
+        assert!(size(BodyClass::Star) > size(BodyClass::Planet));
+        assert!(size(BodyClass::Planet) > size(BodyClass::Moon));
+        assert!(size(BodyClass::Moon) >= tunables.ship_symbol_px);
+        for class in [BodyClass::Ship, BodyClass::Station] {
+            assert_eq!(size(class), tunables.ship_symbol_px);
+        }
     }
 
     /// SYM-14: the ring and brackets enclose the symbol square.
     #[test]
     fn the_ring_encloses_the_symbol_square() {
-        assert!(ring_outer_half(BodyClass::Ship, 22.0) > 11.0);
+        let tunables = Tunables::default();
+        assert!(ring_outer_half(BodyClass::Ship, &tunables) > tunables.ship_symbol_px / 2.0);
+    }
+
+    /// MRK-10: the star, planets and moons are drawn in the neutral colour
+    /// whoever owns them.
+    #[test]
+    fn natural_bodies_are_neutral_whoever_owns_them() {
+        let tunables = Tunables::default();
+        for class in [BodyClass::Star, BodyClass::Planet, BodyClass::Moon] {
+            for affiliation in [Affiliation::Own, Affiliation::Hostile, Affiliation::Neutral] {
+                let look = BodyLook {
+                    class,
+                    affiliation,
+                    record: None,
+                };
+                assert_eq!(look.color(&tunables), colors::NEUTRAL);
+            }
+        }
     }
 
     /// GRP-01: a fully folded satellite draws nothing, whatever else says.

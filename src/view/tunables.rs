@@ -127,6 +127,14 @@ pub struct Tunables {
     /// (UNIT-01).
     pub distance_au_threshold_au: f64,
 
+    // --- Natural body markers ---
+    /// The star's marker disc, in pixels across (MRK-03).
+    pub star_marker_px: f32,
+    /// A planet's marker disc, in pixels across (MRK-03).
+    pub planet_marker_px: f32,
+    /// A moon's marker disc, in pixels across (MRK-03).
+    pub moon_marker_px: f32,
+
     // --- Ship and station symbols ---
     /// A symbol's frame fits a square this many pixels across, at every
     /// zoom (SYM-04, SYM-14).
@@ -185,6 +193,10 @@ impl Default for Tunables {
             inset_width_px: 320.0,
             inset_dock_margin_px: 12.0,
             distance_au_threshold_au: 0.1,
+
+            star_marker_px: 36.0,
+            planet_marker_px: 30.0,
+            moon_marker_px: 24.0,
 
             ship_symbol_px: 22.0,
             list_symbol_px: 14.0,

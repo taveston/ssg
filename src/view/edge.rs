@@ -13,7 +13,7 @@ use super::fonts::Fonts;
 use super::screen::MapArea;
 use super::screen::ScreenPositions;
 use super::world::ViewNow;
-use crate::sim::body::{Affiliation, BodyClass, DisplayName};
+use crate::sim::body::{BodyClass, DisplayName};
 use crate::{Boot, Stage};
 
 /// How far inside the viewport edge a pinned arrow sits.
@@ -119,13 +119,13 @@ impl Plugin for EdgePlugin {
 fn spawn_edge_indicators(
     mut commands: Commands,
     fonts: Res<Fonts>,
-    gates: Query<(Entity, &BodyClass, &Affiliation, &DisplayName)>,
+    gates: Query<(Entity, &BodyClass, &DisplayName)>,
 ) {
-    for (entity, class, affiliation, name) in &gates {
+    for (entity, class, name) in &gates {
         if *class != BodyClass::Gate {
             continue;
         }
-        let color = colors::affiliation_color(*affiliation);
+        let color = colors::NEUTRAL;
         commands
             .spawn((
                 EdgeIndicatorFor(entity),

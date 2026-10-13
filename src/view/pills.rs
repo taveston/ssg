@@ -10,15 +10,18 @@ use super::colors;
 use super::fold::FoldSummary;
 use super::fonts::Fonts;
 use super::hover;
+use super::markers::ring_outer_half;
 use super::screen::ScreenPositions;
 use super::selection::Selection;
 use super::targets::GroupPillFor;
+use super::tunables::Tunables;
+use crate::sim::body::BodyClass;
 use crate::sim::orbit::Orbit;
 use crate::{Boot, Stage};
 
-/// GRP-05: where the pill sits relative to its parent's marker centre -
-/// down and to the right, clear of the largest marker and its label.
-const PILL_OFFSET_PX: Vec2 = Vec2::new(10.0, 8.0);
+/// GRP-05: how far below its parent's marker centre the pill's top sits.
+/// Sideways it sits just clear of the parent's hover ring.
+const PILL_DROP_PX: f32 = 8.0;
 /// Half the pill's height: its left-middle is where the
 /// frame brackets meet it (INS-06).
 const PILL_HALF_HEIGHT_PX: f32 = 8.0;
@@ -27,10 +30,18 @@ const PILL_HALF_HEIGHT_PX: f32 = 8.0;
 const RING_PX: f32 = 2.0;
 const RING_OFFSET_PX: f32 = 2.0;
 
+/// GRP-05: where a pill's top-left sits from its parent's marker centre:
+/// down and to the right, clear of a marker whose hover ring reaches
+/// `parent_clear_px` from its centre.
+pub fn pill_offset(parent_clear_px: f32) -> Vec2 {
+    Vec2::new(parent_clear_px, PILL_DROP_PX)
+}
+
 /// INS-06: where a folded satellite is shown - the left-middle of its
-/// parent's pill, given the parent's screen position.
-pub fn pill_anchor(parent_screen: Vec2) -> Vec2 {
-    parent_screen + PILL_OFFSET_PX + Vec2::new(0.0, PILL_HALF_HEIGHT_PX)
+/// parent's pill, given the parent's screen position and how far its
+/// marker reaches.
+pub fn pill_anchor(parent_screen: Vec2, parent_clear_px: f32) -> Vec2 {
+    parent_screen + pill_offset(parent_clear_px) + Vec2::new(0.0, PILL_HALF_HEIGHT_PX)
 }
 /// The pill's own dark ground, a touch lighter than the map so it reads as
 /// a chip over it.
@@ -137,6 +148,8 @@ fn ring_pills(
 
 fn update_pills(
     screen: Res<ScreenPositions>,
+    tunables: Res<Tunables>,
+    classes: Query<&BodyClass>,
     folds: Res<FoldSummary>,
     mut pills: Query<(&GroupPillFor, &mut Node, &mut BorderColor, &Children)>,
     mut counts: Query<&mut Text, With<PillCountText>>,
@@ -155,8 +168,12 @@ fn update_pills(
         };
 
         node.display = Display::Flex;
-        node.left = px(pos.x + PILL_OFFSET_PX.x);
-        node.top = px(pos.y + PILL_OFFSET_PX.y);
+        let clear = classes
+            .get(parent)
+            .map_or(0.0, |class| ring_outer_half(*class, &tunables));
+        let offset = pill_offset(clear);
+        node.left = px(pos.x + offset.x);
+        node.top = px(pos.y + offset.y);
         // GRP-06: the outline in the most pressing affiliation's colour.
         border.set_all(group.pressing.map_or(Color::NONE, colors::symbol_color));
 
@@ -185,11 +202,11 @@ mod tests {
     #[test]
     fn pill_anchor_is_the_pills_left_middle() {
         let parent = Vec2::new(400.0, 300.0);
-        let anchor = pill_anchor(parent);
-        assert_eq!(anchor.x, parent.x + PILL_OFFSET_PX.x);
-        assert_eq!(anchor.y, parent.y + PILL_OFFSET_PX.y + PILL_HALF_HEIGHT_PX);
+        let anchor = pill_anchor(parent, 19.0);
+        assert_eq!(anchor.x, parent.x + 19.0);
+        assert_eq!(anchor.y, parent.y + PILL_DROP_PX + PILL_HALF_HEIGHT_PX);
         assert_eq!(
-            pill_anchor(parent + Vec2::X * 50.0),
+            pill_anchor(parent + Vec2::X * 50.0, 19.0),
             anchor + Vec2::X * 50.0
         );
     }

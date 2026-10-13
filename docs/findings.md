@@ -30,3 +30,8 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Observation:** the inset is drawn over the right of the map. The frame body sits at the centre of the window, so with the inset open it looks off-centre in the visible map, and the inset hides part of the view.
 - **Affects:** INS-07, CAM-05 · **Type:** spec wrong
 - **Disposition:** open. Option: an expanding sidebar that shrinks the map area (and the camera viewport) instead of overlaying it, so the frame body stays centred in what's visible.
+
+### F-112 · The hover tooltip still shows a body's ownership
+- **Observation:** MRK-10 says a body's ownership is not shown on the map, but HOV-01 puts "name · ownership" in every marker's tooltip. The build reads MRK-10 as markers and labels: natural bodies are drawn neutral, and the tooltip still names the owner, as HOV-01 says.
+- **Affects:** MRK-10, HOV-01 · **Type:** conflict
+- **Disposition:** open. Option: drop ownership from the tooltip for the star, planets and moons.
