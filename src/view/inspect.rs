@@ -465,11 +465,16 @@ fn spawn_actions(actions: &mut ChildSpawnerCommands, fonts: &Fonts, body: Entity
             TextColor(colors::OWN),
         ))
         // ZOOM-16: the inset's Focus button makes the inset's object the
-        // frame and moves to it, as a double-click does.
+        // frame and moves to it, as a double-click does. It is disabled
+        // while the object is in exposure-ring mode (CAM-24).
         .observe(
             move |_click: On<PointerClick>,
+                  modes: Query<&MotionModeState>,
                   mut selection: ResMut<Selection>,
                   mut request: ResMut<FrameRequest>| {
+                if modes.get(body).is_ok_and(|mode| mode.ring_mode) {
+                    return;
+                }
                 selection.select(body);
                 request.0 = Some(body);
             },

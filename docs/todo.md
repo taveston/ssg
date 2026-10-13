@@ -12,7 +12,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **Double-click on an object that can't be a frame moves to its parent's frame** · ZOOM-16
 - [ ] **Natural bodies: neutral colour, larger markers** · MRK-01, MRK-03, MRK-10
   - Body marker sizes are hard-coded in `marker_half_size` (`view/markers.rs`); move them to `Tunables`. Check pills, labels and frame brackets still clear the bigger discs.
 - [ ] **Satellites of a moon in Corvane** · TEST-09

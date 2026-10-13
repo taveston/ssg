@@ -1457,17 +1457,29 @@ fn motion_camera_app(rate: f64) -> App {
     app
 }
 
-/// CAM-24: an object in exposure-ring mode can't be a frame; a request for
-/// it does nothing.
+/// CAM-24 / ZOOM-16: an object in exposure-ring mode can't be a frame; a
+/// request for it moves the frame to its parent instead, and the view to
+/// the parent's satellite fit.
 #[test]
 fn a_ring_mode_object_cannot_be_a_frame() {
     let mut app = motion_camera_app(1.0);
     let iva = body(&mut app, "Halden IVa");
+    let halden = body(&mut app, "Halden IV");
     assert!(app.world().get::<MotionModeState>(iva).unwrap().ring_mode);
     app.world_mut().resource_mut::<FrameRequest>().0 = Some(iva);
+    run(&mut app, 1);
+    let target = app.world().resource::<ActiveMove>().0.unwrap().target;
     run(&mut app, 40);
-    assert!(in_star_frame(&app));
-    assert!(app.world().resource::<ActiveMove>().0.is_none());
+    assert_eq!(frame_body(&app), halden);
+    let fit = app
+        .world()
+        .resource::<ZoomStops>()
+        .satellite_radius(halden)
+        .unwrap();
+    let tilt = app.world().resource::<CameraRig>().tilt;
+    let margin = app.world().resource::<Tunables>().zoom_fit_margin;
+    let expected = distance_for_radius(fit, fov(), tilt, margin, VIEWPORT.as_vec2());
+    assert!((target.distance - expected).abs() < expected * 1e-3);
 }
 
 /// CAM-24: when the frame body enters ring mode, the frame moves to its

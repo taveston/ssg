@@ -11,6 +11,7 @@ use bevy::prelude::*;
 
 use super::control::CameraControl;
 use super::fits::Fits;
+use super::release::nearest_unringed_ancestor;
 use super::requests::{FrameRequest, RecentreRequest};
 use super::rules::nearest_heading;
 use super::state::{BOOKMARK_SLOTS, Bookmark, Bookmarks, CameraRig, MoveTarget, PivotTarget};
@@ -77,7 +78,8 @@ pub fn handle_north_up(
 /// system fit. Asked for by a double-click, the inset's Focus button or a
 /// breadcrumb entry (`FrameRequest`), or by F for the selection. The asker
 /// has already selected the body. A body in exposure-ring mode can't be a
-/// frame (CAM-24), so it is left only selected.
+/// frame (CAM-24): it stays selected, and the frame moves to its nearest
+/// ancestor that can be one, or the star, as a jump to that ancestor would.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_frame_requests(
     keys: Res<ButtonInput<KeyCode>>,
@@ -86,16 +88,19 @@ pub fn handle_frame_requests(
     selection: Res<Selection>,
     fits: Fits,
     modes: Query<&MotionModeState>,
+    parents: Query<&ChildOf>,
     positions: Res<WorldPositions>,
     mut request: ResMut<FrameRequest>,
     mut view: CameraControl,
 ) {
     let key = pressed(&keys, &bindings.focus_selection).then_some(selection.selected);
-    let Some(body) = request.0.take().or(key.flatten()) else {
+    let Some(mut body) = request.0.take().or(key.flatten()) else {
         return;
     };
-    if modes.get(body).is_ok_and(|mode| mode.ring_mode) {
-        return;
+    let ringed = |entity: Entity| modes.get(entity).is_ok_and(|mode| mode.ring_mode);
+    if ringed(body) {
+        let parent_of = |entity: Entity| parents.get(entity).ok().map(ChildOf::parent);
+        body = nearest_unringed_ancestor(body, parent_of, ringed).unwrap_or(view.frame.star);
     }
     let tilt = view.rig.tilt;
     let distance = if body == view.frame.star {
