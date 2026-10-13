@@ -32,4 +32,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Other
 
-None yet.
+- [ ] **Screenshot debug option**
+  - A built-in way to capture the game window without editing `main.rs`: for example, an environment variable naming a view (frame body, distance, tilt, time rate) and an output path. The app sets that view, waits for it to settle, saves a screenshot and exits.
+  - Keep it in a view debug module, read through the bindings or a debug resource, not in `main.rs`. Then replace the "temporarily edit `main.rs`" steps in CLAUDE.md ("Seeing the game").
