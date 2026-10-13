@@ -35,3 +35,8 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Observation:** MRK-10 says a body's ownership is not shown on the map, but HOV-01 puts "name · ownership" in every marker's tooltip. The build reads MRK-10 as markers and labels: natural bodies are drawn neutral, and the tooltip still names the owner, as HOV-01 says.
 - **Affects:** MRK-10, HOV-01 · **Type:** conflict
 - **Disposition:** open. Option: drop ownership from the tooltip for the star, planets and moons.
+
+### F-113 · Morrow IX's trader at 4 d is not in dot mode at 1 d/s
+- **Observation:** TEST-09 asks for a trader round Morrow IX with a period of about 4 d, in dot mode at 1 d/s. With `tail_secs` at 8 s, anything under 8 d is an exposure ring at 1 d/s, so 4 d can't be a dot. The build uses 9 d: a dot at 1 d/s, at 0.46 of Morrow IX's Hill radius.
+- **Affects:** TEST-09 · **Type:** spec wrong
+- **Disposition:** open. Option: change TEST-09's period to about 9 d.

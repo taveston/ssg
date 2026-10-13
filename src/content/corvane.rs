@@ -14,6 +14,12 @@ use crate::sim::units::{
 
 /// Halden IV's mass, which sets its satellites' periods.
 const HALDEN_IV_MASS_KG: f64 = 1.1 * EARTH_MASS_KG;
+/// Morrow IX's mass, a large icy moon's (Ganymede-like density at its
+/// 2,400 km radius). It sets the periods of the moon's own satellites
+/// (TEST-09).
+const MORROW_IX_MASS_KG: f64 = 0.02 * EARTH_MASS_KG;
+/// Where Morrow IX sits among Morrow's moons.
+const MORROW_IX: usize = 8;
 
 fn surveyed_today() -> Knowledge {
     Knowledge::Surveyed
@@ -252,7 +258,13 @@ fn halden_iv() -> BodyBlueprint {
 /// IVc (31 d) and IVd (68 d), slow enough to be dots at 1 d/s (TEST-05)
 /// without stretching the satellite fit.
 fn halden_orbit_km(period_days: f64) -> f64 {
-    let mu = GRAVITATIONAL_CONSTANT * HALDEN_IV_MASS_KG;
+    orbit_km_for_period(HALDEN_IV_MASS_KG, period_days)
+}
+
+/// The orbit radius round a body of `mass_kg` for a period in days, by the
+/// inverse of Kepler's third law.
+fn orbit_km_for_period(mass_kg: f64, period_days: f64) -> f64 {
+    let mu = GRAVITATIONAL_CONSTANT * mass_kg;
     let seconds = period_days * SECS_PER_DAY;
     let radius_m = (mu * seconds * seconds / std::f64::consts::TAU.powi(2)).cbrt();
     radius_m / M_PER_KM
@@ -451,9 +463,9 @@ fn morrow() -> BodyBlueprint {
     ];
     // Mean physical radii of the moons, a few hundred to a few thousand km.
     const MOON_BODY_RADII_KM: [f64; 11] = [
-        350.0, 500.0, 800.0, 1_200.0, 2_600.0, 1_800.0, 700.0, 450.0, 1_000.0, 320.0, 600.0,
+        350.0, 500.0, 800.0, 1_200.0, 2_600.0, 1_800.0, 700.0, 450.0, 2_400.0, 320.0, 600.0,
     ];
-    let moons = (0..11)
+    let mut moons: Vec<BodyBlueprint> = (0..11)
         .map(|i| {
             let name = MORROW_MOON_NAMES[i];
             BodyBlueprint {
@@ -472,6 +484,8 @@ fn morrow() -> BodyBlueprint {
             }
         })
         .collect();
+    moons[MORROW_IX].mass_kg = MORROW_IX_MASS_KG;
+    moons[MORROW_IX].children = morrow_ix_satellites();
 
     BodyBlueprint {
         name: "Morrow",
@@ -487,6 +501,50 @@ fn morrow() -> BodyBlueprint {
         mass_kg: 318.0 * EARTH_MASS_KG,
         children: moons,
     }
+}
+
+/// TEST-09: Morrow IX's own satellites, for nested folding, nested pills
+/// and a frame three levels deep: a station fast enough to be an exposure
+/// ring at 1 d/s, and a trader slow enough to be a dot.
+fn morrow_ix_satellites() -> Vec<BodyBlueprint> {
+    let satellite =
+        |name, affiliation, record, description, period_days, phase0_rad| BodyBlueprint {
+            name,
+            class: BodyClass::Ship,
+            affiliation,
+            record: Some(record),
+            description,
+            key_facts: vec![],
+            knowledge: Knowledge::Unsurveyed,
+            orbit_radius_km: orbit_km_for_period(MORROW_IX_MASS_KG, period_days),
+            radius_km: 0.1,
+            phase0_rad,
+            mass_kg: 0.0,
+            children: vec![],
+        };
+    let relay = BodyBlueprint {
+        class: BodyClass::Station,
+        knowledge: surveyed_today(),
+        key_facts: vec![("Status", "Active"), ("Owner", "State")],
+        radius_km: 0.5,
+        ..satellite(
+            "Tern Relay",
+            Affiliation::Own,
+            ShipRecord::new(ShipClass::Station, true),
+            "A signal relay in low orbit round Morrow IX.",
+            0.3,
+            0.4,
+        )
+    };
+    let trader = satellite(
+        "Kessel trader",
+        Affiliation::Neutral,
+        ShipRecord::new(ShipClass::Cargo, false),
+        "A neutral trader parked round Morrow IX.",
+        9.0,
+        2.2,
+    );
+    vec![relay, trader]
 }
 
 const MORROW_MOON_NAMES: [&str; 11] = [
@@ -585,6 +643,38 @@ mod tests {
             .filter(|m| kepler_period_days(m.orbit_radius_km, morrow.mass_kg) < 8.0)
             .count();
         assert_eq!(ring, 6);
+    }
+
+    /// TEST-09: Morrow IX holds its own station and trader, at periods of
+    /// about 0.3 d (ring mode at 1 d/s) and 9 d (dot mode), inside its Hill
+    /// sphere and clear of its surface.
+    #[test]
+    fn morrow_ix_has_two_satellites_of_its_own() {
+        let morrow = planet("Morrow");
+        let ix = &morrow.children[MORROW_IX];
+        assert_eq!(ix.name, "Morrow IX");
+        let hill_km = ix.orbit_radius_km * (ix.mass_kg / (3.0 * morrow.mass_kg)).cbrt();
+        for (name, class, affiliation, expected) in [
+            ("Tern Relay", BodyClass::Station, Affiliation::Own, 0.3),
+            ("Kessel trader", BodyClass::Ship, Affiliation::Neutral, 9.0),
+        ] {
+            let child = ix.children.iter().find(|c| c.name == name).unwrap();
+            assert_eq!((child.class, child.affiliation), (class, affiliation));
+            assert!(child.record.is_some(), "{name} is drawn as a symbol");
+            let actual = satellite_period_days(ix, name);
+            assert!(
+                (actual - expected).abs() < expected * 0.02,
+                "{name}: expected about {expected} d, got {actual:.3} d"
+            );
+            assert!(
+                child.orbit_radius_km < hill_km / 2.0,
+                "{name} inside the Hill sphere"
+            );
+            assert!(
+                child.orbit_radius_km > 2.0 * ix.radius_km,
+                "{name} above the surface"
+            );
+        }
     }
 
     /// TEST-01 / TEST-03: the bodies the other checks lean on are present.

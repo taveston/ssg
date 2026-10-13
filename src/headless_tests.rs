@@ -1461,6 +1461,46 @@ fn motion_camera_app(rate: f64) -> App {
     app
 }
 
+/// TEST-09: Morrow IX's own satellites at 1 d/s: Tern Relay is an exposure
+/// ring and the trader a dot. Both fold away at the system fit; framing
+/// Morrow IX, three levels below the star, moves to its satellite fit,
+/// where the trader unfolds.
+#[test]
+fn a_moon_with_satellites_folds_and_frames_three_levels_deep() {
+    let mut app = camera_app_with(|app| {
+        app.add_plugins((MotionPlugin, GroupingPlugin))
+            .insert_resource(placeholder_fonts());
+    });
+    let mut clock = app.world_mut().resource_mut::<GameClock>();
+    clock.toggle_pause();
+    clock.run_at(1.0);
+    run(&mut app, SETTLE_FRAMES);
+    let ix = body(&mut app, "Morrow IX");
+    let relay = body(&mut app, "Tern Relay");
+    let trader = body(&mut app, "Kessel trader");
+    let ring_mode = |app: &App, e: Entity| app.world().get::<MotionModeState>(e).unwrap().ring_mode;
+    let folded = |app: &App, e: Entity| app.world().get::<SatelliteFoldState>(e).unwrap().folded;
+    assert!(ring_mode(&app, relay));
+    assert!(!ring_mode(&app, trader));
+    assert!(folded(&app, relay) && folded(&app, trader));
+
+    app.world_mut().resource_mut::<FrameRequest>().0 = Some(ix);
+    run(&mut app, 60);
+    assert_eq!(frame_body(&app), ix);
+    let morrow = body(&mut app, "Morrow");
+    assert_eq!(app.world().get::<ChildOf>(ix).unwrap().parent(), morrow);
+    assert!(
+        app.world()
+            .resource::<ZoomStops>()
+            .satellite_radius(ix)
+            .is_some()
+    );
+    assert!(
+        !folded(&app, trader),
+        "the trader unfolds at IX's satellite fit"
+    );
+}
+
 /// CAM-24 / ZOOM-16: an object in exposure-ring mode can't be a frame; a
 /// request for it moves the frame to its parent instead, and the view to
 /// the parent's satellite fit.
