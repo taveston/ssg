@@ -196,16 +196,9 @@ fn draw_orbit_rings(
             .into_iter()
             .flat_map(|segment| split_at_angle(segment, look.body_angle))
         {
-            let at = |angle: f32| {
-                let behind = degrees_behind(look.body_angle, angle);
-                ring_color_at(look.colors, tail_brightness(behind, &look.mode))
-            };
-            asset.line_gradient(
-                segment.from,
-                segment.to,
-                at(segment.from_angle),
-                at(segment.to_angle),
-            );
+            let (from_behind, to_behind) = segment_behind(&segment, look.body_angle);
+            let at = |behind: f32| ring_color_at(look.colors, tail_brightness(behind, &look.mode));
+            asset.line_gradient(segment.from, segment.to, at(from_behind), at(to_behind));
         }
         let width = look
             .mode
@@ -294,6 +287,19 @@ pub fn split_at_angle(segment: RingSegment, angle: f32) -> Vec<RingSegment> {
             ..segment
         },
     ]
+}
+
+/// MOT-01: how far behind the body each end of a segment is, in degrees.
+/// Segments run in the direction of motion, so the start is the segment's
+/// own span further behind than its end. Measuring from the end keeps a
+/// piece that starts exactly at the body (split there) a full turn behind,
+/// not zero, so it is never shaded as tail.
+pub fn segment_behind(segment: &RingSegment, body_angle: f32) -> (f32, f32) {
+    let span = (segment.to_angle - segment.from_angle)
+        .rem_euclid(std::f32::consts::TAU)
+        .to_degrees();
+    let to = degrees_behind(body_angle, segment.to_angle);
+    (to + span, to)
 }
 
 /// One straight piece of a drawn ring, with the orbit angle at each end so
@@ -460,6 +466,33 @@ mod tests {
             ..segment
         };
         assert_eq!(split_at_angle(wrap, 0.0).len(), 2);
+    }
+
+    /// MOT-01: after a split at the body, the piece behind it runs from
+    /// its span behind up to 0 at the body; the piece ahead starts a full
+    /// turn behind, so it gets no tail brightness.
+    #[test]
+    fn the_piece_ahead_of_the_body_is_not_tail() {
+        let segment = RingSegment {
+            from: Vec3::ZERO,
+            to: Vec3::X,
+            from_angle: 1.0,
+            to_angle: 1.2,
+        };
+        let split = split_at_angle(segment, 1.05);
+        let (behind_from, behind_to) = segment_behind(&split[0], 1.05);
+        assert!((behind_from - 0.05_f32.to_degrees()).abs() < 1e-3);
+        assert!(behind_to.abs() < 1e-3);
+        let (ahead_from, ahead_to) = segment_behind(&split[1], 1.05);
+        assert!(ahead_from >= 359.99 && ahead_to > ahead_from - 360.0);
+        let state = MotionModeState {
+            tail_degrees: 90.0,
+            closing: 0.0,
+            ring_mode: false,
+        };
+        assert_eq!(tail_brightness(ahead_from, &state), 0.0);
+        assert_eq!(tail_brightness(ahead_to, &state), 0.0);
+        assert_eq!(tail_brightness(behind_to, &state), 1.0);
     }
 
     /// MOT-01: each segment carries the orbit angle at its ends, so the
