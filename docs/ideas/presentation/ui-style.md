@@ -25,7 +25,7 @@ The console register is **decided** (2026-10-12); everything else is **candidate
   - Orange for "needs attention" (a shortfall, low readiness, an urgent message). Same orange as unknown contacts; both mean "look at this".
   - **No green for good or red for bad.** Green means neutral and red means hostile. Good and bad are shown by sign and words; only "needs attention" gets a colour.
   - Everything else is off-white text, pale grey-blue secondary text, and hairlines.
-- **Buttons:** one primary per panel (filled off-white), secondary (outlined), quiet (text only). An action that can't be undone uses an orange outline and asks once.
+- **Buttons:** one primary per panel (filled off-white), secondary (outlined), quiet (text only). An action that can't be undone uses an orange outline and asks once. **Specced** 2026-10-13 as BTN-01, BTN-02 (the first build used orange and blue for buttons, F-117).
 
 ## 3. Figures carry their certainty
 
@@ -58,6 +58,8 @@ Every panel follows the same order (board 2):
 2. **Key figures:** a row of label-over-value pairs, figures in mono.
 3. **Sections** under small-capital headings, separated by hairlines: lists, tables, text.
 4. **Actions** last, primary first.
+
+- **Specced** for the inspection inset (2026-10-13, from F-120): key facts and section headings as INS-09, buttons as INS-02.
 
 - **References:** any ship, station, person or organisation named in text is a reference: its symbol (ships and stations) and name, underlined. Click shows it on the map or opens its file. This is the "links to the map" idea from *Presentation & Visual Style*, section 4.
 

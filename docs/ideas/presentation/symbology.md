@@ -35,6 +35,8 @@ Uses the NATO sea-surface frames. They are closed, compact shapes. The NATO spac
   - *Flag* (whose ship it is) sets the frame shape. Ships registered to the state's own organisations keep the circle; a foreign merchant has the square.
   - *Command* (does the state give it orders) sets the fill. State ships have a solid tint (about 30 %). Own-flag civilians have no fill and a paler blue, so they read as "ours, but not under orders". Other affiliations have a faint tint (about 16 %).
   - Requisitioning or chartering a civilian ship fills its frame in for as long as the state commands it, so the player sees the takeover on the map.
+  - **Opaque insides (decided 2026-10-13, from F-123).** Fills are solid colours mixed into the ground, not transparency, and every frame covers what lies under it. See-through fills let orbit lines cross the icons and looked glassy, like a HUD rather than a plot. (Specced: SYM-03.)
+  - **Sharp at screen size (decided 2026-10-13, from F-124).** Symbols are drawn as vectors on whole pixels; scaled bitmaps blurred beside the orbit lines. (Specced: SYM-16, SYM-17.)
 - **Open:** whether "hostile" means at war, or just "a faction we treat as a threat". It should follow the state's declared stance, not the AI's intent, so the player never learns hidden intent from a colour.
 
 ## 3. Icons: what it is

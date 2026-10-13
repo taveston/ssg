@@ -2,7 +2,7 @@
 
 **In short:** one star system drawn as a vector display at true scale, with fixed-size markers; ships and stations use NATO-style symbols. Clicking an object, or its orbit ring, selects it and opens the inspection inset, docked at the right of the map; there is one selection and one inset; the camera always sits in the reference frame of one object, the star by default, shown as a path in the breadcrumb. Zoom is stepped, with two stops: the whole system and the frame body's satellites. The frame is only ever changed deliberately. Satellites fold into their parent when their orbits get small on screen, and fast orbits are drawn as exposure rings. Corvane is the test system.
 
-*Scope:* scale, clock, markers, units in readouts, ship and station symbols, inspection, zoom, camera, satellite grouping, the motion rule and the Corvane test system. *Source ideas:* `docs/ideas/presentation/presentation.md` (section 2), `docs/ideas/presentation/presentation-sketches.md` (boards 1, 2, 5, 6), `docs/ideas/presentation/symbology.md` (symbols), mock-ups in `docs/ideas/presentation/mockups/`. Where a mock-up and this spec disagree, this spec wins.
+*Scope:* scale, clock, buttons, markers, labels, units in readouts, ship and station symbols, inspection, zoom, camera, satellite grouping, the motion rule and the Corvane test system. *Source ideas:* `docs/ideas/presentation/presentation.md` (section 2), `docs/ideas/presentation/presentation-sketches.md` (boards 1, 2, 5, 6), `docs/ideas/presentation/symbology.md` (symbols), mock-ups in `docs/ideas/presentation/mockups/`. Where a mock-up and this spec disagree, this spec wins.
 
 *How to read it:* each requirement has a stable ID. **Built** is ✓ once the requirement is in the code. Numbers in `code` are tunables (table at the end), read from `src/view/tunables.rs`, never hard-coded.
 
@@ -26,10 +26,17 @@
 | ID | Requirement | Built |
 |---|---|---|
 | CLK-01 | The game clock runs continuously at a default of 1 game day per real second. | ✓ |
-| CLK-02 | The top bar shows the breadcrumb (CAM-25), the calendar date, and Pause, 1 d/s and 5 d/s buttons; the active rate is highlighted. | ✓ |
+| CLK-02 | The top bar shows the breadcrumb (CAM-25), the calendar date, and Pause, 1 d/s and 5 d/s buttons. The active rate is a primary button and the others are secondary (BTN-01). |  |
 | CLK-05 | Space toggles pause; `.` doubles and `,` halves the rate (minimum 1/16 d/s). | ✓ |
 | CLK-04 | Pausing stops all orbital motion; every view stays fully interactive while paused. | ✓ |
 | CLK-06 | A debug readout of frames per second can show in the top bar. It is hidden by default and toggled by a binding (default F3). | ✓ |
+
+## 2a. Buttons
+
+| ID | Requirement | Built |
+|---|---|---|
+| BTN-01 | A button has one of three styles: **primary** = filled in the neutral colour with ground-colour text; **secondary** = outlined `button_stroke_px` wide in the secondary colour, with neutral text; **quiet** = text only, in the secondary colour. A panel or bar has at most one primary button. | |
+| BTN-02 | Buttons never use affiliation colours (SYM-02) or the warning orange, except that a button whose action can't be undone is outlined in orange. | |
 
 ## 3. Markers and palette
 
@@ -37,17 +44,20 @@
 |---|---|---|
 | MRK-01 | Palette: ground #070A0E; natural bodies and text #DCE6EC; orbits and secondary text #9FB6C4; own ships, groups and stations #5AA9E6 (blue); warnings #F0A040 (orange); selection and hover as a white ring. Ships, groups and stations take their colour from their affiliation (SYM-02). | ✓ |
 | MRK-02 | Type: Barlow for labels and UI; JetBrains Mono for dates, figures and status readouts. | ✓ |
-| MRK-03 | Each object is a fixed-size screen marker by class, projected from its 3D position each frame; marker size never depends on physical size. Natural bodies are discs of `star_marker_px`, `planet_marker_px` and `moon_marker_px` across. | |
-| MRK-04 | Marker shapes: filled disc = body; X = salvage site. Ships, groups of ships and stations are drawn as symbols (section 3a). | ✓ |
+| MRK-03 | Each object is a fixed-size screen marker by class, projected from its 3D position each frame; marker size never depends on physical size. Natural bodies are drawn as body markers (MRK-13) of `star_marker_px`, `planet_marker_px` and `moon_marker_px` across. |  |
+| MRK-04 | Marker shapes: body marker (MRK-13) = star, planet or moon; X = salvage site. Ships, groups of ships and stations are drawn as symbols (section 3a). |  |
 | MRK-05 | Orbits of natural bodies are faint rings `orbit_ring_width_px` wide; the belt is a translucent shaded band. A ring stays within half a pixel of the true circle, also when the camera is close to it, and a ring passing behind the camera is cut at the near limit, not dropped. | |
 | MRK-09 | Ships and stations draw no orbit ring of their own in dot mode (MOT-01): only their tail, which fades to transparent at its end rather than to a ring's alpha. Their full ring is drawn only while the object is hovered or selected (HOV-03). In exposure-ring mode (MOT-02) the exposure ring is drawn as usual. | ✓ |
 | MRK-10 | The star, planets and moons are drawn and labelled in the neutral colour (MRK-01) whoever owns them. A body's ownership is not shown on the map. | ✓ |
 | MRK-06 | Separate planets are never merged, however close on screen. | ✓ |
 | MRK-08 | Every marker and symbol has a hit area of at least `min_hit_radius_px` round its centre, even where the drawn marker is smaller. Where hit areas overlap, the marker whose centre is nearest the pointer wins. | ✓ |
 | MRK-07 | A body whose true diameter on screen is larger than its marker is drawn as a disc at its true size, in the style of MRK-11, in place of the marker. | |
-| MRK-11 | A natural body's disc is filled with the neutral colour at `body_fill_alpha`, has a neutral rim `body_rim_px` wide, and is ringed outside the rim by a gap `body_gap_px` wide in the ground colour, so overlapping discs stay distinct. | |
-| MRK-12 | Draw order, from the bottom: natural bodies, nearer the camera on top of farther, recomputed as the view turns; then ship, group and station symbols, always above bodies; then labels and pills, above all markers; then edge arrows and the sidebar. Draw order never changes which marker a click hits (MRK-08). | |
+| MRK-11 | A natural body's true-size disc (MRK-07) is filled with the neutral colour mixed into the ground colour at `body_fill_mix` (an opaque colour, not transparency), has a neutral rim `body_rim_px` wide, and is ringed outside the rim by a gap `body_gap_px` wide in the ground colour, so overlapping discs stay distinct. |  |
+| MRK-12 | Draw order, from the bottom: orbit rings, tails and exposure rings; then natural bodies, nearer the camera on top of farther, recomputed as the view turns; then ship, group and station symbols, always above bodies; then labels and pills, above all markers; then edge arrows and the sidebar. Draw order never changes which marker a click hits (MRK-08). |  |
+| MRK-13 | A body marker is an outline: a circle with an opaque ground-colour inside and a neutral rim `body_rim_px` wide. The class shows in its shape: star = the circle with `star_tick_count` short radial ticks `star_tick_px` long outside the rim; planet = the circle with a neutral centre dot `planet_dot_px` across; moon = the plain circle. | |
 | EDGE-01 | A gate outside the viewport is shown as an arrow pinned to the edge of the map area (below the top bar) in its direction, labelled with its destination. A gate behind the camera is pinned by its direction in the camera's own right and up axes. Arrows slide round the edge as the heading turns. | ✓ |
+| EDGE-02 | Every edge arrow has a label, and the label is drawn whole inside the map area: it sits on the inner side of its arrow and slides along the edge as needed, never clipped. | |
+| EDGE-03 | An edge arrow and its label sit together in a tab: ground-colour fill, a neutral outline `button_stroke_px` wide, and the arrow and destination in the neutral colour. | |
 
 ## 3a. Ship and station symbols
 
@@ -59,7 +69,7 @@ Ships and stations are drawn as symbols adapted from NATO APP-6: the **frame** s
 |---|---|---|
 | SYM-01 | Each ship, group and station holds in simulation data what the state knows of it: affiliation; whether the state commands it; class (warship, fleet supply, cargo, troop transport, station, or unknown); whether it is known to be armed; for a troop transport, its load (unknown, known empty, or embarked formations, each with a name and an echelon that may be unknown); its track state (firm, weak, or stale with the date last observed); and, for own ships, a condition from 0 to 1. Symbols are drawn from these values only. | ✓ |
 | SYM-02 | The frame shape and colour follow affiliation: own = circle, blue #5AA9E6 (own-flag civilian: paler blue #A9CBE3); allied and neutral = square, green #8CCB8A; hostile = diamond, red #EE6A5F; unknown = quatrefoil, orange #F0A040. The outline is `symbol_stroke_px` wide. | ✓ |
-| SYM-03 | Fill shows command: a commanded own ship, group or station has a tint of its colour at `symbol_fill_state`; an own-flag civilian has no fill; every other affiliation has a tint at `symbol_fill_other`. When the state takes command of a civilian ship (requisition or charter) it is drawn in the state blue with the state fill, and returns to the civilian look when command ends. | ✓ |
+| SYM-03 | Fill shows command. Every frame has an opaque inside, so no ring, tail or other line beneath shows through it. A commanded own ship, group or station has an inside of its colour mixed into the ground colour at `symbol_fill_state`; an own-flag civilian's inside is the ground colour; every other affiliation mixes at `symbol_fill_other`. These are opaque colours, not transparency. When the state takes command of a civilian ship (requisition or charter) it is drawn in the state blue with the state fill, and returns to the civilian look when command ends. |  |
 | SYM-04 | A symbol's frame fits a square of `ship_symbol_px` on screen at every zoom (MRK-03). Amplifiers and labels sit outside that square. | ✓ |
 | SYM-05 | The icon inside the frame, in the frame's colour: warship = filled triangle; fleet supply or tanker = outline drop; cargo = outline crate (a box with a horizontal centre line); troop transport = outline unit box (a landscape rectangle); unknown class = "?" in JetBrains Mono; station = no icon. A ship known to be armed shows the warship icon whatever its class, so filled always means armed. | ✓ |
 | SYM-06 | A troop transport shows what is known of its load. Unknown: empty box, and "?" in the echelon slot above the frame. Known empty: empty box, nothing above. Embarked: the box with both diagonals drawn (the infantry cross), and the echelon of the largest embarked formation above the frame (II battalion, III regiment, X brigade), or "?" if its size is unknown. | ✓ |
@@ -72,6 +82,19 @@ Ships and stations are drawn as symbols adapted from NATO APP-6: the **frame** s
 | SYM-13 | A symbol's label sits to the right of it, in the symbol's colour: the name in Barlow, then a second line in JetBrains Mono in the secondary text colour summarising the parts that apply, joined by " · ": a group's member count by class ("4 warships"); embarked formations ("1st Arden Guard"); "own flag · civilian" or "requisitioned"; and the stale age (SYM-08). With none of these, there is no second line. | ✓ |
 | SYM-14 | Hover and click target a symbol through its `ship_symbol_px` square. The hover ring, the selection ring and the frame brackets (CAM-22) are sized to enclose that square, not the amplifiers. | ✓ |
 | SYM-15 | Ownership text in insets uses: "own", "own flag · civilian", "requisitioned", "allied", "neutral", "hostile" or "unknown". | ✓ |
+| SYM-16 | Each marker, symbol and pill is placed with its centre on a whole screen pixel, so its outlines are as sharp as the orbit rings. | |
+| SYM-17 | Symbols, icons, body markers and pills are drawn as vector geometry at their screen size each frame, never as bitmaps scaled to size. *Checked in review.* | |
+
+## 3b. Labels
+
+Applies to every label on the map: body labels and symbol labels (SYM-13).
+
+| ID | Requirement | Built |
+|---|---|---|
+| LBL-01 | Labels never overlap one another, or any marker, symbol or pill other than their own. Each label takes the first of these positions that is free: right of its marker, left, above, below, each `label_gap_px` from the marker's edge. | |
+| LBL-02 | Labels are placed in priority order, higher first: the selection; the hovered object; the frame body; the star and planets; then ships, groups and stations by affiliation (hostile, unknown, own commanded, own-flag civilian, allied and neutral); then moons. Within a rank, the object nearer the camera goes first. | |
+| LBL-03 | A label with no free position loses its second line and tries again; if the name alone has none, the label is hidden. The selection's and the hovered object's labels are never hidden: lower labels give way to them. | |
+| LBL-04 | A label keeps its position for as long as that position stays free. A change of position or visibility fades over `label_fade_ms`. | |
 
 ## 4. Hover and inspection
 
@@ -79,14 +102,15 @@ Ships and stations are drawn as symbols adapted from NATO APP-6: the **frame** s
 |---|---|---|
 | HOV-01 | Hovering a marker draws a white ring round it. There is no hover tooltip: the name and type are already on the map, and everything else is in the inset. | |
 | HOV-02 | Every drawn orbit ring, tail or exposure ring (dot mode or ring mode, MOT-01 and MOT-02) is a hover and click target for its object, as its marker is. A pointer within `ring_hit_px` of the ring hits it. A marker, pill, label or panel under the pointer wins over a ring, and of two rings in reach the nearer wins. Clicking a ring selects as clicking the marker does (INS-01); double-clicking it behaves as ZOOM-16 and ZOOM-17. Folded satellites have no drawn orbit and are reached through the pill (GRP-07). An orbit that isn't drawn is not a target, and the frame body's own orbit ring is drawn but is never a target. | |
-| HOV-03 | A hovered object's orbit ring is drawn in white at `orbit_hover_alpha`; the selected object's orbit ring is drawn in full white for as long as it is selected, in either motion mode. A ring that is both takes the selected style. Hovering or selecting the marker highlights its ring the same way. A hovered or selected ring is drawn `orbit_highlight_width_px` wide. | |
+| HOV-03 | A hovered object's orbit ring is drawn in white at `orbit_hover_alpha`; the selected object's orbit ring is drawn in white at `orbit_selected_alpha` for as long as it is selected, in either motion mode. A ring that is both takes the selected style. Hovering or selecting the marker highlights its ring the same way. A hovered or selected ring is drawn `orbit_highlight_width_px` wide. |  |
 | INS-01 | Clicking a marker or its orbit ring (HOV-02) selects that object and opens the inspection inset (INS-07); the clock keeps running. Only the primary button selects, and only when the release is within `drag_threshold_px` of the press, so the end of a pan never selects. | ✓ |
-| INS-02 | The inset shows: header (name, class and ownership line), Focus and Close buttons; an image for the knowledge state (INS-04); key facts; and an "Open planetary view" button, disabled until the planetary view exists. | ✓ |
+| INS-02 | The inset shows: header (name, class and ownership line), a Focus button (secondary) and a Close button (quiet); an image for the knowledge state (INS-04); key facts (INS-09); and an "Open planetary view" button (secondary), disabled until the planetary view exists. Button styles follow BTN-01. |  |
 | INS-03 | There is at most one selection and one inset. Selecting another object replaces the inset's contents in place. Close, Esc and a click on empty map space (a press and release within `drag_threshold_px` that hits no marker, pill, ring or panel) clear the selection and close the inset. | ✓ |
 | INS-04 | The inset image is a placeholder for the knowledge state: **surveyed** = clean render; **unsurveyed** = grainy telescope frame. There is no status text or date, and no stale state, until information gathering is designed. | ✓ |
-| INS-05 | The inset has an "In orbit" outline: the system as a tree, from the star down, in orbit order from the inside out and indented one level per generation. Each entry shows its symbol (section 3a, at `list_symbol_px`) or body disc, and its name. An entry with satellites has a toggle that expands or collapses them. The path from the star to the selection, and the selection's own satellites, are expanded when the selection changes; other entries keep the state the player left them in. The selection's row is highlighted and scrolled into view. Clicking an entry selects that object at once; the outline stays in place, so no row moves under the pointer. Double-clicking an entry behaves as ZOOM-16 and ZOOM-17. | |
+| INS-05 | The inset has an "In orbit" outline: the system as a tree, from the star down, in orbit order from the inside out and indented one level per generation. Each entry shows its symbol (section 3a, at `list_symbol_px`) or body marker (MRK-13), and its name. An entry with satellites has a toggle that expands or collapses them. The path from the star to the selection, and the selection's own satellites, are expanded when the selection changes; other entries keep the state the player left them in. The selection's row is highlighted and scrolled into view. Clicking an entry selects that object at once; the outline stays in place, so no row moves under the pointer. Double-clicking an entry behaves as ZOOM-16 and ZOOM-17. | |
 | INS-07 | The inset is a sidebar at the right of the window, from the top bar to the bottom, `inset_width_px` wide. While it is open, the map area ends at its left edge: the camera's viewport, the centre the frame body is placed at (CAM-05), the fits (ZOOM-15), the pan clamp (CAM-07) and the edge arrows (EDGE-01) all use the narrower map area. Opening or closing it slides it over `sidebar_slide_ms`; the map area and the view follow the slide, so the frame body stays centred in the visible map throughout, at the same scale. Selecting another object while it is open changes neither. Content taller than the sidebar scrolls inside it. | |
 | INS-08 | A body's inset lists, in its key facts: **Orbit** (distance to its parent, UNIT-01) and **Period** (UNIT-02); for the star, **Mass** in solar masses to 2 decimals instead; and, for a star, planet or moon only, **Mean radius** (UNIT-01, from SCL-05). Ships, stations, gates and salvage sites show no radius. | ✓ |
+| INS-09 | The inset's key facts are label-over-value pairs, laid out in rows and wrapping as needed: the label in small spaced capitals in the secondary colour, the value in JetBrains Mono in the neutral colour. Each section below them (the "In orbit" outline, INS-05) has a heading in small spaced capitals and is separated by a hairline. | |
 | INS-06 | When the selected object is folded into its parent (GRP-01), the parent's pill carries the white selection ring. When the object unfolds, the ring moves to its own marker without a jump. | ✓ |
 
 ## 4a. Units in readouts
@@ -212,7 +236,7 @@ All in the `Tunables` resource (`src/view/tunables.rs`). Defaults are starting v
 | `tail_secs` | 8 s | MOT-01, MOT-02, MOT-10 |
 | `dot_fade_from_degrees` | 300° | MOT-11, MOT-12 |
 | `orbit_ring_width_px` | 1 px | MRK-05, MOT-11 |
-| `orbit_highlight_width_px` | 2 px | HOV-03 |
+| `orbit_highlight_width_px` | 1 px | HOV-03 |
 | `exposure_ring_width_px` | 3 | MOT-02 |
 | `exposure_ring_alpha` | 0.5 | MOT-01, MOT-02 |
 | `tail_ease_ms` | 300 ms | MOT-13 |
@@ -242,16 +266,23 @@ All in the `Tunables` resource (`src/view/tunables.rs`). Defaults are starting v
 | `sidebar_slide_ms` | 200 ms | INS-07 |
 | `ring_hit_px` | 7 px | HOV-02 |
 | `orbit_hover_alpha` | 0.6 | HOV-03 |
+| `orbit_selected_alpha` | 0.85 | HOV-03 |
 | `distance_au_threshold_au` | 0.1 AU | UNIT-01 |
-| `star_marker_px` | 28 px | MRK-03 |
-| `planet_marker_px` | 22 px | MRK-03 |
-| `moon_marker_px` | 18 px | MRK-03 |
-| `body_fill_alpha` | 0.32 | MRK-11 |
-| `body_rim_px` | 1.5 px | MRK-11 |
+| `star_marker_px` | 16 px | MRK-03, MRK-13 |
+| `planet_marker_px` | 12 px | MRK-03, MRK-13 |
+| `moon_marker_px` | 8 px | MRK-03, MRK-13 |
+| `body_fill_mix` | 0.32 | MRK-11 |
+| `body_rim_px` | 1 px | MRK-11, MRK-13 |
+| `star_tick_count` | 8 | MRK-13 |
+| `star_tick_px` | 3 px | MRK-13 |
+| `planet_dot_px` | 3 px | MRK-13 |
 | `body_gap_px` | 2 px | MRK-11 |
 | `ship_symbol_px` | 22 px | SYM-04, SYM-12, SYM-14 |
 | `list_symbol_px` | 14 px | INS-05 |
-| `symbol_stroke_px` | 1.6 px | SYM-02 |
+| `symbol_stroke_px` | 1.5 px | SYM-02 |
+| `button_stroke_px` | 1 px | BTN-01, EDGE-03 |
+| `label_gap_px` | 6 px | LBL-01 |
+| `label_fade_ms` | 150 ms | LBL-04 |
 | `symbol_fill_state` | 0.30 | SYM-03 |
 | `symbol_fill_other` | 0.16 | SYM-03 |
 | `stale_symbol_alpha` | 0.55 | SYM-08 |
