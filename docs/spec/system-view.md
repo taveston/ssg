@@ -55,6 +55,8 @@
 | MRK-11 | A natural body's true-size disc (MRK-07) is filled with the neutral colour mixed into the ground colour at `body_fill_mix` (an opaque colour, not transparency), has a neutral rim `body_rim_px` wide, and is ringed outside the rim by a gap `body_gap_px` wide in the ground colour, so overlapping discs stay distinct. |  |
 | MRK-12 | Draw order, from the bottom: orbit rings, tails and exposure rings; then natural bodies, nearer the camera on top of farther, recomputed as the view turns; then ship, group and station symbols, always above bodies; then labels and pills, above all markers; then edge arrows and the sidebar. Draw order never changes which marker a click hits (MRK-08). |  |
 | MRK-13 | A body marker is an outline: a circle with an opaque ground-colour inside and a neutral rim `body_rim_px` wide. The class shows in its shape: star = the circle with `star_tick_count` short radial ticks `star_tick_px` long outside the rim; planet = the circle with a neutral centre dot `planet_dot_px` across; moon = the plain circle. | |
+| MRK-14 | Outside the star's frame, the frame body's own orbit round its parent is not drawn as a ring. It is drawn only as a tail: an arc along that orbit `frame_orbit_arc_px` long on screen, ending at the frame body, in the orbit colour at full ring alpha at the body and fading to transparent at its far end, so it shows the direction of travel. | |
+| MRK-15 | Outside the star's frame, a bearing tick `bearing_tick_px` long, in the neutral colour, points radially outward from the frame body towards its parent. It sits on the frame body's outermost drawn satellite orbit, or `bearing_tick_radius_px` from the frame body if none is drawn. It is labelled with the parent's name in JetBrains Mono in the secondary colour; the label follows section 3b, ranked with the frame body. | |
 | EDGE-01 | A gate outside the viewport is shown as an arrow pinned to the edge of the map area (below the top bar) in its direction, labelled with its destination. A gate behind the camera is pinned by its direction in the camera's own right and up axes. Arrows slide round the edge as the heading turns. | ✓ |
 | EDGE-02 | Every edge arrow has a label, and the label is drawn whole inside the map area: it sits on the inner side of its arrow and slides along the edge as needed, never clipped. | |
 | EDGE-03 | An edge arrow and its label sit together in a tab: ground-colour fill, a neutral outline `button_stroke_px` wide, and the arrow and destination in the neutral colour. | |
@@ -276,6 +278,9 @@ All in the `Tunables` resource (`src/view/tunables.rs`). Defaults are starting v
 | `star_tick_count` | 8 | MRK-13 |
 | `star_tick_px` | 3 px | MRK-13 |
 | `planet_dot_px` | 3 px | MRK-13 |
+| `frame_orbit_arc_px` | 160 px | MRK-14 |
+| `bearing_tick_px` | 6 px | MRK-15 |
+| `bearing_tick_radius_px` | 60 px | MRK-15 |
 | `body_gap_px` | 2 px | MRK-11 |
 | `ship_symbol_px` | 22 px | SYM-04, SYM-12, SYM-14 |
 | `list_symbol_px` | 14 px | INS-05 |
