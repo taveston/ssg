@@ -57,6 +57,8 @@
 | MRK-13 | A body marker is an outline: a circle with an opaque ground-colour inside and a neutral rim `body_rim_px` wide. The class shows in its shape: star = the circle with `star_tick_count` short radial ticks `star_tick_px` long outside the rim; planet = the circle with a neutral centre dot `planet_dot_px` across; moon = the plain circle. | |
 | MRK-14 | Outside the star's frame, the frame body's own orbit round its parent is not drawn as a ring. It is drawn only as a tail: an arc along that orbit `frame_orbit_arc_px` long on screen, ending at the frame body, in the orbit colour at full ring alpha at the body and fading to transparent at its far end, so it shows the direction of travel. | |
 | MRK-15 | Outside the star's frame, a bearing tick `bearing_tick_px` long, in the neutral colour, points radially outward from the frame body towards its parent. It sits on the frame body's outermost drawn satellite orbit, or `bearing_tick_radius_px` from the frame body if none is drawn. It is labelled with the parent's name in JetBrains Mono in the secondary colour; the label follows section 3b, ranked with the frame body. | |
+| MRK-16 | A scale bar sits at the bottom left of the map area, `plot_margin_px` from its edges: a neutral line 1 px wide with ticks at its ends and middle, labelled "0" at the left and its length at the right, in JetBrains Mono in the secondary colour. Its length on the orbital plane is a round distance (1, 2 or 5 times a power of ten, in km below `distance_au_threshold_au` and in AU at or above it, as UNIT-01), measured along the screen's horizontal at the pivot, and its drawn length is the longest such distance that fits within `scale_bar_max_px`. It updates as the zoom changes. | |
+| MRK-17 | A north dial sits at the top right of the map area, `plot_margin_px` from its edges: a flat, upright circle `north_dial_px` across with an arrow in the neutral colour. The arrow points along the on-screen direction of the orbital plane's north (CAM-02) at the pivot, projected through the camera, so it follows both heading and tilt and always agrees with the map. Clicking the dial does what N does (CAM-03). | |
 | EDGE-01 | A gate outside the viewport is shown as an arrow pinned to the edge of the map area (below the top bar) in its direction, labelled with its destination. A gate behind the camera is pinned by its direction in the camera's own right and up axes. Arrows slide round the edge as the heading turns. | ✓ |
 | EDGE-02 | Every edge arrow has a label, and the label is drawn whole inside the map area: it sits on the inner side of its arrow and slides along the edge as needed, never clipped. | |
 | EDGE-03 | An edge arrow and its label sit together in a tab: ground-colour fill, a neutral outline `button_stroke_px` wide, and the arrow and destination in the neutral colour. | |
@@ -281,6 +283,9 @@ All in the `Tunables` resource (`src/view/tunables.rs`). Defaults are starting v
 | `frame_orbit_arc_px` | 160 px | MRK-14 |
 | `bearing_tick_px` | 6 px | MRK-15 |
 | `bearing_tick_radius_px` | 60 px | MRK-15 |
+| `plot_margin_px` | 24 px | MRK-16, MRK-17 |
+| `scale_bar_max_px` | 160 px | MRK-16 |
+| `north_dial_px` | 34 px | MRK-17 |
 | `body_gap_px` | 2 px | MRK-11 |
 | `ship_symbol_px` | 22 px | SYM-04, SYM-12, SYM-14 |
 | `list_symbol_px` | 14 px | INS-05 |

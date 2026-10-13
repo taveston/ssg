@@ -28,6 +28,8 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - Was F-119: a label was clipped to "Gat" and one arrow had no label. Do it with the "Gate edge labels" fix below.
 - [ ] **Frame body's orbit as a tail; bearing tick to its parent** · MRK-14, MRK-15
   - Was F-122: close in, the frame body's own orbit crossed the view as a stray straight line. HOV-02 still applies: the arc is never a target.
+- [ ] **Scale bar and north dial** · MRK-16, MRK-17
+  - Was F-121. Both sit inside the map area, so they move with the sidebar (INS-07). The dial is a click target that wins over the map beneath it.
 - [ ] **Morrow IX's trader at about 9 d** · TEST-09
   - The build already uses 9 d (was F-113); check and mark ✓.
 - [ ] **Remove the hover tooltip** · HOV-01, HOV-02
