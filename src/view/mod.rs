@@ -36,6 +36,7 @@ pub mod motion;
 pub mod motion_mode;
 pub mod pills;
 pub mod projection;
+pub mod readout;
 pub mod ring_picking;
 pub mod rings;
 pub mod scale;

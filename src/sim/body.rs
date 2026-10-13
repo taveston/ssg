@@ -47,6 +47,11 @@ pub struct KeyFacts(pub Vec<(String, String)>);
 #[derive(Component, Clone, Copy, Debug, PartialEq)]
 pub struct PhysicalRadius(pub f64);
 
+/// A star's mass in kg. Its inset reports it (INS-08); orbits round it
+/// are already worked out from it at spawn.
+#[derive(Component, Clone, Copy, Debug, PartialEq)]
+pub struct StellarMass(pub f64);
+
 /// The system's asteroid belt, an annulus in the orbital plane round the
 /// star (MRK-05).
 #[derive(Component, Clone, Copy, Debug)]

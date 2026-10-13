@@ -19,14 +19,20 @@ use super::fonts::Fonts;
 use super::in_orbit::{OrbitEntry, Satellites, orbit_entries, spawn_in_orbit_list};
 use super::markers::MarkerAssets;
 use super::motion_mode::MotionModeState;
+use super::readout::{format_distance, format_duration};
 use super::selection::Selection;
 use super::symbol_images::SymbolImages;
 use super::symbols::ownership_text;
 use super::targets::{MapInputBlocker, PointerTargets};
 use super::topbar::TOP_BAR_HEIGHT_PX;
 use super::tunables::Tunables;
-use crate::sim::body::{Affiliation, BodyClass, Description, DisplayName, KeyFacts, Knowledge};
+use crate::sim::body::{
+    Affiliation, BodyClass, Description, DisplayName, KeyFacts, Knowledge, PhysicalRadius,
+    StellarMass,
+};
+use crate::sim::orbit::Orbit;
 use crate::sim::track::ShipRecord;
+use crate::sim::units::SOLAR_MASS_KG;
 use crate::{Boot, Stage};
 
 /// The dock the inset sits in: the right-hand strip of the map area. It
@@ -115,8 +121,42 @@ type InsetBodies<'w, 's> = Query<
         &'static Knowledge,
         Option<&'static ShipRecord>,
         Option<&'static Children>,
+        PhysicalFacts,
     ),
 >;
+
+/// What INS-08 reports of a body's physics: its orbit, a star's mass and
+/// its radius.
+type PhysicalFacts = (
+    Option<&'static Orbit>,
+    Option<&'static StellarMass>,
+    Option<&'static PhysicalRadius>,
+);
+
+/// INS-08: the astronomical key facts: orbit and period for an orbiting
+/// body, mass in solar masses for the star, and the mean radius. Figures
+/// go through the shared readout formats (UNIT-01, UNIT-02).
+pub fn astronomical_facts(
+    orbit: Option<&Orbit>,
+    stellar_mass: Option<&StellarMass>,
+    radius: Option<&PhysicalRadius>,
+    au_threshold_au: f64,
+) -> Vec<(String, String)> {
+    let mut facts = Vec::new();
+    if let Some(mass) = stellar_mass {
+        let solar = mass.0 / SOLAR_MASS_KG;
+        facts.push(("Mass".to_string(), format!("{solar:.2} solar masses")));
+    } else if let Some(orbit) = orbit {
+        let distance = format_distance(orbit.radius_km, au_threshold_au);
+        facts.push(("Orbit".to_string(), distance));
+        facts.push(("Period".to_string(), format_duration(orbit.period_days)));
+    }
+    if let Some(radius) = radius {
+        let text = format_distance(radius.0, au_threshold_au);
+        facts.push(("Mean radius".to_string(), text));
+    }
+    facts
+}
 
 pub struct InspectPlugin;
 
@@ -239,7 +279,7 @@ fn rebuild_inset(
     }
     let content = selection
         .selected
-        .and_then(|body| gather_content(body, &bodies, &satellites));
+        .and_then(|body| gather_content(body, &bodies, &satellites, &tunables));
     for mut dock in &mut docks {
         dock.display = if content.is_some() {
             Display::Flex
@@ -290,9 +330,18 @@ fn gather_content(
     body: Entity,
     bodies: &InsetBodies,
     satellites: &Satellites,
+    tunables: &Tunables,
 ) -> Option<InsetContent> {
-    let (name, description, facts, class, affiliation, knowledge, record, children) =
+    let (name, description, facts, class, affiliation, knowledge, record, children, physics) =
         bodies.get(body).ok()?;
+    let (orbit, mass, radius) = physics;
+    let mut facts = facts.0.clone();
+    facts.extend(astronomical_facts(
+        orbit,
+        mass,
+        radius,
+        tunables.distance_au_threshold_au,
+    ));
     let image = knowledge_image(*knowledge);
     let satellites = orbit_entries(children, satellites);
     Some(InsetContent {
@@ -305,7 +354,7 @@ fn gather_content(
         ),
         image,
         description: description.0.clone(),
-        facts: facts.0.clone(),
+        facts,
         satellites,
     })
 }
@@ -585,6 +634,48 @@ mod tests {
             class_label(BodyClass::Ship)
                 .chars()
                 .all(|c| c.is_alphabetic() || c == ' ')
+        );
+    }
+
+    fn orbit(radius_km: f64, period_days: f64) -> Orbit {
+        Orbit {
+            radius_km,
+            period_days,
+            phase0_rad: 0.0,
+        }
+    }
+
+    fn fact_pairs(facts: &[(String, String)]) -> Vec<(&str, &str)> {
+        facts
+            .iter()
+            .map(|(k, v)| (k.as_str(), v.as_str()))
+            .collect()
+    }
+
+    /// INS-08: an orbiting body lists its orbit, period and mean radius.
+    #[test]
+    fn an_orbiting_body_lists_orbit_period_and_radius() {
+        let o = orbit(2.0 * crate::sim::units::KM_PER_AU, 1000.0);
+        let facts = astronomical_facts(Some(&o), None, Some(&PhysicalRadius(6700.0)), 0.01);
+        assert_eq!(
+            fact_pairs(&facts),
+            vec![
+                ("Orbit", "2.00 AU"),
+                ("Period", "2.7 y"),
+                ("Mean radius", "6,700 km"),
+            ]
+        );
+    }
+
+    /// INS-08: the star lists its mass in solar masses instead of an orbit.
+    #[test]
+    fn the_star_lists_its_mass_in_solar_masses() {
+        let mass = StellarMass(0.78 * SOLAR_MASS_KG);
+        let radius = PhysicalRadius(540_000.0);
+        let facts = astronomical_facts(None, Some(&mass), Some(&radius), 0.01);
+        assert_eq!(
+            fact_pairs(&facts),
+            vec![("Mass", "0.78 solar masses"), ("Mean radius", "540,000 km")]
         );
     }
 

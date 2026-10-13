@@ -11,6 +11,7 @@ use bevy::prelude::*;
 
 use super::body::{
     Affiliation, Belt, BodyClass, Description, DisplayName, KeyFacts, Knowledge, PhysicalRadius,
+    StellarMass,
 };
 use super::orbit::{Orbit, OrbitPositionKm, kepler_period_days, orbit_position_km};
 use super::system::{BodyBlueprint, GateBlueprint, SystemData, SystemDataResource};
@@ -39,6 +40,7 @@ pub fn spawn_system(mut commands: Commands, system_data: Option<ResMut<SystemDat
         KeyFacts(vec![("Class".to_string(), star_class.to_string())]),
         BodyClass::Star,
         PhysicalRadius(star_radius_km),
+        StellarMass(star_mass_kg),
         Affiliation::Neutral,
         star_knowledge,
     ));

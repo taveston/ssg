@@ -123,6 +123,9 @@ pub struct Tunables {
     /// The docked inset's gap below the top bar and from the right edge
     /// (INS-07).
     pub inset_dock_margin_px: f32,
+    /// Distances from this many AU up read in AU; shorter ones in km
+    /// (UNIT-01).
+    pub distance_au_threshold_au: f64,
 
     // --- Ship and station symbols ---
     /// A symbol's frame fits a square this many pixels across, at every
@@ -181,6 +184,7 @@ impl Default for Tunables {
             orbit_hover_alpha: 0.6,
             inset_width_px: 320.0,
             inset_dock_margin_px: 12.0,
+            distance_au_threshold_au: 0.01,
 
             ship_symbol_px: 22.0,
             list_symbol_px: 14.0,

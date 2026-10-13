@@ -81,7 +81,7 @@ Ships and stations are drawn as symbols adapted from NATO APP-6: the **frame** s
 | INS-04 | The inset image is a placeholder for the knowledge state: **surveyed** = clean render; **unsurveyed** = grainy telescope frame. There is no status text or date, and no stale state, until information gathering is designed. | ✓ |
 | INS-05 | The inset of a body with satellites has an "In orbit" list: one entry per satellite (its symbol per section 3a at `list_symbol_px`, or the body disc, and its name), in orbit order from the inside out. Clicking an entry selects that satellite (its inset replaces the parent's) once `double_click_window_ms` passes without a second click; double-clicking it behaves as ZOOM-16 and ZOOM-17. | ✓ |
 | INS-07 | The inset is docked at the right edge of the map area, `inset_dock_margin_px` below the top bar and from the right edge, `inset_width_px` wide. It does not move while the selection, camera or clock changes. Content taller than the map area scrolls inside the inset. There is no leader line. | ✓ |
-| INS-08 | A body's inset lists, in its key facts: **Orbit** (distance to its parent, UNIT-01) and **Period** (UNIT-02); for the star, **Mass** in solar masses to 2 decimals instead; and **Mean radius** (UNIT-01, from SCL-05). | |
+| INS-08 | A body's inset lists, in its key facts: **Orbit** (distance to its parent, UNIT-01) and **Period** (UNIT-02); for the star, **Mass** in solar masses to 2 decimals instead; and **Mean radius** (UNIT-01, from SCL-05). | ✓ |
 | INS-06 | When the selected object is folded into its parent (GRP-01), the parent's pill carries the white selection ring. When the object unfolds, the ring moves to its own marker without a jump. | ✓ |
 
 ## 4a. Units in readouts
@@ -90,9 +90,9 @@ Shared formatting for every readout in the game, not tied to one panel. Figures 
 
 | ID | Requirement | Built |
 |---|---|---|
-| UNIT-01 | A distance is shown in km below `distance_au_threshold_au`, and in AU at or above it, to 3 significant figures, with thousands separators (for example "850 km", "182,000 km", "0.362 AU", "12.4 AU"). | |
-| UNIT-02 | A duration is shown in the largest unit it reaches: whole minutes ("42 min"), or hours, days or years of 365.25 days to one decimal place ("5.3 h", "31.2 d", "2.4 y"). | |
-| UNIT-03 | Distances and durations are formatted by one shared module that any panel calls; no panel formats them itself. *Checked in review.* | |
+| UNIT-01 | A distance is shown in km below `distance_au_threshold_au`, and in AU at or above it, to 3 significant figures, with thousands separators (for example "850 km", "182,000 km", "0.362 AU", "12.4 AU"). | ✓ |
+| UNIT-02 | A duration is shown in the largest unit it reaches: whole minutes ("42 min"), or hours, days or years of 365.25 days to one decimal place ("5.3 h", "31.2 d", "2.4 y"). | ✓ |
+| UNIT-03 | Distances and durations are formatted by one shared module that any panel calls; no panel formats them itself. *Checked in review.* | ✓ |
 
 ## 5. Navigation and zoom
 

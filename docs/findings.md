@@ -60,3 +60,8 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Observation:** satellites of satellites (a station round a moon, a ship parked at a moon) are allowed by the data and grouping rules ("Moons of moons follow the same rules", section 6), but Corvane has none, so nested folding, nested pills and nested frames (CAM-25's breadcrumb past two levels) are never seen in play.
 - **Affects:** TEST-01, GRP-01 to GRP-07, CAM-25 · **Type:** spec gap
 - **Disposition:** open. Option: add a station or parked ship round a moon of Halden IV or Morrow. The code handles the nesting (positions, folding and the breadcrumb walk the parent chain), but only unit tests exercise it.
+
+### F-111 · Ships list a mean radius
+- **Observation:** INS-08 gives every body a "Mean radius", so ships and stations show their placeholder size (a ship reads "0.100 km"). It means little for a ship. I built it as written; every body with an orbit also lists Orbit and Period.
+- **Affects:** INS-08, SCL-05 · **Type:** spec gap
+- **Disposition:** open; decide whether ships and stations show a size, and in what form (length rather than radius?).
