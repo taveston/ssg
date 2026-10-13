@@ -26,7 +26,7 @@
 | ID | Requirement | Built |
 |---|---|---|
 | CLK-01 | The game clock runs continuously at a default of 1 game day per real second. | ✓ |
-| CLK-02 | The top bar shows the breadcrumb (CAM-25), the calendar date, and Pause, 1 d/s and 5 d/s buttons. The active rate is a primary button and the others are secondary (BTN-01). |  |
+| CLK-02 | The top bar shows the breadcrumb (CAM-25), the calendar date, and Pause, 1 d/s and 5 d/s buttons. The active rate is a primary button and the others are secondary (BTN-01). | ✓ |
 | CLK-05 | Space toggles pause; `.` doubles and `,` halves the rate (minimum 1/16 d/s). | ✓ |
 | CLK-04 | Pausing stops all orbital motion; every view stays fully interactive while paused. | ✓ |
 | CLK-06 | A debug readout of frames per second can show in the top bar. It is hidden by default and toggled by a binding (default F3). | ✓ |
@@ -35,8 +35,8 @@
 
 | ID | Requirement | Built |
 |---|---|---|
-| BTN-01 | A button has one of three styles: **primary** = filled in the neutral colour with ground-colour text; **secondary** = outlined `button_stroke_px` wide in the secondary colour, with neutral text; **quiet** = text only, in the secondary colour. A panel or bar has at most one primary button. | |
-| BTN-02 | Buttons never use affiliation colours (SYM-02) or the warning orange, except that a button whose action can't be undone is outlined in orange. | |
+| BTN-01 | A button has one of three styles: **primary** = filled in the neutral colour with ground-colour text; **secondary** = outlined `button_stroke_px` wide in the secondary colour, with neutral text; **quiet** = text only, in the secondary colour. A panel or bar has at most one primary button. | ✓ |
+| BTN-02 | Buttons never use affiliation colours (SYM-02) or the warning orange, except that a button whose action can't be undone is outlined in orange. | ✓ |
 
 ## 3. Markers and palette
 
@@ -108,7 +108,7 @@ Applies to every label on the map: body labels and symbol labels (SYM-13).
 | HOV-02 | Every drawn orbit ring, tail or exposure ring (dot mode or ring mode, MOT-01 and MOT-02) is a hover and click target for its object, as its marker is. A pointer within `ring_hit_px` of the ring hits it. A marker, pill, label or panel under the pointer wins over a ring, and of two rings in reach the nearer wins. Clicking a ring selects as clicking the marker does (INS-01); double-clicking it behaves as ZOOM-16 and ZOOM-17. Folded satellites have no drawn orbit and are reached through the pill (GRP-07). An orbit that isn't drawn is not a target, and the frame body's own orbit ring is drawn but is never a target. | |
 | HOV-03 | A hovered object's orbit ring is drawn in white at `orbit_hover_alpha`; the selected object's orbit ring is drawn in white at `orbit_selected_alpha` for as long as it is selected, in either motion mode. A ring that is both takes the selected style. Hovering or selecting the marker highlights its ring the same way. A hovered or selected ring is drawn `orbit_highlight_width_px` wide. |  |
 | INS-01 | Clicking a marker or its orbit ring (HOV-02) selects that object and opens the inspection inset (INS-07); the clock keeps running. Only the primary button selects, and only when the release is within `drag_threshold_px` of the press, so the end of a pan never selects. | ✓ |
-| INS-02 | The inset shows: header (name, class and ownership line), a Focus button (secondary) and a Close button (quiet); an image for the knowledge state (INS-04); key facts (INS-09); and an "Open planetary view" button (secondary), disabled until the planetary view exists. Button styles follow BTN-01. |  |
+| INS-02 | The inset shows: header (name, class and ownership line), a Focus button (secondary) and a Close button (quiet); an image for the knowledge state (INS-04); key facts (INS-09); and an "Open planetary view" button (secondary), disabled until the planetary view exists. Button styles follow BTN-01. | ✓ |
 | INS-03 | There is at most one selection and one inset. Selecting another object replaces the inset's contents in place. Close, Esc and a click on empty map space (a press and release within `drag_threshold_px` that hits no marker, pill, ring or panel) clear the selection and close the inset. | ✓ |
 | INS-04 | The inset image is a placeholder for the knowledge state: **surveyed** = clean render; **unsurveyed** = grainy telescope frame. There is no status text or date, and no stale state, until information gathering is designed. | ✓ |
 | INS-05 | The inset has an "In orbit" outline: the system as a tree, from the star down, in orbit order from the inside out and indented one level per generation. Each entry shows its symbol (section 3a, at `list_symbol_px`) or body marker (MRK-13), and its name. An entry with satellites has a toggle that expands or collapses them. The path from the star to the selection, and the selection's own satellites, are expanded when the selection changes; other entries keep the state the player left them in. The selection's row is highlighted and scrolled into view. Clicking an entry selects that object at once; the outline stays in place, so no row moves under the pointer. Double-clicking an entry behaves as ZOOM-16 and ZOOM-17. | |

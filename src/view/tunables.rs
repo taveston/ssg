@@ -157,6 +157,9 @@ pub struct Tunables {
     pub list_symbol_px: f32,
     /// A symbol's outline width (SYM-02).
     pub symbol_stroke_px: f32,
+    /// The outline width of secondary buttons and edge tabs (BTN-01,
+    /// EDGE-03).
+    pub button_stroke_px: f32,
     /// The fill's alpha for objects the state commands (SYM-03).
     pub symbol_fill_state: f32,
     /// The fill's alpha for every other affiliation but own-flag civilians,
@@ -221,6 +224,7 @@ impl Default for Tunables {
             ship_symbol_px: 22.0,
             list_symbol_px: 14.0,
             symbol_stroke_px: 1.6,
+            button_stroke_px: 1.0,
             symbol_fill_state: 0.30,
             symbol_fill_other: 0.16,
             stale_symbol_alpha: 0.55,

@@ -12,8 +12,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **Console buttons** · BTN-01, BTN-02, CLK-02, INS-02
-  - Was F-117: Close was orange, Focus and Pause blue. `button_stroke_px` is new.
 - [ ] **Selected orbit at `orbit_selected_alpha`; thinner highlight** · HOV-03
   - The ring widths and exposure alpha are built. Left: the selected ring at `orbit_selected_alpha` (new tunable), and `orbit_highlight_width_px` drops to 1 px (was F-116).
 - [ ] **Opaque symbol insides** · SYM-03

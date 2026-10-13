@@ -14,6 +14,7 @@ use bevy::prelude::*;
 use super::layers;
 
 use super::bindings::{Bindings, pressed};
+use super::buttons::{ButtonStyle, ConsoleButton, spawn_button};
 use super::camera::requests::FrameRequest;
 use super::colors;
 use super::fidelity::FidelityImages;
@@ -65,9 +66,6 @@ const BRACKET_PX: f32 = 10.0;
 const BRACKET_LINE_PX: f32 = 2.0;
 const HEADER_FONT_PX: f32 = 15.0;
 const BODY_FONT_PX: f32 = 11.0;
-/// INS-02: "Open planetary view" is disabled until that view exists.
-const DISABLED_ALPHA: f32 = 0.4;
-const DISABLED_BORDER_ALPHA: f32 = 0.3;
 
 /// INS-02: the class line's readable class name.
 pub fn class_label(class: BodyClass) -> &'static str {
@@ -168,25 +166,17 @@ pub fn astronomical_facts(
 
 pub struct InspectPlugin;
 
-/// The Focus button's text colour: neutral grey while the body is in
-/// exposure-ring mode, when it can't be a frame (CAM-24).
-pub fn focus_button_color(ring_mode: bool) -> Color {
-    if ring_mode {
-        colors::ORBIT_LINE
-    } else {
-        colors::OWN
-    }
-}
-
 /// CAM-24: the Focus button is disabled (dimmed, and the camera ignores its
 /// click) while its body is in exposure-ring mode.
 fn dim_focus_buttons(
     modes: Query<&MotionModeState>,
-    mut buttons: Query<(&FocusButton, &mut TextColor)>,
+    mut buttons: Query<(&FocusButton, &mut ConsoleButton)>,
 ) {
-    for (button, mut color) in &mut buttons {
-        let ring = modes.get(button.0).is_ok_and(|mode| mode.ring_mode);
-        color.0 = focus_button_color(ring);
+    for (focus, mut button) in &mut buttons {
+        let ring = modes.get(focus.0).is_ok_and(|mode| mode.ring_mode);
+        if button.disabled != ring {
+            button.disabled = ring;
+        }
     }
 }
 
@@ -459,37 +449,42 @@ fn spawn_header(panel: &mut ChildSpawnerCommands, fonts: &Fonts, content: &Inset
 }
 
 fn spawn_actions(actions: &mut ChildSpawnerCommands, fonts: &Fonts, body: Entity) {
-    let font = || fonts.label(BODY_FONT_PX);
-    actions
-        .spawn((
-            FocusButton(body),
-            Text::new("Focus"),
-            font(),
-            TextColor(colors::OWN),
-        ))
-        // ZOOM-16: the inset's Focus button makes the inset's object the
-        // frame and moves to it, as a double-click does. It is disabled
-        // while the object is in exposure-ring mode (CAM-24).
-        .observe(
-            move |_click: On<PointerClick>,
-                  modes: Query<&MotionModeState>,
-                  mut selection: ResMut<Selection>,
-                  mut request: ResMut<FrameRequest>| {
-                if modes.get(body).is_ok_and(|mode| mode.ring_mode) {
-                    return;
-                }
-                selection.select(body);
-                request.0 = Some(body);
-            },
-        );
+    spawn_button(
+        actions,
+        fonts,
+        "Focus",
+        BODY_FONT_PX,
+        ConsoleButton::new(ButtonStyle::Secondary),
+    )
+    .insert(FocusButton(body))
+    // ZOOM-16: the inset's Focus button makes the inset's object the
+    // frame and moves to it, as a double-click does. It is disabled
+    // while the object is in exposure-ring mode (CAM-24).
+    .observe(
+        move |_click: On<PointerClick>,
+              modes: Query<&MotionModeState>,
+              mut selection: ResMut<Selection>,
+              mut request: ResMut<FrameRequest>| {
+            if modes.get(body).is_ok_and(|mode| mode.ring_mode) {
+                return;
+            }
+            selection.select(body);
+            request.0 = Some(body);
+        },
+    );
     // INS-03: Close clears the selection and closes the inset.
-    actions
-        .spawn((Text::new("Close"), font(), TextColor(colors::WARNING)))
-        .observe(
-            |_click: On<PointerClick>, mut selection: ResMut<Selection>| {
-                selection.clear();
-            },
-        );
+    spawn_button(
+        actions,
+        fonts,
+        "Close",
+        BODY_FONT_PX,
+        ConsoleButton::new(ButtonStyle::Quiet),
+    )
+    .observe(
+        |_click: On<PointerClick>, mut selection: ResMut<Selection>| {
+            selection.clear();
+        },
+    );
 }
 
 /// INS-04: the knowledge-state image; a telescope frame gets orange corner
@@ -546,23 +541,21 @@ fn spawn_corner_bracket(frame: &mut ChildSpawnerCommands, top: bool, right: bool
     ));
 }
 
-/// INS-02: "Open planetary view", disabled until that view exists.
+/// INS-02: "Open planetary view", a secondary button disabled until that
+/// view exists.
 fn spawn_planetary_view_button(panel: &mut ChildSpawnerCommands, fonts: &Fonts) {
     panel
-        .spawn((
-            Node {
-                padding: UiRect::all(px(6)),
-                border: UiRect::all(px(1)),
-                ..default()
-            },
-            BorderColor::all(colors::PANEL_BORDER.with_alpha(DISABLED_BORDER_ALPHA)),
-        ))
-        .with_children(|button| {
-            spawn_text(
-                button,
+        .spawn(Node {
+            flex_direction: FlexDirection::Row,
+            ..default()
+        })
+        .with_children(|row| {
+            spawn_button(
+                row,
+                fonts,
                 "Open planetary view",
-                fonts.label(BODY_FONT_PX),
-                colors::PANEL_BORDER.with_alpha(DISABLED_ALPHA),
+                BODY_FONT_PX,
+                ConsoleButton::new(ButtonStyle::Secondary).disabled(),
             );
         });
 }
@@ -601,11 +594,24 @@ mod tests {
         assert_eq!(scrolled(0.0, 24.0, -40.0), 0.0);
     }
 
-    /// CAM-24: the Focus button looks disabled only in ring mode.
+    /// CAM-24: the Focus button is disabled only while its body is in
+    /// ring mode.
     #[test]
-    fn focus_button_is_dimmed_in_ring_mode() {
-        assert_eq!(focus_button_color(false), colors::OWN);
-        assert_ne!(focus_button_color(true), colors::OWN);
+    fn focus_button_is_disabled_in_ring_mode() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut world = World::new();
+        let body = world.spawn(MotionModeState::default()).id();
+        let button = world
+            .spawn((
+                FocusButton(body),
+                ConsoleButton::new(ButtonStyle::Secondary),
+            ))
+            .id();
+        world.run_system_once(dim_focus_buttons).unwrap();
+        assert!(!world.get::<ConsoleButton>(button).unwrap().disabled);
+        world.get_mut::<MotionModeState>(body).unwrap().ring_mode = true;
+        world.run_system_once(dim_focus_buttons).unwrap();
+        assert!(world.get::<ConsoleButton>(button).unwrap().disabled);
     }
 
     /// MOT-07: the inset says "Position: shown when paused" while its body

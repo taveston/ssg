@@ -15,6 +15,7 @@ pub mod anim;
 pub mod belt;
 pub mod bindings;
 pub mod breadcrumb;
+pub mod buttons;
 pub mod camera;
 pub mod colors;
 pub mod date;
@@ -72,6 +73,7 @@ impl Plugin for ViewPlugin {
                 belt::BeltPlugin,
                 camera::CameraPlugin,
                 breadcrumb::BreadcrumbPlugin,
+                buttons::ButtonsPlugin,
                 marker_picking::MarkerPickingPlugin,
             ))
             .add_plugins((

@@ -26,6 +26,8 @@ pub const ORBIT_LINE: Color = Color::srgb(
     0xB6 as f32 / 255.0,
     0xC4 as f32 / 255.0,
 );
+/// MRK-01: secondary text, and secondary buttons' outlines (BTN-01).
+pub const SECONDARY: Color = ORBIT_LINE;
 pub const OWN: Color = Color::srgb(
     0x5A as f32 / 255.0,
     0xA9 as f32 / 255.0,
