@@ -6,6 +6,8 @@
 
 use bevy::prelude::*;
 
+use super::layers;
+
 use super::colors;
 use super::fold::FoldSummary;
 use super::fonts::Fonts;
@@ -80,6 +82,7 @@ fn spawn_pills(
         commands
             .spawn((
                 GroupPillFor(parent),
+                GlobalZIndex(layers::LABELS),
                 Node {
                     position_type: PositionType::Absolute,
                     display: Display::None,

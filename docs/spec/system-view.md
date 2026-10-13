@@ -37,16 +37,16 @@
 |---|---|---|
 | MRK-01 | Palette: ground #070A0E; natural bodies and text #DCE6EC; orbits and secondary text #9FB6C4; own ships, groups and stations #5AA9E6 (blue); warnings #F0A040 (orange); selection and hover as a white ring. Ships, groups and stations take their colour from their affiliation (SYM-02). | ✓ |
 | MRK-02 | Type: Barlow for labels and UI; JetBrains Mono for dates, figures and status readouts. | ✓ |
-| MRK-03 | Each object is a fixed-size screen marker by class, projected from its 3D position each frame; marker size never depends on physical size. Natural bodies are discs of `star_marker_px`, `planet_marker_px` and `moon_marker_px` across. | |
+| MRK-03 | Each object is a fixed-size screen marker by class, projected from its 3D position each frame; marker size never depends on physical size. Natural bodies are discs of `star_marker_px`, `planet_marker_px` and `moon_marker_px` across. | ✓ |
 | MRK-04 | Marker shapes: filled disc = body; X = salvage site. Ships, groups of ships and stations are drawn as symbols (section 3a). | ✓ |
 | MRK-05 | Orbits of natural bodies are faint rings `orbit_ring_width_px` wide; the belt is a translucent shaded band. A ring stays within half a pixel of the true circle, also when the camera is close to it, and a ring passing behind the camera is cut at the near limit, not dropped. | ✓ |
 | MRK-09 | Ships and stations draw no orbit ring of their own in dot mode (MOT-01): only their tail, which fades to transparent at its end rather than to a ring's alpha. Their full ring is drawn only while the object is hovered or selected (HOV-03). In exposure-ring mode (MOT-02) the exposure ring is drawn as usual. | ✓ |
 | MRK-10 | The star, planets and moons are drawn and labelled in the neutral colour (MRK-01) whoever owns them. A body's ownership is not shown on the map. | ✓ |
 | MRK-06 | Separate planets are never merged, however close on screen. | ✓ |
 | MRK-08 | Every marker and symbol has a hit area of at least `min_hit_radius_px` round its centre, even where the drawn marker is smaller. Where hit areas overlap, the marker whose centre is nearest the pointer wins. | ✓ |
-| MRK-07 | A body whose true diameter on screen is larger than its marker is drawn as a disc at its true size, in the style of MRK-11, in place of the marker. | |
-| MRK-11 | A natural body's disc is filled with the neutral colour at `body_fill_alpha`, has a neutral rim `body_rim_px` wide, and is ringed outside the rim by a gap `body_gap_px` wide in the ground colour, so overlapping discs stay distinct. | |
-| MRK-12 | Draw order, from the bottom: natural bodies, nearer the camera on top of farther, recomputed as the view turns; then ship, group and station symbols, always above bodies; then labels and pills, above all markers; then edge arrows and the sidebar. Draw order never changes which marker a click hits (MRK-08). | |
+| MRK-07 | A body whose true diameter on screen is larger than its marker is drawn as a disc at its true size, in the style of MRK-11, in place of the marker. | ✓ |
+| MRK-11 | A natural body's disc is filled with the neutral colour at `body_fill_alpha`, has a neutral rim `body_rim_px` wide, and is ringed outside the rim by a gap `body_gap_px` wide in the ground colour, so overlapping discs stay distinct. | ✓ |
+| MRK-12 | Draw order, from the bottom: natural bodies, nearer the camera on top of farther, recomputed as the view turns; then ship, group and station symbols, always above bodies; then labels and pills, above all markers; then edge arrows and the sidebar. Draw order never changes which marker a click hits (MRK-08). | ✓ |
 | EDGE-01 | A gate outside the viewport is shown as an arrow pinned to the edge of the map area (below the top bar) in its direction, labelled with its destination. A gate behind the camera is pinned by its direction in the camera's own right and up axes. Arrows slide round the edge as the heading turns. | ✓ |
 
 ## 3a. Ship and station symbols

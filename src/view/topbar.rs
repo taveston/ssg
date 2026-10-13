@@ -8,6 +8,8 @@
 use bevy::diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin};
 use bevy::prelude::*;
 
+use super::layers;
+
 use crate::sim::clock::GameClock;
 use crate::view::bindings::{Bindings, pressed};
 use crate::view::breadcrumb::spawn_breadcrumb_root;
@@ -87,6 +89,7 @@ fn spawn_button<'a>(
 fn spawn_top_bar(mut commands: Commands, fonts: Res<Fonts>) {
     commands
         .spawn((
+            GlobalZIndex(layers::PANELS),
             Node {
                 position_type: PositionType::Absolute,
                 top: px(0),

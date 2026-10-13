@@ -1424,6 +1424,60 @@ fn a_body_grows_into_a_true_size_disc_when_close() {
     );
 }
 
+/// MRK-12: natural bodies are layered by depth, nearer on top, and the
+/// order follows the view as it turns; symbols sit above every body and
+/// labels above every marker.
+#[test]
+fn nearer_bodies_draw_over_farther_and_symbols_over_bodies() {
+    let mut app = camera_app_with(|app| {
+        app.insert_resource(placeholder_fonts())
+            .init_resource::<SymbolImages>()
+            .add_plugins((EdgePlugin, MarkersPlugin, HoveredPlugin));
+    });
+    let names = ["Pell", "Iver", "Halden IV", "Morrow"];
+    let bodies: Vec<Entity> = names.iter().map(|n| body(&mut app, n)).collect();
+    let layers_agree_with_depth = |app: &mut App| {
+        run(app, 2);
+        let camera = {
+            let mut q = app
+                .world_mut()
+                .query_filtered::<&Transform, With<OrbitCamera>>();
+            *q.single(app.world()).unwrap()
+        };
+        let mut markers = app
+            .world_mut()
+            .query_filtered::<(&MarkerFor, &GlobalZIndex), With<crate::view::markers::MarkerShape>>(
+            );
+        let layer_of: std::collections::HashMap<Entity, i32> =
+            markers.iter(app.world()).map(|(m, z)| (m.0, z.0)).collect();
+        let positions = app.world().resource::<WorldPositions>();
+        let depth = |body: Entity| (positions.0[&body] - camera.translation).dot(*camera.forward());
+        let mut by_depth = bodies.clone();
+        by_depth.sort_by(|a, b| depth(*b).total_cmp(&depth(*a)));
+        let layers: Vec<i32> = by_depth.iter().map(|b| layer_of[b]).collect();
+        assert!(layers.windows(2).all(|w| w[0] < w[1]), "{layers:?}");
+        assert!(layers.iter().all(|&l| l < crate::view::layers::SYMBOLS));
+    };
+    layers_agree_with_depth(&mut app);
+    app.world_mut().resource_mut::<CameraRig>().heading += std::f32::consts::PI;
+    layers_agree_with_depth(&mut app);
+
+    let ship = body(&mut app, "Iver Yard");
+    let mut z = app.world_mut().query::<(
+        &MarkerFor,
+        &GlobalZIndex,
+        Has<crate::view::markers::MarkerLabel>,
+    )>();
+    for (marker_for, layer, is_label) in z.iter(app.world()) {
+        if marker_for.0 == ship && !is_label {
+            assert_eq!(layer.0, crate::view::layers::SYMBOLS);
+        }
+        if is_label {
+            assert_eq!(layer.0, crate::view::layers::LABELS);
+        }
+    }
+}
+
 /// CAM-07: panning a long way in a body's frame stops with the body at
 /// least `focus_keep_margin_px` inside the map area, and keeps the frame.
 #[test]

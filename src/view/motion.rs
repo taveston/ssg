@@ -9,6 +9,8 @@
 
 use bevy::prelude::*;
 
+use super::layers;
+
 use super::motion_mode::{MotionModeState, TailSettings, motion_state};
 use crate::sim::body::{BodyClass, DisplayName};
 use crate::sim::clock::GameClock;
@@ -62,6 +64,7 @@ fn spawn_motion_visuals(
         commands.entity(entity).insert(MotionModeState::default());
         commands.spawn((
             RingLabelFor(entity),
+            GlobalZIndex(layers::LABELS),
             Node {
                 position_type: PositionType::Absolute,
                 display: Display::None,

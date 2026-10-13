@@ -11,6 +11,8 @@
 use bevy::input::mouse::{AccumulatedMouseScroll, MouseScrollUnit};
 use bevy::prelude::*;
 
+use super::layers;
+
 use super::bindings::{Bindings, pressed};
 use super::camera::requests::FrameRequest;
 use super::colors;
@@ -215,6 +217,7 @@ fn spawn_dock(mut commands: Commands, tunables: Res<Tunables>) {
     commands
         .spawn((
             InsetDock,
+            GlobalZIndex(layers::PANELS),
             Node {
                 position_type: PositionType::Absolute,
                 top: px(TOP_BAR_HEIGHT_PX + margin),

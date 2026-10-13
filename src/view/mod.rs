@@ -30,6 +30,7 @@ pub mod hover;
 pub mod hovered;
 pub mod in_orbit;
 pub mod inspect;
+pub mod layers;
 pub mod marker_picking;
 pub mod markers;
 pub mod motion;

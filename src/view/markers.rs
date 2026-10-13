@@ -2,7 +2,8 @@
 //! its projected screen position each frame (MRK-03, MRK-04, MRK-06), with
 //! its label to the right (SYM-13).
 //!
-//! Natural bodies are filled discs, a salvage site an X and a gate on
+//! Natural bodies are faintly filled discs with a rim and a dark gap round
+//! it (MRK-11), drawn nearer over farther (MRK-12); a salvage site an X and a gate on
 //! screen a hollow circle; ships and stations are symbols (section 3a of
 //! the spec, built in `symbols.rs` and `symbol_draw.rs`). What's drawn is
 //! decided elsewhere - `fold.rs` says whether a satellite is folded into
@@ -23,6 +24,7 @@ use super::fold::SatelliteFoldState;
 use super::fonts::Fonts;
 use super::hover;
 use super::hovered::HoveredBodies;
+use super::layers;
 use super::motion_mode::MotionModeState;
 use super::scale::km_to_render;
 use super::screen::ScreenPositions;
@@ -69,6 +71,11 @@ pub enum MarkerShape {
 /// Below this combined strength a marker is simply not drawn - which also
 /// takes it out of picking, so a folded satellite can't be clicked.
 const MIN_VISIBLE_ALPHA: f32 = 0.02;
+/// A natural body's rim: a child of its disc, drawn as the child's border
+/// so it fades apart from the fill (MRK-11).
+#[derive(Component)]
+pub struct BodyRim;
+
 /// Outline width of hollow markers.
 const HOLLOW_BORDER_PX: f32 = 1.5;
 /// Gap between the hover ring (an outline) and the marker it rings.
@@ -151,7 +158,13 @@ impl Plugin for MarkersPlugin {
         app.add_systems(Startup, spawn_markers.in_set(Boot::Overlay))
             .add_systems(
                 Update,
-                (update_markers, ring_markers, update_second_lines).in_set(Stage::Overlay),
+                (
+                    update_markers,
+                    ring_markers,
+                    layer_bodies_by_depth,
+                    update_second_lines,
+                )
+                    .in_set(Stage::Overlay),
             );
     }
 }
@@ -251,10 +264,28 @@ fn spawn_shape(marker: &mut EntityCommands, assets: MarkerAssets, look: BodyLook
     let color = look.color(tunables);
     match look.shape() {
         MarkerShape::Disc => {
-            marker.insert((
-                BackgroundColor(color),
-                Tint::new(color, TintSlot::Background),
-            ));
+            // MRK-11: a faint fill inside a full-strength rim.
+            let fill = color.with_alpha(color.alpha() * tunables.body_fill_alpha);
+            marker.insert((BackgroundColor(fill), Tint::new(fill, TintSlot::Background)));
+            marker.with_children(|parent| {
+                parent.spawn((
+                    BodyRim,
+                    Node {
+                        position_type: PositionType::Absolute,
+                        left: px(0),
+                        top: px(0),
+                        width: percent(100),
+                        height: percent(100),
+                        border: UiRect::all(px(tunables.body_rim_px)),
+                        border_radius: BorderRadius::MAX,
+                        ..default()
+                    },
+                    BackgroundColor(Color::NONE),
+                    BorderColor::all(color),
+                    Tint::new(color, TintSlot::Border),
+                    Pickable::IGNORE,
+                ));
+            });
         }
         MarkerShape::HollowCircle => {
             marker.insert((
@@ -300,6 +331,12 @@ fn spawn_marker(
         MarkerHalfSize(Vec2::splat(half)),
         shape,
         marker_node(shape, half),
+        // MRK-12: bodies are re-layered by depth each frame.
+        GlobalZIndex(if shape == MarkerShape::Disc {
+            layers::BODIES
+        } else {
+            layers::SYMBOLS
+        }),
         // Hover and click go through the marker's hit area instead
         // (MRK-08, `marker_picking.rs`), so the node itself takes none.
         Pickable::IGNORE,
@@ -329,6 +366,8 @@ fn spawn_label(
         .spawn((
             MarkerLabel,
             MarkerFor(body),
+            // MRK-12: labels sit above every marker, not just their own.
+            GlobalZIndex(layers::LABELS),
             Node {
                 position_type: PositionType::Absolute,
                 left: px(half * 2.0 + LABEL_GAP_PX),
@@ -409,21 +448,64 @@ pub fn shows_ring(hovered: bool, selected: bool) -> bool {
     hovered || selected
 }
 
-/// MRK-01: draw the white ring on hovered and selected markers.
+/// MRK-01 / MRK-11: the white ring on hovered and selected markers; a
+/// natural body's disc otherwise carries its ground-coloured gap in the
+/// same outline.
 fn ring_markers(
     selection: Res<Selection>,
     hovered: Res<HoveredBodies>,
-    mut markers: Query<(&MarkerFor, &mut Outline), With<MarkerHalfSize>>,
+    tunables: Res<Tunables>,
+    mut markers: Query<(&MarkerFor, &MarkerShape, &mut Outline), With<MarkerHalfSize>>,
 ) {
-    for (marker_for, mut outline) in &mut markers {
+    for (marker_for, shape, mut outline) in &mut markers {
         let body = marker_for.0;
         let ring = shows_ring(hovered.contains(body), selection.is_selected(body));
-        outline.width = px(if ring { RING_PX } else { 0.0 });
-        outline.color = if ring {
-            colors::SELECTION_RING
-        } else {
-            Color::NONE
-        };
+        *outline = marker_outline(ring, *shape == MarkerShape::Disc, &tunables);
+    }
+}
+
+/// MRK-01 / MRK-11: the white ring, clear of the marker, when `ring`; else
+/// a disc's gap hard against its rim; else nothing.
+pub fn marker_outline(ring: bool, disc: bool, tunables: &Tunables) -> Outline {
+    if ring {
+        Outline::new(
+            px(RING_PX),
+            px(HOVER_RING_OFFSET_PX),
+            colors::SELECTION_RING,
+        )
+    } else if disc {
+        Outline::new(px(tunables.body_gap_px), px(0), colors::GROUND)
+    } else {
+        Outline::new(px(0), px(HOVER_RING_OFFSET_PX), Color::NONE)
+    }
+}
+
+/// MRK-12: natural bodies are layered by depth every frame, so a nearer
+/// disc is drawn over a farther one as the view turns.
+fn layer_bodies_by_depth(
+    view: ViewNow,
+    mut markers: Query<(&MarkerFor, &MarkerShape, &mut GlobalZIndex)>,
+) {
+    let Some((_, camera)) = view.camera() else {
+        return;
+    };
+    let depth_of = |body| {
+        let position = view.position(body)?;
+        Some((position - camera.translation()).dot(*camera.forward()))
+    };
+    let depths: Vec<(Entity, f32)> = markers
+        .iter()
+        .filter(|(_, shape, _)| **shape == MarkerShape::Disc)
+        .filter_map(|(marker_for, ..)| Some((marker_for.0, depth_of(marker_for.0)?)))
+        .collect();
+    let layers: std::collections::HashMap<Entity, i32> =
+        layers::depth_layers(&depths).into_iter().collect();
+    for (marker_for, _, mut z) in &mut markers {
+        if let Some(&layer) = layers.get(&marker_for.0)
+            && z.0 != layer
+        {
+            z.0 = layer;
+        }
     }
 }
 
@@ -627,7 +709,6 @@ mod tests {
         assert_eq!(size(BodyClass::Moon), tunables.moon_marker_px);
         assert!(size(BodyClass::Star) > size(BodyClass::Planet));
         assert!(size(BodyClass::Planet) > size(BodyClass::Moon));
-        assert!(size(BodyClass::Moon) >= tunables.ship_symbol_px);
         for class in [BodyClass::Ship, BodyClass::Station] {
             assert_eq!(size(class), tunables.ship_symbol_px);
         }
@@ -638,6 +719,22 @@ mod tests {
     fn the_ring_encloses_the_symbol_square() {
         let tunables = Tunables::default();
         assert!(ring_outer_half(BodyClass::Ship, &tunables) > tunables.ship_symbol_px / 2.0);
+    }
+
+    /// MRK-11: an unhovered disc carries its ground-coloured gap hard
+    /// against its rim; a hovered one the white ring; other markers nothing.
+    #[test]
+    fn a_disc_is_ringed_by_a_ground_gap() {
+        let tunables = Tunables::default();
+        let gap = marker_outline(false, true, &tunables);
+        assert_eq!(gap.color, colors::GROUND);
+        assert_eq!(gap.width, px(tunables.body_gap_px));
+        assert_eq!(gap.offset, px(0));
+        assert_eq!(
+            marker_outline(true, true, &tunables).color,
+            colors::SELECTION_RING
+        );
+        assert_eq!(marker_outline(false, false, &tunables).width, px(0));
     }
 
     /// MRK-10: the star, planets and moons are drawn in the neutral colour

@@ -135,6 +135,13 @@ pub struct Tunables {
     pub distance_au_threshold_au: f64,
 
     // --- Natural body markers ---
+    /// How strongly a natural body's disc is filled (MRK-11).
+    pub body_fill_alpha: f32,
+    /// The width of a natural body's rim (MRK-11).
+    pub body_rim_px: f32,
+    /// The ground-coloured gap round a natural body's rim, which keeps
+    /// overlapping discs apart (MRK-11).
+    pub body_gap_px: f32,
     /// The star's marker disc, in pixels across (MRK-03).
     pub star_marker_px: f32,
     /// A planet's marker disc, in pixels across (MRK-03).
@@ -204,9 +211,12 @@ impl Default for Tunables {
             inset_dock_margin_px: 12.0,
             distance_au_threshold_au: 0.1,
 
-            star_marker_px: 36.0,
-            planet_marker_px: 30.0,
-            moon_marker_px: 24.0,
+            body_fill_alpha: 0.32,
+            body_rim_px: 1.5,
+            body_gap_px: 2.0,
+            star_marker_px: 28.0,
+            planet_marker_px: 22.0,
+            moon_marker_px: 18.0,
 
             ship_symbol_px: 22.0,
             list_symbol_px: 14.0,

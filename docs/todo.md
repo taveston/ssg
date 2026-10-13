@@ -12,7 +12,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **Outlined body discs, a size smaller; draw order** · MRK-03, MRK-07, MRK-11, MRK-12
 - [ ] **Morrow IX's trader at about 9 d** · TEST-09
   - The build already uses 9 d (was F-113); check and mark ✓.
 - [ ] **Remove the hover tooltip** · HOV-01, HOV-02

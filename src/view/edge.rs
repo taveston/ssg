@@ -8,6 +8,8 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
+use super::layers;
+
 use super::colors;
 use super::fonts::Fonts;
 use super::screen::MapArea;
@@ -129,6 +131,7 @@ fn spawn_edge_indicators(
         commands
             .spawn((
                 EdgeIndicatorFor(entity),
+                GlobalZIndex(layers::EDGE),
                 Node {
                     position_type: PositionType::Absolute,
                     width: px(ARROW_HALF_PX * 2.0),
@@ -152,6 +155,7 @@ fn spawn_edge_indicators(
 
         commands.spawn((
             EdgeLabelFor(entity),
+            GlobalZIndex(layers::EDGE),
             Node {
                 position_type: PositionType::Absolute,
                 display: Display::None,

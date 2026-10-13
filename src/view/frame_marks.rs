@@ -5,6 +5,8 @@
 
 use bevy::prelude::*;
 
+use super::layers;
+
 use super::anchors::BodyAnchors;
 use super::colors;
 use super::frame::Frame;
@@ -65,6 +67,7 @@ fn spawn_brackets(mut commands: Commands) {
     commands
         .spawn((
             FrameBrackets,
+            GlobalZIndex(layers::LABELS),
             Node {
                 position_type: PositionType::Absolute,
                 display: Display::None,

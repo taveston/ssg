@@ -16,6 +16,7 @@ use super::fold::FoldSummary;
 use super::fonts::Fonts;
 use super::frame::Frame;
 use super::gesture::{PressStart, was_click};
+use super::layers;
 use super::selection::Selection;
 use super::symbols::ownership_text;
 use super::targets::{GroupPillFor, Hovered, MarkerFor, PointerTargets};
@@ -82,6 +83,7 @@ fn spawn_tooltip(mut commands: Commands, fonts: Res<Fonts>) {
     commands
         .spawn((
             TooltipRoot,
+            GlobalZIndex(layers::PANELS),
             Node {
                 position_type: PositionType::Absolute,
                 padding: UiRect::axes(px(8), px(4)),
