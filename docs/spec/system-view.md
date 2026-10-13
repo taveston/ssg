@@ -39,7 +39,7 @@
 | MRK-02 | Type: Barlow for labels and UI; JetBrains Mono for dates, figures and status readouts. | ✓ |
 | MRK-03 | Each object is a fixed-size screen marker by class, projected from its 3D position each frame; marker size never depends on physical size. Natural bodies have the largest markers: discs of `star_marker_px`, `planet_marker_px` and `moon_marker_px` across, each at least `ship_symbol_px`, so the terrain dominates the view. | ✓ |
 | MRK-04 | Marker shapes: filled disc = body; X = salvage site. Ships, groups of ships and stations are drawn as symbols (section 3a). | ✓ |
-| MRK-05 | Orbits of natural bodies are faint rings; the belt is a translucent shaded band. A ring stays within half a pixel of the true circle, also when the camera is close to it, and a ring passing behind the camera is cut at the near limit, not dropped. | ✓ |
+| MRK-05 | Orbits of natural bodies are faint rings `orbit_ring_width_px` wide; the belt is a translucent shaded band. A ring stays within half a pixel of the true circle, also when the camera is close to it, and a ring passing behind the camera is cut at the near limit, not dropped. | |
 | MRK-09 | Ships and stations draw no orbit ring of their own in dot mode (MOT-01): only their tail, which fades to transparent at its end rather than to a ring's alpha. Their full ring is drawn only while the object is hovered or selected (HOV-03). In exposure-ring mode (MOT-02) the exposure ring is drawn as usual. | ✓ |
 | MRK-10 | The star, planets and moons are drawn and labelled in the neutral colour (MRK-01) whoever owns them. A body's ownership is not shown on the map. | ✓ |
 | MRK-06 | Separate planets are never merged, however close on screen. | ✓ |
@@ -77,7 +77,7 @@ Ships and stations are drawn as symbols adapted from NATO APP-6: the **frame** s
 |---|---|---|
 | HOV-01 | Hovering a marker draws a white ring and a tooltip: name · ownership · contents summary — "Click: inspect · Double-click: frame its moons · Double-click again: planetary view". | ✓ |
 | HOV-02 | Every drawn orbit ring, tail or exposure ring (dot mode or ring mode, MOT-01 and MOT-02) is a hover and click target for its object, as its marker is. A pointer within `ring_hit_px` of the ring hits it. A marker, pill, label or panel under the pointer wins over a ring, and of two rings in reach the nearer wins. Clicking a ring selects as clicking the marker does (INS-01); double-clicking it behaves as ZOOM-16 and ZOOM-17. The hover tooltip (HOV-01) sits by the pointer, not by the object. Folded satellites have no drawn orbit and are reached through the pill (GRP-07). An orbit that isn't drawn is not a target, and the frame body's own orbit ring is drawn but is never a target. | ✓ |
-| HOV-03 | A hovered object's orbit ring is drawn in white at `orbit_hover_alpha`; the selected object's orbit ring is drawn in full white for as long as it is selected, in either motion mode. A ring that is both takes the selected style. Hovering or selecting the marker highlights its ring the same way. | ✓ |
+| HOV-03 | A hovered object's orbit ring is drawn in white at `orbit_hover_alpha`; the selected object's orbit ring is drawn in full white for as long as it is selected, in either motion mode. A ring that is both takes the selected style. Hovering or selecting the marker highlights its ring the same way. A hovered or selected ring is drawn `orbit_highlight_width_px` wide. | |
 | INS-01 | Clicking a marker or its orbit ring (HOV-02) selects that object and opens the inspection inset (INS-07); the clock keeps running. Only the primary button selects, and only when the release is within `drag_threshold_px` of the press, so the end of a pan never selects. | ✓ |
 | INS-02 | The inset shows: header (name, class and ownership line), Focus and Close buttons; an image for the knowledge state (INS-04); key facts; and an "Open planetary view" button, disabled until the planetary view exists. | ✓ |
 | INS-03 | There is at most one selection and one inset. Selecting another object replaces the inset's contents in place. Close, Esc and a click on empty map space (a press and release within `drag_threshold_px` that hits no marker, pill, ring or panel) clear the selection and close the inset. | ✓ |
@@ -208,6 +208,8 @@ All in the `Tunables` resource (`src/view/tunables.rs`). Defaults are starting v
 | `fold_unfold_anim_ms` | 200 | GRP-03 |
 | `tail_secs` | 8 s | MOT-01, MOT-02, MOT-10 |
 | `dot_fade_from_degrees` | 300° | MOT-11, MOT-12 |
+| `orbit_ring_width_px` | 1 px | MRK-05, MOT-11 |
+| `orbit_highlight_width_px` | 2 px | HOV-03 |
 | `exposure_ring_width_px` | 3 | MOT-02 |
 | `exposure_ring_alpha` | 0.5 | MOT-01, MOT-02 |
 | `zoom_step_factor` | ×2 | ZOOM-01 |
