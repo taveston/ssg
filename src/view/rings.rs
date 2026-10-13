@@ -42,9 +42,6 @@ const MAX_RING_SPLITS: u32 = 12;
 const NEAR_EPSILON: f32 = 0.01;
 /// MRK-05: orbits are *faint* rings.
 const DIM_RING_ALPHA: f32 = 0.35;
-/// The width of an ordinary orbit ring, in pixels; an exposure ring is
-/// `exposure_ring_width_px` (MOT-11).
-const NORMAL_RING_WIDTH_PX: f32 = 2.0;
 
 /// The retained gizmo that draws one body's ring.
 #[derive(Component)]
@@ -76,7 +73,7 @@ fn spawn_ring_strokes(
             Gizmo {
                 handle: assets.add(GizmoAsset::new()),
                 line_config: GizmoLineConfig {
-                    width: NORMAL_RING_WIDTH_PX,
+                    width: Tunables::default().orbit_ring_width_px,
                     ..default()
                 },
                 ..default()
@@ -164,17 +161,28 @@ pub struct RingColors {
     pub exposure: Color,
 }
 
-/// MRK-05 / MOT-01 / HOV-03: a ring's normal colour is faint, or the
-/// highlight; its exposure colour is the bright neutral, or white while
+/// MRK-05 / MOT-01 / MOT-02 / HOV-03: a ring's normal colour is faint, or
+/// the highlight; its exposure colour is the neutral at `exposure_alpha`,
+/// so it never matches the full-white selected ring, or white while
 /// highlighted.
-pub fn ring_colors(highlight: Option<Color>) -> RingColors {
+pub fn ring_colors(highlight: Option<Color>, exposure_alpha: f32) -> RingColors {
     RingColors {
         normal: highlight.unwrap_or(colors::ORBIT_LINE.with_alpha(DIM_RING_ALPHA)),
         exposure: if highlight.is_some() {
             colors::SELECTION_RING
         } else {
-            colors::NEUTRAL
+            colors::NEUTRAL.with_alpha(exposure_alpha)
         },
+    }
+}
+
+/// MRK-05 / HOV-03: a ring's width before its tail closes: the highlight
+/// width while hovered or selected, else the normal width.
+pub fn ring_base_width(highlighted: bool, tunables: &Tunables) -> f32 {
+    if highlighted {
+        tunables.orbit_highlight_width_px
+    } else {
+        tunables.orbit_ring_width_px
     }
 }
 
@@ -193,6 +201,7 @@ struct StrokeLook {
     body_angle: f32,
     mode: MotionModeState,
     colors: RingColors,
+    base_width: f32,
 }
 
 /// MRK-05 / MOT-01 / MOT-02 / MOT-11 / HOV-03: refill every ring stroke:
@@ -245,7 +254,7 @@ fn draw_orbit_rings(
         }
         let width = look
             .mode
-            .ring_width(NORMAL_RING_WIDTH_PX, tunables.exposure_ring_width_px);
+            .ring_width(look.base_width, tunables.exposure_ring_width_px);
         if gizmo.line_config.width != width {
             gizmo.line_config.width = width;
         }
@@ -273,7 +282,7 @@ fn stroke_look(
         mode.ring_mode,
         highlight.is_some(),
     );
-    let mut colors = ring_colors(highlight);
+    let mut colors = ring_colors(highlight, tunables.exposure_ring_alpha);
     match extent {
         RingExtent::Hidden => return None,
         // MRK-09: past the tail's end there is no ring to fade into.
@@ -289,6 +298,7 @@ fn stroke_look(
         body_angle: local.0.z.atan2(local.0.x) as f32,
         mode,
         colors,
+        base_width: ring_base_width(highlight.is_some(), tunables),
     })
 }
 
@@ -501,18 +511,45 @@ mod tests {
     /// highlight.
     #[test]
     fn the_tail_runs_from_exposure_to_normal() {
-        let plain = ring_colors(None);
-        assert_eq!(ring_color_at(plain, 1.0), colors::NEUTRAL);
+        let plain = ring_colors(None, 0.5);
+        assert_eq!(ring_color_at(plain, 1.0), colors::NEUTRAL.with_alpha(0.5));
         assert_eq!(
             ring_color_at(plain, 0.0),
             colors::ORBIT_LINE.with_alpha(DIM_RING_ALPHA)
         );
-        let hovered = ring_colors(ring_highlight(false, true, 0.6));
+        let hovered = ring_colors(ring_highlight(false, true, 0.6), 0.5);
         assert_eq!(ring_color_at(hovered, 1.0), colors::SELECTION_RING);
         assert_eq!(
             ring_color_at(hovered, 0.0),
             colors::SELECTION_RING.with_alpha(0.6)
         );
+    }
+
+    /// MOT-02 / HOV-03: an exposure ring is partly transparent, so it never
+    /// matches the full-white selected ring.
+    #[test]
+    fn an_exposure_ring_never_matches_the_selected_ring() {
+        let tunables = Tunables::default();
+        let exposure = ring_colors(None, tunables.exposure_ring_alpha).exposure;
+        assert!(exposure.alpha() < 1.0);
+        let selected = ring_highlight(true, false, tunables.orbit_hover_alpha);
+        assert_ne!(Some(exposure), selected);
+    }
+
+    /// MRK-05 / HOV-03: normal rings are `orbit_ring_width_px` wide and
+    /// highlighted ones `orbit_highlight_width_px`.
+    #[test]
+    fn highlighted_rings_are_wider() {
+        let tunables = Tunables::default();
+        assert_eq!(
+            ring_base_width(false, &tunables),
+            tunables.orbit_ring_width_px
+        );
+        assert_eq!(
+            ring_base_width(true, &tunables),
+            tunables.orbit_highlight_width_px
+        );
+        assert!(tunables.orbit_highlight_width_px > tunables.orbit_ring_width_px);
     }
 
     /// MOT-01: a segment the body sits on is split at the body, so the

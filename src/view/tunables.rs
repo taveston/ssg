@@ -38,6 +38,13 @@ pub struct Tunables {
     pub dot_fade_from_degrees: f32,
     /// Line width of an exposure ring (MOT-02).
     pub exposure_ring_width_px: f32,
+    /// Alpha of an exposure ring and of a tail's head, so an exposure ring
+    /// never matches the full-white selected ring (MOT-01, MOT-02).
+    pub exposure_ring_alpha: f32,
+    /// Line width of a normal orbit ring (MRK-05, MOT-11).
+    pub orbit_ring_width_px: f32,
+    /// Line width of a hovered or selected orbit ring (HOV-03).
+    pub orbit_highlight_width_px: f32,
 
     // --- Zoom and navigation ---
     /// Each wheel notch multiplies the view scale by this factor.
@@ -162,6 +169,9 @@ impl Default for Tunables {
             tail_secs: 8.0,
             dot_fade_from_degrees: 300.0,
             exposure_ring_width_px: 3.0,
+            exposure_ring_alpha: 0.5,
+            orbit_ring_width_px: 1.0,
+            orbit_highlight_width_px: 2.0,
 
             zoom_step_factor: 2.0,
             zoom_anim_ms: 200.0,
