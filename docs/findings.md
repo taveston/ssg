@@ -15,3 +15,18 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Observation:** a frame body wobbles visibly when zoomed in. It is worst for the moons of the outer planets. The cause is precision: positions are relative to the star in `f32` render units. Morrow is about 387 units out, where an `f32` step is about 3 × 10⁻⁵ units. Zoomed in on a moon, the camera is only about 10⁻³ units away, so that step is a few per cent of the view, and the rounding changes from frame to frame.
 - **Affects:** CAM-05, SCL-01 · **Type:** bug
 - **Disposition:** proposed fix: render relative to the frame body (a floating origin). Subtract the frame body's position in `f64` km before converting to `f32`, in `view/scale.rs` and `projection.rs`, so everything near the frame body has full precision.
+
+### F-102 · Exposure rings look like selected rings
+- **Observation:** an exposure ring (bright, 3 px) is hard to tell from a selected orbit ring (full white). Both read as "highlighted".
+- **Affects:** MOT-02, HOV-03 · **Type:** spec wrong
+- **Disposition:** open. Recheck after "Orbit tails on the ring", which changes how exposure rings are drawn.
+
+### F-103 · The hover tooltip says too much
+- **Observation:** the tooltip carries name, ownership, contents and the full click hints ("Click: inspect · Double-click: frame its moons · Double-click again: planetary view"). It is too long to read at a glance.
+- **Affects:** HOV-01 · **Type:** spec wrong
+- **Disposition:** open; needs design.
+
+### F-104 · Double-clicking an exposure ring does nothing visible
+- **Observation:** an object in exposure-ring mode can't be a frame (CAM-24), so double-clicking its ring only selects it. It feels like the double-click should do something.
+- **Affects:** HOV-02, CAM-24, ZOOM-16 · **Type:** spec gap
+- **Disposition:** open. One option: move into the parent's frame at its satellite fit, as CAM-24 does when a frame body turns into a ring.
