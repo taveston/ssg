@@ -1,12 +1,13 @@
 //! Camera state: the rig (pivot, heading, tilt and distance), the animated
 //! move in flight, and the bookmarks (ZOOM-01, ZOOM-02, ZOOM-10, ZOOM-11,
-//! CAM-02, CAM-05). Shared by the input handlers and the rig systems.
+//! CAM-02, CAM-05, CAM-06). Shared by the input handlers and the rig
+//! systems.
 
 use bevy::prelude::*;
 
 use super::zoom::animated_distance;
 use crate::view::anim::{MS_PER_SEC, ease_out_cubic};
-use crate::view::focus::Focus;
+use crate::view::frame::Frame;
 
 /// Where the camera looks from. The pivot is a point on the orbital plane
 /// in render units; heading and tilt are in radians, tilt from straight
@@ -19,7 +20,7 @@ pub struct CameraRig {
     pub distance: f32,
 }
 
-/// Replaced at startup by the system frame, once the stops have been
+/// Replaced at startup by the system fit, once the stops have been
 /// computed from the real orbits.
 const PLACEHOLDER_DISTANCE: f32 = 300.0;
 
@@ -36,12 +37,14 @@ impl Default for CameraRig {
     }
 }
 
-/// Where a move takes the pivot: a fixed point, or a body (plus offset)
-/// wherever it is when the move gets there.
+/// Where a move takes the pivot: a frame body plus an offset, wherever the
+/// body is when the move gets there. The move leaves the camera in that
+/// body's frame (CAM-06); a point in the star's frame is the star plus the
+/// point.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum PivotTarget {
-    Fixed(Vec3),
-    Body { body: Entity, offset: Vec3 },
+pub struct PivotTarget {
+    pub body: Entity,
+    pub offset: Vec3,
 }
 
 /// Where a move ends.
@@ -55,7 +58,7 @@ pub struct MoveTarget {
 
 impl MoveTarget {
     /// A move that changes only the distance and pivot, keeping the view's
-    /// heading and tilt (zoom steps, focus jumps).
+    /// heading and tilt (zoom steps, frame jumps).
     pub fn keeping_view(rig: &CameraRig, pivot: PivotTarget, distance: f32) -> Self {
         Self {
             pivot,
@@ -65,19 +68,14 @@ impl MoveTarget {
         }
     }
 
-    /// The focus a move leaves behind: on the body it follows, or none.
-    pub fn focus(&self) -> Focus {
-        match self.pivot {
-            PivotTarget::Fixed(_) => Focus::default(),
-            PivotTarget::Body { body, offset } => Focus {
-                body: Some(body),
-                offset,
-            },
-        }
+    /// The frame a move from `current` leaves behind: the body it follows,
+    /// with the move's offset.
+    pub fn frame(&self, current: &Frame) -> Frame {
+        current.on(self.pivot.body, self.pivot.offset)
     }
 }
 
-/// An animated move: a zoom step, a focus jump, Home or a bookmark. New
+/// An animated move: a zoom step, a frame jump, Home or a bookmark. New
 /// input retargets from the *current* rig rather than queueing (ZOOM-02).
 #[derive(Debug, Clone, Copy)]
 pub struct CameraMove {
@@ -85,10 +83,10 @@ pub struct CameraMove {
     pub target: MoveTarget,
     pub elapsed: f32,
     pub duration: f32,
-    /// For a move onto a body: where the pivot started, relative to that
-    /// body, noted on the move's first frame. The pivot blends *this
-    /// offset* into the target's, so the move rides along with the body's
-    /// orbit instead of lerping from a stale world point.
+    /// Where the pivot started, relative to the target body, noted on the
+    /// move's first frame. The pivot blends *this offset* into the
+    /// target's, so the move rides along with the body's orbit instead of
+    /// lerping from a stale world point.
     pub origin_offset: Option<Vec3>,
 }
 
@@ -103,16 +101,15 @@ impl CameraMove {
         }
     }
 
-    /// Where the pivot is relative to `focused`, as of the last frame the
-    /// move advanced, if this move is onto that body and has noted where it
+    /// Where the pivot is relative to `body`, as of the last frame the move
+    /// advanced, if this move is onto that body and has noted where it
     /// started.
-    pub fn offset_now(&self, focused: Option<Entity>) -> Option<Vec3> {
-        let PivotTarget::Body { body, offset } = self.target.pivot else {
-            return None;
-        };
-        let from = self.origin_offset.filter(|_| focused == Some(body))?;
+    pub fn offset_now(&self, body: Entity) -> Option<Vec3> {
+        let from = self
+            .origin_offset
+            .filter(|_| self.target.pivot.body == body)?;
         let t = (self.elapsed / self.duration).clamp(0.0, 1.0);
-        Some(from.lerp(offset, ease_out_cubic(t)))
+        Some(from.lerp(self.target.pivot.offset, ease_out_cubic(t)))
     }
 
     pub fn finished(&self) -> bool {
@@ -140,11 +137,11 @@ pub fn blend_rig(start: &CameraRig, target: &MoveTarget, target_pivot: Vec3, t: 
     }
 }
 
-/// ZOOM-11: a saved view - the whole rig, and the focus with its offset.
+/// ZOOM-11: a saved view - the whole rig, and the frame with its offset.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Bookmark {
     pub rig: CameraRig,
-    pub focus: Focus,
+    pub frame: Frame,
 }
 
 /// ZOOM-11: Ctrl+1 to Ctrl+4.
@@ -171,6 +168,14 @@ pub fn camera_fov(projection: &Projection) -> f32 {
 mod tests {
     use super::*;
 
+    /// A point in the star's frame (the default placeholder star).
+    fn fixed(point: Vec3) -> PivotTarget {
+        PivotTarget {
+            body: Entity::PLACEHOLDER,
+            offset: point,
+        }
+    }
+
     fn rig(pivot: Vec3, distance: f32) -> CameraRig {
         CameraRig {
             pivot,
@@ -194,7 +199,7 @@ mod tests {
     fn move_runs_from_start_to_target() {
         let start = rig(Vec3::ZERO, 100.0);
         let target = MoveTarget {
-            pivot: PivotTarget::Fixed(Vec3::X),
+            pivot: fixed(Vec3::X),
             heading: 1.0,
             tilt: 0.5,
             distance: 50.0,
@@ -213,7 +218,7 @@ mod tests {
         let start = rig(Vec3::ZERO, 100.0);
         let k = 0.5;
         let target_pivot = anchor + (start.pivot - anchor) * k;
-        let target = MoveTarget::keeping_view(&start, PivotTarget::Fixed(target_pivot), 100.0 * k);
+        let target = MoveTarget::keeping_view(&start, fixed(target_pivot), 100.0 * k);
         for t in [0.1, 0.4, 0.8] {
             let mid = blend_rig(&start, &target, target_pivot, t);
             // The pivot and distance are the start scaled about the anchor
@@ -224,30 +229,29 @@ mod tests {
         }
     }
 
-    /// A move onto a body leaves it focused with the move's offset; a move
-    /// to a fixed point leaves nothing focused.
+    /// A move leaves the camera in its target body's frame, with the
+    /// move's offset.
     /// Covers CAM-06.
     #[test]
-    fn moves_leave_the_matching_focus() {
+    fn moves_leave_the_matching_frame() {
         let mut world = World::new();
-        let body = world.spawn_empty().id();
+        let [star, body] = [(); 2].map(|_| world.spawn_empty().id());
         let start = CameraRig::default();
-        let onto = MoveTarget::keeping_view(
-            &start,
-            PivotTarget::Body {
-                body,
-                offset: Vec3::X,
-            },
-            1.0,
-        );
+        let pivot = PivotTarget {
+            body,
+            offset: Vec3::X,
+        };
+        let onto = MoveTarget::keeping_view(&start, pivot, 1.0);
+        let current = Frame::star_frame(star, Vec3::ZERO);
         assert_eq!(
-            onto.focus(),
-            Focus {
-                body: Some(body),
+            onto.frame(&current),
+            Frame {
+                star,
+                body,
                 offset: Vec3::X
             }
         );
-        let fixed = MoveTarget::keeping_view(&start, PivotTarget::Fixed(Vec3::ZERO), 1.0);
-        assert_eq!(fixed.focus(), Focus::default());
+        let free = MoveTarget::keeping_view(&start, fixed(Vec3::Y), 1.0);
+        assert!(free.frame(&Frame::default()).in_star_frame());
     }
 }

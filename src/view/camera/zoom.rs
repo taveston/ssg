@@ -62,22 +62,22 @@ pub fn anchored_centre(anchor: Vec3, centre: Vec3, current: f32, target: f32) ->
     anchor + (centre - anchor) * (target / current)
 }
 
-/// ZOOM-13: what a zoom step is anchored on - the focused object when there
-/// is one, else the point where the cursor's ray meets the orbital plane,
-/// else the pivot (the screen centre, for keyboard zoom or a cursor ray
-/// that misses the plane).
-pub fn zoom_anchor(focused: Option<Vec3>, cursor_point: Option<Vec3>, pivot: Vec3) -> Vec3 {
-    focused.or(cursor_point).unwrap_or(pivot)
+/// ZOOM-13: what a zoom step is anchored on - the frame body when the frame
+/// is not the star's, else the point where the cursor's ray meets the
+/// orbital plane, else the pivot (the screen centre, for keyboard zoom or a
+/// cursor ray that misses the plane).
+pub fn zoom_anchor(frame_body: Option<Vec3>, cursor_point: Option<Vec3>, pivot: Vec3) -> Vec3 {
+    frame_body.or(cursor_point).unwrap_or(pivot)
 }
 
-/// Relative slack when comparing a distance with a frame's.
-const FRAME_SLACK: f32 = 1e-3;
+/// Relative slack when comparing a distance with a fit's.
+const FIT_SLACK: f32 = 1e-3;
 
 /// CAM-08 / CAM-23: whether a zoom-out step to `target` reaches the system
-/// frame. Distances are compared with a little slack, so a step that
-/// settles exactly on the frame counts as reaching it.
-pub fn reaches_system_frame(target: f32, system: f32) -> bool {
-    target >= system * (1.0 - FRAME_SLACK)
+/// fit. Distances are compared with a little slack, so a step that settles
+/// exactly on the fit counts as reaching it.
+pub fn reaches_system_fit(target: f32, system: f32) -> bool {
+    target >= system * (1.0 - FIT_SLACK)
 }
 
 /// ZOOM-01: each wheel notch multiplies the view scale by
@@ -126,7 +126,7 @@ pub fn first_stop_crossed(current: f32, naive_target: f32, stops: &[f32]) -> Opt
         .copied()
         // A stop the view already sits on (to within rounding) is not in
         // the way, or a step off it would snag.
-        .filter(|stop| (*stop - current).abs() > current.abs() * FRAME_SLACK)
+        .filter(|stop| (*stop - current).abs() > current.abs() * FIT_SLACK)
         .filter(|stop| *stop > low && *stop < high)
         .min_by(|a, b| {
             let da = (a - current).abs();
@@ -318,23 +318,23 @@ mod tests {
         assert_eq!(anchored_centre(anchor, centre, 0.0, 50.0), centre);
     }
 
-    /// ZOOM-13: focus first, then the cursor's plane point, then the pivot;
-    /// selection never comes into it.
+    /// ZOOM-13: the frame body first (outside the star's frame), then the
+    /// cursor's plane point, then the pivot; selection never comes into it.
     #[test]
-    fn zoom_anchor_prefers_focus_then_cursor_then_pivot() {
-        let (focus, cursor, pivot) = (Vec3::X, Vec3::Y, Vec3::Z);
-        assert_eq!(zoom_anchor(Some(focus), Some(cursor), pivot), focus);
+    fn zoom_anchor_prefers_the_frame_body_then_cursor_then_pivot() {
+        let (body, cursor, pivot) = (Vec3::X, Vec3::Y, Vec3::Z);
+        assert_eq!(zoom_anchor(Some(body), Some(cursor), pivot), body);
         assert_eq!(zoom_anchor(None, Some(cursor), pivot), cursor);
         assert_eq!(zoom_anchor(None, None, pivot), pivot);
     }
 
-    /// CAM-08 / CAM-23: only a step that gets to the system frame counts,
+    /// CAM-08 / CAM-23: only a step that gets to the system fit counts,
     /// and landing exactly on it does.
     #[test]
-    fn reaching_the_system_frame() {
-        assert!(!reaches_system_frame(600.0, 1000.0));
-        assert!(reaches_system_frame(1000.0, 1000.0));
-        assert!(reaches_system_frame(999.9, 1000.0));
+    fn reaching_the_system_fit() {
+        assert!(!reaches_system_fit(600.0, 1000.0));
+        assert!(reaches_system_fit(1000.0, 1000.0));
+        assert!(reaches_system_fit(999.9, 1000.0));
     }
 
     /// ZOOM-02: a notch arriving mid-animation retargets from the *current*

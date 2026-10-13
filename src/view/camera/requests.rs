@@ -1,21 +1,20 @@
 //! What the rest of the view can ask of the camera, without reaching into
 //! its state: set by pointer handlers, consumed by the camera next frame.
-//! ZOOM-16, ZOOM-17 and CAM-13 meet the camera here.
+//! ZOOM-16, ZOOM-17, CAM-13 and CAM-25 meet the camera here.
 
 use bevy::prelude::*;
 
-/// ZOOM-16: a request to focus a body and frame its satellites, raised by a
-/// double-click on a body that isn't focused or by the inset's Focus button,
-/// and taken by the camera next frame. Keeps the pointer observers from
-/// needing the camera's whole system-parameter set.
+/// ZOOM-16 / CAM-25: a request to make a body the frame and move to it,
+/// raised by a double-click, the inset's Focus button or a breadcrumb
+/// entry, and taken by the camera next frame. Keeps the pointer observers
+/// from needing the camera's whole system-parameter set.
 #[derive(Resource, Default)]
-pub struct FocusRequest(pub Option<Entity>);
+pub struct FrameRequest(pub Option<Entity>);
 
-/// CAM-08: a request to end focus from the focus chip's ×, taken by the
-/// camera next frame so the view can move to bring the focus's parent back
-/// into view instead of staying where the body left it.
+/// CAM-25: a request to re-centre the frame body with zero offset at the
+/// current scale, raised by its own breadcrumb entry.
 #[derive(Resource, Default)]
-pub struct ReleaseFocusRequest(pub bool);
+pub struct RecentreRequest(pub bool);
 
 /// Set when the planetary view is asked for (ZOOM-17). The view doesn't
 /// exist yet; `planetary_view_hook` takes the request.

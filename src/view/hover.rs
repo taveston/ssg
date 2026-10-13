@@ -2,18 +2,18 @@
 //! white hover ring, and the pointer handlers every pickable body node
 //! (marker, pill, exposure-ring hit target) is observed by.
 //!
-//! A click selects (`selection.rs`); a double-click also focuses the body
-//! and frames its satellites (ZOOM-16), or on the focused body is the
+//! A click selects (`selection.rs`); a double-click also makes the body the
+//! frame and moves to it (ZOOM-16), or on the frame body is the
 //! planetary-view hook (ZOOM-17), through `camera/requests.rs`.
 
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
-use super::camera::requests::{FocusRequest, PlanetaryViewRequest};
+use super::camera::requests::{FrameRequest, PlanetaryViewRequest};
 use super::colors;
-use super::focus::Focus;
 use super::fold::FoldSummary;
 use super::fonts::Fonts;
+use super::frame::Frame;
 use super::gesture::{PressStart, was_click};
 use super::selection::Selection;
 use super::targets::{GroupPillFor, Hovered, MarkerFor};
@@ -154,14 +154,14 @@ impl ClickCheck<'_, '_> {
 }
 
 /// What a click on a body does, from its marker or its pill alike. A
-/// click selects (INS-01); a double-click also focuses the body, or, on
-/// the body already focused, is the planetary-view trigger (ZOOM-16,
-/// ZOOM-17). Focus, not selection, decides.
+/// click selects (INS-01); a double-click also makes it the frame, or, on
+/// the frame body other than the star, is the planetary-view trigger
+/// (ZOOM-16, ZOOM-17). The frame, not selection, decides.
 #[derive(SystemParam)]
 pub struct BodyClick<'w> {
-    focus: Res<'w, Focus>,
+    frame: Res<'w, Frame>,
     selection: ResMut<'w, Selection>,
-    focus_request: ResMut<'w, FocusRequest>,
+    frame_request: ResMut<'w, FrameRequest>,
     planetary: ResMut<'w, PlanetaryViewRequest>,
 }
 
@@ -169,12 +169,29 @@ impl BodyClick<'_> {
     fn click(&mut self, body: Entity, count: u8) {
         self.selection.select(body);
         if count >= 2 {
-            if self.focus.is_on(body) {
-                self.planetary.0 = Some(body);
-            } else {
-                self.focus_request.0 = Some(body);
-            }
+            double_click(
+                &self.frame,
+                body,
+                &mut self.frame_request,
+                &mut self.planetary,
+            );
         }
+    }
+}
+
+/// ZOOM-16 / ZOOM-17: a double-click on the frame body, unless it is the
+/// star, asks for the planetary view; on anything else (the star
+/// included), for a frame jump to it.
+pub fn double_click(
+    frame: &Frame,
+    body: Entity,
+    frame_request: &mut FrameRequest,
+    planetary: &mut PlanetaryViewRequest,
+) {
+    if frame.non_star_body() == Some(body) {
+        planetary.0 = Some(body);
+    } else {
+        frame_request.0 = Some(body);
     }
 }
 
@@ -293,9 +310,9 @@ mod tests {
     /// and a pill that both stand for it.
     fn click_world() -> (World, Entity, Entity, Entity) {
         let mut world = World::new();
-        world.init_resource::<Focus>();
+        world.init_resource::<Frame>();
         world.init_resource::<Selection>();
-        world.init_resource::<FocusRequest>();
+        world.init_resource::<FrameRequest>();
         world.init_resource::<PlanetaryViewRequest>();
         world.init_resource::<PressStart>();
         world.init_resource::<Tunables>();
@@ -330,37 +347,54 @@ mod tests {
         });
     }
 
-    /// What a run of clicks left behind: selection, focus request and
+    /// What a run of clicks left behind: selection, frame request and
     /// planetary-view request.
     fn outcome(world: &World) -> (Option<Entity>, Option<Entity>, Option<Entity>) {
         (
             world.resource::<Selection>().primary,
-            world.resource::<FocusRequest>().0,
+            world.resource::<FrameRequest>().0,
             world.resource::<PlanetaryViewRequest>().0,
         )
     }
 
     /// GRP-07: clicking a pill does exactly what clicking its parent's
-    /// marker does - select on one click, ask for focus on a double-click,
-    /// and the planetary view on a double-click of the focused body.
+    /// marker does - select on one click, ask for a frame jump on a
+    /// double-click, and the planetary view on a double-click of the frame
+    /// body.
+    /// Covers ZOOM-16, ZOOM-17.
     #[test]
     fn clicking_a_pill_is_clicking_its_parent() {
-        for (count, focused) in [(1, false), (2, false), (2, true)] {
+        for (count, framed) in [(1, false), (2, false), (2, true)] {
             let mut results = Vec::new();
             for on_pill in [false, true] {
                 let (mut world, body, marker, pill) = click_world();
-                if focused {
-                    world.resource_mut::<Focus>().body = Some(body);
+                if framed {
+                    let frame = *world.resource::<Frame>();
+                    *world.resource_mut::<Frame>() = frame.on(body, Vec3::ZERO);
                 }
                 click(&mut world, if on_pill { pill } else { marker }, count);
                 results.push((outcome(&world), body));
             }
-            assert_eq!(results[0], results[1], "{count} clicks, focused {focused}");
-            let ((selected, focus_request, planetary), body) = results[0];
+            assert_eq!(results[0], results[1], "{count} clicks, framed {framed}");
+            let ((selected, frame_request, planetary), body) = results[0];
             assert_eq!(selected, Some(body));
-            assert_eq!(focus_request.is_some(), count == 2 && !focused);
-            assert_eq!(planetary.is_some(), count == 2 && focused);
+            assert_eq!(frame_request.is_some(), count == 2 && !framed);
+            assert_eq!(planetary.is_some(), count == 2 && framed);
         }
+    }
+
+    /// ZOOM-16 / ZOOM-17: a double-click on the star asks for a frame jump
+    /// to it even in the star's frame; the star has no planetary view.
+    #[test]
+    fn double_clicking_the_star_asks_for_its_frame() {
+        let mut world = World::new();
+        let star = world.spawn_empty().id();
+        let frame = Frame::star_frame(star, Vec3::X);
+        let mut request = FrameRequest::default();
+        let mut planetary = PlanetaryViewRequest::default();
+        double_click(&frame, star, &mut request, &mut planetary);
+        assert_eq!(request.0, Some(star));
+        assert_eq!(planetary.0, None);
     }
 
     /// HOV-01: hovering a marker marks it for the white ring and shows the

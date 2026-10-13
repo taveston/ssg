@@ -19,7 +19,7 @@ use crate::{Boot, Stage};
 /// down and to the right, clear of the largest marker and its label.
 const PILL_OFFSET_PX: Vec2 = Vec2::new(10.0, 8.0);
 /// Half the pill's height: its left-middle is where a leader line or the
-/// focus brackets meet it (INS-06).
+/// frame brackets meet it (INS-06).
 const PILL_HALF_HEIGHT_PX: f32 = 8.0;
 /// The white ring on a pill that holds a selected satellite (INS-06), the
 /// same as a marker's (MRK-01).

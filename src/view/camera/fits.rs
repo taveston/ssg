@@ -1,5 +1,5 @@
-//! The camera distances that mean something to zoom and focus: the system
-//! frame, a body's satellite frame, and the inner limit (ZOOM-14 to
+//! The camera distances that mean something to zoom and frame jumps: the
+//! system fit, a body's satellite fit, and the inner limit (ZOOM-14 to
 //! ZOOM-16). Gathers the camera's field of view, the map area and the
 //! bodies' radii so `zoom_input.rs` and `actions.rs` ask one place.
 
@@ -18,7 +18,7 @@ use crate::view::tunables::Tunables;
 const FALLBACK_VIEWPORT: Vec2 = Vec2::new(1600.0, 900.0);
 
 #[derive(SystemParam)]
-pub struct Frames<'w, 's> {
+pub struct Fits<'w, 's> {
     tunables: Res<'w, Tunables>,
     stops: Res<'w, ZoomStops>,
     projections: Query<'w, 's, &'static Projection, With<OrbitCamera>>,
@@ -27,7 +27,7 @@ pub struct Frames<'w, 's> {
     parents: Query<'w, 's, &'static ChildOf>,
 }
 
-impl Frames<'_, '_> {
+impl Fits<'_, '_> {
     pub fn fov(&self) -> f32 {
         self.projections
             .single()
@@ -52,21 +52,21 @@ impl Frames<'_, '_> {
         )
     }
 
-    /// ZOOM-15: the system frame, the outer limit.
-    pub fn system(&self, tilt: f32) -> f32 {
+    /// ZOOM-15: the system fit, the outer limit.
+    pub fn system_fit(&self, tilt: f32) -> f32 {
         self.fit(self.stops.system_radius, tilt).min(MAX_DISTANCE)
     }
 
-    /// ZOOM-15: the focused body's satellite frame, if it has satellites.
-    pub fn satellite(&self, body: Entity, tilt: f32) -> Option<f32> {
+    /// ZOOM-15: a body's satellite fit, if it has satellites.
+    pub fn satellite_fit(&self, body: Entity, tilt: f32) -> Option<f32> {
         Some(self.fit(self.stops.satellite_radius(body)?, tilt))
     }
 
-    /// ZOOM-14: the inner limit. With a body focused, where its true
-    /// diameter spans `body_max_screen_fraction` of the map's height; with
-    /// nothing, a view radius of `min_view_radius_au`.
-    pub fn inner_limit(&self, focused: Option<Entity>, tilt: f32) -> f32 {
-        let from_body = focused
+    /// ZOOM-14: the inner limit. In a body's frame (`frame_body`), where its
+    /// true diameter spans `body_max_screen_fraction` of the map's height;
+    /// in the star's frame (`None`), a view radius of `min_view_radius_au`.
+    pub fn inner_limit(&self, frame_body: Option<Entity>, tilt: f32) -> f32 {
+        let from_body = frame_body
             .and_then(|body| self.radii.get(body).ok())
             .map(|radius| {
                 let viewport = self.viewport();
@@ -87,16 +87,16 @@ impl Frames<'_, '_> {
         distance.max(MIN_DISTANCE)
     }
 
-    /// ZOOM-16: the distance a focus jump to `body` ends at: its satellite
-    /// frame, else its parent's, else its inner limit; never beyond the
+    /// ZOOM-16: the distance a frame jump to `body` ends at: its satellite
+    /// fit, else its parent's, else its inner limit; never beyond the
     /// limits.
-    pub fn framing(&self, body: Entity, tilt: f32) -> f32 {
+    pub fn jump_distance(&self, body: Entity, tilt: f32) -> f32 {
         let parent = self.parents.get(body).ok().map(ChildOf::parent);
         let inner = self.inner_limit(Some(body), tilt);
-        match self.stops.framing_radius(body, parent) {
+        match self.stops.jump_radius(body, parent) {
             Some(radius) => self.fit(radius, tilt),
             None => inner,
         }
-        .clamp(inner, self.system(tilt).max(inner))
+        .clamp(inner, self.system_fit(tilt).max(inner))
     }
 }

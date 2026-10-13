@@ -46,7 +46,7 @@ fn pan_direction(
 }
 
 /// CAM-14 / CAM-17: pan at a fraction of the visible height per second,
-/// ramping in and out; panning while focused moves the offset (CAM-07).
+/// ramping in and out; panning moves the frame's offset (CAM-07).
 #[allow(clippy::too_many_arguments)]
 pub fn handle_key_pan(
     time: Res<Time>,

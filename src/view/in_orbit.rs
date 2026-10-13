@@ -1,8 +1,8 @@
 //! The inset's "In orbit" list (INS-05): one entry per satellite of the
 //! inspected body, inside out, each with its class marker and its name in
 //! own or foreign colours (MRK-01). Clicking an entry selects that
-//! satellite; double-clicking it focuses and frames it (ZOOM-16), or on the
-//! focused body calls the planetary-view hook (ZOOM-17).
+//! satellite; double-clicking it makes it the frame and moves to it
+//! (ZOOM-16), or on the frame body calls the planetary-view hook (ZOOM-17).
 //!
 //! Selecting a satellite rebuilds the inset as the satellite's own, which
 //! would remove the list before a double-click's second click arrived. So a
@@ -11,10 +11,11 @@
 
 use bevy::prelude::*;
 
-use super::camera::requests::{FocusRequest, PlanetaryViewRequest};
+use super::camera::requests::{FrameRequest, PlanetaryViewRequest};
 use super::colors;
-use super::focus::Focus;
 use super::fonts::Fonts;
+use super::frame::Frame;
+use super::hover::double_click;
 use super::marker_images::MarkerImages;
 use super::markers::spawn_marker_icon;
 use super::selection::Selection;
@@ -156,17 +157,17 @@ fn spawn_entry(
 #[derive(bevy::ecs::system::SystemParam)]
 pub struct EntryActions<'w> {
     tunables: Res<'w, Tunables>,
-    focus: Res<'w, Focus>,
+    frame: Res<'w, Frame>,
     pending: ResMut<'w, PendingEntryClick>,
     selection: ResMut<'w, Selection>,
-    focus_request: ResMut<'w, FocusRequest>,
+    frame_request: ResMut<'w, FrameRequest>,
     planetary: ResMut<'w, PlanetaryViewRequest>,
 }
 
 impl EntryActions<'_> {
     /// INS-05: a click waits out the double-click window; a double-click
-    /// selects and focuses (ZOOM-16), or on the focused body selects and
-    /// calls the planetary-view hook (ZOOM-17).
+    /// selects and makes it the frame (ZOOM-16), or on the frame body
+    /// selects and calls the planetary-view hook (ZOOM-17).
     fn clicked(&mut self, body: Entity, click: &On<PointerClick>) {
         if click.button != PointerButton::Primary {
             return;
@@ -178,11 +179,12 @@ impl EntryActions<'_> {
         }
         self.pending.0 = None;
         self.selection.select(body);
-        if self.focus.is_on(body) {
-            self.planetary.0 = Some(body);
-        } else {
-            self.focus_request.0 = Some(body);
-        }
+        double_click(
+            &self.frame,
+            body,
+            &mut self.frame_request,
+            &mut self.planetary,
+        );
     }
 }
 

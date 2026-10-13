@@ -1,52 +1,68 @@
-//! The camera's one mutation interface: the rig, the focus and the move in
+//! The camera's one mutation interface: the rig, the frame and the move in
 //! flight, changed together by every kind of camera input (zoom, drags,
-//! keys, focus actions). Panning respects focus and the pan bound (CAM-07,
-//! CAM-19), rotating the tilt clamp (CAM-01), and pan or rotate input ends
-//! an animated move from where the camera is now (CAM-20).
+//! keys, frame actions). Panning changes the frame's offset, never the
+//! frame, inside the pan bound (CAM-07, CAM-19); rotating keeps the tilt
+//! clamp (CAM-01); pan or rotate input ends an animated move from where the
+//! camera is now (CAM-20).
 
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
-use super::rig::{body_position, settle_focus, start_move};
+use super::rig::{settle_frame, start_move};
 use super::rules::clamp_tilt;
-use super::state::{ActiveMove, CameraRig, MoveTarget};
-use crate::view::focus::{Focus, clamp_offset_to_pan_bound, clamp_to_pan_bound, focused_pivot};
+use super::state::{ActiveMove, CameraRig, MoveTarget, PivotTarget};
+use crate::view::frame::{Frame, body_position, clamp_offset_to_pan_bound, frame_pivot};
 use crate::view::world::WorldPositions;
 
 #[derive(SystemParam)]
 pub struct CameraControl<'w> {
     pub rig: ResMut<'w, CameraRig>,
-    pub focus: ResMut<'w, Focus>,
+    pub frame: ResMut<'w, Frame>,
     pub active: ResMut<'w, ActiveMove>,
 }
 
 impl CameraControl<'_> {
-    /// Before a new move replaces one in flight: a focus kept through the
-    /// old move takes the offset of where the pivot is now, so nothing
-    /// jumps (ZOOM-02).
+    /// Before a new move replaces one in flight: the frame takes the offset
+    /// of where the pivot is now, so nothing jumps (ZOOM-02).
     pub fn settle(&mut self, positions: &WorldPositions) {
         if self.active.0.is_none() {
             return;
         }
-        // A move onto the focused body rides along with it, so its current
+        // A move onto the frame body rides along with it, so its current
         // offset is the one the move has blended to; the rig's pivot is a
         // frame old, and the body has moved since.
         if let Some(offset) = self
             .active
             .0
             .as_ref()
-            .and_then(|m| m.offset_now(self.focus.body))
+            .and_then(|m| m.offset_now(self.frame.body))
         {
-            self.focus.offset = offset;
+            self.frame.offset = offset;
             return;
         }
-        settle_focus(&mut self.focus, &self.rig, positions);
+        settle_frame(&mut self.frame, &self.rig, positions);
     }
 
     /// Start a move from the current rig.
     pub fn start(&mut self, target: MoveTarget, duration_ms: f32) {
         let rig = *self.rig;
-        start_move(&mut self.active, &rig, &mut self.focus, target, duration_ms);
+        start_move(&mut self.active, &rig, &mut self.frame, target, duration_ms);
+    }
+
+    /// A move target in the star's frame, with the pivot at `point`.
+    pub fn star_pivot(&self, point: Vec3) -> PivotTarget {
+        PivotTarget {
+            body: self.frame.star,
+            offset: point,
+        }
+    }
+
+    /// The current frame as a move target: the frame body and its offset.
+    pub fn frame_pivot(&self) -> PivotTarget {
+        PivotTarget {
+            body: self.frame.body,
+            offset: self.frame.offset,
+        }
     }
 
     /// CAM-20: pan or rotate input ends a move in flight and takes over from
@@ -56,36 +72,24 @@ impl CameraControl<'_> {
         self.active.0 = None;
     }
 
-    /// The pivot as it stands this frame: on the focused body plus the
-    /// offset (CAM-05), else the rig's.
+    /// The pivot as it stands this frame: the frame body plus the offset
+    /// (CAM-05), or the rig's while a move is in flight.
     pub fn pivot_now(&self, positions: &WorldPositions) -> Vec3 {
-        match self
-            .focus
-            .body
-            .and_then(|body| body_position(body, positions))
-        {
-            Some(position) if self.active.0.is_none() => focused_pivot(position, self.focus.offset),
-            _ => self.rig.pivot,
+        if self.active.0.is_some() {
+            return self.rig.pivot;
         }
+        frame_pivot(body_position(self.frame.body, positions), self.frame.offset)
     }
 
-    /// CAM-07 / CAM-19: pan the view by `delta` in the plane. Focused, it
-    /// changes the offset and keeps the focus; either way the pivot stays
-    /// inside the pan bound.
+    /// CAM-07 / CAM-19: pan the view by `delta` in the plane. It changes the
+    /// frame's offset and never the frame, and the pivot stays inside the
+    /// pan bound.
     pub fn pan(&mut self, delta: Vec3, positions: &WorldPositions, bound: f32) {
         self.interrupt(positions);
-        let focused = self
-            .focus
-            .body
-            .and_then(|body| body_position(body, positions));
-        match focused {
-            Some(position) => {
-                let offset = clamp_offset_to_pan_bound(position, self.focus.offset + delta, bound);
-                self.focus.offset = offset;
-                self.rig.pivot = focused_pivot(position, offset);
-            }
-            None => self.rig.pivot = clamp_to_pan_bound(self.rig.pivot + delta, bound),
-        }
+        let position = body_position(self.frame.body, positions);
+        let offset = clamp_offset_to_pan_bound(position, self.frame.offset + delta, bound);
+        self.frame.offset = offset;
+        self.rig.pivot = frame_pivot(position, offset);
     }
 
     /// CAM-01 / CAM-12 / CAM-15: turn the heading (unlimited) and tilt

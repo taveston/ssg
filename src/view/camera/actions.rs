@@ -1,6 +1,7 @@
 //! Camera actions: the animated moves that aren't zoom steps. Home
-//! (ZOOM-10, CAM-04), N (CAM-03), focusing a body and framing its
-//! satellites (ZOOM-16, CAM-06), and bookmarks (ZOOM-11, CAM-06).
+//! (ZOOM-10, CAM-04), N (CAM-03), moving into a body's frame (ZOOM-16,
+//! CAM-06), re-centring on the frame body (CAM-25), and bookmarks
+//! (ZOOM-11, CAM-06).
 //!
 //! Zoom is in `zoom_input.rs`, drags in `drag.rs`, panning and turning keys
 //! in `keys.rs`; all read input through the bindings (CAM-18) and change
@@ -9,12 +10,11 @@
 use bevy::prelude::*;
 
 use super::control::CameraControl;
-use super::frames::Frames;
-use super::requests::FocusRequest;
+use super::fits::Fits;
+use super::requests::{FrameRequest, RecentreRequest};
 use super::rules::nearest_heading;
 use super::state::{BOOKMARK_SLOTS, Bookmark, Bookmarks, CameraRig, MoveTarget, PivotTarget};
 use crate::view::bindings::{Bindings, held, pressed};
-use crate::view::focus::Focus;
 use crate::view::motion_mode::MotionModeState;
 use crate::view::selection::Selection;
 use crate::view::tunables::Tunables;
@@ -23,13 +23,14 @@ use crate::view::world::WorldPositions;
 /// North up: heading 0.
 const NORTH: f32 = 0.0;
 
-/// ZOOM-10 / CAM-04: Home returns to the system frame over the star in the
-/// standard orientation (CAM-02), in one move, and ends focus (CAM-08).
+/// ZOOM-10 / CAM-04: Home returns to the system fit over the star in the
+/// standard orientation (CAM-02), in one move, and sets the star's frame
+/// (CAM-08).
 pub fn handle_home(
     keys: Res<ButtonInput<KeyCode>>,
     bindings: Res<Bindings>,
     tunables: Res<Tunables>,
-    frames: Frames,
+    fits: Fits,
     positions: Res<WorldPositions>,
     mut view: CameraControl,
 ) {
@@ -39,17 +40,16 @@ pub fn handle_home(
     let tilt = tunables.standard_tilt_deg.to_radians();
     view.settle(&positions);
     let target = MoveTarget {
-        pivot: PivotTarget::Fixed(Vec3::ZERO),
+        pivot: view.star_pivot(Vec3::ZERO),
         heading: nearest_heading(view.rig.heading, NORTH),
         tilt,
-        distance: frames.system(tilt),
+        distance: fits.system_fit(tilt),
     };
-    *view.focus = Focus::default();
     view.start(target, tunables.focus_jump_ms);
 }
 
-/// CAM-03: N returns to the standard orientation (CAM-02), keeping the pivot
-/// (and the focus with its offset) and the scale.
+/// CAM-03: N returns to the standard orientation (CAM-02), keeping the
+/// frame with its offset, and the scale.
 pub fn handle_north_up(
     keys: Res<ButtonInput<KeyCode>>,
     bindings: Res<Bindings>,
@@ -62,15 +62,8 @@ pub fn handle_north_up(
     }
     view.settle(&positions);
     let rig: CameraRig = *view.rig;
-    let pivot = match view.focus.body {
-        Some(body) => PivotTarget::Body {
-            body,
-            offset: view.focus.offset,
-        },
-        None => PivotTarget::Fixed(rig.pivot),
-    };
     let target = MoveTarget {
-        pivot,
+        pivot: view.frame_pivot(),
         heading: nearest_heading(rig.heading, NORTH),
         tilt: tunables.standard_tilt_deg.to_radians(),
         distance: rig.distance,
@@ -78,22 +71,23 @@ pub fn handle_north_up(
     view.start(target, tunables.focus_jump_ms);
 }
 
-/// ZOOM-16 / CAM-06: focus a body with zero offset and frame it in one
-/// move of `focus_jump_ms`, keeping heading and tilt. Asked for by a
-/// double-click on a body that isn't focused or the inset's Focus button
-/// (`FocusRequest`), or by F for the selection. The asker has already
-/// selected the body. A body in exposure-ring mode can't be focused
-/// (CAM-24), so it is left only selected.
+/// ZOOM-16 / CAM-06: make a body the frame with zero offset and move to it
+/// in one move of `focus_jump_ms`, keeping heading and tilt: to its
+/// satellite fit, its parent's, or its inner limit; for the star, to the
+/// system fit. Asked for by a double-click, the inset's Focus button or a
+/// breadcrumb entry (`FrameRequest`), or by F for the selection. The asker
+/// has already selected the body. A body in exposure-ring mode can't be a
+/// frame (CAM-24), so it is left only selected.
 #[allow(clippy::too_many_arguments)]
-pub fn handle_focus_requests(
+pub fn handle_frame_requests(
     keys: Res<ButtonInput<KeyCode>>,
     bindings: Res<Bindings>,
     tunables: Res<Tunables>,
     selection: Res<Selection>,
-    frames: Frames,
+    fits: Fits,
     modes: Query<&MotionModeState>,
     positions: Res<WorldPositions>,
-    mut request: ResMut<FocusRequest>,
+    mut request: ResMut<FrameRequest>,
     mut view: CameraControl,
 ) {
     let key = pressed(&keys, &bindings.focus_selection).then_some(selection.primary);
@@ -103,9 +97,14 @@ pub fn handle_focus_requests(
     if modes.get(body).is_ok_and(|mode| mode.ring_mode) {
         return;
     }
-    let distance = frames.framing(body, view.rig.tilt);
+    let tilt = view.rig.tilt;
+    let distance = if body == view.frame.star {
+        fits.system_fit(tilt)
+    } else {
+        fits.jump_distance(body, tilt)
+    };
     view.settle(&positions);
-    let pivot = PivotTarget::Body {
+    let pivot = PivotTarget {
         body,
         offset: Vec3::ZERO,
     };
@@ -113,9 +112,33 @@ pub fn handle_focus_requests(
     view.start(target, tunables.focus_jump_ms);
 }
 
+/// CAM-25: the frame body's own breadcrumb entry re-centres it with zero
+/// offset at the current scale, in one move.
+pub fn handle_recentre_request(
+    tunables: Res<Tunables>,
+    positions: Res<WorldPositions>,
+    mut request: ResMut<RecentreRequest>,
+    mut view: CameraControl,
+) {
+    if !std::mem::take(&mut request.0) {
+        return;
+    }
+    view.settle(&positions);
+    let pivot = PivotTarget {
+        body: view.frame.body,
+        offset: Vec3::ZERO,
+    };
+    let distance = view
+        .active
+        .0
+        .map_or(view.rig.distance, |m| m.target.distance);
+    let target = MoveTarget::keeping_view(&view.rig, pivot, distance);
+    view.start(target, tunables.focus_jump_ms);
+}
+
 /// ZOOM-11 / CAM-06: Ctrl+1..4 save the view; 1..4 recall it - scale,
-/// pivot, heading, tilt, and any focus with its offset. A bookmark saved
-/// without focus ends it (CAM-08).
+/// heading, tilt, and the frame with its offset. Recalling a bookmark saved
+/// in the star's frame returns the frame to the star (CAM-08).
 pub fn handle_bookmarks(
     keys: Res<ButtonInput<KeyCode>>,
     bindings: Res<Bindings>,
@@ -138,28 +161,23 @@ pub fn handle_bookmarks(
         if saving {
             bookmarks.0[index] = Some(Bookmark {
                 rig: *view.rig,
-                focus: *view.focus,
+                frame: *view.frame,
             });
         } else if let Some(bookmark) = bookmarks.0[index] {
-            *view.focus = bookmark.focus;
             let target = bookmark_target(&bookmark, view.rig.heading);
             view.start(target, tunables.focus_jump_ms);
         }
     }
 }
 
-/// Where recalling a bookmark goes: its focus with its offset, or its fixed
-/// pivot; its heading reached the short way round from `heading`.
+/// Where recalling a bookmark goes: its frame with its offset, its heading
+/// reached the short way round from `heading`.
 fn bookmark_target(bookmark: &Bookmark, heading: f32) -> MoveTarget {
-    let pivot = match bookmark.focus.body {
-        Some(body) => PivotTarget::Body {
-            body,
-            offset: bookmark.focus.offset,
-        },
-        None => PivotTarget::Fixed(bookmark.rig.pivot),
-    };
     MoveTarget {
-        pivot,
+        pivot: PivotTarget {
+            body: bookmark.frame.body,
+            offset: bookmark.frame.offset,
+        },
         heading: nearest_heading(heading, bookmark.rig.heading),
         tilt: bookmark.rig.tilt,
         distance: bookmark.rig.distance,
@@ -169,30 +187,28 @@ fn bookmark_target(bookmark: &Bookmark, heading: f32) -> MoveTarget {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::view::frame::Frame;
 
-    /// CAM-06: a bookmark restores the whole view, and any focus with its
+    /// CAM-06: a bookmark restores the whole view, and the frame with its
     /// offset.
     #[test]
-    fn bookmark_restores_heading_tilt_and_focus() {
+    fn bookmark_restores_heading_tilt_and_frame() {
         let mut world = World::new();
-        let body = world.spawn_empty().id();
+        let [star, body] = [(); 2].map(|_| world.spawn_empty().id());
         let rig = CameraRig {
             pivot: Vec3::new(3.0, 0.0, 1.0),
             heading: 1.0,
             tilt: 0.6,
             distance: 12.0,
         };
-        let focused = Bookmark {
+        let framed = Bookmark {
             rig,
-            focus: Focus {
-                body: Some(body),
-                offset: Vec3::X,
-            },
+            frame: Frame::star_frame(star, Vec3::ZERO).on(body, Vec3::X),
         };
-        let target = bookmark_target(&focused, 1.2);
+        let target = bookmark_target(&framed, 1.2);
         assert_eq!(
             target.pivot,
-            PivotTarget::Body {
+            PivotTarget {
                 body,
                 offset: Vec3::X
             }
@@ -202,11 +218,10 @@ mod tests {
 
         let free = Bookmark {
             rig,
-            focus: Focus::default(),
+            frame: Frame::star_frame(star, rig.pivot),
         };
-        assert_eq!(
-            bookmark_target(&free, 1.0).pivot,
-            PivotTarget::Fixed(rig.pivot)
-        );
+        let back = bookmark_target(&free, 1.0);
+        assert!(back.frame(&framed.frame).in_star_frame(), "CAM-08");
+        assert_eq!(back.pivot.offset, rig.pivot);
     }
 }

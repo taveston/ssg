@@ -3,7 +3,7 @@
 //! (ARCH-03); clicks in `hover.rs` and the inset's buttons in `inspect.rs`
 //! change it.
 //!
-//! Selection never moves the camera; focus does (CAM-05, not yet built).
+//! Selection never moves the camera; the reference frame does (CAM-05).
 
 use bevy::prelude::*;
 

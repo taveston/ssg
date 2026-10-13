@@ -16,11 +16,11 @@ use bevy::prelude::*;
 
 use super::control::CameraControl;
 use super::requests::ContextMenuRequest;
-use super::rig::body_position;
 use super::rules::{camera_transform, plane_point};
 use super::state::{CameraRig, OrbitCamera};
 use super::stops::ZoomStops;
 use crate::view::bindings::{Bindings, held};
+use crate::view::frame::body_position;
 use crate::view::gesture::{PressStart, is_drag};
 use crate::view::targets::MapInputBlocker;
 use crate::view::tunables::Tunables;
@@ -32,11 +32,8 @@ enum DragMode {
     /// Not yet past the drag threshold: still a click.
     Pending,
     /// CAM-10 / CAM-11: panning, holding this plane point under the cursor.
-    /// While focused it is held relative to the focused body.
-    Pan {
-        grab: Vec3,
-        relative_to: Option<Entity>,
-    },
+    /// It is held relative to the frame body, which the view follows.
+    Pan { grab: Vec3, relative_to: Entity },
     /// CAM-12: rotating about the pivot.
     Rotate,
     /// CAM-10: Shift+left, or a press on a panel; does nothing.
@@ -159,10 +156,7 @@ pub fn update_drag(
     }
     match press.mode {
         DragMode::Pan { grab, relative_to } => {
-            let grab_now = match relative_to.and_then(|body| body_position(body, &positions)) {
-                Some(position) => position + grab,
-                None => grab,
-            };
+            let grab_now = body_position(relative_to, &positions) + grab;
             let pivot = view.pivot_now(&positions);
             if let Some(under) = pointer.plane_point_at(cursor, &view.rig, pivot) {
                 let bound = tunables.pan_bound_factor * stops.system_radius;
@@ -203,21 +197,12 @@ fn start_drag(
     let Some(grab) = pointer.plane_point_at(press.start, &view.rig, pivot) else {
         return DragMode::Ignored;
     };
-    // While focused, hold the grabbed point relative to the focused body,
-    // which the view is following (CAM-07).
-    match view
-        .focus
-        .body
-        .and_then(|body| Some((body, body_position(body, positions)?)))
-    {
-        Some((body, position)) => DragMode::Pan {
-            grab: grab - position,
-            relative_to: Some(body),
-        },
-        None => DragMode::Pan {
-            grab,
-            relative_to: None,
-        },
+    // Hold the grabbed point relative to the frame body, which the view is
+    // following (CAM-07).
+    let body = view.frame.body;
+    DragMode::Pan {
+        grab: grab - body_position(body, positions),
+        relative_to: body,
     }
 }
 

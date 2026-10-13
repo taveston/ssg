@@ -16,7 +16,7 @@ use bevy::prelude::*;
 
 use super::anchors::BodyAnchors;
 use super::bindings::{Bindings, pressed};
-use super::camera::requests::FocusRequest;
+use super::camera::requests::FrameRequest;
 use super::colors;
 use super::date::{date_from_elapsed_days, format_date, format_time_ago};
 use super::fidelity::FidelityImages;
@@ -37,7 +37,8 @@ struct InspectPanelFor {
 }
 #[derive(Component)]
 struct LeaderFor(Entity);
-/// The inset's Focus button, for the body it would focus (CAM-24).
+/// The inset's Focus button, for the body it would make the frame
+/// (CAM-24).
 #[derive(Component)]
 struct FocusButton(Entity);
 /// The inset line MOT-07 asks for, for the body it describes.
@@ -185,7 +186,7 @@ type InsetBodies<'w, 's> = Query<
 pub struct InspectPlugin;
 
 /// The Focus button's text colour: neutral grey while the body is in
-/// exposure-ring mode, when it can't be focused (CAM-24).
+/// exposure-ring mode, when it can't be a frame (CAM-24).
 pub fn focus_button_color(ring_mode: bool) -> Color {
     if ring_mode {
         colors::ORBIT_LINE
@@ -436,12 +437,12 @@ fn spawn_actions(actions: &mut ChildSpawnerCommands, fonts: &Fonts, body: Entity
             font(),
             TextColor(colors::OWN),
         ))
-        // ZOOM-16: the inset's Focus button focuses and frames the inset's
-        // object, as a double-click does.
+        // ZOOM-16: the inset's Focus button makes the inset's object the
+        // frame and moves to it, as a double-click does.
         .observe(
             move |_click: On<PointerClick>,
                   mut selection: ResMut<Selection>,
-                  mut request: ResMut<FocusRequest>| {
+                  mut request: ResMut<FrameRequest>| {
                 selection.select(body);
                 request.0 = Some(body);
             },

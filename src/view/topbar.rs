@@ -1,4 +1,5 @@
-//! The top bar and the clock controls (CLK-02, CLK-05): breadcrumb, date,
+//! The top bar and the clock controls (CLK-02, CLK-05): the breadcrumb's
+//! slot (filled by `breadcrumb.rs`), date,
 //! the Pause, 1 d/s and 5 d/s buttons with the active rate highlighted, and
 //! the clock keys (CLK-05: Space, `.` and `,`). Every change goes through the clock's
 //! own API (ARCH-14).
@@ -10,6 +11,7 @@ use bevy::prelude::*;
 
 use crate::sim::clock::GameClock;
 use crate::view::bindings::{Bindings, pressed};
+use crate::view::breadcrumb::spawn_breadcrumb_root;
 use crate::view::colors;
 use crate::view::date::{date_from_elapsed_days, format_date};
 use crate::view::fonts::Fonts;
@@ -101,11 +103,7 @@ fn spawn_top_bar(mut commands: Commands, fonts: Res<Fonts>) {
             MapInputBlocker,
         ))
         .with_children(|bar| {
-            bar.spawn((
-                Text::new("Cluster / Corvane system"),
-                fonts.label(BAR_FONT_PX),
-                TextColor(colors::NEUTRAL),
-            ));
+            spawn_breadcrumb_root(bar);
             bar.spawn((
                 DateText,
                 Text::new(""),
@@ -200,11 +198,12 @@ mod tests {
     use bevy::ecs::system::RunSystemOnce;
 
     use super::*;
+    use crate::view::breadcrumb::BreadcrumbRoot;
 
-    /// MRK-02: the top bar's breadcrumb is in the label font and its date
-    /// readout in the mono font.
+    /// MRK-02: the top bar's date readout is in the mono font; it has a
+    /// slot for the breadcrumb (CLK-02).
     #[test]
-    fn the_date_is_mono_and_the_breadcrumb_is_a_label() {
+    fn the_date_is_mono_and_there_is_a_breadcrumb() {
         let handle = |n: u128| Handle::<Font>::Uuid(Uuid::from_u128(n), Default::default());
         let fonts = Fonts {
             label: handle(1),
@@ -217,11 +216,7 @@ mod tests {
 
         let mut dates = world.query_filtered::<&TextFont, With<DateText>>();
         assert_eq!(dates.single(&world).unwrap().font, fonts.mono(1.0).font);
-        let mut texts = world.query::<(&Text, &TextFont)>();
-        let (_, breadcrumb) = texts
-            .iter(&world)
-            .find(|(text, _)| text.0.starts_with("Cluster"))
-            .unwrap();
-        assert_eq!(breadcrumb.font, fonts.label(1.0).font);
+        let mut roots = world.query_filtered::<(), With<BreadcrumbRoot>>();
+        assert_eq!(roots.iter(&world).count(), 1);
     }
 }

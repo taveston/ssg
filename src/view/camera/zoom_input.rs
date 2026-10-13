@@ -1,28 +1,27 @@
 //! Zoom input (ZOOM-01, ZOOM-02, ZOOM-05, ZOOM-13 to ZOOM-15, CAM-08,
 //! CAM-16, CAM-23): wheel notches and the + / - keys, each one animated
-//! step, anchored and limited by the focus. Zooming never sets focus
-//! (CAM-06); a zoom out to the system frame ends it and eases the view
-//! back to the standard orientation (CAM-23).
+//! step, anchored and limited by the frame. Zooming never changes the
+//! frame (CAM-06), except that a zoom out to the system fit returns it to
+//! the star and eases the view back to the standard tilt (CAM-23).
 //!
 //! The rules are plain functions in `zoom.rs` (the step, the anchor) and
-//! `frames.rs` (the distances); this module gathers their inputs and
-//! starts the move.
+//! `fits.rs` (the distances); this module gathers their inputs and starts
+//! the move.
 
 use bevy::ecs::system::SystemParam;
 use bevy::input::mouse::{AccumulatedMouseScroll, MouseScrollUnit};
 use bevy::prelude::*;
 
 use super::control::CameraControl;
-use super::frames::Frames;
-use super::rig::body_position;
+use super::fits::Fits;
 use super::rules::plane_point;
 use super::state::{CameraRig, MoveTarget, OrbitCamera, PivotTarget};
 use super::zoom::{
     StepSettings, ZoomStep, anchored_centre, notches_from_scroll, plan_zoom_step,
-    reaches_system_frame, zoom_anchor,
+    reaches_system_fit, zoom_anchor,
 };
 use crate::view::bindings::{Bindings, pressed};
-use crate::view::focus::{Focus, clamp_to_pan_bound};
+use crate::view::frame::{body_position, clamp_to_pan_bound};
 use crate::view::tunables::Tunables;
 use crate::view::world::WorldPositions;
 
@@ -36,10 +35,10 @@ struct ZoomRequest {
     from_wheel: bool,
 }
 
-/// What a step is judged against: the frames as distances at this tilt.
-struct StepFrames {
+/// What a step is judged against: the fits as distances at this tilt.
+struct StepFits {
     system: f32,
-    /// The focused body's satellite frame, if it has satellites.
+    /// The frame body's satellite fit, if it has satellites.
     satellite: Option<f32>,
     inner: f32,
 }
@@ -54,7 +53,7 @@ pub struct ZoomContext<'w, 's> {
     windows: Query<'w, 's, &'static Window>,
     camera: ZoomCamera<'w, 's>,
     positions: Res<'w, WorldPositions>,
-    frames: Frames<'w, 's>,
+    fits: Fits<'w, 's>,
     stops: Res<'w, super::stops::ZoomStops>,
 }
 
@@ -88,13 +87,13 @@ impl ZoomContext<'_, '_> {
         plane_point(camera.viewport_to_world(&transform, cursor).ok()?)
     }
 
-    /// ZOOM-14 / ZOOM-15: the system and satellite frames and the inner
-    /// limit for this step, by the focus.
-    fn step_frames(&self, focused: Option<Entity>, tilt: f32) -> StepFrames {
-        StepFrames {
-            system: self.frames.system(tilt),
-            satellite: focused.and_then(|body| self.frames.satellite(body, tilt)),
-            inner: self.frames.inner_limit(focused, tilt),
+    /// ZOOM-14 / ZOOM-15: the system and satellite fits and the inner
+    /// limit for this step, by the frame body (`None` for the star).
+    fn step_fits(&self, frame_body: Option<Entity>, tilt: f32) -> StepFits {
+        StepFits {
+            system: self.fits.system_fit(tilt),
+            satellite: frame_body.and_then(|body| self.fits.satellite_fit(body, tilt)),
+            inner: self.fits.inner_limit(frame_body, tilt),
         }
     }
 
@@ -105,16 +104,14 @@ impl ZoomContext<'_, '_> {
 
 /// ZOOM-01 / ZOOM-05 / ZOOM-14: the step, settling on the system and
 /// satellite stops, inside the limits.
-fn plan_step(current: f32, notches: f32, frames: &StepFrames, tunables: &Tunables) -> ZoomStep {
-    let stops: Vec<f32> = std::iter::once(frames.system)
-        .chain(frames.satellite)
-        .collect();
+fn plan_step(current: f32, notches: f32, fits: &StepFits, tunables: &Tunables) -> ZoomStep {
+    let stops: Vec<f32> = std::iter::once(fits.system).chain(fits.satellite).collect();
     plan_zoom_step(
         current,
         notches,
         &stops,
-        frames.inner,
-        frames.system,
+        fits.inner,
+        fits.system,
         StepSettings {
             step_factor: tunables.zoom_step_factor,
             anim_ms: tunables.zoom_anim_ms,
@@ -123,39 +120,37 @@ fn plan_step(current: f32, notches: f32, frames: &StepFrames, tunables: &Tunable
     )
 }
 
-/// One zoom step per notch or key press: gather the anchor and frames,
-/// plan the step, decide the focus, start the move.
+/// One zoom step per notch or key press: gather the anchor and fits, plan
+/// the step, decide the frame, start the move.
 pub fn handle_zoom_input(context: ZoomContext, mut view: CameraControl) {
     let Some(request) = context.request() else {
         return;
     };
     view.settle(&context.positions);
     let rig = *view.rig;
-    let focused = view
-        .focus
-        .body
-        .and_then(|body| Some((body, body_position(body, &context.positions)?)));
+    let frame_body = view.frame.non_star_body();
 
-    // ZOOM-13: the focus, else the cursor's plane point, else the centre.
+    // ZOOM-13: the frame body, else the cursor's plane point, else the
+    // centre.
     let cursor_point = request
         .from_wheel
         .then(|| context.cursor_plane_point())
         .flatten();
-    let anchor = zoom_anchor(focused.map(|(_, at)| at), cursor_point, rig.pivot);
+    let body_at = frame_body.map(|body| body_position(body, &context.positions));
+    let anchor = zoom_anchor(body_at, cursor_point, rig.pivot);
 
-    let frames = context.step_frames(focused.map(|(body, _)| body), rig.tilt);
-    let step = plan_step(rig.distance, request.notches, &frames, &context.tunables);
+    let fits = context.step_fits(frame_body, rig.tilt);
+    let step = plan_step(rig.distance, request.notches, &fits, &context.tunables);
 
-    // CAM-23 / CAM-08: a step out to the system frame ends focus and eases
-    // the pivot to the star and the tilt to the standard one.
-    if request.notches < 0.0 && reaches_system_frame(step.target, frames.system) {
+    // CAM-23 / CAM-08: a step out to the system fit sets the star's frame
+    // and eases the pivot to the star and the tilt to the standard one.
+    if request.notches < 0.0 && reaches_system_fit(step.target, fits.system) {
         let tilt = context.tunables.standard_tilt_deg.to_radians();
-        *view.focus = Focus::default();
         let target = MoveTarget {
-            pivot: PivotTarget::Fixed(Vec3::ZERO),
+            pivot: view.star_pivot(Vec3::ZERO),
             heading: rig.heading,
             tilt,
-            distance: context.frames.system(tilt),
+            distance: context.fits.system_fit(tilt),
         };
         view.start(target, step.duration_ms);
         return;
@@ -166,10 +161,10 @@ pub fn handle_zoom_input(context: ZoomContext, mut view: CameraControl) {
     view.start(target, step.duration_ms);
 }
 
-/// Where a step takes the pivot. Focused, the step scales the pan offset
-/// about the focused object, so the object keeps its place on screen
-/// (ZOOM-13); otherwise it scales the view about the anchor, inside the
-/// pan bound (CAM-19).
+/// Where a step takes the pivot. In a body's frame the step scales the pan
+/// offset about the frame body, so the body keeps its place on screen
+/// (ZOOM-13); in the star's frame it scales the view about the anchor,
+/// inside the pan bound (CAM-19).
 fn step_pivot(
     view: &CameraControl,
     rig: &CameraRig,
@@ -177,14 +172,12 @@ fn step_pivot(
     target: f32,
     bound: f32,
 ) -> PivotTarget {
-    match view.focus.body {
-        Some(body) => PivotTarget::Body {
-            body,
-            offset: view.focus.offset * (target / rig.distance.max(f32::EPSILON)),
-        },
-        None => PivotTarget::Fixed(clamp_to_pan_bound(
-            anchored_centre(anchor, rig.pivot, rig.distance, target),
-            bound,
-        )),
+    if view.frame.in_star_frame() {
+        let centre = anchored_centre(anchor, rig.pivot, rig.distance, target);
+        return view.star_pivot(clamp_to_pan_bound(centre, bound));
+    }
+    PivotTarget {
+        body: view.frame.body,
+        offset: view.frame.offset * (target / rig.distance.max(f32::EPSILON)),
     }
 }

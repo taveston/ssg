@@ -1,13 +1,13 @@
-//! Keeping the focused body on screen while panning (CAM-07): the pan offset
-//! is cut back until the body sits at least `focus_keep_margin_px` inside
-//! the map area.
+//! Keeping the frame body on screen while panning (CAM-07): outside the
+//! star's frame, the pan offset is cut back until the body sits at least
+//! `focus_keep_margin_px` inside the map area.
 
 use bevy::prelude::*;
 
-use super::frames::Frames;
+use super::fits::Fits;
 use super::rules::project_plane_point;
 use super::state::{ActiveMove, CameraRig};
-use crate::view::focus::Focus;
+use crate::view::frame::Frame;
 use crate::view::screen::MapArea;
 use crate::view::tunables::Tunables;
 use crate::view::world::WorldPositions;
@@ -54,16 +54,17 @@ pub fn clamp_offset_to_margin(
     offset * low
 }
 
-/// CAM-07: while focused and not mid-move, keep the offset inside the margin.
-pub fn keep_focus_in_view(
+/// CAM-07: outside the star's frame and not mid-move, keep the offset
+/// inside the margin.
+pub fn keep_frame_body_in_view(
     active: Res<ActiveMove>,
     positions: Res<WorldPositions>,
     tunables: Res<Tunables>,
-    frames: Frames,
+    fits: Fits,
     rig: Res<CameraRig>,
-    mut focus: ResMut<Focus>,
+    mut frame: ResMut<Frame>,
 ) {
-    let Some(body) = focus.body else {
+    let Some(body) = frame.non_star_body() else {
         return;
     };
     let Some(&position) = positions.0.get(&body) else {
@@ -74,14 +75,14 @@ pub fn keep_focus_in_view(
     }
     let clamped = clamp_offset_to_margin(
         position,
-        focus.offset,
+        frame.offset,
         (rig.heading, rig.tilt, rig.distance),
-        frames.fov(),
-        frames.viewport(),
+        fits.fov(),
+        fits.viewport(),
         tunables.focus_keep_margin_px,
     );
-    if clamped != focus.offset {
-        focus.offset = clamped;
+    if clamped != frame.offset {
+        frame.offset = clamped;
     }
 }
 

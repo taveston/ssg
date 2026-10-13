@@ -1,9 +1,9 @@
 //! Where each body is shown on screen this frame (INS-06, CAM-22): its own
 //! marker, or - while it is folded into its parent - its parent's "+N"
 //! pill, sliding from one to the other as it unfolds, so nothing that
-//! points at a body (an inset's leader line, the focus brackets) jumps.
+//! points at a body (an inset's leader line, the frame brackets) jumps.
 //!
-//! Shared state, read by the inset and the focus marks (ARCH-03); computed
+//! Shared state, read by the inset and the frame marks (ARCH-03); computed
 //! in `Stage::Layout`, after screen positions and fold states.
 
 use std::collections::HashMap;

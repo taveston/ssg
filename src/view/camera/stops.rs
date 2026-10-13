@@ -20,21 +20,21 @@ use crate::view::screen::MapArea;
 #[derive(Resource, Default, Debug)]
 pub struct ZoomStops {
     /// All planetary orbits fit. Gates are deliberately excluded so they
-    /// stay edge-of-screen indicators instead of dragging the frame out.
+    /// stay edge-of-screen indicators instead of dragging the fit out.
     pub system_radius: f32,
     /// Per parent body, the radius that fits all of its satellites.
     pub per_body_satellite_radius: HashMap<Entity, f32>,
 }
 
 impl ZoomStops {
-    /// The satellite-frame radius for a body, if it has satellites.
+    /// The satellite-fit radius for a body, if it has satellites.
     pub fn satellite_radius(&self, body: Entity) -> Option<f32> {
         self.per_body_satellite_radius.get(&body).copied()
     }
 
-    /// ZOOM-16: the radius a focus jump frames: the body's own satellite
-    /// frame, else its parent's. `None` means the body's inner limit.
-    pub fn framing_radius(&self, body: Entity, parent: Option<Entity>) -> Option<f32> {
+    /// ZOOM-16: the radius a frame jump fits: the body's own satellite fit,
+    /// else its parent's. `None` means the body's inner limit.
+    pub fn jump_radius(&self, body: Entity, parent: Option<Entity>) -> Option<f32> {
         self.satellite_radius(body)
             .or_else(|| parent.and_then(|parent| self.satellite_radius(parent)))
     }
@@ -77,12 +77,12 @@ pub fn distance_for_radius(radius: f32, fov_y: f32, tilt: f32, margin: f32, view
     distance
 }
 
-/// ZOOM-15: the system frame fits every planetary orbit, from the system's
+/// ZOOM-15: the system fit takes in every planetary orbit, from the system's
 /// real orbits, never from fixed scales.
 ///
 /// Gates are deliberately not passed in: they stay edge indicators rather
-/// than dragging the system frame out to their distance.
-pub fn system_frame_radius(planet_orbit_radii: &[f32]) -> f32 {
+/// than dragging the system fit out to their distance.
+pub fn system_fit_radius(planet_orbit_radii: &[f32]) -> f32 {
     planet_orbit_radii.iter().copied().fold(1.0, f32::max)
 }
 
@@ -117,7 +117,7 @@ fn compute_stops(
         }
     }
 
-    stops.system_radius = system_frame_radius(&planet_radii);
+    stops.system_radius = system_fit_radius(&planet_radii);
     stops.per_body_satellite_radius = per_parent;
 }
 
@@ -139,13 +139,13 @@ mod tests {
 
     /// Covers ZOOM-15.
     #[test]
-    fn system_frame_fits_every_planetary_orbit() {
+    fn system_fit_takes_in_every_planetary_orbit() {
         let radii = corvane_planet_radii();
-        let system = system_frame_radius(&radii);
+        let system = system_fit_radius(&radii);
         for radius in &radii {
             assert!(
                 *radius <= system + f32::EPSILON,
-                "{radius} should fit inside the system frame {system}"
+                "{radius} should fit inside the system fit {system}"
             );
         }
         // Morrow, the outermost planet, defines it.
@@ -153,47 +153,47 @@ mod tests {
     }
 
     /// ZOOM-15: gates are excluded on purpose - they stay edge indicators
-    /// rather than stretching the frame out to ~6 AU.
+    /// rather than stretching the fit out to ~6 AU.
     #[test]
-    fn system_frame_excludes_gates() {
+    fn system_fit_excludes_gates() {
         let system_data = hand_made_system();
-        let system = system_frame_radius(&corvane_planet_radii());
+        let system = system_fit_radius(&corvane_planet_radii());
         for gate in &system_data.gates {
             assert!(
                 km_to_render(gate.distance_km) > system,
-                "gates should sit outside the system frame"
+                "gates should sit outside the system fit"
             );
         }
     }
 
-    /// ZOOM-16: a body with satellites frames them; a moon frames its
-    /// planet's; a bare planet has no frame of its own (its inner limit
+    /// ZOOM-16: a jump to a body with satellites fits them; to a moon, its
+    /// planet's; a bare planet has no fit of its own (its inner limit
     /// applies instead).
     #[test]
-    fn framing_falls_back_to_the_parent_then_to_nothing() {
+    fn jumps_fall_back_to_the_parent_then_to_nothing() {
         let mut world = World::new();
         let [planet, moon, bare] = [(); 3].map(|_| world.spawn_empty().id());
         let mut stops = ZoomStops::default();
         stops.per_body_satellite_radius.insert(planet, 0.44);
-        assert_eq!(stops.framing_radius(planet, None), Some(0.44));
-        assert_eq!(stops.framing_radius(moon, Some(planet)), Some(0.44));
-        assert_eq!(stops.framing_radius(bare, None), None);
+        assert_eq!(stops.jump_radius(planet, None), Some(0.44));
+        assert_eq!(stops.jump_radius(moon, Some(planet)), Some(0.44));
+        assert_eq!(stops.jump_radius(bare, None), None);
     }
 
     /// Covers ZOOM-15.
     #[test]
-    fn degenerate_systems_still_give_a_frame() {
-        assert_eq!(system_frame_radius(&[]), 1.0);
-        assert_eq!(system_frame_radius(&[7.0]), 7.0);
+    fn degenerate_systems_still_give_a_fit() {
+        assert_eq!(system_fit_radius(&[]), 1.0);
+        assert_eq!(system_fit_radius(&[7.0]), 7.0);
     }
 
-    /// A stop frames exactly what it says: at the computed distance every
-    /// point of the framed circle is inside the map area, and the circle
+    /// A stop fits exactly what it says: at the computed distance every
+    /// point of the fitted circle is inside the map area, and the circle
     /// reaches the limit on some side. Checked at several tilts, including
     /// shallow ones where the width binds, and in a narrow window.
     /// Covers ZOOM-15.
     #[test]
-    fn a_framed_circle_fits_the_map_area() {
+    fn a_fitted_circle_fits_the_map_area() {
         let fov = std::f32::consts::FRAC_PI_4;
         let margin = 0.8;
         for viewport in [Vec2::new(1600.0, 900.0), Vec2::new(700.0, 900.0)] {

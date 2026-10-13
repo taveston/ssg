@@ -14,15 +14,16 @@ pub mod anchors;
 pub mod anim;
 pub mod belt;
 pub mod bindings;
+pub mod breadcrumb;
 pub mod camera;
 pub mod colors;
 pub mod date;
 pub mod edge;
 pub mod fidelity;
-pub mod focus;
-pub mod focus_marks;
 pub mod fold;
 pub mod fonts;
+pub mod frame;
+pub mod frame_marks;
 pub mod gesture;
 pub mod grouping;
 pub mod hover;
@@ -50,12 +51,12 @@ pub struct ViewPlugin;
 impl Plugin for ViewPlugin {
     fn build(&self, app: &mut App) {
         // Shared state with no single owner: selection is written by clicks
-        // and the inset's buttons, focus by the camera and the inset, and
-        // both are read across the view.
+        // and the inset's buttons, the frame by the camera, and both are
+        // read across the view.
         app.init_resource::<selection::Selection>()
-            .init_resource::<focus::Focus>()
             .init_resource::<gesture::PressStart>()
             .add_plugins((
+                frame::FramePlugin,
                 tunables::TunablesPlugin,
                 bindings::BindingsPlugin,
                 fonts::FontsPlugin,
@@ -63,6 +64,7 @@ impl Plugin for ViewPlugin {
                 projection::ProjectionPlugin,
                 belt::BeltPlugin,
                 camera::CameraPlugin,
+                breadcrumb::BreadcrumbPlugin,
             ))
             .add_plugins((
                 grouping::GroupingPlugin,
@@ -71,7 +73,7 @@ impl Plugin for ViewPlugin {
                 ring_picking::RingPickingPlugin,
                 screen::ScreenPlugin,
                 anchors::AnchorsPlugin,
-                focus_marks::FocusMarksPlugin,
+                frame_marks::FrameMarksPlugin,
                 edge::EdgePlugin,
                 marker_images::MarkerImagesPlugin,
                 markers::MarkersPlugin,

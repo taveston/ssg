@@ -1,17 +1,17 @@
-//! The camera rig: spawns the camera, starts it at the system frame
-//! (CAM-02), runs the animated move (ZOOM-01), keeps the pivot on the
-//! focused object (CAM-05) and places the camera from the rig each frame.
+//! The camera rig: spawns the camera, starts it at the system fit
+//! (CAM-02), runs the animated move (ZOOM-01), keeps the pivot on the frame
+//! body (CAM-05) and places the camera from the rig each frame.
 
 use bevy::prelude::*;
 
 use super::rules::camera_transform;
 use super::state::{
     ActiveMove, CameraMove, CameraRig, MAX_DISTANCE, MIN_DISTANCE, MoveTarget, OrbitCamera,
-    PivotTarget, blend_rig, camera_fov,
+    blend_rig, camera_fov,
 };
 use super::stops::{ZoomStops, distance_for_radius};
 use crate::view::anim::ease_out_cubic;
-use crate::view::focus::{Focus, focused_pivot};
+use crate::view::frame::{Frame, body_position, frame_pivot};
 use crate::view::tunables::Tunables;
 use crate::view::world::WorldPositions;
 
@@ -40,9 +40,9 @@ pub fn spawn_camera(mut commands: Commands) {
     ));
 }
 
-/// CAM-02: the camera starts at the system frame in the standard
+/// CAM-02: the camera starts at the system fit in the standard
 /// orientation: north up, tilted by `standard_tilt_deg`.
-pub fn start_at_system_frame(
+pub fn start_at_system_fit(
     stops: Res<ZoomStops>,
     tunables: Res<Tunables>,
     mut rig: ResMut<CameraRig>,
@@ -65,44 +65,37 @@ pub fn start_at_system_frame(
     );
 }
 
-/// Where a body is this frame, in render space (CAM-05).
-pub fn body_position(body: Entity, positions: &WorldPositions) -> Option<Vec3> {
-    positions.0.get(&body).copied()
-}
-
-/// Where a move's target pivot is now.
-fn target_pivot_now(target: &MoveTarget, positions: &WorldPositions, fallback: Vec3) -> Vec3 {
-    match target.pivot {
-        PivotTarget::Fixed(pivot) => pivot,
-        PivotTarget::Body { body, offset } => body_position(body, positions)
-            .map_or(fallback, |position| focused_pivot(position, offset)),
-    }
+/// Where a move's target pivot is now: its body's position plus offset.
+fn target_pivot_now(target: &MoveTarget, positions: &WorldPositions) -> Vec3 {
+    frame_pivot(
+        body_position(target.pivot.body, positions),
+        target.pivot.offset,
+    )
 }
 
 /// Start a move from the current rig (ZOOM-02), replacing any in flight.
-/// A move onto a body focuses it at once, so a focus jump shows as
-/// focused from its first frame; any other move leaves the focus to the
-/// caller.
+/// The move puts the camera in its target body's frame at once, so a frame
+/// jump shows the new frame from its first frame.
 pub fn start_move(
     active: &mut ActiveMove,
     rig: &CameraRig,
-    focus: &mut Focus,
+    frame: &mut Frame,
     target: MoveTarget,
     duration_ms: f32,
 ) {
     let mut camera_move = CameraMove::new(*rig, target, duration_ms);
-    if let PivotTarget::Body { body, .. } = target.pivot {
-        // Already focused on this body: the pivot started at its offset,
-        // exactly, however far the body has moved since the rig was set.
-        if focus.body == Some(body) {
-            camera_move.origin_offset = Some(focus.offset);
-        }
-        *focus = target.focus();
+    // Already in this body's frame: the pivot started at its offset,
+    // exactly, however far the body has moved since the rig was set.
+    if frame.is_on(target.pivot.body) {
+        camera_move.origin_offset = Some(frame.offset);
     }
+    *frame = target.frame(frame);
     active.0 = Some(camera_move);
 }
 
-/// ZOOM-01: advance the move in flight and write the rig from it.
+/// ZOOM-01: advance the move in flight and write the rig from it. The move
+/// rides along with its target body: the pivot is the body's position now
+/// plus an offset blended from where the move began.
 pub fn advance_move(
     time: Res<Time>,
     positions: Res<WorldPositions>,
@@ -114,46 +107,36 @@ pub fn advance_move(
     };
     camera_move.elapsed += time.delta_secs();
     let t = (camera_move.elapsed / camera_move.duration).clamp(0.0, 1.0);
-    let target_pivot = target_pivot_now(&camera_move.target, &positions, rig.pivot);
+    let target_pivot = target_pivot_now(&camera_move.target, &positions);
     let mut next = blend_rig(&camera_move.start, &camera_move.target, target_pivot, t);
-    // A move onto a body rides along with it: the pivot is the body's
-    // position now plus an offset blended from where the move began.
-    if let PivotTarget::Body { body, offset } = camera_move.target.pivot
-        && let Some(position) = body_position(body, &positions)
-    {
-        let from = *camera_move
-            .origin_offset
-            .get_or_insert(camera_move.start.pivot - position);
-        next.pivot = position + from.lerp(offset, ease_out_cubic(t));
-    }
+    let position = body_position(camera_move.target.pivot.body, &positions);
+    let from = *camera_move
+        .origin_offset
+        .get_or_insert(camera_move.start.pivot - position);
+    next.pivot = position + from.lerp(camera_move.target.pivot.offset, ease_out_cubic(t));
     next.distance = next.distance.clamp(MIN_DISTANCE, MAX_DISTANCE);
     *rig = next;
     active.0 = (!camera_move.finished()).then_some(camera_move);
 }
 
-/// The offset that keeps the focused body's pivot where the rig is now,
-/// so taking up the focus again doesn't jump.
-pub fn settle_focus(focus: &mut Focus, rig: &CameraRig, positions: &WorldPositions) {
-    if let Some(position) = focus.body.and_then(|body| body_position(body, positions)) {
-        focus.offset = rig.pivot - position;
-    }
+/// The offset that keeps the frame body's pivot where the rig is now, so
+/// taking up the frame again doesn't jump.
+pub fn settle_frame(frame: &mut Frame, rig: &CameraRig, positions: &WorldPositions) {
+    frame.offset = rig.pivot - body_position(frame.body, positions);
 }
 
-/// CAM-05: with no move in flight, the pivot is the focused object's
-/// position plus the offset, every frame.
-pub fn follow_focus(
+/// CAM-05: with no move in flight, the pivot is the frame body's position
+/// plus the offset, every frame.
+pub fn follow_frame(
     active: Res<ActiveMove>,
-    focus: Res<Focus>,
+    frame: Res<Frame>,
     positions: Res<WorldPositions>,
     mut rig: ResMut<CameraRig>,
 ) {
     if active.0.is_some() {
         return;
     }
-    let Some(position) = focus.body.and_then(|body| body_position(body, &positions)) else {
-        return;
-    };
-    rig.pivot = focused_pivot(position, focus.offset);
+    rig.pivot = frame_pivot(body_position(frame.body, &positions), frame.offset);
 }
 
 /// Place the camera from the rig.
