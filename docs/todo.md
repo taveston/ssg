@@ -18,6 +18,8 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 - [ ] **Shorter hover tooltip** · HOV-01
 - [ ] **Remove the hover tooltip** · HOV-01, HOV-02
 - [ ] **Ease tail length on rate changes** · MOT-13
+- [ ] **Inset as a sidebar; "In orbit" outline** · INS-05, INS-07
+  - `inset_dock_margin_px` is withdrawn; `sidebar_slide_ms` is new.
 - [ ] **Ship groups and condition** · SYM-09, SYM-10, SYM-12, GRP-09, TEST-06
   - The symbols are built; groups add to them (`view/symbols.rs`, `symbol_draw.rs`).
 - [ ] **Velocity leaders** · SYM-11

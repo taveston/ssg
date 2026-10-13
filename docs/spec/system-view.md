@@ -82,8 +82,8 @@ Ships and stations are drawn as symbols adapted from NATO APP-6: the **frame** s
 | INS-02 | The inset shows: header (name, class and ownership line), Focus and Close buttons; an image for the knowledge state (INS-04); key facts; and an "Open planetary view" button, disabled until the planetary view exists. | ✓ |
 | INS-03 | There is at most one selection and one inset. Selecting another object replaces the inset's contents in place. Close, Esc and a click on empty map space (a press and release within `drag_threshold_px` that hits no marker, pill, ring or panel) clear the selection and close the inset. | ✓ |
 | INS-04 | The inset image is a placeholder for the knowledge state: **surveyed** = clean render; **unsurveyed** = grainy telescope frame. There is no status text or date, and no stale state, until information gathering is designed. | ✓ |
-| INS-05 | The inset of a body with satellites has an "In orbit" list: one entry per satellite (its symbol per section 3a at `list_symbol_px`, or the body disc, and its name), in orbit order from the inside out. Clicking an entry selects that satellite (its inset replaces the parent's) once `double_click_window_ms` passes without a second click; double-clicking it behaves as ZOOM-16 and ZOOM-17. | ✓ |
-| INS-07 | The inset is docked at the right edge of the map area, `inset_dock_margin_px` below the top bar and from the right edge, `inset_width_px` wide. It does not move while the selection, camera or clock changes. Content taller than the map area scrolls inside the inset. There is no leader line. | ✓ |
+| INS-05 | The inset has an "In orbit" outline: the system as a tree, from the star down, in orbit order from the inside out and indented one level per generation. Each entry shows its symbol (section 3a, at `list_symbol_px`) or body disc, and its name. An entry with satellites has a toggle that expands or collapses them. The path from the star to the selection, and the selection's own satellites, are expanded when the selection changes; other entries keep the state the player left them in. The selection's row is highlighted and scrolled into view. Clicking an entry selects that object at once; the outline stays in place, so no row moves under the pointer. Double-clicking an entry behaves as ZOOM-16 and ZOOM-17. | |
+| INS-07 | The inset is a sidebar at the right of the window, from the top bar to the bottom, `inset_width_px` wide. While it is open, the map area ends at its left edge: the camera's viewport, the centre the frame body is placed at (CAM-05), the fits (ZOOM-15), the pan clamp (CAM-07) and the edge arrows (EDGE-01) all use the narrower map area. Opening or closing it slides it over `sidebar_slide_ms`; the map area and the view follow the slide, so the frame body stays centred in the visible map throughout, at the same scale. Selecting another object while it is open changes neither. Content taller than the sidebar scrolls inside it. | |
 | INS-08 | A body's inset lists, in its key facts: **Orbit** (distance to its parent, UNIT-01) and **Period** (UNIT-02); for the star, **Mass** in solar masses to 2 decimals instead; and, for a star, planet or moon only, **Mean radius** (UNIT-01, from SCL-05). Ships, stations, gates and salvage sites show no radius. | ✓ |
 | INS-06 | When the selected object is folded into its parent (GRP-01), the parent's pill carries the white selection ring. When the object unfolds, the ring moves to its own marker without a jump. | ✓ |
 
@@ -237,7 +237,7 @@ All in the `Tunables` resource (`src/view/tunables.rs`). Defaults are starting v
 | `focus_bracket_margin_px` | 2 px | CAM-22 |
 | `min_hit_radius_px` | 10 px | MRK-08 |
 | `inset_width_px` | 320 px | INS-07 |
-| `inset_dock_margin_px` | 12 px | INS-07 |
+| `sidebar_slide_ms` | 200 ms | INS-07 |
 | `ring_hit_px` | 7 px | HOV-02 |
 | `orbit_hover_alpha` | 0.6 | HOV-03 |
 | `distance_au_threshold_au` | 0.1 AU | UNIT-01 |
