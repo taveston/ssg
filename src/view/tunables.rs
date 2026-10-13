@@ -27,19 +27,16 @@ pub struct Tunables {
     pub fold_unfold_anim_ms: f32,
 
     // --- Motion rule ---
-    /// T_dot: at or above this apparent period (orbital period divided by
-    /// the time rate, in real seconds) a satellite is drawn as a dot at its
-    /// true position with a short trail.
-    pub t_dot_secs: f32,
-    /// T_ring: below this apparent period a satellite switches to
-    /// exposure-ring mode. Between the two, whichever mode is already
-    /// active is kept.
-    pub t_ring_secs: f32,
-    /// Cross-fade time when a satellite switches between dot and ring.
-    pub motion_crossfade_ms: f32,
-    /// How much of the orbit a dot-mode trail covers, in degrees of arc.
-    pub trail_arc_degrees: f32,
-    /// Line width of an exposure ring. The ordinary dim orbit ring is 1px.
+    /// An orbit's tail covers the arc swept in this many real seconds; an
+    /// apparent period (orbital period over the time rate) shorter than
+    /// this closes the tail into the exposure ring (MOT-01, MOT-02,
+    /// MOT-10).
+    pub tail_secs: f32,
+    /// As a tail grows from this many degrees to a full circle, the dot
+    /// fades out and the ring widens to the exposure width; paused, tails
+    /// are capped here (MOT-11, MOT-12).
+    pub dot_fade_from_degrees: f32,
+    /// Line width of an exposure ring (MOT-02).
     pub exposure_ring_width_px: f32,
 
     // --- Zoom and navigation ---
@@ -135,10 +132,8 @@ impl Default for Tunables {
             unfold_at_px: 24.0,
             fold_unfold_anim_ms: 200.0,
 
-            t_dot_secs: 25.0,
-            t_ring_secs: 20.0,
-            motion_crossfade_ms: 200.0,
-            trail_arc_degrees: 30.0,
+            tail_secs: 8.0,
+            dot_fade_from_degrees: 300.0,
             exposure_ring_width_px: 3.0,
 
             zoom_step_factor: 2.0,

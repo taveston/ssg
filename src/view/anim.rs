@@ -1,6 +1,6 @@
 //! Frame-rate-independent animation helpers, shared by every animated
-//! presentation rule: the fold slide (GRP-03), the motion-mode cross-fade
-//! (MOT-03) and the zoom step's ease-out (ZOOM-01).
+//! presentation rule: the fold slide (GRP-03) and the zoom step's
+//! ease-out (ZOOM-01).
 //!
 //! These are deliberately plain functions on plain values (ARCH-20): the
 //! systems that own the state read the clock, call these, and store the

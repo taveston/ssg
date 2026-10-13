@@ -61,8 +61,7 @@ use crate::{Boot, Stage};
 
 /// One frame at 60 fps.
 const FRAME: Duration = Duration::from_micros(16_667);
-/// Enough frames for transforms to propagate and a 200 ms fold or
-/// cross-fade to finish.
+/// Enough frames for transforms to propagate and a 200 ms fold to finish.
 const SETTLE_FRAMES: usize = 30;
 const VIEWPORT: UVec2 = UVec2::new(1600, 900);
 /// A steep tilt from straight down, so projections are checked off the
@@ -277,7 +276,7 @@ fn fold_state_after_a_scale_change() {
     );
 }
 
-/// ARCH-31 / MOT-01 to MOT-04: the motion mode follows the time rate.
+/// ARCH-31 / MOT-01, MOT-02, MOT-04, MOT-12: the motion mode follows the time rate.
 #[test]
 fn motion_mode_after_a_rate_change() {
     let mut app = headless_app(FRAME);
@@ -303,18 +302,43 @@ fn motion_mode_after_a_rate_change() {
     app.world_mut().resource_mut::<GameClock>().run_at(5.0);
     run(&mut app, SETTLE_FRAMES);
     assert!(ring(&mut app, "Halden IVc"));
-    let ivc = body(&mut app, "Halden IVc");
-    let state = app.world().get::<MotionModeState>(ivc).unwrap();
-    assert_eq!(
-        state.crossfade_t, 1.0,
-        "MOT-03: the cross-fade has finished"
-    );
 
-    // MOT-04: paused, everything is a dot.
+    // MOT-12: paused, everything is a full-brightness dot with its tail,
+    // capped at `dot_fade_from_degrees`.
     app.world_mut().resource_mut::<GameClock>().toggle_pause();
-    run(&mut app, SETTLE_FRAMES);
+    run(&mut app, 2);
     let mut modes = app.world_mut().query::<&MotionModeState>();
-    assert!(modes.iter(app.world()).all(|mode| !mode.ring_mode));
+    assert!(
+        modes
+            .iter(app.world())
+            .all(|mode| !mode.ring_mode && mode.dot_alpha() == 1.0 && mode.tail_degrees <= 300.0)
+    );
+    // Unpausing restores the running state.
+    app.world_mut().resource_mut::<GameClock>().toggle_pause();
+    run(&mut app, 2);
+    assert!(ring(&mut app, "Halden IVc"));
+}
+
+/// TEST-08 / MOT-02: at 1 d/s six of Morrow's moons (periods under 8 d)
+/// are exposure rings and five (8 d or more) are dots.
+#[test]
+fn morrows_moons_straddle_both_motion_modes() {
+    let mut app = headless_app(FRAME);
+    app.add_plugins((ContentPlugin, SimPlugin))
+        .add_plugins((TunablesPlugin, ProjectionPlugin, MotionPlugin))
+        .init_resource::<Selection>()
+        .insert_resource(placeholder_fonts());
+    run(&mut app, 2);
+    let morrow = body(&mut app, "Morrow");
+    let mut moons = app
+        .world_mut()
+        .query::<(&ChildOf, &BodyClass, &MotionModeState)>();
+    let (rings, dots): (Vec<bool>, Vec<bool>) = moons
+        .iter(app.world())
+        .filter(|(child_of, class, _)| child_of.parent() == morrow && **class == BodyClass::Moon)
+        .map(|(_, _, mode)| mode.ring_mode)
+        .partition(|ring| *ring);
+    assert_eq!((rings.len(), dots.len()), (6, 5));
 }
 
 /// ARCH-31 / ZOOM-15: the stops come from Corvane's real orbits.
@@ -892,7 +916,7 @@ fn the_rule_applies_to_every_orbiting_object() {
         "gates keep edge arrows"
     );
 
-    app.world_mut().resource_mut::<GameClock>().run_at(5.0);
+    app.world_mut().resource_mut::<GameClock>().run_at(16.0);
     run(&mut app, SETTLE_FRAMES);
     let pell = body(&mut app, "Pell");
     assert!(app.world().get::<MotionModeState>(pell).unwrap().ring_mode);
@@ -1420,7 +1444,7 @@ fn the_frame_moves_to_the_parent_when_the_frame_body_becomes_a_ring() {
     run(&mut app, 40);
     assert_eq!(frame_body(&app), ivc);
 
-    // IVc's apparent period drops below T_ring.
+    // IVc's apparent period drops below tail_secs.
     app.world_mut().resource_mut::<GameClock>().run_at(5.0);
     run(&mut app, SETTLE_FRAMES);
     let new_frame = frame(&app);
@@ -1537,7 +1561,7 @@ fn a_ringed_planet_hands_the_frame_back_to_the_star() {
     run(&mut app, move_frames());
     assert_eq!(frame_body(&app), pell);
 
-    app.world_mut().resource_mut::<GameClock>().run_at(5.0);
+    app.world_mut().resource_mut::<GameClock>().run_at(16.0);
     run(&mut app, SETTLE_FRAMES + move_frames());
     assert!(in_star_frame(&app));
     let rig = *app.world().resource::<CameraRig>();

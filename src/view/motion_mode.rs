@@ -1,251 +1,246 @@
-//! Motion mode: whether an orbiting body reads as a dot or as an exposure
-//! ring, and the rules that decide it (MOT-01 to MOT-04). Shared state,
-//! read by markers, rings and trails (ARCH-03); `motion.rs` is the one
-//! writer.
+//! The motion rule (MOT-01, MOT-02, MOT-04, MOT-10 to MOT-12): how an
+//! orbiting body reads on screen, as a dot with a tail on its ring, or -
+//! when it moves too fast to read as a position - as an exposure ring.
+//! Shared state, read by markers, rings, the inset and the camera
+//! (ARCH-03); `motion.rs` is the one writer.
 //!
-//! The apparent period of an orbit is its period divided by the time rate,
-//! in real seconds, and infinite when paused. Above T_dot a body is a dot at
-//! its true position with a short trail; below T_ring it becomes an exposure
-//! ring - no dot, a brighter and thicker ring carrying the label, because
-//! the body moves too fast on screen to read as a position. Between the two
-//! thresholds the mode already active is kept.
+//! The apparent period of an orbit is its period divided by the selected
+//! time rate, in real seconds; pausing keeps the selected rate, so it
+//! doesn't change the apparent period. The tail covers the arc the body
+//! swept in the last `tail_secs` real seconds. As it grows past
+//! `dot_fade_from_degrees` the dot fades and the ring thickens, until at
+//! 360° the tail has closed into the exposure ring.
 
 use bevy::prelude::*;
 
-/// Which way an orbiting body is currently drawn, plus the cross-fade
-/// between modes.
-#[derive(Component, Default)]
+/// Degrees in a full orbit.
+const FULL_TURN_DEGREES: f32 = 360.0;
+
+/// How an orbiting body is drawn this frame.
+#[derive(Component, Default, Debug, Clone, Copy, PartialEq)]
 pub struct MotionModeState {
+    /// The tail's length along the ring, in degrees (0 to 360).
+    pub tail_degrees: f32,
+    /// How far the tail has closed into the exposure ring: 0 while it is
+    /// shorter than `dot_fade_from_degrees`, 1 at a full circle.
+    pub closing: f32,
+    /// MOT-02: running, with the tail closed into the exposure ring.
     pub ring_mode: bool,
-    /// 0.0 = fully the previous mode, 1.0 = fully `ring_mode`.
-    pub crossfade_t: f32,
 }
 
 impl MotionModeState {
-    /// How strongly the ring should be drawn, 0.0 to 1.0.
-    pub fn ring_strength(&self) -> f32 {
-        if self.ring_mode {
-            self.crossfade_t
-        } else {
-            1.0 - self.crossfade_t
-        }
+    /// MOT-11: the dot fades out as the tail closes.
+    pub fn dot_alpha(&self) -> f32 {
+        1.0 - self.closing
     }
 
-    /// How strongly the dot and trail should be drawn.
-    pub fn dot_strength(&self) -> f32 {
-        1.0 - self.ring_strength()
+    /// MOT-11: the ring grows from `normal_px` to `exposure_px` wide as the
+    /// tail closes.
+    pub fn ring_width(&self, normal_px: f32, exposure_px: f32) -> f32 {
+        normal_px + (exposure_px - normal_px) * self.closing
     }
 }
 
-/// MOT-02 / MOT-01 / MOT-03: below `t_ring_secs` an object is an exposure
-/// ring, at or above `t_dot_secs` it is a dot, and between the two it keeps
-/// whichever mode it is already in.
-///
-/// MOT-04 falls out rather than being special-cased: pause gives an
-/// infinite apparent period, which lands in the dot branch on its own.
-pub fn next_ring_mode(
-    apparent_secs: f64,
-    currently_ring: bool,
-    t_ring_secs: f32,
-    t_dot_secs: f32,
-) -> bool {
-    if apparent_secs < t_ring_secs as f64 {
-        true
-    } else if apparent_secs >= t_dot_secs as f64 {
-        false
-    } else {
-        currently_ring
-    }
+/// The motion rule's settings, from the tunables.
+#[derive(Debug, Clone, Copy)]
+pub struct TailSettings {
+    pub tail_secs: f32,
+    pub dot_fade_from_degrees: f32,
 }
 
-/// MOT-01 / MOT-04: the apparent period in real seconds - how long one
-/// orbit takes to watch - is the orbital period divided by the time rate,
-/// and infinite when paused.
-pub fn apparent_period_secs(period_days: f64, rate_days_per_sec: f64, paused: bool) -> f64 {
-    if paused || rate_days_per_sec <= 0.0 {
+/// The apparent period in real seconds (how long one orbit takes to
+/// watch) is the orbital period divided by the selected time rate. Pausing
+/// keeps the selected rate, so it is not an input.
+pub fn apparent_period_secs(period_days: f64, rate_days_per_sec: f64) -> f64 {
+    if rate_days_per_sec <= 0.0 {
         f64::INFINITY
     } else {
         period_days / rate_days_per_sec
     }
 }
 
-/// MOT-03: the cross-fade runs from 0 to 1 and stops there; `step` comes
-/// from `motion_crossfade_ms`.
-pub fn advance_crossfade(crossfade_t: f32, step: f32) -> f32 {
-    (crossfade_t + step.abs()).min(1.0)
-}
-
-/// MOT-01: a dot's trail covers `arc_degrees` of its own orbit, so it reads
-/// as the same shape at every time rate and frame rate. Sampling by
-/// simulated days rather than by frames is what makes that true.
-pub fn trail_span_days(period_days: f64, arc_degrees: f32) -> f64 {
-    period_days * (arc_degrees as f64 / 360.0)
-}
-
-/// MOT-01: the gap between trail samples, for a trail of `samples` dots.
-pub fn trail_sample_interval_days(period_days: f64, arc_degrees: f32, samples: usize) -> f64 {
-    if samples == 0 {
-        return f64::INFINITY;
+/// MOT-10: the tail covers the arc swept in the last `tail_secs` real
+/// seconds, 360° × `tail_secs` ÷ apparent period, up to a full circle. It
+/// follows the time rate continuously, with no steps.
+pub fn running_tail_degrees(apparent_secs: f64, tail_secs: f32) -> f32 {
+    if apparent_secs <= 0.0 {
+        return FULL_TURN_DEGREES;
     }
-    trail_span_days(period_days, arc_degrees) / samples as f64
-}
-
-/// MOT-01: whether enough simulated time has passed for the next sample.
-/// Paused time never advances, so a paused trail simply stops growing.
-pub fn should_sample(elapsed_days: f64, last_sample_day: f64, interval_days: f64) -> bool {
-    elapsed_days - last_sample_day >= interval_days
-}
-
-/// MOT-01: how strongly a trail dot is drawn, oldest faintest. `age` is 0
-/// for the newest sample.
-pub fn trail_dot_fade(age: usize, length: usize) -> f32 {
-    if length == 0 {
+    if !apparent_secs.is_finite() {
         return 0.0;
     }
-    1.0 - age as f32 / length as f32
+    let degrees = FULL_TURN_DEGREES as f64 * tail_secs as f64 / apparent_secs;
+    (degrees as f32).min(FULL_TURN_DEGREES)
+}
+
+/// MOT-11: how far a tail of `tail_degrees` has closed into the exposure
+/// ring: 0 up to `fade_from_degrees`, rising linearly to 1 at 360°.
+pub fn closing(tail_degrees: f32, fade_from_degrees: f32) -> f32 {
+    let span = FULL_TURN_DEGREES - fade_from_degrees;
+    if span <= 0.0 {
+        return if tail_degrees >= FULL_TURN_DEGREES {
+            1.0
+        } else {
+            0.0
+        };
+    }
+    ((tail_degrees - fade_from_degrees) / span).clamp(0.0, 1.0)
+}
+
+/// MOT-01, MOT-02, MOT-04, MOT-10 to MOT-12: how a body with this period
+/// is drawn at this rate. Running, the tail follows the rate and closes
+/// into the exposure ring at a full circle. Paused, each tail keeps its
+/// running length but is capped at `dot_fade_from_degrees`, so every body
+/// shows as a full-brightness dot with its tail; unpausing restores the
+/// running state.
+pub fn motion_state(
+    period_days: f64,
+    rate_days_per_sec: f64,
+    paused: bool,
+    settings: TailSettings,
+) -> MotionModeState {
+    let apparent = apparent_period_secs(period_days, rate_days_per_sec);
+    let running = running_tail_degrees(apparent, settings.tail_secs);
+    let tail = if paused {
+        running.min(settings.dot_fade_from_degrees)
+    } else {
+        running
+    };
+    MotionModeState {
+        tail_degrees: tail,
+        closing: closing(tail, settings.dot_fade_from_degrees),
+        ring_mode: !paused && running >= FULL_TURN_DEGREES,
+    }
+}
+
+/// MOT-01: how far behind the body a point on its ring is, in degrees
+/// along the direction of motion (0 at the body, rising backwards round
+/// the orbit). Angles are the orbit's own, in radians.
+pub fn degrees_behind(body_angle: f32, point_angle: f32) -> f32 {
+    (body_angle - point_angle)
+        .rem_euclid(std::f32::consts::TAU)
+        .to_degrees()
+}
+
+/// MOT-01 / MOT-02: how much of the exposure brightness a point on the
+/// ring has, 0 to 1: 1 at the dot, falling linearly to 0 (the ring's
+/// normal brightness) at the tail's end, 0 beyond it. In ring mode the
+/// whole ring is at full exposure brightness.
+pub fn tail_brightness(behind_degrees: f32, state: &MotionModeState) -> f32 {
+    if state.ring_mode {
+        return 1.0;
+    }
+    if state.tail_degrees <= 0.0 || behind_degrees > state.tail_degrees {
+        return 0.0;
+    }
+    1.0 - behind_degrees / state.tail_degrees
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    const T_RING: f32 = 20.0;
-    const T_DOT: f32 = 25.0;
+    const SETTINGS: TailSettings = TailSettings {
+        tail_secs: 8.0,
+        dot_fade_from_degrees: 300.0,
+    };
 
-    /// Covers MOT-03.
-    #[test]
-    fn ring_below_t_ring_and_dot_above_t_dot() {
-        assert!(next_ring_mode(19.9, false, T_RING, T_DOT));
-        assert!(next_ring_mode(0.1, false, T_RING, T_DOT));
-        assert!(!next_ring_mode(25.0, true, T_RING, T_DOT));
-        assert!(!next_ring_mode(68.0, true, T_RING, T_DOT));
-    }
-
-    /// Between the thresholds the mode is kept, so an object drifting
-    /// across the band doesn't switch back and forth.
-    /// Covers MOT-03.
-    #[test]
-    fn keeps_mode_between_thresholds() {
-        for apparent in [20.0_f64, 22.5, 24.9] {
-            assert!(next_ring_mode(apparent, true, T_RING, T_DOT));
-            assert!(!next_ring_mode(apparent, false, T_RING, T_DOT));
-        }
-    }
-
-    /// Covers MOT-03.
-    #[test]
-    fn no_flicker_on_a_round_trip_through_the_band() {
-        let mut ring = false;
-        for apparent in [30.0_f64, 25.0, 24.0, 21.0, 20.0] {
-            ring = next_ring_mode(apparent, ring, T_RING, T_DOT);
-            assert!(!ring, "still a dot at {apparent}s");
-        }
-        ring = next_ring_mode(19.5, ring, T_RING, T_DOT);
-        assert!(ring);
-        for apparent in [20.0_f64, 22.0, 24.9] {
-            ring = next_ring_mode(apparent, ring, T_RING, T_DOT);
-            assert!(ring, "still a ring at {apparent}s");
-        }
-        ring = next_ring_mode(25.0, ring, T_RING, T_DOT);
-        assert!(!ring);
-    }
-
-    /// MOT-04: pause is an infinite apparent period, which must fall out of
-    /// the same rule rather than needing a special case.
-    #[test]
-    fn pause_gives_dot_mode() {
-        assert!(!next_ring_mode(f64::INFINITY, true, T_RING, T_DOT));
-    }
-
-    /// MOT-03 against the real test content: IVc flips mode between the two
-    /// rates in the top bar (31 s at 1 d/s, 6.2 s at 5 d/s).
-    #[test]
-    fn ivc_changes_mode_between_rates() {
-        let period_days = 31.0;
-        assert!(!next_ring_mode(period_days / 1.0, false, T_RING, T_DOT));
-        assert!(next_ring_mode(period_days / 5.0, false, T_RING, T_DOT));
-    }
-
-    /// MOT-01: the apparent period is the orbital period divided by the
-    /// rate, so the same orbit reads differently at 1 d/s and 5 d/s.
+    /// The apparent period is the orbital period over the selected rate;
+    /// pausing doesn't change it.
     #[test]
     fn apparent_period_divides_by_the_time_rate() {
-        assert_eq!(apparent_period_secs(31.0, 1.0, false), 31.0);
-        assert_eq!(apparent_period_secs(31.0, 5.0, false), 6.2);
-        assert_eq!(apparent_period_secs(0.1, 1.0, false), 0.1);
+        assert_eq!(apparent_period_secs(31.0, 1.0), 31.0);
+        assert_eq!(apparent_period_secs(31.0, 5.0), 6.2);
+        assert!(apparent_period_secs(31.0, 0.0).is_infinite());
     }
 
-    /// MOT-04: pause (and a rate of zero, which is the same thing) gives an
-    /// infinite apparent period - the dot branch, with no special case.
+    /// MOT-10: the tail is the arc swept in `tail_secs`: a 16 s apparent
+    /// period gives half a circle, an 80 s one 36°, and anything at or
+    /// under 8 s a full circle.
     #[test]
-    fn paused_time_gives_an_infinite_apparent_period() {
-        assert!(apparent_period_secs(31.0, 1.0, true).is_infinite());
-        assert!(apparent_period_secs(31.0, 0.0, false).is_infinite());
-        assert!(!next_ring_mode(
-            apparent_period_secs(0.1, 1.0, true),
-            true,
-            T_RING,
-            T_DOT
-        ));
+    fn the_tail_is_the_arc_swept_in_tail_secs() {
+        assert!((running_tail_degrees(16.0, 8.0) - 180.0).abs() < 1e-4);
+        assert!((running_tail_degrees(80.0, 8.0) - 36.0).abs() < 1e-4);
+        assert_eq!(running_tail_degrees(8.0, 8.0), 360.0);
+        assert_eq!(running_tail_degrees(0.5, 8.0), 360.0);
+        assert_eq!(running_tail_degrees(f64::INFINITY, 8.0), 0.0);
     }
 
-    /// MOT-03: the cross-fade climbs to 1 and stays there.
+    /// MOT-10: the tail's length follows the rate continuously: a small
+    /// change of rate makes a small change of length, with no steps.
     #[test]
-    fn crossfade_runs_to_one_and_stops() {
-        assert!((advance_crossfade(0.0, 0.25) - 0.25).abs() < 1e-6);
-        assert_eq!(advance_crossfade(0.9, 0.25), 1.0);
-        assert_eq!(advance_crossfade(1.0, 0.25), 1.0);
-    }
-
-    /// MOT-01: the trail covers `trail_arc_degrees` of arc whatever the
-    /// period, which is what makes it read the same on a 0.1 d station orbit
-    /// and a 68 d moon orbit.
-    #[test]
-    fn trail_covers_a_fixed_arc_of_the_orbit() {
-        for period in [0.1_f64, 1.5, 31.0, 68.0] {
-            let span = trail_span_days(period, 30.0);
-            assert!(
-                (span / period - 30.0 / 360.0).abs() < 1e-9,
-                "{period} d orbit sampled over {span} d"
-            );
+    fn the_tail_follows_the_rate_without_steps() {
+        let mut last = running_tail_degrees(apparent_period_secs(31.0, 0.5), 8.0);
+        for step in 1..=200 {
+            let rate = 0.5 + step as f64 * 0.01;
+            let now = running_tail_degrees(apparent_period_secs(31.0, rate), 8.0);
+            assert!(now >= last && now - last < 2.0, "step at {rate} d/s");
+            last = now;
         }
     }
 
-    /// MOT-01: the samples divide that arc evenly, and a longer orbit is
-    /// sampled proportionally less often.
+    /// MOT-11: from 300° to 360° the dot fades out and the ring widens to
+    /// the exposure width, linearly.
     #[test]
-    fn trail_samples_divide_the_arc_evenly() {
-        let interval = trail_sample_interval_days(36.0, 30.0, 16);
-        assert!((interval - 3.0 / 16.0).abs() < 1e-9);
-        assert_eq!(
-            trail_sample_interval_days(72.0, 30.0, 16),
-            2.0 * interval,
-            "twice the period, twice the gap"
-        );
+    fn the_dot_fades_and_the_ring_widens_as_the_tail_closes() {
+        let at = |tail: f32| MotionModeState {
+            tail_degrees: tail,
+            closing: closing(tail, 300.0),
+            ring_mode: false,
+        };
+        assert_eq!(at(200.0).dot_alpha(), 1.0);
+        assert_eq!(at(300.0).dot_alpha(), 1.0);
+        assert!((at(330.0).dot_alpha() - 0.5).abs() < 1e-5);
+        assert_eq!(at(360.0).dot_alpha(), 0.0);
+        assert_eq!(at(300.0).ring_width(2.0, 3.0), 2.0);
+        assert!((at(330.0).ring_width(2.0, 3.0) - 2.5).abs() < 1e-5);
+        assert_eq!(at(360.0).ring_width(2.0, 3.0), 3.0);
     }
 
-    /// MOT-01: sampling is driven by simulated days, so a paused clock (no
-    /// elapsed days) never takes another sample, and an empty trail pool
-    /// can't divide by zero.
+    /// MOT-02: running with an apparent period under `tail_secs`, the tail
+    /// has closed: ring mode, no dot, the whole ring bright and wide.
     #[test]
-    fn trail_sampling_is_driven_by_simulated_days() {
-        let interval = trail_sample_interval_days(31.0, 30.0, 16);
-        assert!(
-            !should_sample(10.0, 10.0, interval),
-            "paused: no new sample"
-        );
-        assert!(!should_sample(10.0 + interval * 0.5, 10.0, interval));
-        assert!(should_sample(10.0 + interval, 10.0, interval));
-        assert!(trail_sample_interval_days(31.0, 30.0, 0).is_infinite());
-        assert!(!should_sample(1e9, 0.0, f64::INFINITY));
+    fn a_fast_orbit_is_an_exposure_ring() {
+        let state = motion_state(0.1, 1.0, false, SETTINGS);
+        assert!(state.ring_mode);
+        assert_eq!(state.dot_alpha(), 0.0);
+        assert_eq!(tail_brightness(180.0, &state), 1.0);
+        let slow = motion_state(31.0, 1.0, false, SETTINGS);
+        assert!(!slow.ring_mode && slow.dot_alpha() == 1.0);
     }
 
-    /// MOT-01: the trail fades from the body backwards.
+    /// MOT-04 / MOT-12: paused, a tail keeps its running length but is
+    /// capped at `dot_fade_from_degrees`, so even an exposure-ring body is
+    /// a full-brightness dot with its tail; unpausing restores it.
     #[test]
-    fn trail_fades_from_newest_to_oldest() {
-        assert_eq!(trail_dot_fade(0, 16), 1.0);
-        assert!(trail_dot_fade(8, 16) < trail_dot_fade(4, 16));
-        assert!(trail_dot_fade(15, 16) > 0.0, "the oldest dot still shows");
-        assert_eq!(trail_dot_fade(0, 0), 0.0);
+    fn pausing_caps_the_tail_and_shows_every_dot() {
+        let slow_paused = motion_state(31.0, 1.0, true, SETTINGS);
+        let slow_running = motion_state(31.0, 1.0, false, SETTINGS);
+        assert_eq!(slow_paused, slow_running, "a short tail is kept as is");
+        let fast_paused = motion_state(0.1, 1.0, true, SETTINGS);
+        assert_eq!(fast_paused.tail_degrees, 300.0);
+        assert!(!fast_paused.ring_mode);
+        assert_eq!(fast_paused.dot_alpha(), 1.0);
+        assert!(motion_state(0.1, 1.0, false, SETTINGS).ring_mode);
+    }
+
+    /// MOT-01: the tail runs from exposure brightness at the dot down to
+    /// the ring's normal brightness at its end, behind the body.
+    #[test]
+    fn the_tail_fades_behind_the_body() {
+        let state = MotionModeState {
+            tail_degrees: 90.0,
+            closing: 0.0,
+            ring_mode: false,
+        };
+        assert_eq!(tail_brightness(0.0, &state), 1.0);
+        assert!((tail_brightness(45.0, &state) - 0.5).abs() < 1e-5);
+        assert_eq!(tail_brightness(90.0, &state), 0.0);
+        assert_eq!(tail_brightness(120.0, &state), 0.0);
+        // Ahead of the body (just under a full turn behind) is untouched.
+        let ahead = degrees_behind(1.0, 1.1);
+        assert!(ahead > 350.0);
+        assert_eq!(tail_brightness(ahead, &state), 0.0);
+        assert!((degrees_behind(1.0, 0.9) - 0.1_f32.to_degrees()).abs() < 1e-3);
     }
 }

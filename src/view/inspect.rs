@@ -606,8 +606,9 @@ mod tests {
         let mut world = World::new();
         let body = world
             .spawn(MotionModeState {
+                tail_degrees: 360.0,
+                closing: 1.0,
                 ring_mode: true,
-                crossfade_t: 1.0,
             })
             .id();
         let note = world

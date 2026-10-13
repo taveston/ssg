@@ -1,26 +1,30 @@
-//! Orbit rings (MRK-05), exposure rings (MOT-02) and their hover and
-//! selection highlight (HOV-03).
+//! Orbit rings (MRK-05), their tails and exposure rings (MOT-01, MOT-02,
+//! MOT-11), and their hover and selection highlight (HOV-03).
 //!
 //! Rings are drawn for planets and for any *unfolded* satellite (GRP-01),
 //! finer where the camera is close so they stay true to the circle at any
-//! zoom (SCL-02).
-//! A body in exposure-ring mode (see `motion.rs`) gets a second, brighter
-//! and thicker ring drawn over the dim one. A hovered body's ring is white
-//! at `orbit_hover_alpha`, a selected body's full white (HOV-03).
+//! zoom (SCL-02). Each ring is one stroke whose brightness varies along it:
+//! the tail behind a body runs from the exposure brightness at the dot down
+//! to the ring's normal brightness, and an exposure ring is bright all
+//! round. Each ring is its own retained gizmo, so it can widen on its own
+//! as its tail closes (MOT-11). A hovered body's ring is white at
+//! `orbit_hover_alpha`, a selected body's full white (HOV-03).
 
+use bevy::color::Mix;
 use bevy::prelude::*;
 
-use crate::Stage;
 use crate::sim::body::BodyClass;
-use crate::sim::orbit::Orbit;
+use crate::sim::orbit::{Orbit, OrbitPositionKm};
 use crate::view::camera::state::camera_fov;
+use crate::view::colors;
 use crate::view::fold::SatelliteFoldState;
 use crate::view::hovered::HoveredBodies;
-use crate::view::motion_mode::MotionModeState;
+use crate::view::motion_mode::{MotionModeState, degrees_behind, tail_brightness};
 use crate::view::scale::km_to_render;
 use crate::view::selection::Selection;
 use crate::view::tunables::Tunables;
 use crate::view::world::WorldPositions;
+use crate::{Boot, Stage};
 
 /// How many straight chords a ring starts as, enough for any ring seen
 /// from a distance.
@@ -35,30 +39,47 @@ const MAX_RING_SPLITS: u32 = 12;
 const NEAR_EPSILON: f32 = 0.01;
 /// MRK-05: orbits are *faint* rings.
 const DIM_RING_ALPHA: f32 = 0.35;
-/// Below this strength an exposure ring isn't worth drawing.
-const MIN_RING_STRENGTH: f32 = 0.01;
+/// The width of an ordinary orbit ring, in pixels; an exposure ring is
+/// `exposure_ring_width_px` (MOT-11).
+const NORMAL_RING_WIDTH_PX: f32 = 2.0;
 
-/// Its own gizmo group so exposure rings can carry a thicker line width
-/// than the ordinary orbit rings (MOT-02).
-#[derive(Default, Reflect, GizmoConfigGroup)]
-pub struct ExposureRingGizmos;
+/// The retained gizmo that draws one body's ring.
+#[derive(Component)]
+pub struct RingStrokeFor(pub Entity);
 
 pub struct RingsPlugin;
 
 impl Plugin for RingsPlugin {
     fn build(&self, app: &mut App) {
-        app.init_gizmo_group::<ExposureRingGizmos>()
-            .add_systems(Startup, configure_exposure_gizmos)
+        app.add_systems(Startup, spawn_ring_strokes.in_set(Boot::Overlay))
             // Drawn with the rest of the overlay, once grouping and motion
             // have decided what shows.
             .add_systems(Update, draw_orbit_rings.in_set(Stage::Overlay));
     }
 }
 
-/// MOT-02: exposure rings are `exposure_ring_width_px` wide.
-fn configure_exposure_gizmos(mut config_store: ResMut<GizmoConfigStore>, tunables: Res<Tunables>) {
-    let (config, _) = config_store.config_mut::<ExposureRingGizmos>();
-    config.line.width = tunables.exposure_ring_width_px;
+/// One retained gizmo per body whose ring can be drawn.
+fn spawn_ring_strokes(
+    mut commands: Commands,
+    mut assets: ResMut<Assets<GizmoAsset>>,
+    bodies: Query<(Entity, &BodyClass), With<Orbit>>,
+) {
+    for (body, class) in &bodies {
+        if !ring_is_drawn(*class, false) {
+            continue;
+        }
+        commands.spawn((
+            RingStrokeFor(body),
+            Gizmo {
+                handle: assets.add(GizmoAsset::new()),
+                line_config: GizmoLineConfig {
+                    width: NORMAL_RING_WIDTH_PX,
+                    ..default()
+                },
+                ..default()
+            },
+        ));
+    }
 }
 
 /// Everything orbiting, with what decides how its ring is drawn.
@@ -66,8 +87,8 @@ type RingBodies<'w, 's> = Query<
     'w,
     's,
     (
-        Entity,
         &'static Orbit,
+        &'static OrbitPositionKm,
         &'static BodyClass,
         Option<&'static ChildOf>,
         Option<&'static SatelliteFoldState>,
@@ -78,7 +99,7 @@ type RingBodies<'w, 's> = Query<
 /// MRK-05 / HOV-02: whether a body's orbit ring is drawn at all. Gates and
 /// salvage sites sit on star orbits that would only add clutter (gates
 /// have their edge arrows instead), and a folded satellite draws nothing:
-/// no marker, label, ring or trail (GRP-01).
+/// no marker, label or ring (GRP-01).
 pub fn ring_is_drawn(class: BodyClass, folded_away: bool) -> bool {
     !matches!(class, BodyClass::Gate | BodyClass::SalvageSite) && !folded_away
 }
@@ -87,7 +108,7 @@ pub fn ring_is_drawn(class: BodyClass, folded_away: bool) -> bool {
 /// white while its object is selected (selected wins), white at
 /// `hover_alpha` while hovered, otherwise none.
 pub fn ring_highlight(selected: bool, hovered: bool, hover_alpha: f32) -> Option<Color> {
-    let white = crate::view::colors::SELECTION_RING;
+    let white = colors::SELECTION_RING;
     if selected {
         Some(white)
     } else if hovered {
@@ -97,19 +118,58 @@ pub fn ring_highlight(selected: bool, hovered: bool, hover_alpha: f32) -> Option
     }
 }
 
-/// MRK-05 / MOT-02 / HOV-03: every visible orbit's faint ring, the bright
-/// one over it in exposure-ring mode, and the hover and selection
-/// highlight.
+/// The two ends of a ring's brightness: its normal colour and the
+/// exposure brightness its tail starts from.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct RingColors {
+    pub normal: Color,
+    pub exposure: Color,
+}
+
+/// MRK-05 / MOT-01 / HOV-03: a ring's normal colour is faint, or the
+/// highlight; its exposure colour is the bright neutral, or white while
+/// highlighted.
+pub fn ring_colors(highlight: Option<Color>) -> RingColors {
+    RingColors {
+        normal: highlight.unwrap_or(colors::ORBIT_LINE.with_alpha(DIM_RING_ALPHA)),
+        exposure: if highlight.is_some() {
+            colors::SELECTION_RING
+        } else {
+            colors::NEUTRAL
+        },
+    }
+}
+
+/// MOT-01: a point's colour, `brightness` of the way from the normal
+/// colour to the exposure colour.
+pub fn ring_color_at(colors: RingColors, brightness: f32) -> Color {
+    colors
+        .normal
+        .mix(&colors.exposure, brightness.clamp(0.0, 1.0))
+}
+
+/// What one ring stroke needs this frame, if its ring shows.
+struct StrokeLook {
+    center: Vec3,
+    radius: f32,
+    body_angle: f32,
+    mode: MotionModeState,
+    colors: RingColors,
+}
+
+/// MRK-05 / MOT-01 / MOT-02 / MOT-11 / HOV-03: refill every ring stroke:
+/// the ring as the camera sees it, bright along the tail (or all round in
+/// ring mode), as wide as its closing makes it.
 #[allow(clippy::too_many_arguments)]
 fn draw_orbit_rings(
-    mut gizmos: Gizmos,
-    mut exposure: Gizmos<ExposureRingGizmos>,
     selection: Res<Selection>,
     hovered: Res<HoveredBodies>,
     tunables: Res<Tunables>,
     camera_q: Query<(&Camera, &Transform, &Projection)>,
     bodies: RingBodies,
     positions: Res<WorldPositions>,
+    mut strokes: Query<(&RingStrokeFor, &mut Gizmo)>,
+    mut assets: ResMut<Assets<GizmoAsset>>,
 ) {
     // This frame's camera and positions (CAM-05), so rings and markers
     // agree.
@@ -121,49 +181,63 @@ fn draw_orbit_rings(
         camera_forward: camera_transform.forward().as_vec3(),
         max_error_rad: max_error_rad(camera, projection),
     };
-
-    for (entity, orbit, class, child_of, fold, motion) in &bodies {
-        if !ring_is_drawn(*class, fold.is_some_and(|f| f.effective_hidden)) {
+    for (stroke_for, mut gizmo) in &mut strokes {
+        let Some(mut asset) = assets.get_mut(&gizmo.handle) else {
             continue;
+        };
+        asset.clear();
+        let body = stroke_for.0;
+        let Some(look) = stroke_look(body, &bodies, &positions, (&selection, &hovered, &tunables))
+        else {
+            continue;
+        };
+        for segment in ring_segments(look.center, look.radius, view) {
+            let at = |angle: f32| {
+                let behind = degrees_behind(look.body_angle, angle);
+                ring_color_at(look.colors, tail_brightness(behind, &look.mode))
+            };
+            asset.line_gradient(
+                segment.from,
+                segment.to,
+                at(segment.from_angle),
+                at(segment.to_angle),
+            );
         }
-
-        let center = child_of
-            .and_then(|c| positions.0.get(&c.parent()).copied())
-            .unwrap_or(Vec3::ZERO);
-        let radius = km_to_render(orbit.radius_km);
-
-        let selected = selection.is_selected(entity);
-        let highlight = ring_highlight(
-            selected,
-            hovered.contains(entity),
-            tunables.orbit_hover_alpha,
-        );
-        let dim = highlight.unwrap_or(crate::view::colors::ORBIT_LINE.with_alpha(DIM_RING_ALPHA));
-        let strength = motion.map(MotionModeState::ring_strength).unwrap_or(0.0);
-        let bright = exposure_ring_color(strength, highlight.is_some());
-
-        for (from, to) in ring_segments(center, radius, view) {
-            gizmos.line(from, to, dim);
-            // MOT-02: the body is moving too fast to read as a position, so
-            // the ring itself carries it.
-            if let Some(bright) = bright {
-                exposure.line(from, to, bright);
-            }
+        let width = look
+            .mode
+            .ring_width(NORMAL_RING_WIDTH_PX, tunables.exposure_ring_width_px);
+        if gizmo.line_config.width != width {
+            gizmo.line_config.width = width;
         }
     }
 }
 
-/// The bright exposure ring's colour, if it shows at all: it fades in with
-/// the ring mode's strength, and turns white while its object is hovered or
-/// selected (MOT-02, HOV-03).
-pub fn exposure_ring_color(strength: f32, highlighted: bool) -> Option<Color> {
-    (strength > MIN_RING_STRENGTH).then(|| {
-        let color = if highlighted {
-            crate::view::colors::SELECTION_RING
-        } else {
-            crate::view::colors::NEUTRAL
-        };
-        color.with_alpha(strength)
+/// Where a body's ring is, where the body is on it, and how it is
+/// coloured; `None` if the ring isn't drawn.
+fn stroke_look(
+    body: Entity,
+    bodies: &RingBodies,
+    positions: &WorldPositions,
+    (selection, hovered, tunables): (&Selection, &HoveredBodies, &Tunables),
+) -> Option<StrokeLook> {
+    let (orbit, local, class, child_of, fold, mode) = bodies.get(body).ok()?;
+    if !ring_is_drawn(*class, fold.is_some_and(|f| f.effective_hidden)) {
+        return None;
+    }
+    let center = child_of
+        .and_then(|c| positions.0.get(&c.parent()).copied())
+        .unwrap_or(Vec3::ZERO);
+    let highlight = ring_highlight(
+        selection.is_selected(body),
+        hovered.contains(body),
+        tunables.orbit_hover_alpha,
+    );
+    Some(StrokeLook {
+        center,
+        radius: km_to_render(orbit.radius_km),
+        body_angle: local.0.z.atan2(local.0.x) as f32,
+        mode: mode.copied().unwrap_or_default(),
+        colors: ring_colors(highlight),
     })
 }
 
@@ -193,6 +267,16 @@ fn ring_point(center: Vec3, radius: f32, angle: f32) -> Vec3 {
     center + Vec3::new(radius * angle.cos(), 0.0, radius * angle.sin())
 }
 
+/// One straight piece of a drawn ring, with the orbit angle at each end so
+/// the tail's brightness can be laid along it (MOT-01).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct RingSegment {
+    pub from: Vec3,
+    pub to: Vec3,
+    pub from_angle: f32,
+    pub to_angle: f32,
+}
+
 /// MRK-05 / SCL-02: the straight segments that draw a ring as the
 /// camera sees it.
 ///
@@ -203,7 +287,7 @@ fn ring_point(center: Vec3, radius: f32, angle: f32) -> Vec3 {
 /// 180 units in radius, where a fixed chord would miss the planet by tens of
 /// pixels. Chords crossing the camera's near limit are cut there rather than
 /// dropped, so the part of the ring in front of the camera always shows.
-pub fn ring_segments(center: Vec3, radius: f32, view: RingView) -> Vec<(Vec3, Vec3)> {
+pub fn ring_segments(center: Vec3, radius: f32, view: RingView) -> Vec<RingSegment> {
     let mut segments = Vec::new();
     let step = std::f32::consts::TAU / RING_SEGMENTS as f32;
     for i in 0..RING_SEGMENTS {
@@ -219,7 +303,7 @@ fn split_arc(
     (from, to): (f32, f32),
     view: RingView,
     depth: u32,
-    out: &mut Vec<(Vec3, Vec3)>,
+    out: &mut Vec<RingSegment>,
 ) {
     let mid = (from + to) / 2.0;
     // The chord's largest gap from the arc, at its middle: r(1 - cos(a/2))
@@ -237,7 +321,25 @@ fn split_arc(
         ring_point(center, radius, from),
         ring_point(center, radius, to),
     );
-    out.extend(clip_to_front(chord, view));
+    // A cut end lies on the chord, not the circle; its orbit angle is read
+    // back from where it is, which is close enough to shade it.
+    let angle_of = |p: Vec3| (p.z - center.z).atan2(p.x - center.x);
+    out.extend(
+        clip_to_front(chord, view).map(|(cut_from, cut_to)| RingSegment {
+            from: cut_from,
+            to: cut_to,
+            from_angle: if cut_from == chord.0 {
+                from
+            } else {
+                angle_of(cut_from)
+            },
+            to_angle: if cut_to == chord.1 {
+                to
+            } else {
+                angle_of(cut_to)
+            },
+        }),
+    );
 }
 
 /// The part of a segment in front of the camera's near limit, if any.
@@ -288,18 +390,43 @@ mod tests {
         assert!(!ring_is_drawn(BodyClass::SalvageSite, false));
     }
 
-    /// HOV-03: a highlighted object in ring mode has a white exposure
-    /// ring; a dot-mode body has no exposure ring to highlight.
+    /// MOT-01 / HOV-03: the tail runs from the exposure colour down to the
+    /// normal faint colour; a highlighted ring runs from white down to its
+    /// highlight.
     #[test]
-    fn a_highlighted_exposure_ring_is_white() {
-        use crate::view::colors::{NEUTRAL, SELECTION_RING};
-        assert_eq!(exposure_ring_color(1.0, true), Some(SELECTION_RING));
-        assert_eq!(exposure_ring_color(1.0, false), Some(NEUTRAL));
+    fn the_tail_runs_from_exposure_to_normal() {
+        let plain = ring_colors(None);
+        assert_eq!(ring_color_at(plain, 1.0), colors::NEUTRAL);
         assert_eq!(
-            exposure_ring_color(0.5, true),
-            Some(SELECTION_RING.with_alpha(0.5))
+            ring_color_at(plain, 0.0),
+            colors::ORBIT_LINE.with_alpha(DIM_RING_ALPHA)
         );
-        assert_eq!(exposure_ring_color(0.0, true), None);
+        let hovered = ring_colors(ring_highlight(false, true, 0.6));
+        assert_eq!(ring_color_at(hovered, 1.0), colors::SELECTION_RING);
+        assert_eq!(
+            ring_color_at(hovered, 0.0),
+            colors::SELECTION_RING.with_alpha(0.6)
+        );
+    }
+
+    /// MOT-01: each segment carries the orbit angle at its ends, so the
+    /// tail can be shaded along it.
+    #[test]
+    fn segments_carry_their_orbit_angles() {
+        let view = looking_at(Vec3::new(0.0, 975.0, 436.0), Vec3::ZERO);
+        for segment in ring_segments(Vec3::ZERO, 387.0, view) {
+            for (point, angle) in [
+                (segment.from, segment.from_angle),
+                (segment.to, segment.to_angle),
+            ] {
+                assert!((point - ring_point(Vec3::ZERO, 387.0, angle)).length() < 1e-2);
+            }
+        }
+    }
+
+    /// The segments as plain end-point pairs.
+    fn ends(segments: Vec<RingSegment>) -> Vec<(Vec3, Vec3)> {
+        segments.into_iter().map(|s| (s.from, s.to)).collect()
     }
 
     /// Half a pixel at a 900 px tall view with the default 45 degree fov.
@@ -335,7 +462,7 @@ mod tests {
     fn a_distant_ring_is_unchanged() {
         // Morrow's orbit (4.3 AU) seen from the system fit.
         let view = looking_at(Vec3::new(0.0, 975.0, 436.0), Vec3::ZERO);
-        let segments = ring_segments(Vec3::ZERO, 387.0, view);
+        let segments = ends(ring_segments(Vec3::ZERO, 387.0, view));
         assert_eq!(segments.len(), RING_SEGMENTS);
     }
 
@@ -351,7 +478,7 @@ mod tests {
         let elevation: f32 = 1.15;
         let camera = planet + Vec3::new(0.0, elevation.sin(), elevation.cos()) * 1.07;
         let view = looking_at(camera, planet);
-        let segments = ring_segments(Vec3::ZERO, radius, view);
+        let segments = ends(ring_segments(Vec3::ZERO, radius, view));
 
         let error = worst_error(&segments, Vec3::ZERO, radius, view);
         assert!(

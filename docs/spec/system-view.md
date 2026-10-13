@@ -169,12 +169,12 @@ The **apparent period** of an orbit is its orbital period divided by the selecte
 
 | ID | Requirement | Built |
 |---|---|---|
-| MOT-01 | Apparent period at or above `tail_secs`: the object is a dot at its true position, and its orbit ring carries a tail behind it. The tail is a brightness gradient along the ring itself, one continuous anti-aliased stroke, running from the exposure-ring brightness (MOT-02) at the dot down to the ring's normal alpha at the tail's end. |  |
-| MOT-10 | The tail covers the arc swept in the last `tail_secs` real seconds: 360° × `tail_secs` ÷ apparent period. Its length follows the time rate continuously, with no steps. |  |
-| MOT-02 | While running, apparent period below `tail_secs`: the tail has closed into the exposure ring. No dot; the whole ring is at full exposure brightness and `exposure_ring_width_px` wide; the label sits on the ring at a fixed spot. |  |
-| MOT-11 | As the tail grows from `dot_fade_from_degrees` to 360°, the dot fades out and the ring width grows to `exposure_ring_width_px`, both linearly, so the closing is seamless. |  |
-| MOT-04 | Pausing keeps every tail at its running length, so the view does not jump. |  |
-| MOT-12 | While paused, each tail is capped at `dot_fade_from_degrees`, so every orbiting object shows as a full-brightness dot with its tail, objects in exposure-ring mode included. Unpausing restores the running state. |  |
+| MOT-01 | Apparent period at or above `tail_secs`: the object is a dot at its true position, and its orbit ring carries a tail behind it. The tail is a brightness gradient along the ring itself, one continuous anti-aliased stroke, running from the exposure-ring brightness (MOT-02) at the dot down to the ring's normal alpha at the tail's end. | ✓ |
+| MOT-10 | The tail covers the arc swept in the last `tail_secs` real seconds: 360° × `tail_secs` ÷ apparent period. Its length follows the time rate continuously, with no steps. | ✓ |
+| MOT-02 | While running, apparent period below `tail_secs`: the tail has closed into the exposure ring. No dot; the whole ring is at full exposure brightness and `exposure_ring_width_px` wide; the label sits on the ring at a fixed spot. | ✓ |
+| MOT-11 | As the tail grows from `dot_fade_from_degrees` to 360°, the dot fades out and the ring width grows to `exposure_ring_width_px`, both linearly, so the closing is seamless. | ✓ |
+| MOT-04 | Pausing keeps every tail at its running length, so the view does not jump. | ✓ |
+| MOT-12 | While paused, each tail is capped at `dot_fade_from_degrees`, so every orbiting object shows as a full-brightness dot with its tail, objects in exposure-ring mode included. Unpausing restores the running state. | ✓ |
 | MOT-07 | While the selected object is in ring mode, its inset has the line "Position: shown when paused". | ✓ |
 | MOT-08 | The rule applies to every orbiting object (moons, stations, parked ships, close-in planets); ships in transit are ignored. | ✓ |
 
@@ -191,7 +191,7 @@ The prototype system, kept as data (SCL-03). It exists to exercise the rules abo
 | TEST-06 | Corvane also has, as static orbiting objects: own task force TF-1 (4 warships, one damaged so the group's mean condition is below `condition_warn_fraction`); and a loose group of 6 own-flag civilian haulers. | |
 | TEST-04 | The inspection data covers both knowledge states: Halden IV surveyed, Halden IVc unsurveyed. | |
 | TEST-07 | Morrow has the mass of a Jupiter-class gas giant: 318 Earth masses. | ✓ |
-| TEST-08 | Morrow's eleven moons have periods of about 0.35, 0.55, 0.9, 1.8, 3.6, 7.2, 16, 30, 50, 75 and 110 d. Radii follow Kepler from Morrow's mass, and the innermost is no closer than 2 × Morrow's radius (71,500 km). The periods straddle both motion modes at 1 d/s: six moons in ring mode (under 8 s), five in dot mode (8 s or more). | |
+| TEST-08 | Morrow's eleven moons have periods of about 0.35, 0.55, 0.9, 1.8, 3.6, 7.2, 16, 30, 50, 75 and 110 d. Radii follow Kepler from Morrow's mass, and the innermost is no closer than 2 × Morrow's radius (71,500 km). The periods straddle both motion modes at 1 d/s: six moons in ring mode (under 8 s), five in dot mode (8 s or more). | ✓ |
 
 ## Tunables
 

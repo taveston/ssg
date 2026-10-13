@@ -130,14 +130,14 @@ pub fn marker_shape(class: BodyClass, ownership: Ownership) -> MarkerShape {
     }
 }
 
-/// GRP-01 / GRP-03 / MOT-02: how strongly a body's marker is drawn. A fully
-/// folded satellite draws nothing; a sliding one fades with the slide; and
-/// in exposure-ring mode the ring carries the body, so the dot fades out.
-pub fn marker_alpha(fold_anim_t: f32, fully_hidden: bool, dot_strength: f32) -> f32 {
+/// GRP-01 / GRP-03 / MOT-11: how strongly a body's marker is drawn. A
+/// fully folded satellite draws nothing; a sliding one fades with the
+/// slide; and as its tail closes into the exposure ring the dot fades out.
+pub fn marker_alpha(fold_anim_t: f32, fully_hidden: bool, dot_alpha: f32) -> f32 {
     if fully_hidden {
         0.0
     } else {
-        fold_anim_t * dot_strength
+        fold_anim_t * dot_alpha
     }
 }
 
@@ -431,7 +431,7 @@ fn update_markers(
         let alpha = marker_alpha(
             fold_anim_t,
             fold.map(|f| f.effective_hidden).unwrap_or(false),
-            motion.map(MotionModeState::dot_strength).unwrap_or(1.0),
+            motion.map(MotionModeState::dot_alpha).unwrap_or(1.0),
         );
         let own = screen
             .get(body)
@@ -521,8 +521,8 @@ mod tests {
         assert_eq!(marker_alpha(1.0, false, 1.0), 1.0);
     }
 
-    /// GRP-03 / MOT-02: the marker fades with the fold slide and with the
-    /// dot-to-ring cross-fade.
+    /// GRP-03 / MOT-11: the marker fades with the fold slide and as the
+    /// tail closes.
     #[test]
     fn ring_mode_fades_the_dot() {
         assert_eq!(marker_alpha(1.0, false, 0.0), 0.0);
