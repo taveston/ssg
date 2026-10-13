@@ -40,3 +40,13 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Observation:** zoomed into a planet's frame (Halden IV), the planet's orbit round the star is so large that it crosses the whole view as a near-straight line through the plot. Without context it reads as an unexplained line rather than an orbit. It does carry information: it shows the direction of the star and of the planet's motion.
 - **Affects:** MRK-05, HOV-03 · **Type:** spec wrong
 - **Disposition:** open. Options: keep it but fade it as zoom moves in past the point where it looks straight; replace it close in with a short arc segment near the frame body plus a bearing tick to the star; label it (the star's name at the edge where it leaves the map) so it reads as an orbit; leave it as it is.
+
+### F-123 · Symbol fills are see-through
+- **Observation:** command fills are drawn as alpha tints, so orbit rings and tails run straight through every symbol (Delve, Transport Hale, Transport Cassel). Icons sit on a background of crossing lines and can't be read, and the symbols look glassy (a HUD look) rather than like opaque plotting symbols.
+- **Affects:** SYM-03, MRK-12 · **Type:** spec wrong
+- **Disposition:** open. Proposed: keep the fill as the command signal, but make it opaque. Every frame first covers what lies under it with the ground colour, then draws its tint as a solid colour equal to the old tint over the ground (about #1E3448 for state blue at 30 %). An own-flag civilian keeps no tint, so its inside is plain ground. In open space nothing changes; lines stop at the frame edge.
+
+### F-124 · Symbols are blurred and their outlines are heavy
+- **Observation:** frame edges have a soft band about 2 px wide while orbit lines are sharp, so symbols look out of focus beside them. The small icons suffer most: the infantry cross is a smudge, the drop barely reads, the crate's centre line is lost. The frame outline is also heavier than anything else on the map, against the hairline style.
+- **Affects:** SYM-02, SYM-04, SYM-05, new · **Type:** bug (blur), spec gap (outline weight)
+- **Disposition:** open. Likely cause: bitmaps scaled with smoothing, or symbols drawn off whole pixels. Proposed: symbols are drawn as vectors at their screen size and placed on whole pixels (Checked in review); the outline width becomes a named tunable at about 1.5 px; icon lines land on whole pixels at `ship_symbol_px`.
