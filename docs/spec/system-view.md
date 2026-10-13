@@ -231,7 +231,7 @@ All in the `Tunables` resource (`src/view/tunables.rs`). Defaults are starting v
 | `inset_dock_margin_px` | 12 px | INS-07 |
 | `ring_hit_px` | 7 px | HOV-02 |
 | `orbit_hover_alpha` | 0.6 | HOV-03 |
-| `distance_au_threshold_au` | 0.01 AU | UNIT-01 |
+| `distance_au_threshold_au` | 0.1 AU | UNIT-01 |
 | `ship_symbol_px` | 22 px | SYM-04, SYM-12, SYM-14 |
 | `list_symbol_px` | 14 px | INS-05 |
 | `symbol_stroke_px` | 1.6 px | SYM-02 |

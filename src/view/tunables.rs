@@ -184,7 +184,7 @@ impl Default for Tunables {
             orbit_hover_alpha: 0.6,
             inset_width_px: 320.0,
             inset_dock_margin_px: 12.0,
-            distance_au_threshold_au: 0.01,
+            distance_au_threshold_au: 0.1,
 
             ship_symbol_px: 22.0,
             list_symbol_px: 14.0,
