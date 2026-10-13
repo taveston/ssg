@@ -333,7 +333,7 @@ mod tests {
     /// Covers MRK-05.
     #[test]
     fn a_distant_ring_is_unchanged() {
-        // Morrow's orbit (4.3 AU) seen from the system frame.
+        // Morrow's orbit (4.3 AU) seen from the system fit.
         let view = looking_at(Vec3::new(0.0, 975.0, 436.0), Vec3::ZERO);
         let segments = ring_segments(Vec3::ZERO, 387.0, view);
         assert_eq!(segments.len(), RING_SEGMENTS);

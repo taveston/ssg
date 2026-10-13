@@ -20,7 +20,7 @@ pub struct Bindings {
     pub zoom_out: Vec<KeyCode>,
 
     // --- Camera moves ---
-    /// ZOOM-10 / CAM-04: back to the system frame, level, north up.
+    /// ZOOM-10 / CAM-04: back to the system fit, level, north up.
     pub home: Vec<KeyCode>,
     /// CAM-03: level and north up.
     pub north_up: Vec<KeyCode>,

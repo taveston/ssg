@@ -247,7 +247,7 @@ fn fold_state_after_a_scale_change() {
     let mut satellites = app.world_mut().query::<&SatelliteFoldState>();
     assert!(
         satellites.iter(app.world()).all(|fold| fold.folded),
-        "GRP-04: everything folded at the system frame"
+        "GRP-04: everything folded at the system fit"
     );
 
     // Zoom in to Halden IV's satellite frame.
@@ -986,7 +986,7 @@ fn generated_system() -> SystemData {
 
 /// SCL-03 / GRP-08: a system from other records runs through the same
 /// simulation and view code - bodies placed, zoom stops from its own
-/// orbits, its moon folded at the system frame - and its ship in transit,
+/// orbits, its moon folded at the system fit - and its ship in transit,
 /// which orbits the star, never gets fold state.
 #[test]
 fn another_system_runs_through_the_same_code() {
@@ -1055,7 +1055,7 @@ fn planets_are_never_merged() {
     }
 }
 
-/// GRP-05: at the system frame Halden IV shows a "+N" pill counting all
+/// GRP-05: at the system fit Halden IV shows a "+N" pill counting all
 /// its folded satellites, beside its marker and clear of it and its ring.
 #[test]
 fn a_parent_with_folded_satellites_shows_a_count_pill() {
@@ -1199,7 +1199,7 @@ fn move_frames() -> usize {
     (ms / 1000.0 / FRAME.as_secs_f32()).ceil() as usize + 5
 }
 
-/// ZOOM-10: Home goes back to the system frame in an animated move, not a
+/// ZOOM-10: Home goes back to the system fit in an animated move, not a
 /// cut: partway through, the camera is between where it was and the frame.
 #[test]
 fn home_is_an_animated_move_to_the_system_frame() {
@@ -1326,7 +1326,7 @@ fn marker_width_px(app: &mut App, body: Entity) -> f32 {
     }
 }
 
-/// MRK-07: at the system frame Halden IV is its class's fixed marker; close
+/// MRK-07: at the system fit Halden IV is its class's fixed marker; close
 /// in, where its true diameter is larger than that, the marker is a disc of
 /// the true on-screen size.
 #[test]
@@ -1342,7 +1342,7 @@ fn a_body_grows_into_a_true_size_disc_when_close() {
     let halden = body(&mut app, "Halden IV");
     run(&mut app, 2);
     let far = marker_width_px(&mut app, halden);
-    assert_eq!(far, 12.0, "a planet's fixed marker at the system frame");
+    assert_eq!(far, 12.0, "a planet's fixed marker at the system fit");
 
     let distance = 0.01;
     set_frame(&mut app, halden, Vec3::ZERO);
@@ -1445,7 +1445,7 @@ fn the_frame_moves_to_the_parent_when_the_frame_body_becomes_a_ring() {
 }
 
 /// CAM-02: the view starts in the standard orientation: north up, tilted by
-/// `standard_tilt_deg`, over the star at the system frame.
+/// `standard_tilt_deg`, over the star at the system fit.
 #[test]
 fn the_view_starts_in_the_standard_orientation() {
     let app = camera_app();
