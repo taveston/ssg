@@ -105,7 +105,7 @@ Applies to every label on the map: body labels and symbol labels (SYM-13).
 
 | ID | Requirement | Built |
 |---|---|---|
-| HOV-01 | Hovering a marker draws a white ring round it. There is no hover tooltip: the name and type are already on the map, and everything else is in the inset. This includes a fold pill: its folded satellites are listed in the inset's "In orbit" outline (INS-05), not on hover. | |
+| HOV-01 | Hovering a marker draws a white ring round it. There is no hover tooltip: the name and type are already on the map, and everything else is in the inset. This includes a fold pill: its folded satellites are listed in the inset's "In orbit" outline (INS-05), not on hover. | ✓ |
 | HOV-02 | Every drawn orbit ring, tail or exposure ring (dot mode or ring mode, MOT-01 and MOT-02) is a hover and click target for its object, as its marker is; a shared orbit's ring targets its members together (HOV-05). A pointer within `ring_hit_px` of the ring hits it. A marker, pill, label or panel under the pointer wins over a ring, and of two rings in reach the nearer wins. Clicking a ring selects as clicking the marker does (INS-01); double-clicking it behaves as ZOOM-16 and ZOOM-17. Folded satellites have no drawn orbit and are reached through the pill (GRP-07). An orbit that isn't drawn is not a target, and the frame body's own orbit ring and tail are drawn but are never targets. If the frame body is in a shared orbit (HOV-04), the shared ring is not a target either, but the other members' dots, tails and markers still target those members (HOV-05). | ✓ |
 | HOV-03 | A hovered object's orbit ring is drawn in white at `orbit_hover_alpha`; the selected object's orbit ring is drawn in white at `orbit_selected_alpha` for as long as it is selected, in either motion mode. A ring that is both takes the selected style. Hovering or selecting the marker highlights its ring the same way. A hovered or selected ring is drawn `orbit_highlight_width_px` wide. | ✓ |
 | HOV-04 | A named orbit (SCL-07) with members is a **shared orbit**, drawn as one ring at its radius: in exposure-ring mode one exposure ring, drawn once at `exposure_ring_alpha`, never stacked; in dot mode each member's dot and tail are drawn on it as MOT-01 says. A folded member (GRP-01) is not drawn. Nothing is grouped by radius at render time. | ✓ |
@@ -195,7 +195,7 @@ A **satellite** is anything orbiting a body other than the star: moons, stations
 | GRP-04 | At the system fit every moon and planetary station is folded. | ✓ |
 | GRP-05 | A parent with folded satellites shows a "+N" pill beside its marker without overlapping it. | ✓ |
 | GRP-06 | The pill's outline takes the colour (SYM-02) of the most pressing affiliation among its folded satellites: hostile, then unknown, then neutral or allied; with none of these it keeps its normal outline. A small blue dot shows if own ships are parked there. | ✓ |
-| GRP-07 | Hovering the pill draws a white ring round it, as for a marker (HOV-01); clicking it does exactly what clicking the parent does, so the inset's outline shows the folded satellites. | |
+| GRP-07 | Hovering the pill draws a white ring round it, as for a marker (HOV-01); clicking it does exactly what clicking the parent does, so the inset's outline shows the folded satellites. | ✓ |
 | GRP-08 | Ships in transit are never folded. | ✓ (rule only; no transit ships yet) |
 | GRP-09 | A group (SYM-09) folds as one satellite: it counts once in the "+N" pill and is listed by name with its member count. | |
 

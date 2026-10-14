@@ -1,8 +1,8 @@
 //! Hover and click on the map (HOV-01, HOV-05, INS-01, GRP-07): the white
-//! hover ring, the pill's list of folded satellites, and the pointer
-//! handlers every pickable node (marker, pill, ring hit target, ring mark)
-//! is observed by. A marker has no tooltip: its name and type are on the
-//! map already. A shared orbit's ring or pill selects the orbit's parent
+//! hover ring and the pointer handlers every pickable node (marker, pill,
+//! ring hit target, ring mark) is observed by. Nothing has a tooltip: a
+//! marker's name and type are on the map already, and a fold pill's
+//! satellites are in the inset's outline once its parent is selected. A shared orbit's ring or pill selects the orbit's parent
 //! with that orbit's row revealed in the inset.
 //!
 //! A click selects (`selection.rs`); a double-click also makes the body the
@@ -14,42 +14,19 @@ use bevy::prelude::*;
 
 use super::bindings::Bindings;
 use super::camera::requests::{FrameRequest, PlanetaryViewRequest};
-use super::colors;
-use super::fold::FoldSummary;
-use super::fonts::Fonts;
 use super::frame::Frame;
 use super::gesture::{PressStart, was_click};
-use super::layers;
 use super::selection::Selection;
 use super::targets::{GroupPillFor, Hovered, MarkerFor, OrbitFor, PointerTargets};
 use super::tunables::Tunables;
-use crate::sim::body::DisplayName;
+use crate::Stage;
 use crate::sim::named_orbit::NamedOrbit;
-use crate::{Boot, Stage};
 
 pub struct HoverPlugin;
 
 impl Plugin for HoverPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_tooltip.in_set(Boot::Overlay))
-            .add_systems(
-                Update,
-                (clear_on_empty_click, place_tooltip).in_set(Stage::Overlay),
-            );
-    }
-}
-
-/// How far the tooltip sits from the pointer, down and to the right.
-const TOOLTIP_OFFSET_PX: Vec2 = Vec2::new(14.0, 18.0);
-
-/// GRP-07: the pill's list sits by the pointer.
-fn place_tooltip(windows: Query<&Window>, mut tooltips: Query<&mut Node, With<TooltipRoot>>) {
-    let Some(cursor) = windows.single().ok().and_then(Window::cursor_position) else {
-        return;
-    };
-    for mut node in &mut tooltips {
-        node.left = px(cursor.x + TOOLTIP_OFFSET_PX.x);
-        node.top = px(cursor.y + TOOLTIP_OFFSET_PX.y);
+        app.add_systems(Update, clear_on_empty_click.in_set(Stage::Overlay));
     }
 }
 
@@ -76,36 +53,8 @@ fn clear_on_empty_click(
     }
 }
 
-#[derive(Component)]
-pub(crate) struct TooltipRoot;
-#[derive(Component)]
-pub(crate) struct TooltipLabel;
-
-fn spawn_tooltip(mut commands: Commands, fonts: Res<Fonts>) {
-    commands
-        .spawn((
-            TooltipRoot,
-            GlobalZIndex(layers::PANELS),
-            Node {
-                position_type: PositionType::Absolute,
-                padding: UiRect::axes(px(8), px(4)),
-                display: Display::None,
-                ..default()
-            },
-            BackgroundColor(colors::PANEL),
-            BorderColor::all(colors::PANEL_BORDER),
-        ))
-        .with_children(|p| {
-            p.spawn((
-                TooltipLabel,
-                Text::new(""),
-                fonts.label(12.0),
-                TextColor(colors::NEUTRAL),
-            ));
-        });
-}
-
-/// HOV-01: hovering a marker, label or ring marks it for the white ring.
+/// HOV-01 / GRP-07: hovering a marker, label, ring or pill marks it for
+/// the white ring.
 pub fn on_marker_over(over: On<PointerOver>, mut commands: Commands) {
     commands.entity(over.entity).insert(Hovered);
 }
@@ -241,49 +190,6 @@ pub fn on_pill_click(
     }
 }
 
-/// A pill's tooltip lists what is folded into it (GRP-07).
-pub fn pill_tooltip(parent: &str, folded: &[String]) -> String {
-    format!("In orbit of {parent}: {}", folded.join(", "))
-}
-
-/// Hovering a count pill lists what's folded into it.
-pub fn on_pill_over(
-    over: On<PointerOver>,
-    pills: Query<&GroupPillFor>,
-    names: Query<&DisplayName>,
-    folds: Res<FoldSummary>,
-    mut tooltip_nodes: Query<&mut Node, With<TooltipRoot>>,
-    mut tooltip_labels: Query<&mut Text, With<TooltipLabel>>,
-) {
-    let Ok(pill) = pills.get(over.entity) else {
-        return;
-    };
-    let Some(group) = folds.0.get(&pill.0) else {
-        return;
-    };
-    let parent_name = names
-        .get(pill.0)
-        .map(|name| name.0.clone())
-        .unwrap_or_default();
-    let listed: Vec<String> = group
-        .members
-        .iter()
-        .filter_map(|entity| names.get(*entity).ok().map(|name| name.0.clone()))
-        .collect();
-    for mut text in &mut tooltip_labels {
-        *text = Text::new(pill_tooltip(&parent_name, &listed));
-    }
-    for mut node in &mut tooltip_nodes {
-        node.display = Display::Flex;
-    }
-}
-
-pub fn on_pill_out(_out: On<PointerOut>, mut tooltip_nodes: Query<&mut Node, With<TooltipRoot>>) {
-    for mut node in &mut tooltip_nodes {
-        node.display = Display::None;
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
@@ -293,16 +199,6 @@ mod tests {
     use bevy::picking::pointer::{Location, PointerId};
 
     use super::*;
-
-    /// GRP-07: the pill's tooltip lists the folded satellites.
-    #[test]
-    fn pill_tooltip_lists_the_folded_satellites() {
-        let folded = ["Halden IVa".to_string(), "K-3".to_string()];
-        assert_eq!(
-            pill_tooltip("Halden IV", &folded),
-            "In orbit of Halden IV: Halden IVa, K-3"
-        );
-    }
 
     /// A world with the click handlers' resources, a body, and a marker
     /// and a pill that both stand for it.
@@ -418,7 +314,7 @@ mod tests {
     }
 
     /// HOV-01: hovering a marker marks it for the white ring and leaving it
-    /// clears it. There is no tooltip.
+    /// clears it.
     #[test]
     fn hovering_a_marker_rings_it_without_a_tooltip() {
         let mut world = World::new();
@@ -438,7 +334,6 @@ mod tests {
         });
         world.flush();
         assert!(world.get::<Hovered>(marker).is_some());
-        assert_eq!(world.query::<&TooltipRoot>().iter(&world).count(), 0);
 
         world.trigger(PointerOut {
             entity: marker,

@@ -18,7 +18,7 @@ use super::markers::ring_outer_half;
 use super::screen::ScreenPositions;
 use super::selection::Selection;
 use super::symbol_draw::{Tint, TintSlot};
-use super::targets::GroupPillFor;
+use super::targets::{GroupPillFor, Hovered};
 use super::tunables::Tunables;
 use crate::sim::body::BodyClass;
 use crate::sim::orbit::Orbit;
@@ -204,28 +204,33 @@ fn spawn_pills(
                 GlobalZIndex(layers::LABELS),
                 pill_bundle(&fonts, PillFace::default(), pill_node()),
             ))
-            // GRP-07: hover lists the folded satellites; click is the
-            // parent's click.
-            .observe(hover::on_pill_over)
-            .observe(hover::on_pill_out)
+            // GRP-07: hover rings the pill as it does a marker; click is
+            // the parent's click.
+            .observe(hover::on_marker_over)
+            .observe(hover::on_marker_out)
             .observe(hover::on_pill_click);
     }
 }
 
-/// INS-06: a pill carries the white selection ring while a selected
-/// object is folded into it.
+/// INS-06 / GRP-07: a pill carries the white ring while a selected object
+/// is folded into it, or while it is hovered, as a marker does.
 fn ring_pills(
     selection: Res<Selection>,
     folds: Res<FoldSummary>,
-    mut pills: Query<(&GroupPillFor, &mut Outline)>,
+    mut pills: Query<(&GroupPillFor, Has<Hovered>, &mut Outline)>,
 ) {
-    for (pill_for, mut outline) in &mut pills {
+    for (pill_for, hovered, mut outline) in &mut pills {
         let holds_selection = folds
             .0
             .get(&pill_for.0)
             .is_some_and(|group| group.members.iter().any(|&m| selection.is_selected(m)));
-        *outline = selection_outline(holds_selection);
+        outline.set_if_neq(selection_outline(pill_ringed(holds_selection, hovered)));
     }
+}
+
+/// INS-06 / GRP-07: whether a fold pill shows the white ring.
+pub fn pill_ringed(holds_selection: bool, hovered: bool) -> bool {
+    holds_selection || hovered
 }
 
 /// The parts of a fold pill's face, rewritten each frame.
@@ -290,6 +295,31 @@ fn update_pills(
 mod tests {
     use super::*;
     use crate::sim::body::Affiliation;
+
+    /// GRP-07 / HOV-01: hovering a fold pill rings it in white, as for a
+    /// marker; leaving it clears the ring.
+    #[test]
+    fn hovering_a_pill_rings_it() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut world = World::new();
+        world.init_resource::<Selection>();
+        world.init_resource::<FoldSummary>();
+        let parent = world.spawn_empty().id();
+        let pill = world
+            .spawn((GroupPillFor(parent), Hovered, selection_outline(false)))
+            .id();
+        world.run_system_once(ring_pills).unwrap();
+        assert_eq!(
+            *world.get::<Outline>(pill).unwrap(),
+            selection_outline(true)
+        );
+        world.entity_mut(pill).remove::<Hovered>();
+        world.run_system_once(ring_pills).unwrap();
+        assert_eq!(
+            *world.get::<Outline>(pill).unwrap(),
+            selection_outline(false)
+        );
+    }
 
     /// INS-06: a folded satellite is shown at its parent's pill, at the
     /// pill's left-middle, which follows the parent on screen.

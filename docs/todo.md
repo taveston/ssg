@@ -12,8 +12,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **No hover list on the fold pill** · HOV-01, GRP-07
-  - Was F-129. Remove the pill's hover list; hovering it gives the white ring only. The folded satellites are in the inset's outline once the parent is selected.
 - [ ] **Shared ring label** · MOT-02
   - Was F-132. The build already labels a shared ring with the orbit name alone; check and mark ✓.
 - [ ] **Transfer simulation** · RAIL-02, RAIL-08, RAIL-09, BAND-01 to BAND-08, XFER-01 to XFER-12, PLAN-01 to PLAN-30, TEST-20, ARCH-22
