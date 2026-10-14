@@ -2311,6 +2311,13 @@ fn an_exposure_ring_carries_an_identity_mark() {
             .any(|&e| app.world().get::<SymbolPart>(e).is_some()),
         "a lone station's mark is its symbol"
     );
+    assert!(
+        descendants(&mut app, highport_mark).iter().any(|&e| app
+            .world()
+            .get::<Text>(e)
+            .is_some_and(|t| t.0 == "Arden Highport")),
+        "a lone ring is labelled with its body's name (MOT-02)"
+    );
     let (ivb_mark, ivb_half, _, marker_for) = mark_of(&mut app, ivb);
     assert_eq!(marker_for, Some(ivb));
     assert!(
