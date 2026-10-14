@@ -33,7 +33,7 @@ pub enum Icon {
     Crate,
     /// Outline unit box; `crossed` draws both diagonals (embarked troops).
     UnitBox { crossed: bool },
-    /// "?" in JetBrains Mono: class unknown.
+    /// "?" in the data face: class unknown.
     Question,
     /// A station has no icon.
     None,

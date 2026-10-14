@@ -131,7 +131,9 @@ fn placeholder_fonts() -> Fonts {
     Fonts {
         label: Handle::default(),
         label_semibold: Handle::default(),
-        mono: Handle::default(),
+        text: Handle::default(),
+        text_semibold: Handle::default(),
+        data: Handle::default(),
     }
 }
 

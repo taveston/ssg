@@ -104,7 +104,7 @@ fn spawn_pills(
                     (
                         PillCountText,
                         Text::new(""),
-                        fonts.mono(PILL_FONT_PX),
+                        fonts.data(PILL_FONT_PX),
                         TextColor(colors::NEUTRAL)
                     ),
                     (

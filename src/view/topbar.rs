@@ -99,7 +99,7 @@ fn spawn_top_bar(mut commands: Commands, fonts: Res<Fonts>) {
             bar.spawn((
                 DateText,
                 Text::new(""),
-                fonts.mono(BAR_FONT_PX),
+                fonts.data(BAR_FONT_PX),
                 TextColor(colors::NEUTRAL),
             ));
             spawn_bar_button(bar, &fonts, "Pause", PauseButton).observe(on_pause_clicked);
@@ -118,7 +118,7 @@ fn spawn_top_bar(mut commands: Commands, fonts: Res<Fonts>) {
                     ..default()
                 },
                 Text::new(""),
-                fonts.mono(BUTTON_FONT_PX),
+                fonts.data(BUTTON_FONT_PX),
                 TextColor(colors::PANEL_BORDER),
             ));
         });
@@ -286,26 +286,30 @@ mod tests {
         Fonts {
             label: handle(1),
             label_semibold: handle(2),
-            mono: handle(3),
+            text: handle(4),
+            text_semibold: handle(5),
+            data: handle(3),
         }
     }
 
-    /// MRK-02: the top bar's date readout is in the mono font; it has a
+    /// MRK-02: the top bar's date readout is in the data face; it has a
     /// slot for the breadcrumb (CLK-02).
     #[test]
-    fn the_date_is_mono_and_there_is_a_breadcrumb() {
+    fn the_date_is_in_the_data_face_and_there_is_a_breadcrumb() {
         let handle = |n: u128| Handle::<Font>::Uuid(Uuid::from_u128(n), Default::default());
         let fonts = Fonts {
             label: handle(1),
             label_semibold: handle(2),
-            mono: handle(3),
+            text: handle(4),
+            text_semibold: handle(5),
+            data: handle(3),
         };
         let mut world = World::new();
         world.insert_resource(fonts.clone());
         world.run_system_once(spawn_top_bar).unwrap();
 
         let mut dates = world.query_filtered::<&TextFont, With<DateText>>();
-        assert_eq!(dates.single(&world).unwrap().font, fonts.mono(1.0).font);
+        assert_eq!(dates.single(&world).unwrap().font, fonts.data(1.0).font);
         let mut roots = world.query_filtered::<(), With<BreadcrumbRoot>>();
         assert_eq!(roots.iter(&world).count(), 1);
     }

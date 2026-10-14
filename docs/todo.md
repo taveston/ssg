@@ -12,10 +12,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **Type roles: IBM Plex Sans Condensed, Sans and Mono** · MRK-02, SYM-13
-  - Fonts are named only in the type roles table (`docs/spec/system-view.md`) and in one place in code (today `view/fonts.rs`). Name the handles by role (label, text, data); the MRK-02 test should check that roles resolve through that one place, not that a path contains a font name.
-  - Replace Barlow and JetBrains Mono in `assets/fonts/` with IBM Plex Sans Condensed (Regular, SemiBold), IBM Plex Sans (Regular, SemiBold) and IBM Plex Mono (Regular), with Plex's OFL file, from IBM's official repository. Remove the old files.
-  - Nothing on screen uses the text face yet (no report prose exists); load it so it's ready.
 - [ ] **Edge arrows as tabs** · EDGE-02, EDGE-03
   - Was F-119: a label was clipped to "Gat" and one arrow had no label. Do it with the "Gate edge labels" fix below.
 - [ ] **Frame body's orbit as a tail; bearing tick to its parent** · MRK-14, MRK-15

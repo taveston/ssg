@@ -120,7 +120,7 @@ pub fn spawn_symbol_parts(
     if look.icon == Icon::Question {
         spawn_text(
             parent,
-            fonts.mono(size * QUESTION_SCALE),
+            fonts.data(size * QUESTION_SCALE),
             "?",
             color,
             full(),
@@ -136,7 +136,7 @@ pub fn spawn_symbol_parts(
         };
         spawn_text(
             parent,
-            fonts.mono(size * ECHELON_SCALE),
+            fonts.data(size * ECHELON_SCALE),
             echelon,
             color,
             above,

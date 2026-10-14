@@ -127,7 +127,7 @@ fn spawn_scale_bar(mut commands: Commands, fonts: Res<Fonts>) {
         (
             Text::new(text),
             TextLayout::linebreak(LineBreak::NoWrap),
-            fonts.mono(LABEL_FONT_PX),
+            fonts.data(LABEL_FONT_PX),
             TextColor(colors::SECONDARY),
         )
     };
@@ -314,7 +314,7 @@ fn spawn_north_dial(mut commands: Commands, fonts: Res<Fonts>, tunables: Res<Tun
                 label.spawn((
                     Text::new("N"),
                     TextLayout::linebreak(LineBreak::NoWrap),
-                    fonts.mono(LABEL_FONT_PX),
+                    fonts.data(LABEL_FONT_PX),
                     TextColor(colors::NEUTRAL),
                     Pickable::IGNORE,
                 ));

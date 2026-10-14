@@ -483,7 +483,7 @@ fn spawn_label(
                     SecondLineFor(body),
                     Text::new(line),
                     TextLayout::linebreak(LineBreak::NoWrap),
-                    fonts.mono(SECOND_LINE_FONT_PX),
+                    fonts.data(SECOND_LINE_FONT_PX),
                     TextColor(colors::PANEL_BORDER),
                     Tint::new(colors::PANEL_BORDER, TintSlot::Text),
                 ));

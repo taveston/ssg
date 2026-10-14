@@ -382,7 +382,7 @@ fn fill_panel(
     );
     for (key, value) in &content.facts {
         let line = format!("{key}: {value}");
-        spawn_text(panel, &line, fonts.mono(BODY_FONT_PX), colors::NEUTRAL);
+        spawn_text(panel, &line, fonts.data(BODY_FONT_PX), colors::NEUTRAL);
     }
     spawn_position_note(panel, fonts, content.body);
     spawn_in_orbit_list(panel, assets, &content.satellites);
@@ -399,7 +399,7 @@ fn spawn_position_note(panel: &mut ChildSpawnerCommands, fonts: &Fonts, body: En
             ..default()
         },
         Text::new(POSITION_SHOWN_WHEN_PAUSED),
-        fonts.mono(BODY_FONT_PX),
+        fonts.data(BODY_FONT_PX),
         TextColor(colors::NEUTRAL),
     ));
 }
