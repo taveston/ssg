@@ -17,7 +17,7 @@ use super::frame::Frame;
 use super::hovered::HoveredBodies;
 use super::layers;
 use super::plot_marks::screen_angle;
-use super::rings::{DIM_RING_ALPHA, RingExtent, ring_extent, ring_highlight};
+use super::rings::{RingExtent, ring_extent, ring_highlight};
 use super::scale::km_to_render;
 use super::selection::Selection;
 use super::tunables::Tunables;
@@ -167,7 +167,7 @@ fn draw_frame_tail(
             tunables.orbit_selected_alpha,
             tunables.orbit_hover_alpha,
         )
-        .unwrap_or(colors::ORBIT_LINE.with_alpha(DIM_RING_ALPHA));
+        .unwrap_or(colors::ORBIT_LINE.with_alpha(tunables.orbit_ring_alpha));
         let full = colour.alpha();
         for i in 0..TAIL_SEGMENTS {
             let along = |i: usize| i as f32 / TAIL_SEGMENTS as f32;

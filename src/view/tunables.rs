@@ -46,6 +46,9 @@ pub struct Tunables {
     pub exposure_ring_alpha: f32,
     /// Line width of a normal orbit ring (MRK-05, MOT-11).
     pub orbit_ring_width_px: f32,
+    /// The alpha of a faint orbit ring in the orbit colour, and of a tail's
+    /// far end (MRK-05, MOT-01, MRK-14).
+    pub orbit_ring_alpha: f32,
     /// Line width of a hovered or selected orbit ring (HOV-03).
     pub orbit_highlight_width_px: f32,
 
@@ -216,6 +219,7 @@ impl Default for Tunables {
             exposure_ring_width_px: 3.0,
             exposure_ring_alpha: 0.5,
             orbit_ring_width_px: 1.0,
+            orbit_ring_alpha: 0.35,
             orbit_highlight_width_px: 1.0,
 
             zoom_step_factor: 2.0,

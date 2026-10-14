@@ -43,8 +43,6 @@ const MAX_RING_ERROR_PX: f32 = 0.5;
 const MAX_RING_SPLITS: u32 = 12;
 /// A point must be at least this far in front of the camera to be drawn.
 const NEAR_EPSILON: f32 = 0.01;
-/// MRK-05: orbits are *faint* rings.
-pub const DIM_RING_ALPHA: f32 = 0.35;
 
 /// The retained gizmo that draws one body's ring.
 #[derive(Component)]
@@ -173,9 +171,9 @@ pub struct RingColors {
 /// the highlight; its exposure colour is the neutral at `exposure_alpha`,
 /// so it never matches the white selected ring, or white while
 /// highlighted.
-pub fn ring_colors(highlight: Option<Color>, exposure_alpha: f32) -> RingColors {
+pub fn ring_colors(highlight: Option<Color>, ring_alpha: f32, exposure_alpha: f32) -> RingColors {
     RingColors {
-        normal: highlight.unwrap_or(colors::ORBIT_LINE.with_alpha(DIM_RING_ALPHA)),
+        normal: highlight.unwrap_or(colors::ORBIT_LINE.with_alpha(ring_alpha)),
         exposure: if highlight.is_some() {
             colors::SELECTION_RING
         } else {
@@ -297,7 +295,11 @@ fn stroke_look(
         mode.ring_mode,
         highlight.is_some(),
     );
-    let mut colors = ring_colors(highlight, tunables.exposure_ring_alpha);
+    let mut colors = ring_colors(
+        highlight,
+        tunables.orbit_ring_alpha,
+        tunables.exposure_ring_alpha,
+    );
     match extent {
         RingExtent::Hidden => return None,
         // MRK-09: past the tail's end there is no ring to fade into.
@@ -528,13 +530,13 @@ mod tests {
     /// highlight.
     #[test]
     fn the_tail_runs_from_exposure_to_normal() {
-        let plain = ring_colors(None, 0.5);
+        let plain = ring_colors(None, 0.35, 0.5);
         assert_eq!(ring_color_at(plain, 1.0), colors::NEUTRAL.with_alpha(0.5));
         assert_eq!(
             ring_color_at(plain, 0.0),
-            colors::ORBIT_LINE.with_alpha(DIM_RING_ALPHA)
+            colors::ORBIT_LINE.with_alpha(0.35)
         );
-        let hovered = ring_colors(ring_highlight(false, true, 0.85, 0.6), 0.5);
+        let hovered = ring_colors(ring_highlight(false, true, 0.85, 0.6), 0.35, 0.5);
         assert_eq!(ring_color_at(hovered, 1.0), colors::SELECTION_RING);
         assert_eq!(
             ring_color_at(hovered, 0.0),
@@ -547,7 +549,12 @@ mod tests {
     #[test]
     fn an_exposure_ring_never_matches_the_selected_ring() {
         let tunables = Tunables::default();
-        let exposure = ring_colors(None, tunables.exposure_ring_alpha).exposure;
+        let exposure = ring_colors(
+            None,
+            tunables.orbit_ring_alpha,
+            tunables.exposure_ring_alpha,
+        )
+        .exposure;
         assert!(exposure.alpha() < 1.0);
         let selected = ring_highlight(
             true,

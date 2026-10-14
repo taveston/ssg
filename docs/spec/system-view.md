@@ -46,7 +46,7 @@
 | MRK-02 | Type has three roles. The **label face** is for names on the map, labels, buttons, headings and the breadcrumb; the **text face** is for running prose (report and request bodies, descriptions); the **data face** is for dates, figures, status readouts and stamps. Every requirement names a role, never a font. The font behind each role, and its weights, is named once, in the type roles table below; no other code names a font file. | ✓ |
 | MRK-03 | Each object is a fixed-size screen marker by class, projected from its 3D position each frame; marker size never depends on physical size. Natural bodies are drawn as body markers (MRK-13) of `star_marker_px`, `planet_marker_px` and `moon_marker_px` across. | ✓ |
 | MRK-04 | Marker shapes: body marker (MRK-13) = star, planet or moon; X = salvage site. Ships, groups of ships and stations are drawn as symbols (section 3a). | ✓ |
-✓ |
+| MRK-05 | Orbits of natural bodies are faint rings in the orbit colour (MRK-01) at `orbit_ring_alpha`, `orbit_ring_width_px` wide; the belt is a translucent shaded band. A ring stays within half a pixel of the true circle, also when the camera is close to it, and a ring passing behind the camera is cut at the near limit, not dropped. | ✓ |
 | MRK-09 | Ships and stations draw no orbit ring of their own in dot mode (MOT-01): only their tail, which fades to transparent at its end rather than to a ring's alpha. Their full ring is drawn only while the object is hovered or selected (HOV-03). In exposure-ring mode (MOT-02) the exposure ring is drawn as usual. | ✓ |
 | MRK-10 | The star, planets and moons are drawn and labelled in the neutral colour (MRK-01) whoever owns them. A body's ownership is not shown on the map. | ✓ |
 | MRK-06 | Separate planets are never merged, however close on screen. | ✓ |
@@ -240,6 +240,7 @@ All in the `Tunables` resource (`src/view/tunables.rs`). Defaults are starting v
 | `tail_secs` | 8 s | MOT-01, MOT-02, MOT-10 |
 | `dot_fade_from_degrees` | 300° | MOT-11, MOT-12 |
 | `orbit_ring_width_px` | 1 px | MRK-05, MOT-11 |
+| `orbit_ring_alpha` | 0.35 | MRK-05, MOT-01, MRK-14 |
 | `orbit_highlight_width_px` | 1 px | HOV-03 |
 | `exposure_ring_width_px` | 3 | MOT-02 |
 | `exposure_ring_alpha` | 0.5 | MOT-01, MOT-02 |
