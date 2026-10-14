@@ -1,0 +1,5 @@
+# Quick validation runs: Bevy linked as a DLL, so a change to the game only
+# relinks the game crate (3-5 s instead of 10-13 s). Dev builds only; never
+# ship with dynamic_linking.
+[alias]
+quick = "run --features bevy/dynamic_linking"
