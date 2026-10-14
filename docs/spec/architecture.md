@@ -1,6 +1,6 @@
 # Spec: Code architecture
 
-**In short:** the code is split into simulation, content and view domains, with dependencies pointing one way. Simulation works in real units (km, days) and never knows about rendering. Every spec rule is a plain function with tests, and systems stay small. These rules guide how code is written; no test scans the source for them.
+**In short:** the code is split into simulation, content and view domains, with dependencies pointing one way, and the orbital maths in a library crate of its own with no game concepts in it. Simulation works in real units (km, days) and never knows about rendering. Every spec rule is a plain function with tests, and systems stay small. These rules guide how code is written; no test scans the source for them.
 
 *Scope:* how the prototype's code is organised, separated, commented and tested. It applies to all code. **Built** is ✓ once the code meets the requirement.
 
@@ -42,15 +42,27 @@ The code is split into domains, each a folder under `src/` with its own Bevy plu
 |---|---|---|
 | ARCH-20 | Every rule in a spec (fold hysteresis, motion mode, zoom stops, Kepler periods, apparent period, label rules) is a plain function with no Bevy queries or resources in its signature, taking and returning plain values. Systems gather inputs, call the function and apply the result. | ✓ |
 | ARCH-21 | Systems stay small: as a guide, under about 50 lines. Longer systems are split into a gather / decide / apply sequence or into helper functions. UI spawning is split into one helper per panel section. Content data and tests are exempt. | ✓ |
-| ARCH-22 | Magic numbers are named constants with a comment saying what they are. Numbers the spec calls tunable stay in `Tunables` (`src/view/tunables.rs`); simulation constants (for example `KM_PER_AU`, `G`) live in `src/sim/`. | ✓ |
+| ARCH-22 | Magic numbers are named constants with a comment saying what they are. Numbers the spec calls tunable stay in one config resource per domain: `Tunables` (`src/view/tunables.rs`) for the view, `SimTunables` (`src/sim/tunables.rs`) for the simulation; simulation constants (for example `KM_PER_AU`, `G`) live in `src/sim/`. |  |
 | ARCH-23 | A comment at the function implementing a spec rule explains the rule in its own terms, so the code can be understood without the spec open. It may end with the rule's ID, e.g. `// Satellites fold below fold_px and unfold only above unfold_px, so they don't flicker (GRP-01)`. A comment that is only an ID doesn't meet this. | ✓ |
+
+## 3a. The orbits crate
+
+The orbital maths lives in its own library crate, `crates/orbits`, in a Cargo workspace with the game. It knows nothing about the game: no Bevy, no entities, no bands, ships, drives or plans. The game's simulation calls it and applies the rules (`docs/spec/transfers.md`).
+
+| ID | Requirement | Built |
+|---|---|---|
+| ARCH-40 | `crates/orbits` holds: circular-orbit evaluation and Kepler's third law (SCL-04); conics built from a state and evaluated on any day (RAIL-05, RAIL-06); the Lambert solver and the Edelbaum spiral (XFER-03, XFER-06, RAIL-07); Hill radius, circular speed, escape cost, Hohmann and synodic figures; and a generic trajectory of segments evaluated by day (RAIL-01, RAIL-04). It works in km, days and `f64`, in one orbital plane, with the primary's gravitational parameter passed in as a number. It depends on no crate but a vector-maths one. *Checked in review.* |  |
+| ARCH-41 | Nothing game-specific crosses into the crate: a function belongs there only if it would make sense for a different game. The game keeps bands, places, costs per leg, drives, plans and the identity of the primary. *Checked in review.* |  |
+| ARCH-42 | Every public item in the crate has a doc comment in plain language that assumes no knowledge of the mathematics: what the thing is, what goes in and comes out with units, and when to use it. Terms like periapsis, eccentricity or Lambert are explained in a sentence where they first appear, not assumed. *Checked in review.* |  |
+| ARCH-43 | Every public function and type in the crate has a doc example that compiles and runs as a doctest, using plain numbers (a star, a planet at some distance, a trip of so many days), never game names or types. The crate's `lib.rs` opens with a worked example that plans one transfer end to end. *Checked in review.* |  |
+| ARCH-44 | The crate's tests include every worked check in `transfers.md` (XFER-12) and round trips of state → conic → state for ellipses and hyperbolae in both senses of motion. `cargo test -p orbits` runs without Bevy. |  |
 
 ## 4. Tests and hygiene
 
 | ID | Requirement | Built |
 |---|---|---|
 | ARCH-30 | Each rule function from ARCH-20 has unit tests in the same file (`#[cfg(test)] mod tests`). A test's name says what it checks (`satellites_stay_folded_inside_the_hysteresis_band`), never just a spec ID; the ID goes in a comment or doc line on the test. Edge cases include the hysteresis band, paused time (infinite apparent period) and empty inputs. | ✓ |
-| ARCH-31 | Headless tests cover at least: orbital positions after a known time; fold state after a scale change; motion mode after a rate change; zoom stop computation for Corvane. They run without a window or GPU. The crate is a binary, so headless apps are `#[cfg(test)]` code in `src/headless_tests.rs`. | ✓ |
+| ARCH-31 | Headless tests cover at least: orbital positions after a known time; fold state after a scale change; motion mode after a rate change; zoom stop computation for Corvane. They run without a window or GPU. The game crate is a binary, so headless apps are `#[cfg(test)]` code in `src/headless_tests.rs`. | ✓ |
 | ARCH-32 | `cargo test`, `cargo clippy --all-targets -- -D warnings` and `cargo fmt --check` all pass. | ✓ |
 | ARCH-33 | No dead code: no `#[allow(dead_code)]` or unused items, except tunables for requirements not yet built, each marked with the ID they wait for. | ✓ |
 | ARCH-34 | Every module has a `//!` header saying what it owns and which spec IDs it implements. | ✓ |
