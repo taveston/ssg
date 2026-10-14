@@ -116,6 +116,7 @@ The state knows a track, not an order. A foreign ship in flight is drawn with a 
 The planner only ever showed the cost of the next thing, and delta-v is a budget, so a player could send a ship on an intercept and only learn afterwards that it can't come home. The fix is to make "can it get back" part of every preview, computed, never left to arithmetic.
 
 - **Home** is the nearest place a ship can refuel: a friendly station, depot or yard with fuel (*Economy*; the hydrogen depot in *Drives & Transit* 9). Which places count is data the economy owns; the planner only asks for the list.
+- **One fuel for now (decided 2026-10-14).** Until fuel logistics are designed, there is one propellant, or every port that refuels holds every kind. So "a port with fuel" is one question, not one per drive.
 - **The reserve** is the delta-v the cheapest trip home from the plan's end state needs, allowing a wait of up to `return_window_days` for a good window. It is computed from the end state, so after a Pass or an intercept it starts from a coasting conic, which is exactly when it matters.
 - **The delta-v bar shows three things:** this trip, the reserve, and what's left. The reserve is a shaded band at the far end of the bar; a trip that eats into it turns the band the warning colour, and a trip that leaves less than the reserve makes the order **one-way**. The readout says so in words: "Return: 7.1 km/s, waiting up to 60 d" or "One-way: can't reach a friendly port after this".
 - **One-way is allowed, but never by accident.** The Schedule button reads "Schedule (one-way)" and asks once. A standing rule per ship class (candidate: civilians and tankers refuse one-way orders without an override; warships don't) keeps haulers out of trouble without nagging the fleet.
@@ -130,6 +131,7 @@ A plan is a list of legs; each leg is a transfer planned from the predicted end 
 - **Waypoints** are legs with no stop: a Pass at a body (section 7), or a via-flyby that takes an assist (2.6). "Halden IV via Morrow" is a two-leg plan whose first leg is a Pass.
 - **Execution:** legs run in order. Each leg is re-validated when it starts, as a scheduled order is (3.5); if the ship's state no longer fits, the plan pauses there with an alert and the ship holds. A re-task in flight drops the rest of the plan.
 - **Groups** plan every leg on the weakest ship, and the reserve too.
+- **Refuelling stops.** A Stop at a friendly port with fuel refuels the ship by default (a toggle on the leg turns it off). The planner then plans the next leg from a full tank, and adds a planned dwell of `refuel_days` to the leg's start. The dwell is a known number, so the planner stays exact: whether the port actually has fuel on the day is checked when the leg starts, like everything else, and a dry port pauses the plan with an alert and the ship holding. "Stop at Iver Yard, refuel, then Halden IV" is a two-leg plan with nothing special in it. Fuel stock, price and queueing at a port are the economy's to design; the planner only needs a yes or no and a dwell.
 - **Keep it short.** A plan is a few legs, not a tour. If people want long patrol routes, that is a standing order for the conflict doc, not a ten-leg plan.
 
 ## 4. Destinations and orbits **(Direction)**
@@ -192,7 +194,7 @@ Combat is auto-resolved on the system view with the clock slowed (*Conflict*), s
 - `Trajectory { segments: Vec<Segment> }`, each `Segment { start_day, end_day, kind }` with `kind` one of `Parked { body }`, `Conic { primary, elements }`, `Spiral { primary, r0, r1, θ0, θ1 }`. Position and velocity in km and km/day, `f64`, relative to the segment's primary (SCL-01, SCL-06).
 - `Plan { ship, legs: Vec<Leg>, status }` and `Leg { destination, arrival: Stop | Pass, depart_day, travel_days, trajectory }`, with `status` one of Scheduled, InFlight, Holding, Done, Failed. A plain transfer is a one-leg plan; a via-flyby is a leg with `arrival: Pass` and a free turn at the body. `destination` is a place: `Body { body, band: Low | High }`, `Satellite { body }` (stations, moons), `Gate { gate }`, `Site { site }`, `Ship { ship }` or `Hold`. Orders are the save-game truth; trajectories can be recomputed from them.
 - Per body: the low and high band radii (or the altitude and multiple they derive from), and from them the departure cost and approach days per band. Per gate: `entry_tolerance_kms` (*Drives & Transit* 8).
-- Per ship: `reserve_kms` (recomputed) and whether its class refuses one-way orders. Tunable: `return_window_days`.
+- Per ship: `reserve_kms` (recomputed) and whether its class refuses one-way orders. Per leg: `refuel: bool`. Tunables: `return_window_days`, `refuel_days` (per port later, if ports differ).
 - Per drive: `impulsive: bool`, `exhaust_velocity`, `acceleration` (loaded). Per ship: `delta_v_kms`, with reserved and spent.
 - A `transfer_solver` module in the simulation layer, pure functions from states and budgets to trajectories, so the planner and the tests share it. The view only draws segments and moves sliders.
 
@@ -201,9 +203,9 @@ Combat is auto-resolved on the system view with the clock slowed (*Conflict*), s
 - **The planet legs.** Is "departure cost plus a few days" enough, or should a transfer from a deep well visibly stage through a highport (two orders, not one)? The economic reason for highports exists either way.
 - **Impulsive versus low-thrust boundary.** Where does pulsed fusion sit? A month-long burn on a two-month trip is neither.
 - **Groups:** split a group when the slow ship holds it up, or always move together?
-- **What counts as home:** any friendly port with fuel, or only ones with the right propellant for the drive? A water tug can't refuel at a hydrogen depot.
 - **Reserve window:** one `return_window_days` for everyone, or per order ("I'm happy to wait a year")?
 - **Gravity assists:** build the via-planner once the generator can place a giant in a traffic lane, or earlier as a showcase?
+- **Refuel dwell:** one `refuel_days` for every port, or a port property (a depot is quick, a yard with no tanker takes weeks)? And does a partial fill (the port has less than a tank) make sense, or is it full or nothing?
 - **Lost ships.** A coasting ship with no affordable destination: does it strand (a rescue tug becomes an order), or is it simply gone at the system's edge?
 - **Band count.** Are low and high enough, or does a third band (a staging orbit near the Hill sphere, for fleets that must leave fast) earn its place?
 - **Pass and ground targets.** Can a passing ship bombard, drop troops or scan, or does anything that acts on a body need Stop in the right band?
