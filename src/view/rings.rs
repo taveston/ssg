@@ -1,33 +1,33 @@
 //! Orbit rings (MRK-05), their tails and exposure rings (MOT-01, MOT-02,
 //! MOT-11), and their hover and selection highlight (HOV-03).
 //!
-//! Full rings are drawn for planets and *unfolded* moons (GRP-01). Ships and
-//! stations draw only their tail in dot mode, fading to nothing at its end,
-//! and their full ring only while hovered or selected or as an exposure
-//! ring (MRK-09). Rings are drawn
-//! finer where the camera is close so they stay true to the circle at any
-//! zoom (SCL-02). Each ring is one stroke whose brightness varies along it:
-//! the tail behind a body runs from the exposure brightness at the dot down
-//! to the ring's normal brightness, and an exposure ring is bright all
-//! round. Each ring is its own retained gizmo, so it can widen on its own
-//! as its tail closes (MOT-11). A hovered body's ring is white at
-//! `orbit_hover_alpha`, a selected body's white at `orbit_selected_alpha`
-//! (HOV-03). Outside the star's frame the frame body's own ring is left to
-//! `frame_orbit.rs` (MRK-14).
+//! One stroke per ring (`shared_orbit.rs`): a planet's or unfolded moon's
+//! own orbit (GRP-01), or a named orbit with the ships and stations in it
+//! (HOV-04), drawn once however many sit there. Ships and stations draw
+//! only their tails in dot mode, fading to nothing at their ends, and the
+//! full ring only while hovered or selected or as an exposure ring
+//! (MRK-09). Rings are drawn finer where the camera is close so they stay
+//! true to the circle at any zoom (SCL-02). Each ring is one stroke whose
+//! brightness varies along it: the tail behind each body on it runs from
+//! the exposure brightness at the dot down to the ring's normal brightness,
+//! and an exposure ring is bright all round. Each ring is its own retained
+//! gizmo, so it can widen on its own as its tail closes (MOT-11). A hovered
+//! ring is white at `orbit_hover_alpha`, a selected body's white at
+//! `orbit_selected_alpha` (HOV-03). Outside the star's frame the frame
+//! body's own ring is left to `frame_orbit.rs` (MRK-14).
 
 use bevy::color::Mix;
 use bevy::prelude::*;
 
 use crate::sim::body::BodyClass;
-use crate::sim::orbit::{Orbit, OrbitPositionKm};
 use crate::view::camera::state::camera_fov;
 use crate::view::colors;
-use crate::view::fold::SatelliteFoldState;
 use crate::view::frame::Frame;
 use crate::view::hovered::HoveredBodies;
 use crate::view::motion_mode::{MotionModeState, degrees_behind, tail_brightness};
 use crate::view::scale::km_to_render;
 use crate::view::selection::Selection;
+use crate::view::shared_orbit::OrbitRings;
 use crate::view::tunables::Tunables;
 use crate::view::world::{RenderOrigin, WorldPositions};
 use crate::{Boot, Stage};
@@ -44,7 +44,8 @@ const MAX_RING_SPLITS: u32 = 12;
 /// A point must be at least this far in front of the camera to be drawn.
 const NEAR_EPSILON: f32 = 0.01;
 
-/// The retained gizmo that draws one body's ring.
+/// The retained gizmo that draws one ring, for the body or named orbit it
+/// stands for.
 #[derive(Component)]
 pub struct RingStrokeFor(pub Entity);
 
@@ -59,18 +60,16 @@ impl Plugin for RingsPlugin {
     }
 }
 
-/// One retained gizmo per body whose ring can be drawn.
+/// HOV-04: one retained gizmo per ring: a natural body's own, or a named
+/// orbit's, shared by everything in it.
 fn spawn_ring_strokes(
     mut commands: Commands,
     mut assets: ResMut<Assets<GizmoAsset>>,
-    bodies: Query<(Entity, &BodyClass), With<Orbit>>,
+    rings: OrbitRings,
 ) {
-    for (body, class) in &bodies {
-        if !has_orbit_line(*class) {
-            continue;
-        }
+    for owner in rings.owners() {
         commands.spawn((
-            RingStrokeFor(body),
+            RingStrokeFor(owner),
             Gizmo {
                 handle: assets.add(GizmoAsset::new()),
                 line_config: GizmoLineConfig {
@@ -82,20 +81,6 @@ fn spawn_ring_strokes(
         ));
     }
 }
-
-/// Everything orbiting, with what decides how its ring is drawn.
-type RingBodies<'w, 's> = Query<
-    'w,
-    's,
-    (
-        &'static Orbit,
-        &'static OrbitPositionKm,
-        &'static BodyClass,
-        Option<&'static ChildOf>,
-        Option<&'static SatelliteFoldState>,
-        Option<&'static MotionModeState>,
-    ),
->;
 
 /// How much of a body's orbit is drawn this frame.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -204,15 +189,16 @@ pub fn ring_color_at(colors: RingColors, brightness: f32) -> Color {
 struct StrokeLook {
     center: Vec3,
     radius: f32,
-    body_angle: f32,
+    /// Where each drawn body sits on the ring: each carries a tail.
+    body_angles: Vec<f32>,
     mode: MotionModeState,
     colors: RingColors,
     base_width: f32,
 }
 
-/// MRK-05 / MOT-01 / MOT-02 / MOT-11 / HOV-03: refill every ring stroke:
-/// the ring as the camera sees it, bright along the tail (or all round in
-/// ring mode), as wide as its closing makes it.
+/// MRK-05 / MOT-01 / MOT-02 / MOT-11 / HOV-03 / HOV-04: refill every ring
+/// stroke: the ring as the camera sees it, bright along each body's tail
+/// (or all round in ring mode), as wide as its closing makes it.
 #[allow(clippy::too_many_arguments)]
 fn draw_orbit_rings(
     frame: Res<Frame>,
@@ -220,7 +206,7 @@ fn draw_orbit_rings(
     hovered: Res<HoveredBodies>,
     tunables: Res<Tunables>,
     camera_q: Query<(&Camera, &Transform, &Projection)>,
-    bodies: RingBodies,
+    rings: OrbitRings,
     positions: Res<WorldPositions>,
     origin: Res<RenderOrigin>,
     mut strokes: Query<(&RingStrokeFor, &mut Gizmo)>,
@@ -241,16 +227,10 @@ fn draw_orbit_rings(
             continue;
         };
         asset.clear();
-        let body = stroke_for.0;
-        // MRK-14: outside the star's frame, the frame body's orbit is only
-        // a tail (`frame_orbit.rs`).
-        if frame.non_star_body() == Some(body) {
-            continue;
-        }
         let Some(look) = stroke_look(
-            body,
-            &bodies,
-            (&positions, origin.star),
+            stroke_for.0,
+            &rings,
+            (&positions, origin.star, frame.non_star_body()),
             (&selection, &hovered, &tunables),
         ) else {
             continue;
@@ -258,11 +238,15 @@ fn draw_orbit_rings(
         let segments = ring_segments(look.center, look.radius, view);
         for segment in segments
             .into_iter()
-            .flat_map(|segment| split_at_angle(segment, look.body_angle))
+            .flat_map(|segment| split_at_angles(segment, &look.body_angles))
         {
-            let (from_behind, to_behind) = segment_behind(&segment, look.body_angle);
-            let at = |behind: f32| ring_color_at(look.colors, tail_brightness(behind, &look.mode));
-            asset.line_gradient(segment.from, segment.to, at(from_behind), at(to_behind));
+            let (from, to) = ends_brightness(&segment, &look.body_angles, &look.mode);
+            asset.line_gradient(
+                segment.from,
+                segment.to,
+                ring_color_at(look.colors, from),
+                ring_color_at(look.colors, to),
+            );
         }
         let width = look
             .mode
@@ -273,25 +257,29 @@ fn draw_orbit_rings(
     }
 }
 
-/// Where a body's ring is, where the body is on it, and how it is
-/// coloured; `None` if the ring isn't drawn.
+/// Where a ring is, where the bodies on it are, and how it is coloured;
+/// `None` if the ring isn't drawn. MRK-14: outside the star's frame the
+/// frame body's orbit is only a tail (`frame_orbit.rs`), so it is left off
+/// its ring, and a ring with nothing else on it isn't drawn.
 fn stroke_look(
-    body: Entity,
-    bodies: &RingBodies,
-    (positions, star): (&WorldPositions, Vec3),
+    owner: Entity,
+    rings: &OrbitRings,
+    (positions, star, frame_body): (&WorldPositions, Vec3, Option<Entity>),
     (selection, hovered, tunables): (&Selection, &HoveredBodies, &Tunables),
 ) -> Option<StrokeLook> {
-    let (orbit, local, class, child_of, fold, mode) = bodies.get(body).ok()?;
-    let mode = mode.copied().unwrap_or_default();
+    let ring = rings.ring(owner)?;
+    let body_angles: Vec<f32> = ring.drawn(frame_body).map(|m| m.angle).collect();
+    let mode = ring.mode();
+    let (selected, is_hovered) = ring.highlight(selection, hovered);
     let highlight = ring_highlight(
-        selection.is_selected(body),
-        hovered.contains(body),
+        selected,
+        is_hovered,
         tunables.orbit_selected_alpha,
         tunables.orbit_hover_alpha,
     );
     let extent = ring_extent(
-        *class,
-        fold.is_some_and(|f| f.effective_hidden),
+        ring.class(),
+        body_angles.is_empty(),
         mode.ring_mode,
         highlight.is_some(),
     );
@@ -306,13 +294,14 @@ fn stroke_look(
         RingExtent::Tail => colors.normal = colors.normal.with_alpha(0.0),
         RingExtent::Full => {}
     }
-    let center = child_of
-        .and_then(|c| positions.0.get(&c.parent()).copied())
+    let center = ring
+        .centre
+        .and_then(|parent| positions.0.get(&parent).copied())
         .unwrap_or(star);
     Some(StrokeLook {
         center,
-        radius: km_to_render(orbit.radius_km),
-        body_angle: local.0.z.atan2(local.0.x) as f32,
+        radius: km_to_render(ring.radius_km),
+        body_angles,
         mode,
         colors,
         base_width: ring_base_width(highlight.is_some(), tunables),
@@ -368,6 +357,34 @@ pub fn split_at_angle(segment: RingSegment, angle: f32) -> Vec<RingSegment> {
             ..segment
         },
     ]
+}
+
+/// HOV-04 / MOT-01: a segment split at every body on the ring, so no
+/// body's tail bleeds ahead of it.
+pub fn split_at_angles(segment: RingSegment, angles: &[f32]) -> Vec<RingSegment> {
+    angles.iter().fold(vec![segment], |pieces, &angle| {
+        pieces
+            .into_iter()
+            .flat_map(|piece| split_at_angle(piece, angle))
+            .collect()
+    })
+}
+
+/// HOV-04 / MOT-01: the brightness at each end of a segment on a ring with
+/// bodies at `angles`: each body lays its own tail along the ring, and a
+/// point takes the brightest. With no body on the ring there is no tail.
+pub fn ends_brightness(
+    segment: &RingSegment,
+    angles: &[f32],
+    mode: &MotionModeState,
+) -> (f32, f32) {
+    angles
+        .iter()
+        .map(|&angle| {
+            let (from, to) = segment_behind(segment, angle);
+            (tail_brightness(from, mode), tail_brightness(to, mode))
+        })
+        .fold((0.0, 0.0), |(a, b), (from, to)| (a.max(from), b.max(to)))
 }
 
 /// MOT-01: how far behind the body each end of a segment is, in degrees.
@@ -629,6 +646,35 @@ mod tests {
         assert_eq!(tail_brightness(ahead_from, &state), 0.0);
         assert_eq!(tail_brightness(ahead_to, &state), 0.0);
         assert_eq!(tail_brightness(behind_to, &state), 1.0);
+    }
+
+    /// HOV-04: on a shared ring each body lays its own tail, and a point
+    /// takes the brighter; a segment is split at every body.
+    #[test]
+    fn each_body_on_a_shared_ring_has_its_own_tail() {
+        let state = MotionModeState {
+            tail_degrees: 90.0,
+            closing: 0.0,
+            ring_mode: false,
+        };
+        let segment = RingSegment {
+            from: Vec3::ZERO,
+            to: Vec3::X,
+            from_angle: 1.0,
+            to_angle: 1.2,
+        };
+        let pieces = split_at_angles(segment, &[1.05, 1.15]);
+        assert_eq!(pieces.len(), 3);
+        // The piece ending at the second body is at full brightness there,
+        // whichever body is listed first, and its start is as bright as the
+        // nearer body alone would make it.
+        for angles in [[1.05, 1.15], [1.15, 1.05]] {
+            let (behind, at_body) = ends_brightness(&pieces[1], &angles, &state);
+            assert_eq!(at_body, 1.0);
+            let (lone, _) = ends_brightness(&pieces[1], &[1.15], &state);
+            assert_eq!(behind, lone);
+        }
+        assert_eq!(ends_brightness(&segment, &[], &state), (0.0, 0.0));
     }
 
     /// MOT-01: each segment carries the orbit angle at its ends, so the

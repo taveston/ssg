@@ -1,5 +1,6 @@
 //! Simulation (ARCH-01): the game state and its rules, in real units -
-//! the clock, bodies and their orbits, affiliation and knowledge.
+//! the clock, bodies and their orbits, named orbits, affiliation and
+//! knowledge.
 //!
 //! Nothing here knows about screens, cameras or input (ARCH-02), so the
 //! whole domain runs in a headless `App` with `MinimalPlugins` and
@@ -12,6 +13,7 @@ use crate::{Boot, Stage};
 
 pub mod body;
 pub mod clock;
+pub mod named_orbit;
 pub mod orbit;
 pub mod spawn;
 pub mod system;

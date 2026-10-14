@@ -46,7 +46,7 @@ pub struct FoldedGroup {
 /// GRP-06: what the "+N" pill has to show besides the count - an outline
 /// in the colour of the most pressing affiliation among its folded
 /// satellites, and a blue dot if own ships are parked there.
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct PillFlags {
     pub pressing: Option<Affiliation>,
     pub has_own_ship: bool,

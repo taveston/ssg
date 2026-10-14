@@ -1,22 +1,24 @@
-//! Which bodies the pointer is over this frame, through any of their
-//! pickable stand-ins - marker hit area, label or orbit ring (HOV-01,
-//! HOV-03). Shared state, so the markers' white ring and the orbit rings'
-//! highlight agree without importing each other (ARCH-03).
+//! Which bodies and shared orbits the pointer is over this frame, through
+//! any of their pickable stand-ins - marker hit area, label, orbit ring or
+//! identity pill (HOV-01, HOV-03, HOV-05). Shared state, so the markers'
+//! white ring and the orbit rings' highlight agree without importing each
+//! other (ARCH-03).
 
 use std::collections::HashSet;
 
 use bevy::prelude::*;
 
-use super::targets::{Hovered, MarkerFor};
+use super::targets::{Hovered, MarkerFor, OrbitFor};
 use crate::Stage;
 
-/// The bodies hovered this frame.
+/// The bodies and named orbits hovered this frame.
 #[derive(Resource, Default, Debug)]
 pub struct HoveredBodies(pub HashSet<Entity>);
 
 impl HoveredBodies {
-    pub fn contains(&self, body: Entity) -> bool {
-        self.0.contains(&body)
+    /// Whether a body, or a shared orbit, is hovered.
+    pub fn contains(&self, entity: Entity) -> bool {
+        self.0.contains(&entity)
     }
 }
 
@@ -29,10 +31,19 @@ impl Plugin for HoveredPlugin {
     }
 }
 
-/// HOV-03: hovering any stand-in for a body - its marker, its label or its
-/// ring - hovers the body.
-fn collect_hovered(targets: Query<&MarkerFor, With<Hovered>>, mut hovered: ResMut<HoveredBodies>) {
-    let now: HashSet<Entity> = targets.iter().map(|target| target.0).collect();
+/// HOV-03 / HOV-05: hovering any stand-in for a body - its marker, its
+/// label or its ring - hovers the body; hovering a shared orbit's ring or
+/// identity pill hovers the orbit.
+fn collect_hovered(
+    targets: Query<&MarkerFor, With<Hovered>>,
+    orbits: Query<&OrbitFor, With<Hovered>>,
+    mut hovered: ResMut<HoveredBodies>,
+) {
+    let now: HashSet<Entity> = targets
+        .iter()
+        .map(|target| target.0)
+        .chain(orbits.iter().map(|orbit| orbit.0))
+        .collect();
     if hovered.0 != now {
         hovered.0 = now;
     }

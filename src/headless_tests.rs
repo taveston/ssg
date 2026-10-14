@@ -24,9 +24,10 @@ use crate::content::ContentPlugin;
 use crate::sim::SimPlugin;
 use crate::sim::body::{Affiliation, BodyClass, DisplayName, Knowledge, PhysicalRadius};
 use crate::sim::clock::GameClock;
+use crate::sim::named_orbit::{InNamedOrbit, NamedOrbit};
 use crate::sim::orbit::{Orbit, OrbitPositionKm, orbit_position_km};
 use crate::sim::system::{
-    BeltBlueprint, BodyBlueprint, GateBlueprint, SystemData, SystemDataResource,
+    BeltBlueprint, BodyBlueprint, GateBlueprint, OrbitPlacement, SystemData, SystemDataResource,
 };
 use crate::sim::units::{EARTH_MASS_KG, KM_PER_AU, SOLAR_MASS_KG};
 use crate::view::bindings::BindingsPlugin;
@@ -43,7 +44,9 @@ use crate::view::frame::{Frame, FramePlugin};
 use crate::view::gesture::PressStart;
 use crate::view::grouping::GroupingPlugin;
 use crate::view::hovered::HoveredPlugin;
-use crate::view::markers::{BodyDetail, MarkerHalfSize, MarkersPlugin, body_fill, ring_outer_half};
+use crate::view::markers::{
+    BodyDetail, BodyRim, MarkerHalfSize, MarkersPlugin, body_fill, ring_outer_half,
+};
 use crate::view::motion::MotionPlugin;
 use crate::view::motion_mode::MotionModeState;
 use crate::view::pills::PillsPlugin;
@@ -52,6 +55,7 @@ use crate::view::projection::ProjectionPlugin;
 use crate::view::scale::{km_to_render, km_to_render_vec3};
 use crate::view::screen::{ScreenPlugin, ScreenPositions};
 use crate::view::selection::Selection;
+use crate::view::shared_orbit::SharedOrbitPlugin;
 use crate::view::symbol_draw::Tint;
 use crate::view::targets::{GroupPillFor, MarkerFor};
 use crate::view::topbar::TOP_BAR_HEIGHT_PX;
@@ -197,14 +201,18 @@ fn orbital_positions_after_a_known_time() {
     }
 
     // And in absolute terms: Halden IV is on its 2 AU orbit, and Arden
-    // Highport (0.1 d) has gone round about 100 times but is still 9,394 km
-    // from its planet.
+    // Highport (0.1 d) has gone round about 100 times but is still on its
+    // named orbit, about 9,394 km from its planet (SCL-07).
     let halden = body(&mut app, "Halden IV");
     let halden_km = app.world().get::<OrbitPositionKm>(halden).unwrap().0;
     assert!((halden_km.length() / KM_PER_AU - 2.0).abs() < 1e-9);
     let highport = body(&mut app, "Arden Highport");
     let highport_km = app.world().get::<OrbitPositionKm>(highport).unwrap().0;
-    assert!((highport_km.length() - 9_394.0).abs() < 1e-6);
+    let low = app.world().get::<InNamedOrbit>(highport).unwrap().0;
+    let low = app.world().get::<NamedOrbit>(low).unwrap();
+    assert_eq!((low.parent, low.name.as_str()), (halden, "Low"));
+    assert!((highport_km.length() - low.radius_km).abs() < 1e-6);
+    assert!((low.radius_km - 9_394.0).abs() < 1.0);
 }
 
 /// ARCH-31 / GRP-01 / GRP-02 / GRP-04: fold state follows the scale. At the
@@ -1027,10 +1035,11 @@ fn blueprint(name: &'static str, class: BodyClass, radius_km: f64) -> BodyBluepr
         description: "",
         key_facts: vec![],
         knowledge: Knowledge::Unsurveyed,
-        orbit_radius_km: radius_km,
+        orbit: OrbitPlacement::Own { radius_km },
         radius_km: 1_000.0,
         phase0_rad: 0.0,
         mass_kg: 0.0,
+        orbits: vec![],
         children: vec![],
     }
 }
@@ -1928,6 +1937,7 @@ fn dot_mode_rings_are_hit_targets() {
                 GroupingPlugin,
                 MotionPlugin,
                 HoveredPlugin,
+                SharedOrbitPlugin,
                 crate::view::ring_picking::RingPickingPlugin,
             ));
     });
@@ -2055,4 +2065,252 @@ fn the_scale_bar_fits_and_the_north_dial_follows_and_resets_the_heading() {
     let heading = app.world().resource::<CameraRig>().heading;
     assert!(heading.abs() < 1e-3, "heading {heading}");
     assert!(arrow_angle(&mut app).abs() < 1e-3);
+}
+
+/// SCL-07 / TEST-10 / HOV-04 / HOV-02: Orison and Ardent sit in Halden
+/// IV's named orbit "High" with no radius of their own, so they share one
+/// ring: the orbit is a ring owner and the ships are not, and the ring has
+/// one hit target standing for the orbit, traced at Halden IV's satellite
+/// fit. Arden Highport's "Low" orbit, with one member, is the highport's
+/// own ring.
+#[test]
+fn two_warships_in_one_named_orbit_share_one_ring() {
+    use crate::view::ring_picking::{RingPaths, RingPickingPlugin, RingTarget};
+    use crate::view::shared_orbit::OrbitRings;
+    use crate::view::targets::OrbitFor;
+    use bevy::ecs::system::RunSystemOnce;
+
+    let mut app = camera_app_with(|app| {
+        app.add_message::<bevy::picking::backend::PointerHits>()
+            .insert_resource(placeholder_fonts())
+            .add_plugins((
+                GroupingPlugin,
+                MotionPlugin,
+                HoveredPlugin,
+                SharedOrbitPlugin,
+                RingPickingPlugin,
+            ));
+    });
+    let halden = body(&mut app, "Halden IV");
+    let orison = body(&mut app, "Orison");
+    let ardent = body(&mut app, "Ardent");
+    let highport = body(&mut app, "Arden Highport");
+
+    let high = app.world().get::<InNamedOrbit>(orison).unwrap().0;
+    assert_eq!(app.world().get::<InNamedOrbit>(ardent).unwrap().0, high);
+    let named = app.world().get::<NamedOrbit>(high).unwrap().clone();
+    assert_eq!((named.parent, named.name.as_str()), (halden, "High"));
+    for ship in [orison, ardent] {
+        let orbit = app.world().get::<Orbit>(ship).unwrap();
+        assert_eq!(orbit.radius_km, named.radius_km);
+        assert_eq!(orbit.period_days, named.period_days);
+    }
+
+    let owners = app
+        .world_mut()
+        .run_system_once(|rings: OrbitRings| rings.owners())
+        .unwrap();
+    assert!(owners.contains(&high) && owners.contains(&halden));
+    assert!(!owners.contains(&orison) && !owners.contains(&ardent));
+    let ring = app
+        .world_mut()
+        .run_system_once(move |rings: OrbitRings| rings.ring(high).unwrap())
+        .unwrap();
+    assert!(ring.shared);
+    let members: Vec<Entity> = ring.members.iter().map(|m| m.body).collect();
+    assert_eq!(members, [orison, ardent]);
+
+    let mut targets = app
+        .world_mut()
+        .query::<(Entity, &RingTarget, Option<&OrbitFor>, Option<&MarkerFor>)>();
+    let targets: Vec<(Entity, Entity, Option<Entity>, Option<Entity>)> = targets
+        .iter(app.world())
+        .map(|(e, t, o, m)| (e, t.0, o.map(|o| o.0), m.map(|m| m.0)))
+        .collect();
+    let shared: Vec<_> = targets.iter().filter(|t| t.1 == high).collect();
+    assert_eq!(shared.len(), 1, "one target for the shared orbit");
+    assert_eq!((shared[0].2, shared[0].3), (Some(high), None));
+    assert!(
+        !targets
+            .iter()
+            .any(|t| t.3 == Some(orison) || t.3 == Some(ardent)),
+        "a member of a shared orbit has no ring target of its own"
+    );
+    assert!(
+        targets
+            .iter()
+            .any(|t| t.3 == Some(highport) && t.2.is_none()),
+        "a lone member's orbit is that member's ring"
+    );
+
+    app.world_mut().resource_mut::<FrameRequest>().0 = Some(halden);
+    run(&mut app, 60 + SETTLE_FRAMES);
+    assert_eq!(frame_body(&app), halden);
+    let paths = app.world().resource::<RingPaths>();
+    assert!(
+        paths.0.contains_key(&shared[0].0),
+        "the shared ring's tails are traced for hit-testing"
+    );
+}
+
+/// Every entity under `root` in the UI hierarchy.
+fn descendants(app: &mut App, root: Entity) -> Vec<Entity> {
+    let children = app.world_mut().query::<&Children>();
+    let mut found = vec![];
+    let mut stack = vec![root];
+    while let Some(e) = stack.pop() {
+        if let Ok(kids) = children.get_manual(app.world(), e) {
+            for kid in kids.iter() {
+                found.push(kid);
+                stack.push(kid);
+            }
+        }
+    }
+    found
+}
+
+/// MOT-02 / MOT-14 / SYM-16: every ring has a mark and label: a "+N" pill
+/// targeting the orbit for a shared orbit, a symbol for a lone ship or
+/// station, a body marker for a lone moon. At 1 d/s in Halden IV's frame
+/// IVb's ring is an exposure ring, so its mark shows, centred on a whole
+/// pixel; the warships' 12 d ring is in dot mode, so its pill is hidden,
+/// and the highport, folded at that fit, shows no mark either.
+#[test]
+fn an_exposure_ring_carries_an_identity_mark() {
+    use crate::view::pills::PillCountText;
+    use crate::view::ring_marks::{IdentityPill, RingMarkFor, RingMarksPlugin};
+    use crate::view::symbol_shape::SymbolPart;
+    use crate::view::targets::OrbitFor;
+
+    let mut app = camera_app_with(|app| {
+        app.insert_resource(placeholder_fonts()).add_plugins((
+            GroupingPlugin,
+            MotionPlugin,
+            HoveredPlugin,
+            SharedOrbitPlugin,
+            RingMarksPlugin,
+        ));
+    });
+    let halden = body(&mut app, "Halden IV");
+    let orison = body(&mut app, "Orison");
+    let highport = body(&mut app, "Arden Highport");
+    let ivb = body(&mut app, "Halden IVb");
+    let high = app.world().get::<InNamedOrbit>(orison).unwrap().0;
+    let low = app.world().get::<InNamedOrbit>(highport).unwrap().0;
+
+    let mark_of = |app: &mut App, owner: Entity| {
+        let mut marks =
+            app.world_mut()
+                .query::<(Entity, &RingMarkFor, Option<&OrbitFor>, Option<&MarkerFor>)>();
+        marks
+            .iter(app.world())
+            .find(|(_, m, ..)| m.owner == owner)
+            .map(|(e, m, o, k)| (e, m.half, o.map(|o| o.0), k.map(|k| k.0)))
+            .unwrap_or_else(|| panic!("no mark for {owner}"))
+    };
+
+    let (high_mark, _, orbit_for, marker_for) = mark_of(&mut app, high);
+    assert_eq!((orbit_for, marker_for), (Some(high), None));
+    let parts = descendants(&mut app, high_mark);
+    let pill = parts
+        .iter()
+        .find(|&&e| app.world().get::<IdentityPill>(e).is_some())
+        .expect("a shared orbit's mark is a pill");
+    assert_eq!(app.world().get::<IdentityPill>(*pill).unwrap().0, high);
+    let count = parts
+        .iter()
+        .find(|&&e| app.world().get::<PillCountText>(e).is_some())
+        .unwrap();
+    assert_eq!(app.world().get::<Text>(*count).unwrap().0, "+2");
+    assert!(
+        parts
+            .iter()
+            .any(|&e| app.world().get::<Text>(e).is_some_and(|t| t.0 == "High")),
+        "the pill is labelled with the orbit's name"
+    );
+
+    let (low_mark, _, orbit_for, marker_for) = mark_of(&mut app, low);
+    assert_eq!((orbit_for, marker_for), (None, Some(highport)));
+    assert!(
+        descendants(&mut app, low_mark)
+            .iter()
+            .any(|&e| app.world().get::<SymbolPart>(e).is_some()),
+        "a lone station's mark is its symbol"
+    );
+    let (ivb_mark, ivb_half, _, marker_for) = mark_of(&mut app, ivb);
+    assert_eq!(marker_for, Some(ivb));
+    assert!(
+        descendants(&mut app, ivb_mark)
+            .iter()
+            .any(|&e| app.world().get::<BodyRim>(e).is_some()),
+        "a lone moon's mark is its body marker"
+    );
+
+    let mut clock = app.world_mut().resource_mut::<GameClock>();
+    clock.toggle_pause();
+    clock.run_at(1.0);
+    app.world_mut().resource_mut::<FrameRequest>().0 = Some(halden);
+    run(&mut app, 60 + eased_frames());
+    assert_eq!(frame_body(&app), halden);
+    let shown = |app: &App, mark: Entity| app.world().get::<Node>(mark).unwrap().display;
+    assert_eq!(shown(&app, high_mark), Display::None, "12 d is dot mode");
+    assert_eq!(shown(&app, low_mark), Display::None, "folded at this fit");
+    assert_eq!(shown(&app, ivb_mark), Display::Flex);
+    let node = app.world().get::<Node>(ivb_mark).unwrap();
+    let (Val::Px(left), Val::Px(top)) = (node.left, node.top) else {
+        panic!("the mark is placed in pixels");
+    };
+    let centre = Vec2::new(left + ivb_half, top + ivb_half);
+    assert_eq!(centre, centre.round(), "centred on a whole pixel");
+}
+
+/// HOV-05 / INS-05: a selection made through a shared orbit opens the
+/// inset's "In orbit" list with that orbit's row expanded, its members
+/// listed under "Halden IV · High"; the row collapses on a toggle and
+/// stays as left.
+#[test]
+fn a_shared_orbit_click_reveals_its_row_in_the_list() {
+    use crate::view::in_orbit::{ExpandedOrbits, InOrbitList, InOrbitPlugin, toggle};
+
+    let mut app = headless_app(FRAME);
+    app.add_plugins((ContentPlugin, SimPlugin, TunablesPlugin, InOrbitPlugin))
+        .init_resource::<Selection>()
+        .init_resource::<Frame>()
+        .insert_resource(placeholder_fonts());
+    run(&mut app, 1);
+    let halden = body(&mut app, "Halden IV");
+    let orison = body(&mut app, "Orison");
+    let high = app.world().get::<InNamedOrbit>(orison).unwrap().0;
+    let list = app.world_mut().spawn(InOrbitList(halden)).id();
+
+    let texts = |app: &mut App| -> Vec<String> {
+        descendants(app, list)
+            .into_iter()
+            .filter_map(|e| app.world().get::<Text>(e).map(|t| t.0.clone()))
+            .collect()
+    };
+
+    run(&mut app, 2);
+    let listed = texts(&mut app);
+    assert!(listed.contains(&"Halden IV · High".to_string()));
+    assert!(
+        !listed.contains(&"Orison".to_string()),
+        "collapsed to start"
+    );
+    assert!(listed.contains(&"Halden IVa".to_string()));
+
+    app.world_mut()
+        .resource_mut::<Selection>()
+        .select_through_orbit(halden, high);
+    run(&mut app, 2);
+    let listed = texts(&mut app);
+    assert!(listed.contains(&"Orison".to_string()));
+    assert!(listed.contains(&"Ardent".to_string()));
+
+    toggle(
+        &mut app.world_mut().resource_mut::<ExpandedOrbits>().0,
+        high,
+    );
+    run(&mut app, 2);
+    assert!(!texts(&mut app).contains(&"Orison".to_string()));
 }

@@ -19,8 +19,7 @@ use super::camera::requests::FrameRequest;
 use super::colors;
 use super::fidelity::FidelityImages;
 use super::fonts::Fonts;
-use super::in_orbit::{OrbitEntry, Satellites, orbit_entries, spawn_in_orbit_list};
-use super::markers::MarkerAssets;
+use super::in_orbit::InOrbitList;
 use super::motion_mode::MotionModeState;
 use super::readout::{format_distance, format_duration};
 use super::selection::Selection;
@@ -105,7 +104,6 @@ struct InsetContent {
     image: InsetImage,
     description: String,
     facts: Vec<(String, String)>,
-    satellites: Vec<OrbitEntry>,
 }
 
 type InsetBodies<'w, 's> = Query<
@@ -119,7 +117,6 @@ type InsetBodies<'w, 's> = Query<
         &'static Affiliation,
         &'static Knowledge,
         Option<&'static ShipRecord>,
-        Option<&'static Children>,
         PhysicalFacts,
     ),
 >;
@@ -268,7 +265,6 @@ fn rebuild_inset(
     fonts: Res<Fonts>,
     fidelity: Res<FidelityImages>,
     bodies: InsetBodies,
-    satellites: Satellites,
     tunables: Res<Tunables>,
     (mut docks, mut panels): InsetNodes,
 ) {
@@ -277,7 +273,7 @@ fn rebuild_inset(
     }
     let content = selection
         .selected
-        .and_then(|body| gather_content(body, &bodies, &satellites, &tunables));
+        .and_then(|body| gather_content(body, &bodies, &tunables));
     for mut dock in &mut docks {
         dock.display = if content.is_some() {
             Display::Flex
@@ -292,7 +288,7 @@ fn rebuild_inset(
     let mut panel = commands.entity(panel);
     panel.despawn_related::<Children>();
     if let Some(content) = content {
-        panel.with_children(|panel| fill_panel(panel, &fidelity, (&fonts, &tunables), &content));
+        panel.with_children(|panel| fill_panel(panel, &fidelity, &fonts, &content));
     }
 }
 
@@ -322,13 +318,8 @@ pub fn scrolled(offset: f32, delta: f32, max: f32) -> f32 {
     (offset + delta).clamp(0.0, max.max(0.0))
 }
 
-fn gather_content(
-    body: Entity,
-    bodies: &InsetBodies,
-    satellites: &Satellites,
-    tunables: &Tunables,
-) -> Option<InsetContent> {
-    let (name, description, facts, class, affiliation, knowledge, record, children, physics) =
+fn gather_content(body: Entity, bodies: &InsetBodies, tunables: &Tunables) -> Option<InsetContent> {
+    let (name, description, facts, class, affiliation, knowledge, record, physics) =
         bodies.get(body).ok()?;
     let (orbit, mass, radius) = physics;
     let radius = radius.filter(|_| is_natural(*class));
@@ -340,7 +331,6 @@ fn gather_content(
         tunables.distance_au_threshold_au,
     ));
     let image = knowledge_image(*knowledge);
-    let satellites = orbit_entries(children, satellites);
     Some(InsetContent {
         body,
         name: name.0.clone(),
@@ -352,7 +342,6 @@ fn gather_content(
         image,
         description: description.0.clone(),
         facts,
-        satellites,
     })
 }
 
@@ -362,10 +351,9 @@ fn gather_content(
 fn fill_panel(
     panel: &mut ChildSpawnerCommands,
     fidelity: &FidelityImages,
-    assets: MarkerAssets,
+    fonts: &Fonts,
     content: &InsetContent,
 ) {
-    let (fonts, ..) = assets;
     spawn_header(panel, fonts, content);
     spawn_text(
         panel,
@@ -385,7 +373,16 @@ fn fill_panel(
         spawn_text(panel, &line, fonts.data(BODY_FONT_PX), colors::NEUTRAL);
     }
     spawn_position_note(panel, fonts, content.body);
-    spawn_in_orbit_list(panel, assets, &content.satellites);
+    // INS-05: the list fills itself (`in_orbit.rs`), and refills as its
+    // orbit rows expand.
+    panel.spawn((
+        InOrbitList(content.body),
+        Node {
+            flex_direction: FlexDirection::Column,
+            row_gap: px(PANEL_ROW_GAP_PX),
+            ..default()
+        },
+    ));
     spawn_planetary_view_button(panel, fonts);
 }
 

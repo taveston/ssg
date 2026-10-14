@@ -527,6 +527,19 @@ pub fn spawn_list_icon(
         MarkerShape::Symbol => tunables.list_symbol_px / 2.0,
         _ => body_half,
     };
+    spawn_icon(parent, assets, look, half);
+}
+
+/// A copy of a body's marker at `half` pixels, laid out in the flow of its
+/// parent rather than placed on the map: a symbol, or a body marker with
+/// its class detail (MRK-13). Lists (INS-05) and exposure-ring identity
+/// marks (MOT-14) are built from it.
+pub fn spawn_icon(
+    parent: &mut ChildSpawnerCommands,
+    assets: MarkerAssets,
+    look: BodyLook,
+    half: f32,
+) {
     let mut node = marker_node(look.shape(), half);
     node.position_type = PositionType::Relative;
     node.display = Display::Flex;
@@ -686,7 +699,7 @@ type LabelNodes<'w, 's> =
     Query<'w, 's, (&'static ChildOf, &'static mut Node), (With<MarkerLabel>, Without<MarkerShape>)>;
 
 /// Every coloured part of a marker, and where its colour lives.
-type TintedParts<'w, 's> = Query<
+pub type TintedParts<'w, 's> = Query<
     'w,
     's,
     (
@@ -700,7 +713,7 @@ type TintedParts<'w, 's> = Query<
 
 /// Write each tinted part's colour at `alpha` of its full strength, to the
 /// one slot it is drawn with.
-fn fade_parts(root: Entity, alpha: f32, children: &Query<&Children>, parts: &mut TintedParts) {
+pub fn fade_parts(root: Entity, alpha: f32, children: &Query<&Children>, parts: &mut TintedParts) {
     for part in std::iter::once(root).chain(children.iter_descendants(root)) {
         let Ok((tint, background, border, shape, text)) = parts.get_mut(part) else {
             continue;

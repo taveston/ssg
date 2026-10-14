@@ -8,7 +8,28 @@ use bevy::prelude::*;
 use super::body::{Affiliation, BodyClass, Knowledge};
 use super::track::ShipRecord;
 
-/// A node in the system tree. Periods are derived from `orbit_radius_km`
+/// SCL-07: where a record sits round what it orbits. A natural body has an
+/// orbit of its own; a ship or station references a named orbit and
+/// carries no radius. A ship docked at a station references the station's
+/// orbit.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum OrbitPlacement {
+    /// An orbit of its own at this radius: a natural body, or anything
+    /// round the star.
+    Own { radius_km: f64 },
+    /// One of its parent's named orbits, by name.
+    Named(&'static str),
+}
+
+/// A named orbit a body offers (SCL-07): a name and a radius; its period
+/// follows from the body's mass.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct NamedOrbitBlueprint {
+    pub name: &'static str,
+    pub radius_km: f64,
+}
+
+/// A node in the system tree. Periods are derived from the orbit radius
 /// and the parent's mass, not stored, so they can't drift out of sync with
 /// the radius (SCL-04).
 pub struct BodyBlueprint {
@@ -21,13 +42,16 @@ pub struct BodyBlueprint {
     pub description: &'static str,
     pub key_facts: Vec<(&'static str, &'static str)>,
     pub knowledge: Knowledge,
-    pub orbit_radius_km: f64,
+    /// Where it sits round its parent (SCL-07).
+    pub orbit: OrbitPlacement,
     /// Mean physical radius (SCL-05).
     pub radius_km: f64,
     pub phase0_rad: f64,
     /// This body's own mass, used to compute its children's periods. Leave
     /// at 0.0 for bodies with no children.
     pub mass_kg: f64,
+    /// The named orbits this body offers its ships and stations (SCL-07).
+    pub orbits: Vec<NamedOrbitBlueprint>,
     pub children: Vec<BodyBlueprint>,
 }
 

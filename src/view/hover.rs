@@ -1,7 +1,9 @@
-//! Hover and click on the map (HOV-01, INS-01, GRP-07): the white hover
-//! ring, the pill's list of folded satellites, and the pointer handlers
-//! every pickable body node (marker, pill, ring hit target) is observed by.
-//! A marker has no tooltip: its name and type are on the map already.
+//! Hover and click on the map (HOV-01, HOV-05, INS-01, GRP-07): the white
+//! hover ring, the pill's list of folded satellites, and the pointer
+//! handlers every pickable node (marker, pill, ring hit target, ring mark)
+//! is observed by. A marker has no tooltip: its name and type are on the
+//! map already. A shared orbit's ring or pill selects the orbit's parent
+//! with that orbit's row revealed in the inset.
 //!
 //! A click selects (`selection.rs`); a double-click also makes the body the
 //! frame and moves to it (ZOOM-16), or on the frame body is the
@@ -19,9 +21,10 @@ use super::frame::Frame;
 use super::gesture::{PressStart, was_click};
 use super::layers;
 use super::selection::Selection;
-use super::targets::{GroupPillFor, Hovered, MarkerFor, PointerTargets};
+use super::targets::{GroupPillFor, Hovered, MarkerFor, OrbitFor, PointerTargets};
 use super::tunables::Tunables;
 use crate::sim::body::DisplayName;
+use crate::sim::named_orbit::NamedOrbit;
 use crate::{Boot, Stage};
 
 pub struct HoverPlugin;
@@ -156,6 +159,21 @@ impl BodyClick<'_> {
             );
         }
     }
+
+    /// HOV-05: a click on a shared orbit selects its parent and opens the
+    /// inset with that orbit's row expanded; a double-click is a
+    /// double-click on the parent (ZOOM-16).
+    fn click_orbit(&mut self, orbit: Entity, parent: Entity, count: u8) {
+        self.selection.select_through_orbit(parent, orbit);
+        if count >= 2 {
+            double_click(
+                &self.frame,
+                parent,
+                &mut self.frame_request,
+                &mut self.planetary,
+            );
+        }
+    }
 }
 
 /// ZOOM-16 / ZOOM-17: a double-click on the frame body, unless it is the
@@ -185,6 +203,25 @@ pub fn on_marker_click(
     }
     if let Ok(marker_for) = markers.get(click.entity) {
         body_click.click(marker_for.0, click.count);
+    }
+}
+
+/// HOV-05: clicking a shared orbit's ring or identity pill selects the
+/// orbit's parent with the orbit's row revealed.
+pub fn on_orbit_click(
+    click: On<PointerClick>,
+    orbits: Query<&OrbitFor>,
+    named: Query<&NamedOrbit>,
+    check: ClickCheck,
+    mut body_click: BodyClick,
+) {
+    if !check.selects(&click) {
+        return;
+    }
+    if let Ok(orbit_for) = orbits.get(click.entity)
+        && let Ok(orbit) = named.get(orbit_for.0)
+    {
+        body_click.click_orbit(orbit_for.0, orbit.parent, click.count);
     }
 }
 
@@ -342,6 +379,28 @@ mod tests {
             assert_eq!(frame_request.is_some(), count == 2 && !framed);
             assert_eq!(planetary.is_some(), count == 2 && framed);
         }
+    }
+
+    /// HOV-05: a click on a shared orbit's ring selects the orbit's parent
+    /// with the orbit revealed; a double-click asks for the parent's
+    /// frame, as a double-click on the parent would.
+    #[test]
+    fn clicking_a_shared_orbit_selects_its_parent_and_reveals_it() {
+        let (mut world, parent, ..) = click_world();
+        let orbit = world
+            .spawn(NamedOrbit {
+                parent,
+                name: "High".to_string(),
+                radius_km: 1.0,
+                period_days: 1.0,
+            })
+            .id();
+        let target = world.spawn(OrbitFor(orbit)).observe(on_orbit_click).id();
+        click(&mut world, target, 1);
+        assert_eq!(outcome(&world), (Some(parent), None, None));
+        assert_eq!(world.resource::<Selection>().revealed_orbit, Some(orbit));
+        click(&mut world, target, 2);
+        assert_eq!(outcome(&world), (Some(parent), Some(parent), None));
     }
 
     /// ZOOM-16 / ZOOM-17: a double-click on the star asks for a frame jump

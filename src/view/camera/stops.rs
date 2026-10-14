@@ -133,7 +133,10 @@ mod tests {
         hand_made_system()
             .planets
             .iter()
-            .map(|planet| km_to_render(planet.orbit_radius_km))
+            .map(|planet| match planet.orbit {
+                crate::sim::system::OrbitPlacement::Own { radius_km } => km_to_render(radius_km),
+                other => panic!("a planet has an orbit of its own, not {other:?}"),
+            })
             .collect()
     }
 

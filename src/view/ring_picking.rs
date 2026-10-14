@@ -1,14 +1,18 @@
-//! Hover and click on an orbit ring (HOV-02): a small picking backend that
-//! hits any drawn ring, tail or exposure ring anywhere along its length, by
-//! distance from it as drawn on screen. Only what is drawn is a target: a
-//! ship's tail in dot mode, not the rest of its orbit (MRK-09). The frame
-//! body's ring is drawn but never a target.
+//! Hover and click on an orbit ring (HOV-02, HOV-05): a small picking
+//! backend that hits any drawn ring, tail or exposure ring anywhere along
+//! its length, by distance from it as drawn on screen. Only what is drawn
+//! is a target: a ship's tail in dot mode, not the rest of its orbit
+//! (MRK-09). A ring carrying the frame body is never a target.
 //!
-//! Gizmo-drawn rings aren't pickable on their own. Each orbiting body gets
-//! one invisible target entity carrying `MarkerFor` and the ordinary marker
-//! observers, so a ring hit behaves exactly like a hit on the body's marker
-//! (white ring, select, double-click). Hits are reported below the markers'
-//! and the UI's order, so a marker, pill, label or panel still wins.
+//! Gizmo-drawn rings aren't pickable on their own. Each ring gets one
+//! invisible target entity. A natural body's ring, or a named orbit with
+//! one member, stands for that body (`MarkerFor`) with the ordinary marker
+//! observers, so a hit behaves exactly like a hit on the marker (white
+//! ring, select, double-click). A shared orbit's ring stands for the orbit
+//! (`OrbitFor`): hovering it highlights the ring and its identity pill, and
+//! clicking it selects the parent with that orbit's row revealed. Hits are
+//! reported below the markers' and the UI's order, so a marker, pill, label
+//! or panel still wins.
 
 use std::collections::HashMap;
 
@@ -20,22 +24,21 @@ use bevy::prelude::*;
 use super::frame::Frame;
 use super::hover;
 use super::hovered::HoveredBodies;
-use super::motion::{RingBodies, ring_point};
-use super::rings::{RingExtent, has_orbit_line, ring_extent};
+use super::rings::{RingExtent, ring_extent};
 use super::selection::Selection;
-use super::targets::MarkerFor;
+use super::shared_orbit::{OrbitRings, ring_screen_point};
+use super::targets::{MarkerFor, OrbitFor};
 use super::tunables::Tunables;
-use crate::sim::body::BodyClass;
-use crate::sim::orbit::{Orbit, OrbitPositionKm};
 use crate::view::world::ViewNow;
 use crate::{Boot, Stage};
 
 /// Straight segments a ring is traced with for hit-testing.
 const RING_TRACE_SEGMENTS: usize = 64;
 
-/// The invisible hit target standing for a body's orbit ring.
+/// The invisible hit target standing for a ring, for the body or named
+/// orbit the ring stands for.
 #[derive(Component)]
-pub struct RingTarget;
+pub struct RingTarget(pub Entity);
 
 /// Each drawn ring's on-screen segments, by its target entity. Rebuilt
 /// every frame; a ring that isn't showing has no entry.
@@ -81,17 +84,26 @@ impl Plugin for RingPickingPlugin {
     }
 }
 
-/// One target per body whose orbit ring can be drawn.
-fn spawn_ring_targets(mut commands: Commands, bodies: Query<(Entity, &BodyClass), With<Orbit>>) {
-    for (body, class) in &bodies {
-        if !has_orbit_line(*class) {
+/// HOV-02 / HOV-05: one target per ring. A ring with one body on it is
+/// that body's; a shared orbit's targets its members together.
+fn spawn_ring_targets(mut commands: Commands, rings: OrbitRings) {
+    for owner in rings.owners() {
+        let Some(ring) = rings.ring(owner) else {
             continue;
+        };
+        if ring.shared {
+            commands
+                .spawn((RingTarget(owner), OrbitFor(owner)))
+                .observe(hover::on_marker_over)
+                .observe(hover::on_marker_out)
+                .observe(hover::on_orbit_click);
+        } else if let Some(member) = ring.members.first() {
+            commands
+                .spawn((RingTarget(owner), MarkerFor(member.body)))
+                .observe(hover::on_marker_over)
+                .observe(hover::on_marker_out)
+                .observe(hover::on_marker_click);
         }
-        commands
-            .spawn((RingTarget, MarkerFor(body)))
-            .observe(hover::on_marker_over)
-            .observe(hover::on_marker_out)
-            .observe(hover::on_marker_click);
     }
 }
 
@@ -109,47 +121,63 @@ pub fn drawn_arc(extent: RingExtent, body_angle: f32, tail_degrees: f32) -> Opti
     }
 }
 
+/// HOV-04: the arcs drawn on a ring with bodies at `body_angles`: the whole
+/// ring once, or one tail behind each body.
+pub fn drawn_arcs(extent: RingExtent, body_angles: &[f32], tail_degrees: f32) -> Vec<(f32, f32)> {
+    match extent {
+        RingExtent::Tail => body_angles
+            .iter()
+            .filter_map(|&angle| drawn_arc(extent, angle, tail_degrees))
+            .collect(),
+        _ => drawn_arc(extent, 0.0, tail_degrees).into_iter().collect(),
+    }
+}
+
 /// HOV-02: trace every drawn ring and tail on screen. A folded satellite's
 /// ring isn't drawn, so it has no path (GRP-07: its pill stands for it),
-/// and the frame body's ring is left out.
+/// and a ring carrying the frame body is left out.
 fn trace_rings(
     view: ViewNow,
-    bodies: RingBodies,
+    rings: OrbitRings,
     (frame, selection, hovered): (Res<Frame>, Res<Selection>, Res<HoveredBodies>),
-    details: Query<(&BodyClass, &OrbitPositionKm)>,
-    targets: Query<(Entity, &MarkerFor), With<RingTarget>>,
+    targets: Query<(Entity, &RingTarget)>,
     mut paths: ResMut<RingPaths>,
 ) {
     paths.0.clear();
-    for (target, marker_for) in &targets {
-        let body = marker_for.0;
-        if frame.is_on(body) {
+    let frame_body = frame.non_star_body();
+    for (target, ring_target) in &targets {
+        let Some(ring) = rings.ring(ring_target.0) else {
+            continue;
+        };
+        if ring.carries(frame_body) {
             continue;
         }
-        let (Ok((_, mode, _, fold)), Ok((class, local))) = (bodies.get(body), details.get(body))
-        else {
-            continue;
-        };
+        let angles: Vec<f32> = ring.drawn(frame_body).map(|m| m.angle).collect();
+        let mode = ring.mode();
+        let (selected, is_hovered) = ring.highlight(&selection, &hovered);
         let extent = ring_extent(
-            *class,
-            fold.is_some_and(|f| f.effective_hidden),
+            ring.class(),
+            angles.is_empty(),
             mode.ring_mode,
-            selection.is_selected(body) || hovered.contains(body),
+            selected || is_hovered,
         );
-        let body_angle = local.0.z.atan2(local.0.x) as f32;
-        let Some((start, sweep)) = drawn_arc(extent, body_angle, mode.tail_degrees) else {
-            continue;
-        };
-        let point = |i: usize| {
-            let angle = start + i as f32 / RING_TRACE_SEGMENTS as f32 * sweep;
-            ring_point(body, angle, &bodies, &view)
-        };
-        // A point the camera can't project breaks the ring there, rather
-        // than joining across the gap.
-        let segments: Vec<(Vec2, Vec2)> = (0..RING_TRACE_SEGMENTS)
-            .filter_map(|i| Some((point(i)?, point(i + 1)?)))
+        let segments: Vec<(Vec2, Vec2)> = drawn_arcs(extent, &angles, mode.tail_degrees)
+            .into_iter()
+            .flat_map(|(start, sweep)| {
+                let point = |i: usize| {
+                    let angle = start + i as f32 / RING_TRACE_SEGMENTS as f32 * sweep;
+                    ring_screen_point(&ring, angle, &view)
+                };
+                // A point the camera can't project breaks the ring there,
+                // rather than joining across the gap.
+                (0..RING_TRACE_SEGMENTS)
+                    .filter_map(|i| Some((point(i)?, point(i + 1)?)))
+                    .collect::<Vec<_>>()
+            })
             .collect();
-        paths.0.insert(target, segments);
+        if !segments.is_empty() {
+            paths.0.insert(target, segments);
+        }
     }
 }
 
@@ -247,6 +275,22 @@ mod tests {
         );
         assert_eq!(drawn_arc(RingExtent::Tail, 1.0, 0.0), None);
         assert_eq!(drawn_arc(RingExtent::Hidden, 1.0, 90.0), None);
+    }
+
+    /// HOV-02 / HOV-04: a shared ring in dot mode is traced as one tail
+    /// behind each body on it; in ring mode or highlighted, once all round.
+    #[test]
+    fn a_shared_ring_traces_a_tail_behind_each_body() {
+        use std::f32::consts::TAU;
+        let tails = drawn_arcs(RingExtent::Tail, &[1.0, 2.5], 90.0);
+        assert_eq!(tails.len(), 2);
+        assert!((tails[1].0 + tails[1].1 - 2.5).abs() < 1e-6);
+        assert_eq!(
+            drawn_arcs(RingExtent::Full, &[1.0, 2.5], 90.0),
+            [(0.0, TAU)]
+        );
+        assert!(drawn_arcs(RingExtent::Hidden, &[1.0], 90.0).is_empty());
+        assert!(drawn_arcs(RingExtent::Tail, &[], 90.0).is_empty());
     }
 
     /// HOV-02: where two rings are both within reach, the closer wins.
