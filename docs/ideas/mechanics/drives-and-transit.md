@@ -26,6 +26,8 @@
 
 ## 2. Corvane reference layout **(Candidate)**
 
+The prototype's Corvane (`content/corvane.rs`, TEST-01) is a different layout: a 0.78-solar-mass star, Iver at 0.7 AU, Halden IV at 2.0 AU, the belt at 1.15 to 1.45 AU. The transfer spec's worked checks (XFER-12) use the figures below, not the content's. Whether the content moves to this layout is for the world generator to settle.
+
 Star: K2V, 0.75 solar masses, 0.30 solar luminosity; snow line about 1.48 AU (2.7 √L). Orbits circular and coplanar for now.
 
 | Body | Radius AU | Period d | Orbital speed km/s | Sunlight (Earth = 1) | Notes |
