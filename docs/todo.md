@@ -12,8 +12,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **Frame body in a shared orbit** · HOV-02
-  - Was F-134. The build makes the whole shared ring no target; the other members' dots and tails should still target them (HOV-05). The frame-body tail is gone (MRK-14 is built).
 - [ ] **No hover list on the fold pill** · HOV-01, GRP-07
   - Was F-129. Remove the pill's hover list; hovering it gives the white ring only. The folded satellites are in the inset's outline once the parent is selected.
 - [ ] **Shared ring label** · MOT-02

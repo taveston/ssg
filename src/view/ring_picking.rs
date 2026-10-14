@@ -3,7 +3,8 @@
 //! its length, by distance from it as drawn on screen. Only what is drawn
 //! is a target: a ship's tail in dot mode, not the rest of its orbit
 //! (MRK-09), and not a ring faded out by its size (MRK-14). A ring
-//! carrying the frame body is never a target.
+//! carrying the frame body is never a target; on a shared ring, the other
+//! members' tails still target those members.
 //!
 //! Gizmo-drawn rings aren't pickable on their own. Each ring gets one
 //! invisible target entity. A natural body's ring, or a named orbit with
@@ -29,7 +30,7 @@ use super::rings::{FadeView, RingExtent, ring_extent};
 use super::scale::km_to_render;
 use super::screen::ScreenPositions;
 use super::selection::Selection;
-use super::shared_orbit::{OrbitRings, ring_screen_point};
+use super::shared_orbit::{OrbitRings, Ring, ring_screen_point};
 use super::targets::{MarkerFor, OrbitFor};
 use super::tunables::Tunables;
 use crate::view::world::ViewNow;
@@ -42,6 +43,14 @@ const RING_TRACE_SEGMENTS: usize = 64;
 /// orbit the ring stands for.
 #[derive(Component)]
 pub struct RingTarget(pub Entity);
+
+/// The invisible hit target standing for one member's tail on a shared
+/// ring, used only while the frame body is on that ring (HOV-02).
+#[derive(Component)]
+pub struct MemberTailTarget {
+    pub orbit: Entity,
+    pub body: Entity,
+}
 
 /// Each drawn ring's on-screen segments, by its target entity. Rebuilt
 /// every frame; a ring that isn't showing has no entry.
@@ -88,7 +97,8 @@ impl Plugin for RingPickingPlugin {
 }
 
 /// HOV-02 / HOV-05: one target per ring. A ring with one body on it is
-/// that body's; a shared orbit's targets its members together.
+/// that body's; a shared orbit's targets its members together, and has a
+/// target per member for its tail, for when the frame body is on it.
 fn spawn_ring_targets(mut commands: Commands, rings: OrbitRings) {
     for owner in rings.owners() {
         let Some(ring) = rings.ring(owner) else {
@@ -100,6 +110,19 @@ fn spawn_ring_targets(mut commands: Commands, rings: OrbitRings) {
                 .observe(hover::on_marker_over)
                 .observe(hover::on_marker_out)
                 .observe(hover::on_orbit_click);
+            for member in &ring.members {
+                commands
+                    .spawn((
+                        MemberTailTarget {
+                            orbit: owner,
+                            body: member.body,
+                        },
+                        MarkerFor(member.body),
+                    ))
+                    .observe(hover::on_marker_over)
+                    .observe(hover::on_marker_out)
+                    .observe(hover::on_marker_click);
+            }
         } else if let Some(member) = ring.members.first() {
             commands
                 .spawn((RingTarget(owner), MarkerFor(member.body)))
@@ -136,10 +159,14 @@ pub fn drawn_arcs(extent: RingExtent, body_angles: &[f32], tail_degrees: f32) ->
     }
 }
 
+type RingTargets<'w, 's> = Query<'w, 's, (Entity, &'static RingTarget)>;
+type TailTargets<'w, 's> = Query<'w, 's, (Entity, &'static MemberTailTarget)>;
+
 /// HOV-02: trace every drawn ring and tail on screen. A folded satellite's
 /// ring isn't drawn, so it has no path (GRP-07: its pill stands for it),
 /// and a ring carrying the frame body is left out, as is one faded out by
-/// its size (MRK-14).
+/// its size (MRK-14). On a shared ring carrying the frame body, each other
+/// drawn member's tail is traced for that member instead.
 #[allow(clippy::too_many_arguments)]
 fn trace_rings(
     view: ViewNow,
@@ -147,7 +174,7 @@ fn trace_rings(
     (frame, selection, hovered): (Res<Frame>, Res<Selection>, Res<HoveredBodies>),
     (screen, tunables): (Res<ScreenPositions>, Res<Tunables>),
     camera_q: Query<(&Camera, &Transform, &Projection)>,
-    targets: Query<(Entity, &RingTarget)>,
+    (targets, tail_targets): (RingTargets, TailTargets),
     mut paths: ResMut<RingPaths>,
 ) {
     paths.0.clear();
@@ -163,14 +190,7 @@ fn trace_rings(
         if ring.carries(frame_body) {
             continue;
         }
-        let centre = match ring.centre {
-            Some(parent) => view.position(parent),
-            None => Some(view.star()),
-        };
-        let faded_out = fade
-            .zip(centre)
-            .is_some_and(|(fade, centre)| fade.of(centre, km_to_render(ring.radius_km)) <= 0.0);
-        if faded_out {
+        if faded_out(&ring, fade, &view) {
             continue;
         }
         let angles: Vec<f32> = ring.drawn().map(|m| m.angle).collect();
@@ -182,24 +202,62 @@ fn trace_rings(
             mode.ring_mode,
             selected || is_hovered,
         );
-        let segments: Vec<(Vec2, Vec2)> = drawn_arcs(extent, &angles, mode.tail_degrees)
-            .into_iter()
-            .flat_map(|(start, sweep)| {
-                let point = |i: usize| {
-                    let angle = start + i as f32 / RING_TRACE_SEGMENTS as f32 * sweep;
-                    ring_screen_point(&ring, angle, &view)
-                };
-                // A point the camera can't project breaks the ring there,
-                // rather than joining across the gap.
-                (0..RING_TRACE_SEGMENTS)
-                    .filter_map(|i| Some((point(i)?, point(i + 1)?)))
-                    .collect::<Vec<_>>()
-            })
-            .collect();
+        let segments = trace_arcs(
+            &ring,
+            &drawn_arcs(extent, &angles, mode.tail_degrees),
+            &view,
+        );
         if !segments.is_empty() {
             paths.0.insert(target, segments);
         }
     }
+    for (target, tail) in &tail_targets {
+        let Some(ring) = rings.ring(tail.orbit) else {
+            continue;
+        };
+        if !ring.carries(frame_body) || frame_body == Some(tail.body) {
+            continue;
+        }
+        let mode = ring.mode();
+        let Some(member) = ring.drawn().find(|m| m.body == tail.body) else {
+            continue;
+        };
+        if mode.ring_mode || faded_out(&ring, fade, &view) {
+            continue;
+        }
+        let arc = drawn_arc(RingExtent::Tail, member.angle, mode.tail_degrees);
+        let segments = trace_arcs(&ring, &Vec::from_iter(arc), &view);
+        if !segments.is_empty() {
+            paths.0.insert(target, segments);
+        }
+    }
+}
+
+/// MRK-14: whether a ring is too large on screen to be drawn.
+fn faded_out(ring: &Ring, fade: Option<FadeView>, view: &ViewNow) -> bool {
+    let centre = match ring.centre {
+        Some(parent) => view.position(parent),
+        None => Some(view.star()),
+    };
+    fade.zip(centre)
+        .is_some_and(|(fade, centre)| fade.of(centre, km_to_render(ring.radius_km)) <= 0.0)
+}
+
+/// The on-screen segments along `arcs` of a ring, each (start, sweep).
+fn trace_arcs(ring: &Ring, arcs: &[(f32, f32)], view: &ViewNow) -> Vec<(Vec2, Vec2)> {
+    arcs.iter()
+        .flat_map(|&(start, sweep)| {
+            let point = |i: usize| {
+                let angle = start + i as f32 / RING_TRACE_SEGMENTS as f32 * sweep;
+                ring_screen_point(ring, angle, view)
+            };
+            // A point the camera can't project breaks the ring there,
+            // rather than joining across the gap.
+            (0..RING_TRACE_SEGMENTS)
+                .filter_map(|i| Some((point(i)?, point(i + 1)?)))
+                .collect::<Vec<_>>()
+        })
+        .collect()
 }
 
 /// The backend: report a hit on a ring's target for each pointer near it.

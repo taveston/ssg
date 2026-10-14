@@ -1972,6 +1972,59 @@ fn dot_mode_rings_are_hit_targets() {
     assert!(!traced(&mut app, halden), "the frame body's ring");
 }
 
+/// HOV-02 / HOV-05: framed on a ship in a shared orbit, the shared ring is
+/// no target, nor is the frame body's own tail, but the other members'
+/// tails still target those members.
+#[test]
+fn a_frame_body_on_a_shared_ring_leaves_the_others_tails_as_targets() {
+    use crate::view::ring_picking::{MemberTailTarget, RingPaths, RingTarget};
+    let mut app = camera_app_with(|app| {
+        app.add_message::<bevy::picking::backend::PointerHits>()
+            .insert_resource(placeholder_fonts())
+            .add_plugins((
+                GroupingPlugin,
+                MotionPlugin,
+                HoveredPlugin,
+                SharedOrbitPlugin,
+                crate::view::ring_picking::RingPickingPlugin,
+            ));
+    });
+    let orison = body(&mut app, "Orison");
+    let high = app.world().get::<InNamedOrbit>(orison).unwrap().0;
+    set_frame(&mut app, orison, Vec3::ZERO);
+    // Close enough that High's ships are unfolded round Halden IV.
+    app.world_mut().resource_mut::<CameraRig>().distance = 1.0;
+    run(&mut app, SETTLE_FRAMES);
+    assert!(
+        !app.world()
+            .get::<MotionModeState>(orison)
+            .unwrap()
+            .ring_mode,
+        "High is in dot mode at 1 d/s"
+    );
+    let mut rings = app.world_mut().query::<(Entity, &RingTarget)>();
+    let ring = rings
+        .iter(app.world())
+        .find(|(_, r)| r.0 == high)
+        .unwrap()
+        .0;
+    let mut tails = app.world_mut().query::<(Entity, &MemberTailTarget)>();
+    let tails: Vec<(Entity, Entity)> = tails
+        .iter(app.world())
+        .filter(|(_, t)| t.orbit == high)
+        .map(|(e, t)| (e, t.body))
+        .collect();
+    let paths = app.world().resource::<RingPaths>();
+    assert!(!paths.0.contains_key(&ring), "the shared ring");
+    let traced: Vec<Entity> = tails
+        .iter()
+        .filter(|(e, _)| paths.0.contains_key(e))
+        .map(|&(_, b)| b)
+        .collect();
+    assert!(!traced.contains(&orison), "the frame body's own tail");
+    assert!(traced.len() >= 2, "the other members' tails");
+}
+
 /// SYM-04 / MRK-03: a ship's symbol fits `ship_symbol_px` at every zoom; it
 /// never grows to its true size as natural bodies do.
 #[test]
