@@ -2,7 +2,7 @@
 
 **In short:** ships fly on rails along trajectories computed once, when an order is given. The model is patched conics with the planet-centred legs collapsed to a cost and a short delay, so the only geometry is the arc round the primary. High-thrust drives get a two-burn arc (a Lambert solution); low-thrust drives get an estimated spiral. The player plans a transfer with two sliders, depart and travel time, and sees the path, the dates and the delta-v change as they move. A destination is always a place (a body, station, gate, site or ship), never a bare orbit; round a body there are two bands, low and high, plus the orbits of its satellites. Ships sharing a band are one marker on the map and a list in the inset. A scheduled transfer is a visible, cancellable order on the ship. A ship in flight can be re-tasked at any moment, because the planner only ever needs where the ship is, how fast it's going and what it has left. Tactical positioning reduces to which place, which band, and whether the ship stops or passes.
 
-*Status:* draft. **Direction** unless marked otherwise. Only the named-orbit rules of 4.3 are specced. Mock-ups 9 to 12 in `docs/ideas/presentation/mockups/` show the planner, trajectory states, the return reserve and a refuel plan.
+*Status:* draft. **Direction** unless marked otherwise. The simulation of sections 2, 4 and 8 is specced in `docs/spec/transfers.md`; the planner and everything the player sees are not. Mock-ups 9 to 12 in `docs/ideas/presentation/mockups/` show the planner, trajectory states, the return reserve and a refuel plan.
 
 *Companion documents:* *Drives & Transit* (drive performance, transit times, gate placement, entry tolerance), *Gates*, *Combat, Raiders & Diplomacy* (what tactical positioning feeds), *Component Stats & Ship Assembly* (delta-v and acceleration per design), *Presentation & Visual Style* (how paths are drawn).
 
@@ -62,6 +62,8 @@ Bodies stay on circular, coplanar orbits (SCL-04). Ship trajectories are not cir
 - **Why.** The planner is unchanged by body eccentricity (Lambert takes two points, however the bodies move), so there is no simplification to be had on the maths side, but there is a lot of comprehensibility to lose. Concentric rings read at a glance; windows recur on a fixed period per pair of bodies, so the player learns them. Inclination is worse: a tilted orbit lies on a top-down map, and plane-change costs are the least intuitive part of orbital mechanics.
 - **Candidate for later:** mild eccentricity on a few bodies for flavour (captured moons, comets, salvage on stretched orbits), drawn as the ellipse they are, with the same Kepler evaluation the ships use. Never inclination for planets. Stations and ships in parking orbits are always circular.
 - **What the player feels instead.** The time–delta-v–waiting trade, the synodic rhythm of windows, and the difference between a ship that must wait and one that can leave now. That is enough orbital strategy for a game about running a state.
+
+- **Specced** (2026-10-14) as RAIL-01 to RAIL-09 and XFER-01 to XFER-12 in `docs/spec/transfers.md`: segments and their evaluation, collapsed planet legs with costs and approach days, two-burn Lambert crossings with burn time, Edelbaum spirals, bodies never bending a coast. Two choices the spec makes that this section left open: the departure and capture cost of a band is the escape cost from a circular orbit there, √(μ/r)(√2 − 1), with no Oberth credit, so the all-in figure for a trip between high orbits is a little above the tables in *Drives & Transit* 5; and the approach days of a band are the coast from the band to the Hill radius at escape speed.
 
 ### 2.6 Gravity assists **(Candidate)**
 
@@ -168,6 +170,8 @@ Every ship in high orbit of Halden IV is on the same ring. At true scale that wa
 - **Specced** as SCL-07 (named orbits in the data), HOV-04, HOV-05 and MOT-14 (shared rings, their targeting and the identity mark on exposure rings), with the orbit row in INS-05 and TEST-10, on 2026-10-14. These stand on their own: the spec's named orbits are the bands of 4.1 without the band rules yet.
 - **Stacking order:** when several things sit on one point (a station and the ships docked at it), the symbol rules for groups apply (SYM-09, GRP-09): one symbol with a count, and the list in the inset.
 
+- **Specced** (2026-10-14, the rest of this section) as BAND-01 to BAND-08 and XFER-08 to XFER-10: two bands per star, planet and moon, places as named orbits, co-location in a band, arrival phase as the slot, coasting, escaping ships removed at `lost_beyond_au`, Stop and Pass (High only), a ship as a destination. A moon is a body with its own bands, so "at a moon" is Body { moon, band }; Satellite as a place is for stations.
+
 ## 5. Groups and gates **(Candidate)**
 
 - **Groups** plan with the group's lowest delta-v and lowest acceleration, so the whole group makes the trip. The planner says which ship limits it.
@@ -204,6 +208,7 @@ Combat is auto-resolved on the system view with the clock slowed (*Conflict*), s
 - Per ship: `reserve_kms` (recomputed) and whether its class refuses one-way orders. Per leg: `refuel: bool`. Tunables: `return_window_days`, `refuel_days` (per port later, if ports differ).
 - Per drive: `impulsive: bool`, `exhaust_velocity`, `acceleration` (loaded). Per ship: `delta_v_kms`, with reserved and spent.
 - A `transfer_solver` module in the simulation layer, pure functions from states and budgets to trajectories, so the planner and the tests share it. The view only draws segments and moves sliders.
+- **Specced** (2026-10-14) as RAIL-02, BAND-02, PLAN-01 to PLAN-30 and XFER-11: the trajectory, plan, leg and place shapes, status, delta-v reserved and spent, the drive's flag and acceleration, and the solver module. `reserve_kms`, one-way refusal, `refuel` and the two dwell tunables wait for sections 3.6 and 3.7.
 
 ## 9. Open questions
 
