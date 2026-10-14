@@ -32,6 +32,10 @@ pub enum Knowledge {
 #[derive(Component, Clone, Debug, Default)]
 pub struct DisplayName(pub String);
 
+/// The system a gate leads to, by name (EDGE-01).
+#[derive(Component, Clone, Debug, PartialEq, Eq)]
+pub struct GateDestination(pub String);
+
 /// The authored one-line description of a body, as the player's records
 /// have it.
 #[derive(Component, Clone, Debug, Default)]

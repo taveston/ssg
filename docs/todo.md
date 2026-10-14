@@ -21,7 +21,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - Was F-120. Build after the sidebar.
 - [ ] **Label placement** · LBL-01 to LBL-04
   - Was F-115: labels overprinted each other round Halden IV. `label_gap_px` and `label_fade_ms` are new. The hardest item here; keep placement in its own view module.
-- [ ] **Edge arrows as tabs** · EDGE-02, EDGE-03
 - [ ] **Ship groups and condition** · SYM-09, SYM-10, SYM-12, GRP-09, TEST-06
   - The symbols are built; groups add to them (`view/symbols.rs`, `symbol_draw.rs`).
 - [ ] **Velocity leaders** · SYM-11
@@ -31,8 +30,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Fixes
 
-- [ ] **Gate edge labels show the destination alone** · EDGE-01
-  - Label reads "Ostra", not "Gate Ostra".
 
 ## Other
 

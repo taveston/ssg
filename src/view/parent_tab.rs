@@ -4,16 +4,15 @@
 //! the parent's body marker at list size, so it never reads as a gate, and
 //! its name.
 //!
-//! It is placed as a gate's edge arrow is (`edge.rs`). The marker inside is
-//! rebuilt whenever the parent changes.
+//! It is placed and styled as a gate's edge tab is (`edge_tab.rs`). The
+//! marker inside is rebuilt whenever the parent changes.
 
 use bevy::prelude::*;
 
-use super::colors;
-use super::edge::{ARROW_GLYPH_SCALE, ARROW_HALF_PX, LABEL_FONT_PX, edge_arrow_angle, edge_point};
+use super::edge::{edge_arrow_angle, edge_point};
+use super::edge_tab::{TabChevron, place_tab, spawn_tab, tab_label};
 use super::fonts::Fonts;
 use super::frame::Frame;
-use super::layers;
 use super::markers::{BodyLook, spawn_list_icon};
 use super::screen::{MapArea, ScreenPositions};
 use super::tunables::Tunables;
@@ -22,18 +21,9 @@ use crate::sim::body::{BodyClass, DisplayName};
 use crate::sim::track::Affiliation;
 use crate::{Boot, Stage};
 
-/// Space inside the tab's outline, and between its parts.
-const TAB_PAD_PX: f32 = 4.0;
-const TAB_GAP_PX: f32 = 5.0;
-/// The tab never comes closer than this to the map area's edge.
-const TAB_INSET_PX: f32 = 4.0;
-
 /// The tab itself.
 #[derive(Component)]
 pub struct ParentTab;
-/// The chevron, turned towards the parent.
-#[derive(Component)]
-struct ParentTabChevron;
 /// The holder of the parent's marker.
 #[derive(Component)]
 struct ParentTabIcon;
@@ -55,59 +45,19 @@ impl Plugin for ParentTabPlugin {
     }
 }
 
-/// MRK-15 / EDGE-03: a tab with a ground-colour fill and a neutral outline,
-/// holding the chevron, the marker and the name in a row.
+/// MRK-15 / EDGE-03: an edge tab holding the chevron, the marker and the
+/// name.
 fn spawn_parent_tab(mut commands: Commands, fonts: Res<Fonts>, tunables: Res<Tunables>) {
-    commands
-        .spawn((
-            ParentTab,
-            GlobalZIndex(layers::EDGE),
-            Pickable::IGNORE,
-            Node {
-                position_type: PositionType::Absolute,
-                display: Display::None,
-                flex_direction: FlexDirection::Row,
-                align_items: AlignItems::Center,
-                column_gap: px(TAB_GAP_PX),
-                padding: UiRect::axes(px(TAB_PAD_PX * 1.5), px(TAB_PAD_PX)),
-                border: UiRect::all(px(tunables.button_stroke_px)),
-                ..default()
-            },
-            BackgroundColor(colors::GROUND),
-            BorderColor::all(colors::NEUTRAL),
-        ))
-        .with_children(|tab| {
-            tab.spawn((
-                ParentTabChevron,
-                Pickable::IGNORE,
-                Node {
-                    width: px(ARROW_HALF_PX * 2.0),
-                    height: px(ARROW_HALF_PX * 2.0),
-                    align_items: AlignItems::Center,
-                    justify_content: JustifyContent::Center,
-                    ..default()
-                },
-                UiTransform::IDENTITY,
-            ))
-            .with_children(|chevron| {
-                // Points up unturned, as a gate's arrow does.
-                chevron.spawn((
-                    Text::new("^"),
-                    fonts.label(ARROW_HALF_PX * ARROW_GLYPH_SCALE),
-                    TextColor(colors::NEUTRAL),
-                    Pickable::IGNORE,
-                ));
-            });
-            tab.spawn((ParentTabIcon, Pickable::IGNORE, Node::default()));
-            tab.spawn((
-                ParentTabLabel,
-                Pickable::IGNORE,
-                Text::new(""),
-                TextLayout::linebreak(LineBreak::NoWrap),
-                fonts.label(LABEL_FONT_PX),
-                TextColor(colors::NEUTRAL),
-            ));
-        });
+    spawn_tab(
+        &mut commands,
+        &fonts,
+        tunables.button_stroke_px,
+        |content| {
+            content.spawn((ParentTabIcon, Pickable::IGNORE, Node::default()));
+            content.spawn((ParentTabLabel, tab_label(&fonts, "")));
+        },
+    )
+    .insert(ParentTab);
 }
 
 /// The frame body's parent: the body it orbits, or the star. `None` in the
@@ -180,14 +130,6 @@ pub fn parent_tab_point(
     edge_point(on_screen, world, camera, area)
 }
 
-/// MRK-15: the tab's top left for a tab of `size` centred on the pinned
-/// point `at`, moved so it lies whole inside the map area.
-pub fn tab_origin(at: Vec2, size: Vec2, area: &MapArea) -> Vec2 {
-    let low = area.offset + Vec2::splat(TAB_INSET_PX);
-    let high = (area.offset + area.size - size - Vec2::splat(TAB_INSET_PX)).max(low);
-    (at - size / 2.0).clamp(low, high)
-}
-
 /// MRK-15: shows the tab while the parent is off the map area, on the
 /// edge in its direction, with the chevron turned towards it.
 fn place_parent_tab(
@@ -195,8 +137,9 @@ fn place_parent_tab(
     frame: Res<Frame>,
     screen: Res<ScreenPositions>,
     parents: Query<&ChildOf>,
-    mut tabs: Query<(&mut Node, &ComputedNode), With<ParentTab>>,
-    mut chevrons: Query<&mut UiTransform, With<ParentTabChevron>>,
+    tunables: Res<Tunables>,
+    mut tabs: Query<(&mut Node, &ComputedNode, &Children), With<ParentTab>>,
+    mut chevrons: Query<&mut UiTransform, With<TabChevron>>,
 ) {
     let area = MapArea::of(screen.viewport);
     let camera = view.camera().map(|(_, transform)| transform);
@@ -208,21 +151,17 @@ fn place_parent_tab(
         };
         parent_tab_point(screen.get(parent), world, camera.as_ref(), &area)
     });
-    for (mut node, computed) in &mut tabs {
+    for (mut node, computed, children) in &mut tabs {
         let Some(at) = at else {
             node.display = Display::None;
             continue;
         };
-        let size = computed.size() * computed.inverse_scale_factor();
-        let origin = tab_origin(at, size, &area);
-        node.display = Display::Flex;
-        node.left = px(origin.x);
-        node.top = px(origin.y);
-    }
-    if let Some(at) = at {
-        for mut transform in &mut chevrons {
-            let angle = edge_arrow_angle(at - area.offset, area.size);
-            transform.rotation = Rot2::radians(angle);
+        place_tab(&mut node, computed, at, tunables.button_stroke_px, &area);
+        let angle = edge_arrow_angle(at - area.offset, area.size);
+        for &child in children {
+            if let Ok(mut transform) = chevrons.get_mut(child) {
+                transform.rotation = Rot2::radians(angle);
+            }
         }
     }
 }
@@ -264,19 +203,5 @@ mod tests {
         let parent = Vec3::new(-10.0, 0.0, 5.0);
         let at = parent_tab_point(None, Some(parent), Some(&camera), &area).unwrap();
         assert!(at.x < area.offset.x + area.size.x / 2.0);
-    }
-
-    /// MRK-15: the whole tab stays inside the map area, however near the
-    /// edge its point is.
-    #[test]
-    fn the_tab_lies_whole_inside_the_map_area() {
-        let area = area();
-        let size = Vec2::new(120.0, 24.0);
-        let corner = area.offset + area.size;
-        let origin = tab_origin(corner, size, &area);
-        assert!(origin.cmpge(area.offset).all());
-        assert!((origin + size).cmple(area.offset + area.size).all());
-        let top_left = tab_origin(area.offset, size, &area);
-        assert!(top_left.cmpge(area.offset).all());
     }
 }

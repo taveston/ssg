@@ -12,8 +12,8 @@
 use bevy::prelude::*;
 
 use super::body::{
-    Affiliation, Belt, BodyClass, Description, DisplayName, KeyFacts, Knowledge, PhysicalRadius,
-    StellarMass,
+    Affiliation, Belt, BodyClass, Description, DisplayName, GateDestination, KeyFacts, Knowledge,
+    PhysicalRadius, StellarMass,
 };
 use super::named_orbit::{InNamedOrbit, NamedOrbit};
 use super::orbit::{Orbit, OrbitPositionKm, kepler_period_days, orbit_position_km};
@@ -93,6 +93,7 @@ fn spawn_gate(commands: &mut Commands, gate: GateBlueprint, star_mass_kg: f64) {
             gate.destination.to_string(),
         )]),
         BodyClass::Gate,
+        GateDestination(gate.destination.to_string()),
         PhysicalRadius(gate.radius_km),
         Affiliation::Neutral,
         Knowledge::Surveyed,

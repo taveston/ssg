@@ -449,6 +449,36 @@ fn every_gate_has_an_arrow_when_zoomed_in() {
             "a gate has neither a marker nor an edge arrow"
         );
     }
+
+    // EDGE-01 / EDGE-02: every pinned gate's tab is shown, labelled with
+    // its destination alone.
+    let pinned: Vec<Entity> = pinned.0.keys().copied().collect();
+    assert!(!pinned.is_empty());
+    let mut tabs = app
+        .world_mut()
+        .query::<(Entity, &crate::view::edge::EdgeTabFor, &Node)>();
+    let tabs: Vec<(Entity, Entity, Display)> = tabs
+        .iter(app.world())
+        .map(|(e, t, n)| (e, t.0, n.display))
+        .collect();
+    for gate in pinned {
+        let &(tab, _, display) = tabs.iter().find(|t| t.1 == gate).unwrap();
+        assert_eq!(display, Display::Flex);
+        let destination = app
+            .world()
+            .get::<crate::sim::body::GateDestination>(gate)
+            .unwrap()
+            .0
+            .clone();
+        assert!(!destination.starts_with("Gate"));
+        assert!(
+            descendants(&mut app, tab).iter().any(|&e| app
+                .world()
+                .get::<Text>(e)
+                .is_some_and(|t| t.0 == destination)),
+            "the tab is labelled {destination}"
+        );
+    }
 }
 
 /// Give the real camera (spawned by `CameraPlugin`) the computed values the

@@ -1,5 +1,6 @@
-//! Gate edge indicators (EDGE-01): a gate outside the viewport shows as an
-//! arrow pinned to the screen edge in its direction, with its label.
+//! Gate edge indicators (EDGE-01 to EDGE-03): a gate outside the viewport
+//! shows as an arrow pinned to the screen edge in its direction, in a tab
+//! with its destination's name (`edge_tab.rs`).
 //!
 //! `GateEdgeTargets` says which gates are pinned this frame and where; the
 //! marker overlay reads it to hide those gates' ordinary markers.
@@ -8,37 +9,21 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
-use super::layers;
-
-use super::colors;
+use super::edge_tab::{TabChevron, place_tab, spawn_tab, tab_label};
 use super::fonts::Fonts;
 use super::screen::MapArea;
 use super::screen::ScreenPositions;
+use super::tunables::Tunables;
 use super::world::ViewNow;
-use crate::sim::body::{BodyClass, DisplayName};
+use crate::sim::body::{BodyClass, GateDestination};
 use crate::{Boot, Stage};
 
 /// How far inside the viewport edge a pinned arrow sits.
 pub const EDGE_MARGIN_PX: f32 = 28.0;
-/// Half the arrowhead's box. The same footprint as a gate's own marker, so
-/// the hand-over between the two doesn't change size.
-pub const ARROW_HALF_PX: f32 = 5.5;
-/// The arrowhead glyph is drawn a little larger than its box so it reads
-/// as a solid head rather than a caret.
-pub const ARROW_GLYPH_SCALE: f32 = 2.2;
-/// Where the label sits relative to the arrow's centre.
-const LABEL_OFFSET_PX: Vec2 = Vec2::new(10.0, 10.0);
-pub const LABEL_FONT_PX: f32 = 12.0;
 
-/// Edge-of-screen arrowhead for a gate that's off-screen, rotated each
-/// frame to point toward it.
+/// A gate's edge tab: its arrow and its destination (EDGE-03).
 #[derive(Component)]
-pub struct EdgeIndicatorFor(pub Entity);
-
-/// The label next to an edge indicator - a sibling, not a child, so it
-/// doesn't rotate along with the arrowhead.
-#[derive(Component)]
-pub struct EdgeLabelFor(pub Entity);
+pub struct EdgeTabFor(pub Entity);
 
 /// Gates pinned to the edge this frame, and where their arrows sit.
 #[derive(Resource, Default)]
@@ -131,62 +116,30 @@ pub struct EdgePlugin;
 impl Plugin for EdgePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<GateEdgeTargets>()
-            .add_systems(Startup, spawn_edge_indicators.in_set(Boot::Overlay))
+            .add_systems(Startup, spawn_edge_tabs.in_set(Boot::Overlay))
             .add_systems(Update, update_edge_targets.in_set(Stage::Layout))
-            .add_systems(
-                Update,
-                (place_edge_indicators, place_edge_labels).in_set(Stage::Overlay),
-            );
+            .add_systems(Update, place_edge_tabs.in_set(Stage::Overlay));
     }
 }
 
-fn spawn_edge_indicators(
+/// EDGE-01 / EDGE-03: a hidden tab per gate, labelled with the gate's
+/// destination alone ("Ostra", not "Gate Ostra").
+fn spawn_edge_tabs(
     mut commands: Commands,
     fonts: Res<Fonts>,
-    gates: Query<(Entity, &BodyClass, &DisplayName)>,
+    tunables: Res<Tunables>,
+    gates: Query<(Entity, &GateDestination)>,
 ) {
-    for (entity, class, name) in &gates {
-        if *class != BodyClass::Gate {
-            continue;
-        }
-        let color = colors::NEUTRAL;
-        commands
-            .spawn((
-                EdgeIndicatorFor(entity),
-                GlobalZIndex(layers::EDGE),
-                Node {
-                    position_type: PositionType::Absolute,
-                    width: px(ARROW_HALF_PX * 2.0),
-                    height: px(ARROW_HALF_PX * 2.0),
-                    align_items: AlignItems::Center,
-                    justify_content: JustifyContent::Center,
-                    display: Display::None,
-                    ..default()
-                },
-                UiTransform::IDENTITY,
-            ))
-            .with_children(|parent| {
-                // Points up by default; rotated per-frame to point toward
-                // the gate.
-                parent.spawn((
-                    Text::new("^"),
-                    fonts.label(ARROW_HALF_PX * ARROW_GLYPH_SCALE),
-                    TextColor(color),
-                ));
-            });
-
-        commands.spawn((
-            EdgeLabelFor(entity),
-            GlobalZIndex(layers::EDGE),
-            Node {
-                position_type: PositionType::Absolute,
-                display: Display::None,
-                ..default()
+    for (gate, destination) in &gates {
+        spawn_tab(
+            &mut commands,
+            &fonts,
+            tunables.button_stroke_px,
+            |content| {
+                content.spawn(tab_label(&fonts, &destination.0));
             },
-            Text::new(name.0.clone()),
-            fonts.label(LABEL_FONT_PX),
-            TextColor(color),
-        ));
+        )
+        .insert(EdgeTabFor(gate));
     }
 }
 
@@ -213,38 +166,29 @@ fn update_edge_targets(
     }
 }
 
-fn place_edge_indicators(
+/// EDGE-01 / EDGE-02: show each pinned gate's tab with its arrow on the
+/// pinned point, turned towards the gate, and the tab whole inside the map
+/// area.
+fn place_edge_tabs(
     screen: Res<ScreenPositions>,
+    tunables: Res<Tunables>,
     targets: Res<GateEdgeTargets>,
-    mut indicators: Query<(&EdgeIndicatorFor, &mut Node, &mut UiTransform)>,
+    mut tabs: Query<(&EdgeTabFor, &mut Node, &ComputedNode, &Children)>,
+    mut chevrons: Query<&mut UiTransform, With<TabChevron>>,
 ) {
-    for (edge_for, mut node, mut transform) in &mut indicators {
-        let Some(&pos) = targets.0.get(&edge_for.0) else {
+    let area = MapArea::of(screen.viewport);
+    for (tab_for, mut node, computed, children) in &mut tabs {
+        let Some(&at) = targets.0.get(&tab_for.0) else {
             node.display = Display::None;
             continue;
         };
-        node.display = Display::Flex;
-        node.left = px(pos.x - ARROW_HALF_PX);
-        node.top = px(pos.y - ARROW_HALF_PX);
-        // The glyph points up by default; rotate it (clockwise) to point
-        // from the viewport centre toward the gate's true direction.
-        let area = MapArea::of(screen.viewport);
-        transform.rotation = Rot2::radians(edge_arrow_angle(pos - area.offset, area.size));
-    }
-}
-
-fn place_edge_labels(
-    targets: Res<GateEdgeTargets>,
-    mut labels: Query<(&EdgeLabelFor, &mut Node), Without<EdgeIndicatorFor>>,
-) {
-    for (label_for, mut node) in &mut labels {
-        let Some(&pos) = targets.0.get(&label_for.0) else {
-            node.display = Display::None;
-            continue;
-        };
-        node.display = Display::Flex;
-        node.left = px(pos.x + LABEL_OFFSET_PX.x);
-        node.top = px(pos.y + LABEL_OFFSET_PX.y);
+        place_tab(&mut node, computed, at, tunables.button_stroke_px, &area);
+        let angle = edge_arrow_angle(at - area.offset, area.size);
+        for &child in children {
+            if let Ok(mut transform) = chevrons.get_mut(child) {
+                transform.rotation = Rot2::radians(angle);
+            }
+        }
     }
 }
 

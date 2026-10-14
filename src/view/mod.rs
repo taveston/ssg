@@ -20,6 +20,7 @@ pub mod camera;
 pub mod colors;
 pub mod date;
 pub mod edge;
+pub mod edge_tab;
 pub mod fidelity;
 pub mod fold;
 pub mod fonts;
