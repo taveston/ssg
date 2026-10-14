@@ -1,0 +1,77 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Transfer planner</title>
+<style>
+body{margin:0;background:#070A0E;color:#DCE6EC;font-family:"IBM Plex Sans Condensed","Barlow",sans-serif}
+.wrap{width:700px;padding:16px}
+h1{font-size:14px;font-weight:500;color:#9FB6C4;letter-spacing:.08em;text-transform:uppercase;margin:0 0 12px}
+p.note{font-size:12px;color:#9FB6C4;margin:10px 0 0;max-width:660px;line-height:1.5}
+.ow{display:flex;background:#070A0E;border:1px solid #1E2A35;border-radius:4px;overflow:hidden}
+.sb{width:236px;background:#0B1016;border-left:1px solid #1E2A35;padding:14px;font-size:12px;box-sizing:border-box}
+.sb h4{margin:0 0 2px;font-size:11px;font-weight:500;letter-spacing:.12em;color:#9FB6C4;text-transform:uppercase}
+.sb .v{font-family:"IBM Plex Mono","JetBrains Mono",monospace;font-size:12px;color:#DCE6EC}
+.sb .s{color:#9FB6C4}
+.rng{-webkit-appearance:none;appearance:none;width:100%;height:10px;border-radius:5px;outline:none;margin:6px 0 2px;background:#1E2A35}
+.rng::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:18px;border-radius:3px;background:#DCE6EC;border:1px solid #070A0E;cursor:pointer}
+.rng::-moz-range-thumb{width:14px;height:18px;border-radius:3px;background:#DCE6EC;border:1px solid #070A0E;cursor:pointer}
+.bt{background:transparent;border:1px solid #2C3A48;color:#9FB6C4;border-radius:3px;padding:4px 8px;font-size:11px;cursor:pointer;font-family:inherit}
+.bt.on{border-color:#5AA9E6;color:#5AA9E6}
+.go{width:100%;margin-top:10px;background:#5AA9E6;color:#070A0E;border:0;border-radius:3px;padding:8px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit}
+.go[disabled]{background:#2C3A48;color:#9FB6C4;cursor:default}
+.row{display:flex;justify-content:space-between;margin-top:10px}
+</style>
+<body><div class="wrap">
+<h1>9 · Transfer planner (interactive)</h1>
+<div class="ow">
+<svg viewBox="0 0 440 360" width="440" height="360">
+<circle cx="200" cy="180" r="150" fill="none" stroke="#9FB6C4" stroke-opacity=".35" stroke-width="1"/>
+<circle cx="200" cy="180" r="94" fill="none" stroke="#9FB6C4" stroke-opacity=".35" stroke-width="1"/>
+<circle cx="200" cy="180" r="4" fill="none" stroke="#DCE6EC" stroke-width="1"/>
+<path id="arc" d="" fill="none" stroke="#5AA9E6" stroke-width="1.5" stroke-dasharray="5 4"/>
+<circle id="depg" r="5" fill="none" stroke="#DCE6EC" stroke-opacity=".4" stroke-width="1" stroke-dasharray="2 2"/>
+<circle id="dep" r="3" fill="#5AA9E6"/>
+<circle id="hal" r="5" fill="none" stroke="#DCE6EC" stroke-width="1"/>
+<circle id="halc" r="1.5" fill="#DCE6EC"/>
+<circle id="ive" r="5" fill="none" stroke="#DCE6EC" stroke-width="1"/>
+<circle id="ivec" r="1.5" fill="#DCE6EC"/>
+<circle id="ivea" r="5" fill="none" stroke="#DCE6EC" stroke-opacity=".5" stroke-width="1" stroke-dasharray="2 2"/>
+<text id="hl" font-size="11" fill="#DCE6EC">Halden IV</text>
+<text id="il" font-size="11" fill="#DCE6EC">Iver</text>
+<text id="al" font-size="10" fill="#5AA9E6"></text>
+<text x="12" y="20" font-size="11" fill="#9FB6C4">Corvane · day 0 · paused</text>
+<text x="12" y="348" font-size="10" fill="#9FB6C4" fill-opacity=".7">dashed = planned path · dotted body = ghost at that date</text>
+</svg>
+<div class="sb">
+<h4>Transfer</h4>
+<div class="v">Hauler Kestrel-7 → Iver</div>
+<div class="s">High orbit, Halden IV · hydrogen NTR</div>
+<div class="row"><span class="s">Depart</span><span class="v" id="dv1">now</span></div>
+<input class="rng" id="depi" type="range" min="0" max="295" step="1" value="0">
+<div class="row"><span class="s">Travel time</span><span class="v" id="dv2">81 d</span></div>
+<input class="rng" id="tt" type="range" min="40" max="220" step="1" value="81">
+<div class="row"><span class="s">Arrives</span><span class="v" id="arrv">day 81</span></div>
+<div class="row"><span class="s">Delta-v</span><span class="v" id="dvv">7.5 of 9.9 km/s</span></div>
+<div style="height:8px;border-radius:4px;background:#1E2A35;margin-top:4px;position:relative;overflow:hidden"><div id="bar" style="height:100%;width:76%;background:#5AA9E6"></div></div>
+<div class="s" id="rem" style="margin-top:3px">2.4 km/s left after arrival</div>
+<div style="display:flex;gap:6px;margin-top:12px"><button class="bt" onclick="preset('fast')">Fastest</button><button class="bt" onclick="preset('cheap')">Cheapest</button><button class="bt" onclick="preset('win')">Next window</button></div>
+<div style="display:flex;gap:6px;margin-top:8px"><button class="bt on" id="stop" onclick="mode(1)">Stop</button><button class="bt" id="pass" onclick="mode(0)">Pass</button></div>
+<button class="go" id="go">Schedule</button>
+<div class="s" id="why" style="margin-top:6px;min-height:14px"></div>
+</div>
+</div>
+<p class="note">The two sliders are the whole planner. Their tracks are coloured by the delta-v the setting needs, so windows show as bright bands. The arc starts where Halden IV will be on the departure day and ends where Iver will be on arrival; both are ghosts on their rings. The numbers here are a stand-in for the solver, not Lambert output. Described in <code>docs/ideas/mechanics/transfers.md</code> section 3.</p>
+</div>
+<script>
+var cx=200,cy=180,R1=150,R2=94,P1=302,P2=149,H0=0.3,I0=2.4,BUD=9.9,stopMode=1;
+function ang(a0,P,t){return a0-2*Math.PI*t/P}
+function pos(r,a){return [cx+r*Math.cos(a),cy+r*Math.sin(a)]}
+function sweep(d,T){var a1=ang(H0,P1,d),a2=ang(I0,P2,d+T);var s=(a1-a2)%(2*Math.PI);if(s<0)s+=2*Math.PI;return s}
+function dvOf(d,T){var phi=sweep(d,T)*180/Math.PI;var v=7.5+0.045*Math.abs(phi-180)+720*Math.max(0,1/T-1/111)+0.012*Math.max(0,T-111);if(!stopMode)v-=2.6;return v}
+function col(v){if(v>BUD)return 'rgba(240,160,64,.45)';var t=Math.min(1,(v-5)/(BUD-5));var k=Math.round(70+(1-t)*150);return 'rgb('+Math.round(k*.6)+','+Math.round(k*.85)+','+k+')'}
+function paint(){var dep=document.getElementById('depi'),tt=document.getElementById('tt');var st=[];for(var i=0;i<=60;i++){var d=i*295/60,best=99;for(var T=40;T<=220;T+=10)best=Math.min(best,dvOf(d,T));st.push(col(best)+' '+(i/60*100).toFixed(0)+'%')}dep.style.background='linear-gradient(90deg,'+st.join(',')+')';var d0=+dep.value;st=[];for(i=0;i<=36;i++){var T=40+i*5;st.push(col(dvOf(d0,T))+' '+(i/36*100).toFixed(0)+'%')}tt.style.background='linear-gradient(90deg,'+st.join(',')+')'}
+function put(id,p){var e=document.getElementById(id);e.setAttribute('cx',p[0]);e.setAttribute('cy',p[1])}
+function draw(){var d=+document.getElementById('depi').value,T=+document.getElementById('tt').value;var a1=ang(H0,P1,d),phi=sweep(d,T),pts=[];for(var i=0;i<=40;i++){var s=i/40,a=a1-s*phi,r=R1+(R2-R1)*(0.5-0.5*Math.cos(Math.PI*s));var p=pos(r,a);pts.push((i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1))}document.getElementById('arc').setAttribute('d',pts.join(' '));var h=pos(R1,ang(H0,P1,0)),iv=pos(R2,ang(I0,P2,0)),hd=pos(R1,a1),ia=pos(R2,ang(I0,P2,d+T));put('hal',h);put('halc',h);put('ive',iv);put('ivec',iv);put('dep',hd);put('depg',hd);put('ivea',ia);var hl=document.getElementById('hl');hl.setAttribute('x',h[0]+8);hl.setAttribute('y',h[1]+4);var il=document.getElementById('il');il.setAttribute('x',iv[0]+8);il.setAttribute('y',iv[1]+4);var al=document.getElementById('al');al.setAttribute('x',ia[0]+8);al.setAttribute('y',ia[1]-6);al.textContent='arrive day '+(d+T);var v=dvOf(d,T);document.getElementById('dv1').textContent=d?'day '+d+' (in '+d+' d)':'now';document.getElementById('dv2').textContent=T+' d';document.getElementById('arrv').textContent='day '+(d+T);document.getElementById('dvv').textContent=v.toFixed(1)+' of '+BUD+' km/s';var bar=document.getElementById('bar');bar.style.width=Math.min(100,v/BUD*100)+'%';bar.style.background=v>BUD?'#F0A040':'#5AA9E6';var go=document.getElementById('go'),why=document.getElementById('why'),rem=document.getElementById('rem');if(v>BUD){go.disabled=true;why.textContent='Needs '+v.toFixed(1)+' km/s, has '+BUD;why.style.color='#F0A040';rem.textContent='Over budget by '+(v-BUD).toFixed(1)+' km/s'}else{go.disabled=false;why.textContent='';rem.textContent=(BUD-v).toFixed(1)+' km/s left after arrival'}}
+function preset(k){var dep=document.getElementById('depi'),tt=document.getElementById('tt');var bd=0,bT=81,bv=99,d,T,v;if(k=='fast'){bT=220;bd=295;for(d=0;d<=295;d++)for(T=40;T<=220;T+=2)if(dvOf(d,T)<=BUD&&(d+T<bd+bT)){bd=d;bT=T}}else{for(d=0;d<=295;d++)for(T=40;T<=220;T+=2){v=dvOf(d,T);if(v<bv&&(k=='cheap'||d>5)){bv=v;bd=d;bT=T}}}dep.value=bd;tt.value=bT;paint();draw()}
+function mode(s){stopMode=s;document.getElementById('stop').className='bt'+(s?' on':'');document.getElementById('pass').className='bt'+(s?'':' on');paint();draw()}
+document.getElementById('depi').oninput=function(){paint();draw()};document.getElementById('tt').oninput=draw;paint();draw();
+</script>

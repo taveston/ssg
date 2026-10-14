@@ -1,0 +1,26 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Trajectory states</title>
+<style>body{margin:0;background:#070A0E;color:#DCE6EC;font-family:"IBM Plex Sans Condensed","Barlow",sans-serif}.wrap{width:700px;padding:16px}h1{font-size:14px;font-weight:500;color:#9FB6C4;letter-spacing:.08em;text-transform:uppercase;margin:0 0 12px}p.note{font-size:12px;color:#9FB6C4;margin:10px 0 0;max-width:660px;line-height:1.5}svg{font-family:inherit;border:1px solid #1E2A35;border-radius:4px}</style>
+<body><div class="wrap"><h1>10 · How trajectories are drawn</h1>
+<svg width="680" height="420" viewBox="0 0 680 420">
+<g font-size="11" fill="#9FB6C4"><text x="20" y="24">Scheduled</text><text x="350" y="24">In flight</text><text x="20" y="224">Pass</text><text x="350" y="224">Intercept</text></g>
+<g><path d="M60 150 A110 110 0 0 1 280 150" fill="none" stroke="#9FB6C4" stroke-opacity=".3"/><path d="M110 150 A60 60 0 0 1 230 150" fill="none" stroke="#9FB6C4" stroke-opacity=".3"/>
+<path d="M80 110 Q140 40 226 92" fill="none" stroke="#5AA9E6" stroke-width="1.5" stroke-dasharray="5 4"/>
+<circle cx="80" cy="110" r="5.5" fill="#1A2A3A" stroke="#5AA9E6" stroke-width="1.2"/><circle cx="226" cy="92" r="5" fill="none" stroke="#DCE6EC" stroke-dasharray="2 2"/>
+<circle cx="196" cy="120" r="5" fill="none" stroke="#DCE6EC"/><circle cx="196" cy="120" r="1.5" fill="#DCE6EC"/>
+<text x="90" y="104" font-size="10" fill="#5AA9E6">Kestrel-7 · departs in 12 d</text><text x="205" y="124" font-size="10" fill="#DCE6EC">Iver</text><text x="233" y="88" font-size="10" fill="#5AA9E6" fill-opacity=".8">arrive day 93</text></g>
+<g transform="translate(330,0)"><path d="M60 150 A110 110 0 0 1 280 150" fill="none" stroke="#9FB6C4" stroke-opacity=".3"/><path d="M110 150 A60 60 0 0 1 230 150" fill="none" stroke="#9FB6C4" stroke-opacity=".3"/>
+<path d="M80 110 Q110 70 150 58" fill="none" stroke="#5AA9E6" stroke-width="1.5"/><path d="M150 58 Q190 50 226 92" fill="none" stroke="#5AA9E6" stroke-width="1.5" stroke-dasharray="5 4"/>
+<circle cx="80" cy="110" r="2" fill="#5AA9E6" fill-opacity=".5"/><circle cx="150" cy="58" r="5.5" fill="#1A2A3A" stroke="#5AA9E6" stroke-width="1.2"/><line x1="150" y1="58" x2="172" y2="52" stroke="#5AA9E6" stroke-width="1"/>
+<circle cx="226" cy="92" r="5" fill="none" stroke="#DCE6EC" stroke-dasharray="2 2"/><circle cx="236" cy="128" r="5" fill="none" stroke="#DCE6EC"/><circle cx="236" cy="128" r="1.5" fill="#DCE6EC"/>
+<text x="118" y="48" font-size="10" fill="#5AA9E6">Kestrel-7 · arrives in 19 d</text><text x="245" y="132" font-size="10" fill="#DCE6EC">Iver</text></g>
+<g transform="translate(0,200)"><path d="M60 150 A110 110 0 0 1 280 150" fill="none" stroke="#9FB6C4" stroke-opacity=".3"/><path d="M110 150 A60 60 0 0 1 230 150" fill="none" stroke="#9FB6C4" stroke-opacity=".3"/>
+<path d="M80 110 Q120 50 190 60" fill="none" stroke="#5AA9E6" stroke-width="1.5" stroke-dasharray="5 4"/><path d="M190 60 Q250 70 300 130" fill="none" stroke="#F0A040" stroke-width="1.2" stroke-dasharray="2 4"/>
+<circle cx="80" cy="110" r="5.5" fill="#1A2A3A" stroke="#5AA9E6" stroke-width="1.2"/><circle cx="190" cy="60" r="5" fill="none" stroke="#DCE6EC"/><circle cx="190" cy="60" r="1.5" fill="#DCE6EC"/>
+<text x="90" y="104" font-size="10" fill="#5AA9E6">Pass Iver at 9.1 km/s</text><text x="198" y="56" font-size="10" fill="#DCE6EC">Iver</text><text x="222" y="118" font-size="10" fill="#F0A040">then coasting · crosses Halden's orbit in 140 d</text></g>
+<g transform="translate(330,200)"><path d="M60 150 A110 110 0 0 1 280 150" fill="none" stroke="#9FB6C4" stroke-opacity=".3"/><path d="M110 150 A60 60 0 0 1 230 150" fill="none" stroke="#9FB6C4" stroke-opacity=".3"/>
+<path d="M250 150 Q200 80 130 70" fill="none" stroke="#EE6A5F" stroke-width="1.2" stroke-dasharray="5 4"/><path d="M80 110 Q110 80 162 76" fill="none" stroke="#5AA9E6" stroke-width="1.5" stroke-dasharray="5 4"/>
+<circle cx="80" cy="110" r="5.5" fill="#1A2A3A" stroke="#5AA9E6" stroke-width="1.2"/><path d="M250 144 L256 150 L250 156 L244 150 Z" fill="#2A1A1A" stroke="#EE6A5F" stroke-width="1.2"/><circle cx="162" cy="76" r="6" fill="none" stroke="#DCE6EC" stroke-dasharray="2 2"/>
+<text x="90" y="104" font-size="10" fill="#5AA9E6">TF-1 · intercept in 31 d</text><text x="168" y="66" font-size="10" fill="#DCE6EC">meeting · 14 km/s closing</text><text x="200" y="166" font-size="10" fill="#EE6A5F">contact K-3 · weak track</text></g>
+</svg><p class="note">Dashed is future, solid is past, blue is yours, orange is a consequence you didn't ask for (the coast after a Pass), red dashed is a foreign projection with no burns assumed. A dotted body is a ghost at the arrival date. The in-flight ship carries a velocity leader (SYM-11). Described in <code>transfers.md</code> 3.3 and 3.4.</p></div>
