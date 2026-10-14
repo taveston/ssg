@@ -8,7 +8,7 @@
 
 > **Speculative.** This document is early ideation. Nothing in it, including the Corvane reference layout and the gate distance, is a requirement. The prototype's Corvane is defined by the spec (TEST-01), not by section 2.
 
-*Companion documents:* *Overview*, *Gates*, *Setting & Back Story* (technology), *Component Catalogue*, *Component Stats & Ship Assembly* (CSA: specific designs and ship assembly, using this document's orbits), *Requirements & Bids*, *Reference Sketches* (Corvane).
+*Companion documents:* *Overview*, *Orbital Transfers* (the transfer model and planner), *Gates*, *Setting & Back Story* (technology), *Component Catalogue*, *Component Stats & Ship Assembly* (CSA: specific designs and ship assembly, using this document's orbits), *Requirements & Bids*, *Reference Sketches* (Corvane).
 
 ---
 
@@ -148,13 +148,12 @@ Gate entry tolerance 10 km/s (6.2); best phasing; "rdv" = must match the gate's 
 ## 7. Presentation **(Candidate)**
 
 - **Replace fixed travel labels** such as "41 d from Halden" with figures for the selected ship or fleet: "Gate → Ostra · 2.0 AU · 174 d (NTR) · next good window in 63 d". With nothing selected, show the fastest available ship.
-- **Show the window:** a small time–delta-v strip (porkchop-lite) on the transfer order, with "leave now" and "wait for window" marked. The core trade is wait time against delta-v, so show both.
-- **Auto-slowdown:** windows open and close within seconds of real time, so order queues ("depart at next window") and alerts are needed (risk register: time acceleration breaks orbital timing).
+- The transfer planner itself (sliders, windows, alerts, on-map preview) is in *Orbital Transfers* 3.
 
 ## 8. Data shape **(Candidate)**
 
 - `params.py` holds the star, bodies, drive families and gate radius. The prototype will need the same as data: per system `star {mass, luminosity}`, per body `orbit {a, e, i, phase}`, per gate `orbit` plus `entry_tolerance`.
-- In-game transit times should come from a transfer solver (impulsive arcs within a delta-v budget; Edelbaum or a shooting method for low thrust), not from tables. The tables here are for tuning.
+- In-game transit times come from the transfer solver in *Orbital Transfers* (two-burn arcs for impulsive drives, an Edelbaum spiral for low thrust), not from tables. The tables here are for tuning.
 
 ## 9. Open questions
 
@@ -163,7 +162,6 @@ Gate entry tolerance 10 km/s (6.2); best phasing; "rdv" = must match the gate's 
 - **Gate tolerance:** value, whether it varies by gate condition, and whether arrival speed carries through to the far side.
 - **Gate orbits:** circular at a fixed radius, or in the plane at varying phases? Several gates per system at different phases give different window timings per destination.
 - **Planetary departure:** include the 2.8 km/s Halden low-orbit escape in ship budgets, or treat Arden Highport as the start of all trips?
-- **NEP:** whether low-thrust trips are solved in-game or estimated (Edelbaum gives 167 days for Iver → Halden IV against 191 from the optimised trajectory).
 - **Torch tuning:** acceleration cap and rarity, so relic drives feel decisive without ending orbital strategy.
 - **Delta-v range and reaction mass model** across the drive families.
-- **Non-circular orbits** and inclination: worth the generator's effort, or keep circular and coplanar?
+- **Non-circular orbits** and inclination: *Orbital Transfers* 2.5 keeps bodies circular and coplanar for now, with mild eccentricity on a few flavour bodies as a later candidate.

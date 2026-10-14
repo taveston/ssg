@@ -53,6 +53,7 @@ One line per system and the doc that holds it. All paths are under `docs/ideas/`
 | Salvage and research | No tech tree: salvage finds, reverse engineering, understanding per component type, designs as objects. | `mechanics/research.md` |
 | Components | Component types and tiers; the stats they carry and how they assemble into ships. | `mechanics/components.md`, `mechanics/component-stats.md` |
 | Drives and transit | Drive families, transit times, transfer windows, gate placement. | `mechanics/drives-and-transit.md` |
+| Orbital transfers | Ships on rails along precomputed patched-conic arcs; two-slider transfer planning; scheduled and re-taskable orders. | `mechanics/transfers.md` |
 | Gates | Paired wormhole mouths, slowly failing; most links already collapsed. How gates work stays unexplained on screen. | `mechanics/gates.md` |
 | World generation | A flat 3D cluster at realistic star density, gates where the old network had reason to go, and a historical layer. | `mechanics/world-generator.md` |
 | Combat, raiders and diplomacy | Auto-resolved combat on the system view with the clock slowed; raiders from simulated conditions. | `mechanics/conflict.md` |

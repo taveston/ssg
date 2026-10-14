@@ -45,7 +45,7 @@ The first three are spatial layers, nested from cluster down to planet. Faction 
   - Moons, stations and ships in orbit around a body fold into one count marker on that body (specced: GRP).
   - Asteroid belts and debris fields appear as density shading. Surveyed, claimed or active sites get individual markers.
   - Information layers can be switched on and off: ownership, resources, salvage, traffic, sensor coverage.
-- **Motion (candidate):** ship paths are drawn as their actual arcs, including burns. Transfer planning shows a fan of alternative paths, each labelled with transit time and delta-v (*Drives & Transit*). How fast-orbiting objects are drawn is set by the motion rule (specced: MOT).
+- **Motion (candidate):** ship paths are drawn as their actual arcs, including burns: solid behind the ship, dashed ahead, and dashed from the departure point for a scheduled transfer. Transfer planning shows one live preview path with the arrival point on the target's ring, plus slider tracks coloured by delta-v; this replaces the earlier fan of labelled alternative paths (*Orbital Transfers* 3.3). How fast-orbiting objects are drawn is set by the motion rule (specced: MOT).
 - **Cluster view (decided):** the same style as the system view, with systems as nodes and gates as links. Gate throughput, reliability and ownership could show as line weight, line style and colour (candidate).
 
 ### Navigation, satellites and motion
