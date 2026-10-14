@@ -36,6 +36,9 @@ pub struct Tunables {
     /// fades out and the ring widens to the exposure width; paused, tails
     /// are capped here (MOT-11, MOT-12).
     pub dot_fade_from_degrees: f32,
+    /// A tail's shown length eases to a new length (after a change of rate,
+    /// a pause or an unpause) within this many milliseconds (MOT-13).
+    pub tail_ease_ms: f32,
     /// Line width of an exposure ring (MOT-02).
     pub exposure_ring_width_px: f32,
     /// Alpha of an exposure ring and of a tail's head, so an exposure ring
@@ -209,6 +212,7 @@ impl Default for Tunables {
 
             tail_secs: 8.0,
             dot_fade_from_degrees: 300.0,
+            tail_ease_ms: 300.0,
             exposure_ring_width_px: 3.0,
             exposure_ring_alpha: 0.5,
             orbit_ring_width_px: 1.0,

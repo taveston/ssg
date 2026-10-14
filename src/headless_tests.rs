@@ -279,7 +279,8 @@ fn fold_state_after_a_scale_change() {
     );
 }
 
-/// ARCH-31 / MOT-01, MOT-02, MOT-04, MOT-12: the motion mode follows the time rate.
+/// ARCH-31 / MOT-01, MOT-02, MOT-04, MOT-12, MOT-13: the motion mode
+/// follows the time rate, easing into each change.
 #[test]
 fn motion_mode_after_a_rate_change() {
     let mut app = headless_app(FRAME);
@@ -309,7 +310,13 @@ fn motion_mode_after_a_rate_change() {
     // MOT-12: paused, everything is a full-brightness dot with its tail,
     // capped at `dot_fade_from_degrees`.
     app.world_mut().resource_mut::<GameClock>().toggle_pause();
-    run(&mut app, 2);
+    // MOT-13: the tail eases down rather than snapping, so a frame after
+    // pausing IVc's dot is still fading back in.
+    run(&mut app, 1);
+    let ivc = body(&mut app, "Halden IVc");
+    let easing = *app.world().get::<MotionModeState>(ivc).unwrap();
+    assert!(easing.tail_degrees > 300.0 && easing.dot_alpha() < 1.0);
+    run(&mut app, SETTLE_FRAMES);
     let mut modes = app.world_mut().query::<&MotionModeState>();
     assert!(
         modes
@@ -318,7 +325,7 @@ fn motion_mode_after_a_rate_change() {
     );
     // Unpausing restores the running state.
     app.world_mut().resource_mut::<GameClock>().toggle_pause();
-    run(&mut app, 2);
+    run(&mut app, SETTLE_FRAMES);
     assert!(ring(&mut app, "Halden IVc"));
 }
 

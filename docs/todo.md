@@ -12,7 +12,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **Ease tail length on rate changes** · MOT-13
 - [ ] **Inset as a sidebar; "In orbit" outline** · INS-05, INS-07
   - `inset_dock_margin_px` is withdrawn; `sidebar_slide_ms` is new.
 - [ ] **Inset panel anatomy** · INS-09

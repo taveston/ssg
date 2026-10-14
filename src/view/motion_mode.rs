@@ -106,10 +106,66 @@ pub fn motion_state(
     } else {
         running
     };
+    state_for_tail(tail, settings.dot_fade_from_degrees)
+}
+
+/// MOT-11: the state a tail of `tail_degrees` shows: how far it has
+/// closed, and whether it has closed into the exposure ring. Paused tails
+/// are capped short of a full circle (MOT-12), so they never reach it.
+pub fn state_for_tail(tail_degrees: f32, fade_from_degrees: f32) -> MotionModeState {
     MotionModeState {
-        tail_degrees: tail,
-        closing: closing(tail, settings.dot_fade_from_degrees),
-        ring_mode: !paused && running >= FULL_TURN_DEGREES,
+        tail_degrees,
+        closing: closing(tail_degrees, fade_from_degrees),
+        ring_mode: tail_degrees >= FULL_TURN_DEGREES,
+    }
+}
+
+/// MOT-13: the tail length on screen, easing towards the length the rate
+/// and pause give, so a change animates rather than snaps.
+#[derive(Component, Default, Debug, Clone, Copy, PartialEq)]
+pub struct TailEase {
+    /// The length shown when the current ease began.
+    from: f32,
+    /// The length being eased towards.
+    target: f32,
+    /// Real seconds since the current ease began.
+    elapsed_secs: f32,
+    /// False until the first length is known; that one is shown at once.
+    started: bool,
+}
+
+impl TailEase {
+    /// Advance by `dt` real seconds towards `target` and return the length
+    /// to show. A new target starts a fresh ease from what is shown now,
+    /// which reaches it after `ease_secs`.
+    pub fn step(&mut self, target: f32, dt: f32, ease_secs: f32) -> f32 {
+        if !self.started {
+            *self = Self {
+                from: target,
+                target,
+                elapsed_secs: 0.0,
+                started: true,
+            };
+            return target;
+        }
+        if target != self.target {
+            self.from = self.shown(ease_secs);
+            self.target = target;
+            self.elapsed_secs = 0.0;
+        }
+        self.elapsed_secs = (self.elapsed_secs + dt).min(ease_secs.max(0.0));
+        self.shown(ease_secs)
+    }
+
+    /// The length shown now: from the start towards the target, eased in
+    /// and out.
+    fn shown(&self, ease_secs: f32) -> f32 {
+        if ease_secs <= 0.0 {
+            return self.target;
+        }
+        let t = (self.elapsed_secs / ease_secs).clamp(0.0, 1.0);
+        let eased = t * t * (3.0 - 2.0 * t);
+        self.from + (self.target - self.from) * eased
     }
 }
 
@@ -242,5 +298,26 @@ mod tests {
         assert!(ahead > 350.0);
         assert_eq!(tail_brightness(ahead, &state), 0.0);
         assert!((degrees_behind(1.0, 0.9) - 0.1_f32.to_degrees()).abs() < 1e-3);
+    }
+
+    /// MOT-13: a new length is reached within the ease time, passing
+    /// through the lengths between; the first length shows at once.
+    #[test]
+    fn the_tail_eases_to_a_new_length_within_the_ease_time() {
+        let mut ease = TailEase::default();
+        assert_eq!(ease.step(360.0, 0.016, 0.3), 360.0);
+        let midway = ease.step(100.0, 0.15, 0.3);
+        assert!(midway > 100.0 && midway < 360.0, "{midway}");
+        assert_eq!(ease.step(100.0, 0.15, 0.3), 100.0);
+        assert_eq!(ease.step(100.0, 0.15, 0.3), 100.0);
+    }
+
+    /// MOT-11 / MOT-13: the dot fade and ring mode follow the length shown.
+    #[test]
+    fn the_state_follows_the_shown_length() {
+        assert!(state_for_tail(360.0, 300.0).ring_mode);
+        let closing = state_for_tail(330.0, 300.0);
+        assert!(!closing.ring_mode);
+        assert!((closing.dot_alpha() - 0.5).abs() < 1e-6);
     }
 }

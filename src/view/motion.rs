@@ -11,7 +11,7 @@ use bevy::prelude::*;
 
 use super::layers;
 
-use super::motion_mode::{MotionModeState, TailSettings, motion_state};
+use super::motion_mode::{MotionModeState, TailEase, TailSettings, motion_state, state_for_tail};
 use crate::sim::body::{BodyClass, DisplayName};
 use crate::sim::clock::GameClock;
 use crate::sim::orbit::Orbit;
@@ -61,7 +61,9 @@ fn spawn_motion_visuals(
         if *class == BodyClass::Gate {
             continue;
         }
-        commands.entity(entity).insert(MotionModeState::default());
+        commands
+            .entity(entity)
+            .insert((MotionModeState::default(), TailEase::default()));
         commands.spawn((
             RingLabelFor(entity),
             GlobalZIndex(layers::LABELS),
@@ -78,23 +80,29 @@ fn spawn_motion_visuals(
 }
 
 /// MOT-01, MOT-02, MOT-04, MOT-10 to MOT-12: each body's tail follows its
-/// apparent period at the selected rate, every frame.
+/// apparent period at the selected rate, every frame. MOT-13: the length
+/// shown eases towards that within `tail_ease_ms`, and the dot fade and
+/// ring width follow the length shown.
 fn update_motion_modes(
     clock: Res<GameClock>,
     tunables: Res<Tunables>,
-    mut bodies: Query<(&Orbit, &mut MotionModeState)>,
+    time: Res<Time<Real>>,
+    mut bodies: Query<(&Orbit, &mut MotionModeState, &mut TailEase)>,
 ) {
     let settings = TailSettings {
         tail_secs: tunables.tail_secs,
         dot_fade_from_degrees: tunables.dot_fade_from_degrees,
     };
-    for (orbit, mut state) in &mut bodies {
-        let next = motion_state(
+    let ease_secs = tunables.tail_ease_ms / 1000.0;
+    for (orbit, mut state, mut ease) in &mut bodies {
+        let target = motion_state(
             orbit.period_days,
             clock.rate_days_per_sec(),
             clock.is_paused(),
             settings,
         );
+        let shown = ease.step(target.tail_degrees, time.delta_secs(), ease_secs);
+        let next = state_for_tail(shown, settings.dot_fade_from_degrees);
         if *state != next {
             *state = next;
         }

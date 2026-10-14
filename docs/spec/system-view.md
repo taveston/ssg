@@ -206,7 +206,7 @@ The **apparent period** of an orbit is its orbital period divided by the selecte
 | MOT-10 | The tail covers the arc swept in the last `tail_secs` real seconds: 360° × `tail_secs` ÷ apparent period. Its length follows the time rate continuously, with no steps. | ✓ |
 ✓ |
 | MOT-11 | As the tail grows from `dot_fade_from_degrees` to 360°, the dot fades out and the ring width grows to `exposure_ring_width_px`, both linearly, so the closing is seamless. | ✓ |
-| MOT-13 | The displayed tail length eases towards the length MOT-10 or MOT-12 gives, reaching it within `tail_ease_ms`, so a change of time rate, a pause or an unpause animates rather than snaps. The dot fade and ring width (MOT-11) follow the displayed length, so a switch between dot and exposure ring animates too. | |
+| MOT-13 | The displayed tail length eases towards the length MOT-10 or MOT-12 gives, reaching it within `tail_ease_ms`, so a change of time rate, a pause or an unpause animates rather than snaps. The dot fade and ring width (MOT-11) follow the displayed length, so a switch between dot and exposure ring animates too. | ✓ |
 | MOT-04 | Pausing keeps every tail at its running length, so the view does not jump. | ✓ |
 | MOT-12 | While paused, each tail is capped at `dot_fade_from_degrees`, so every orbiting object shows as a full-brightness dot with its tail, objects in exposure-ring mode included. Unpausing restores the running state. | ✓ |
 | MOT-07 | While the selected object is in ring mode, its inset has the line "Position: shown when paused". | ✓ |
