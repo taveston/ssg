@@ -25,6 +25,7 @@ pub mod fold;
 pub mod fonts;
 pub mod frame;
 pub mod frame_marks;
+pub mod frame_orbit;
 pub mod gesture;
 pub mod grouping;
 pub mod hover;
@@ -77,6 +78,7 @@ impl Plugin for ViewPlugin {
                 buttons::ButtonsPlugin,
                 plot_marks::PlotMarksPlugin,
                 marker_picking::MarkerPickingPlugin,
+                frame_orbit::FrameOrbitPlugin,
             ))
             .add_plugins((
                 grouping::GroupingPlugin,

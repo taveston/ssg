@@ -12,7 +12,8 @@
 //! round. Each ring is its own retained gizmo, so it can widen on its own
 //! as its tail closes (MOT-11). A hovered body's ring is white at
 //! `orbit_hover_alpha`, a selected body's white at `orbit_selected_alpha`
-//! (HOV-03).
+//! (HOV-03). Outside the star's frame the frame body's own ring is left to
+//! `frame_orbit.rs` (MRK-14).
 
 use bevy::color::Mix;
 use bevy::prelude::*;
@@ -22,6 +23,7 @@ use crate::sim::orbit::{Orbit, OrbitPositionKm};
 use crate::view::camera::state::camera_fov;
 use crate::view::colors;
 use crate::view::fold::SatelliteFoldState;
+use crate::view::frame::Frame;
 use crate::view::hovered::HoveredBodies;
 use crate::view::motion_mode::{MotionModeState, degrees_behind, tail_brightness};
 use crate::view::scale::km_to_render;
@@ -42,7 +44,7 @@ const MAX_RING_SPLITS: u32 = 12;
 /// A point must be at least this far in front of the camera to be drawn.
 const NEAR_EPSILON: f32 = 0.01;
 /// MRK-05: orbits are *faint* rings.
-const DIM_RING_ALPHA: f32 = 0.35;
+pub const DIM_RING_ALPHA: f32 = 0.35;
 
 /// The retained gizmo that draws one body's ring.
 #[derive(Component)]
@@ -215,6 +217,7 @@ struct StrokeLook {
 /// ring mode), as wide as its closing makes it.
 #[allow(clippy::too_many_arguments)]
 fn draw_orbit_rings(
+    frame: Res<Frame>,
     selection: Res<Selection>,
     hovered: Res<HoveredBodies>,
     tunables: Res<Tunables>,
@@ -241,6 +244,11 @@ fn draw_orbit_rings(
         };
         asset.clear();
         let body = stroke_for.0;
+        // MRK-14: outside the star's frame, the frame body's orbit is only
+        // a tail (`frame_orbit.rs`).
+        if frame.non_star_body() == Some(body) {
+            continue;
+        }
         let Some(look) = stroke_look(
             body,
             &bodies,

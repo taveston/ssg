@@ -12,8 +12,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **Frame body's orbit as a tail; bearing tick to its parent** · MRK-14, MRK-15
-  - Was F-122: close in, the frame body's own orbit crossed the view as a stray straight line. HOV-02 still applies: the arc is never a target.
 - [ ] **Ease tail length on rate changes** · MOT-13
 - [ ] **Inset as a sidebar; "In orbit" outline** · INS-05, INS-07
   - `inset_dock_margin_px` is withdrawn; `sidebar_slide_ms` is new.
