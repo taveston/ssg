@@ -12,7 +12,7 @@ use bevy::prelude::*;
 use super::control::CameraControl;
 use super::fits::Fits;
 use super::release::nearest_unringed_ancestor;
-use super::requests::{FrameRequest, RecentreRequest};
+use super::requests::{FrameRequest, NorthUpRequest, RecentreRequest};
 use super::rules::nearest_heading;
 use super::state::{BOOKMARK_SLOTS, Bookmark, Bookmarks, CameraRig, MoveTarget, PivotTarget};
 use crate::view::bindings::{Bindings, held, pressed};
@@ -49,16 +49,19 @@ pub fn handle_home(
     view.start(target, tunables.focus_jump_ms);
 }
 
-/// CAM-03: N returns to the standard orientation (CAM-02), keeping the
-/// frame with its offset, and the scale.
+/// CAM-03: N, or a click on the north dial (MRK-17), returns to the
+/// standard orientation (CAM-02), keeping the frame with its offset, and
+/// the scale.
 pub fn handle_north_up(
     keys: Res<ButtonInput<KeyCode>>,
     bindings: Res<Bindings>,
     tunables: Res<Tunables>,
     positions: Res<WorldPositions>,
+    mut request: ResMut<NorthUpRequest>,
     mut view: CameraControl,
 ) {
-    if !pressed(&keys, &bindings.north_up) {
+    let requested = std::mem::take(&mut request.0);
+    if !pressed(&keys, &bindings.north_up) && !requested {
         return;
     }
     view.settle(&positions);

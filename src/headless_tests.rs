@@ -47,6 +47,7 @@ use crate::view::markers::{BodyDetail, MarkerHalfSize, MarkersPlugin, body_fill,
 use crate::view::motion::MotionPlugin;
 use crate::view::motion_mode::MotionModeState;
 use crate::view::pills::PillsPlugin;
+use crate::view::plot_marks::{NorthArrow, NorthDial, PlotMarksPlugin, ScaleBarLine};
 use crate::view::projection::ProjectionPlugin;
 use crate::view::scale::{km_to_render, km_to_render_vec3};
 use crate::view::screen::{ScreenPlugin, ScreenPositions};
@@ -1973,4 +1974,68 @@ fn a_symbol_keeps_its_size_at_every_zoom() {
         }
     }
     assert!(shown >= 2, "the symbol was on screen at {shown} zooms");
+}
+
+/// MRK-16 / MRK-17: the scale bar is a round length within its maximum;
+/// the dial's arrow follows the heading; clicking the dial turns north up
+/// as N does (CAM-03).
+#[test]
+fn the_scale_bar_fits_and_the_north_dial_follows_and_resets_the_heading() {
+    let mut app = camera_app_with(|app| {
+        app.insert_resource(placeholder_fonts())
+            .add_plugins(PlotMarksPlugin);
+    });
+    run(&mut app, 2);
+    let max = Tunables::default().scale_bar_max_px;
+    let mut lines = app
+        .world_mut()
+        .query_filtered::<&Node, With<ScaleBarLine>>();
+    let Val::Px(width) = lines.single(app.world()).unwrap().width else {
+        panic!("the scale bar has a pixel width");
+    };
+    // A round length (1, 2 or 5) is at least 0.4 of the next one up.
+    assert!(width <= max && width >= 0.4 * max - 1.0, "{width} px");
+
+    let arrow_angle = |app: &mut App| {
+        let mut arrows = app
+            .world_mut()
+            .query_filtered::<&UiTransform, With<NorthArrow>>();
+        arrows.single(app.world()).unwrap().rotation.as_radians()
+    };
+    assert!(arrow_angle(&mut app).abs() < 1e-3, "north up at the start");
+    {
+        let mut rig = app.world_mut().resource_mut::<CameraRig>();
+        rig.heading = 0.5;
+        rig.tilt = 0.0;
+    }
+    run(&mut app, 2);
+    assert!(
+        (arrow_angle(&mut app).abs() - 0.5).abs() < 1e-2,
+        "seen straight down, north turns with the heading"
+    );
+
+    let mut dials = app.world_mut().query_filtered::<Entity, With<NorthDial>>();
+    let dial = dials.single(app.world()).unwrap();
+    let camera = app.world_mut().spawn_empty().id();
+    app.world_mut().trigger(PointerClick {
+        entity: dial,
+        pointer: bevy::picking::events::Pointer::new(
+            bevy::picking::pointer::PointerId::Mouse,
+            bevy::picking::pointer::Location {
+                target: bevy::camera::NormalizedRenderTarget::None {
+                    width: VIEWPORT.x,
+                    height: VIEWPORT.y,
+                },
+                position: Vec2::ZERO,
+            },
+        ),
+        button: PointerButton::Primary,
+        hit: bevy::picking::backend::HitData::new(camera, 0.0, None, None),
+        duration: Duration::from_millis(80),
+        count: 1,
+    });
+    run(&mut app, move_frames());
+    let heading = app.world().resource::<CameraRig>().heading;
+    assert!(heading.abs() < 1e-3, "heading {heading}");
+    assert!(arrow_angle(&mut app).abs() < 1e-3);
 }

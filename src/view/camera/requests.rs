@@ -16,6 +16,11 @@ pub struct FrameRequest(pub Option<Entity>);
 #[derive(Resource, Default)]
 pub struct RecentreRequest(pub bool);
 
+/// CAM-03 / MRK-17: a request to return to the standard orientation, as
+/// N does, raised by a click on the north dial.
+#[derive(Resource, Default)]
+pub struct NorthUpRequest(pub bool);
+
 /// Set when the planetary view is asked for (ZOOM-17). The view doesn't
 /// exist yet; `planetary_view_hook` takes the request.
 #[derive(Resource, Default)]

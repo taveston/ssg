@@ -20,6 +20,11 @@ pub fn km_to_render(km: f64) -> f32 {
     (km * RENDER_UNITS_PER_KM) as f32
 }
 
+/// SCL-02: a render-space length, in km.
+pub fn render_to_km(render: f32) -> f64 {
+    render as f64 / RENDER_UNITS_PER_KM
+}
+
 /// SCL-02: a position in km, in render space. The same linear scale on
 /// every axis, so geometry is never distorted.
 pub fn km_to_render_vec3(km: DVec3) -> Vec3 {

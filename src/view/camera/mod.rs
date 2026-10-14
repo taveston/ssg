@@ -45,6 +45,7 @@ impl Plugin for CameraPlugin {
             .init_resource::<state::Bookmarks>()
             .init_resource::<requests::FrameRequest>()
             .init_resource::<requests::RecentreRequest>()
+            .init_resource::<requests::NorthUpRequest>()
             .init_resource::<requests::PlanetaryViewRequest>()
             .init_resource::<requests::ContextMenuRequest>()
             .init_resource::<drag::MouseDrag>()

@@ -133,6 +133,14 @@ pub struct Tunables {
     /// The docked inset's gap below the top bar and from the right edge
     /// (INS-07).
     pub inset_dock_margin_px: f32,
+    /// The gap between the map area's edges and the scale bar and north
+    /// dial (MRK-16, MRK-17).
+    pub plot_margin_px: f32,
+    /// The scale bar is the longest round distance that fits in this many
+    /// pixels (MRK-16).
+    pub scale_bar_max_px: f32,
+    /// The north dial's diameter (MRK-17).
+    pub north_dial_px: f32,
     /// Distances from this many AU up read in AU; shorter ones in km
     /// (UNIT-01).
     pub distance_au_threshold_au: f64,
@@ -225,6 +233,9 @@ impl Default for Tunables {
             orbit_selected_alpha: 0.85,
             inset_width_px: 320.0,
             inset_dock_margin_px: 12.0,
+            plot_margin_px: 24.0,
+            scale_bar_max_px: 160.0,
+            north_dial_px: 34.0,
             distance_au_threshold_au: 0.1,
 
             body_fill_mix: 0.32,

@@ -37,6 +37,7 @@ pub mod markers;
 pub mod motion;
 pub mod motion_mode;
 pub mod pills;
+pub mod plot_marks;
 pub mod projection;
 pub mod readout;
 pub mod ring_picking;
@@ -74,6 +75,7 @@ impl Plugin for ViewPlugin {
                 camera::CameraPlugin,
                 breadcrumb::BreadcrumbPlugin,
                 buttons::ButtonsPlugin,
+                plot_marks::PlotMarksPlugin,
                 marker_picking::MarkerPickingPlugin,
             ))
             .add_plugins((
