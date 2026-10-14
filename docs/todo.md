@@ -26,8 +26,10 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 - [ ] **Edge arrows as tabs** · EDGE-02, EDGE-03
 - [ ] **Ship groups and condition** · SYM-09, SYM-10, SYM-12, GRP-09, TEST-06
   - The symbols are built; groups add to them (`view/symbols.rs`, `symbol_draw.rs`).
-- [ ] **Transfer simulation** · RAIL-01 to RAIL-09, BAND-01 to BAND-08, XFER-01 to XFER-12, PLAN-01 to PLAN-30, TEST-20, ARCH-22
-  - New spec `docs/spec/transfers.md`: rails, bands, the Lambert and spiral solver, plans and delta-v accounting. No UI; nothing new is drawn. Build in the order of the spec's sections: rails first (RAIL-05 and RAIL-06 are the heart of it), then bands and costs, then the solver against XFER-12's figures, then plans. `SimTunables` is new (ARCH-22). Headless tests can schedule a plan on the TEST-20 warship and advance the clock.
+- [ ] **Orbits crate** · ARCH-40 to ARCH-44, RAIL-01 to RAIL-07
+  - A new library crate `crates/orbits` in a Cargo workspace with the game: conics, Lambert, the Edelbaum spiral, trajectories, the small formulas. Move the Kepler maths out of `sim/orbit.rs` into it and have the game call it (ARCH-35: nothing changes on screen). The documentation standard (ARCH-42, ARCH-43) is part of the item, not a follow-up: write the `lib.rs` worked example first.
+- [ ] **Transfer simulation** · RAIL-08, RAIL-09, BAND-01 to BAND-08, XFER-01 to XFER-12, PLAN-01 to PLAN-30, TEST-20, ARCH-22
+  - Builds on the orbits crate. Bands and costs, then legs against XFER-12's figures, then plans and delta-v accounting. No UI; nothing new is drawn. `SimTunables` is new (ARCH-22). Headless tests can schedule a plan on the TEST-20 warship and advance the clock.
 - [ ] **Velocity leaders** · SYM-11
   - Blocked: ships in transit are not drawn yet (the simulation is in the item above; drawing them is not specced).
 - [ ] **Ideology profile** · IDEO-01 to IDEO-31
