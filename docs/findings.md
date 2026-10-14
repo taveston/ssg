@@ -16,11 +16,6 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Affects:** MRK-12, MRK-07 · **Type:** spec gap
 - **Disposition:** open. Options: at tilt, draw the part of a ring nearer the camera than its parent's centre above the parent's disc (the ring would need a depth-aware pass or a split into a far and a near arc), or accept it.
 
-### F-137 · The frame body's orbit tail looks odd in play
-- **Observation:** MRK-14 draws the frame body's own orbit only as a tail `frame_orbit_arc_px` (160 px) long on screen, ending at the body. The build does that, and three things look wrong in play. (1) The tail's share of the orbit changes with zoom: zoomed in, 160 px is a sliver of the orbit; zoomed out, it is most of the ring, then all of it, still fading to nothing at one end. (2) Switching focus from a planet to one of its moons makes the planet's orbit reappear as a full ring, because the moon is now the frame body and only its own orbit is cut to a tail, even though the view hardly changes. (3) The orbit is cut even when the whole ring would fit on screen, where a tail gains nothing over the ring.
-- **Affects:** MRK-14 · **Type:** spec wrong
-- **Disposition:** open. Options: draw the frame body's full ring whenever it fits on screen (or within some margin) and the tail only when it would cross the view; size the tail as an angle of the orbit rather than in pixels; or keep MRK-14 and accept the look.
-
 ### F-132 · What a shared exposure ring's label says
 - **Observation:** MOT-02 puts a label on an exposure ring beside its identity mark, and MOT-14 gives a shared orbit a "+N" pill, but neither says what the label of a shared ring reads. The build labels it with the orbit's name alone ("High"), since the parent's marker is beside it; a lone body's ring keeps the body's name.
 - **Affects:** MOT-02, MOT-14 · **Type:** spec gap
