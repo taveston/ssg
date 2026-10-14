@@ -64,6 +64,13 @@ use crate::{Boot, Stage};
 const FRAME: Duration = Duration::from_micros(16_667);
 /// Enough frames for transforms to propagate and a 200 ms fold to finish.
 const SETTLE_FRAMES: usize = 30;
+
+/// Frames for a tail to finish easing to a new length (MOT-13), and then
+/// settle.
+fn eased_frames() -> usize {
+    let ease_secs = Tunables::default().tail_ease_ms / 1000.0;
+    (ease_secs / FRAME.as_secs_f32()).ceil() as usize + SETTLE_FRAMES
+}
 const VIEWPORT: UVec2 = UVec2::new(1600, 900);
 /// A steep tilt from straight down, so projections are checked off the
 /// vertical.
@@ -316,7 +323,8 @@ fn motion_mode_after_a_rate_change() {
     let ivc = body(&mut app, "Halden IVc");
     let easing = *app.world().get::<MotionModeState>(ivc).unwrap();
     assert!(easing.tail_degrees > 300.0 && easing.dot_alpha() < 1.0);
-    run(&mut app, SETTLE_FRAMES);
+    let settled = eased_frames();
+    run(&mut app, settled);
     let mut modes = app.world_mut().query::<&MotionModeState>();
     assert!(
         modes
@@ -325,7 +333,7 @@ fn motion_mode_after_a_rate_change() {
     );
     // Unpausing restores the running state.
     app.world_mut().resource_mut::<GameClock>().toggle_pause();
-    run(&mut app, SETTLE_FRAMES);
+    run(&mut app, settled);
     assert!(ring(&mut app, "Halden IVc"));
 }
 
@@ -1638,7 +1646,7 @@ fn the_frame_moves_to_the_parent_when_the_frame_body_becomes_a_ring() {
 
     // IVc's apparent period drops below tail_secs.
     app.world_mut().resource_mut::<GameClock>().run_at(5.0);
-    run(&mut app, SETTLE_FRAMES);
+    run(&mut app, eased_frames());
     let new_frame = frame(&app);
     assert_eq!(new_frame.body, halden, "the frame moved to the parent");
     // The view moved to bring Halden IV back in, as a frame jump does.

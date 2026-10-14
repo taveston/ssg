@@ -243,7 +243,7 @@ All in the `Tunables` resource (`src/view/tunables.rs`). Defaults are starting v
 | `orbit_highlight_width_px` | 1 px | HOV-03 |
 | `exposure_ring_width_px` | 3 | MOT-02 |
 | `exposure_ring_alpha` | 0.5 | MOT-01, MOT-02 |
-| `tail_ease_ms` | 300 ms | MOT-13 |
+| `tail_ease_ms` | 500 ms | MOT-13 |
 | `zoom_step_factor` | ×2 | ZOOM-01 |
 | `zoom_anim_ms` | 200 (range 150–250) | ZOOM-01 |
 | `zoom_stop_resistance` | 0.35 | ZOOM-05 |

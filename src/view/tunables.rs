@@ -212,7 +212,7 @@ impl Default for Tunables {
 
             tail_secs: 8.0,
             dot_fade_from_degrees: 300.0,
-            tail_ease_ms: 300.0,
+            tail_ease_ms: 500.0,
             exposure_ring_width_px: 3.0,
             exposure_ring_alpha: 0.5,
             orbit_ring_width_px: 1.0,
