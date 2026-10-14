@@ -7,7 +7,7 @@
 //! Gizmo-drawn rings aren't pickable on their own. Each orbiting body gets
 //! one invisible target entity carrying `MarkerFor` and the ordinary marker
 //! observers, so a ring hit behaves exactly like a hit on the body's marker
-//! (tooltip, select, double-click). Hits are reported below the markers'
+//! (white ring, select, double-click). Hits are reported below the markers'
 //! and the UI's order, so a marker, pill, label or panel still wins.
 
 use std::collections::HashMap;

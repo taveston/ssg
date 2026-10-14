@@ -1,6 +1,6 @@
 //! View (ARCH-01): everything drawn - the km to render conversion, the
 //! camera, markers, rings, pills, grouping, the motion rule, gate edge
-//! arrows, the hover tooltip, inspection insets, the top bar, the palette,
+//! arrows, inspection insets, the top bar, the palette,
 //! fonts, fidelity images and the presentation tunables.
 //!
 //! The view reads the simulation and changes it only through its API

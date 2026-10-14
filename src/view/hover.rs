@@ -1,6 +1,7 @@
-//! Hover and click on the map (HOV-01, INS-01, GRP-07): the tooltip, the
-//! white hover ring, and the pointer handlers every pickable body node
-//! (marker, pill, exposure-ring hit target) is observed by.
+//! Hover and click on the map (HOV-01, INS-01, GRP-07): the white hover
+//! ring, the pill's list of folded satellites, and the pointer handlers
+//! every pickable body node (marker, pill, ring hit target) is observed by.
+//! A marker has no tooltip: its name and type are on the map already.
 //!
 //! A click selects (`selection.rs`); a double-click also makes the body the
 //! frame and moves to it (ZOOM-16), or on the frame body is the
@@ -18,11 +19,9 @@ use super::frame::Frame;
 use super::gesture::{PressStart, was_click};
 use super::layers;
 use super::selection::Selection;
-use super::symbols::ownership_text;
 use super::targets::{GroupPillFor, Hovered, MarkerFor, PointerTargets};
 use super::tunables::Tunables;
-use crate::sim::body::{Affiliation, BodyClass, DisplayName};
-use crate::sim::track::ShipRecord;
+use crate::sim::body::DisplayName;
 use crate::{Boot, Stage};
 
 pub struct HoverPlugin;
@@ -40,7 +39,7 @@ impl Plugin for HoverPlugin {
 /// How far the tooltip sits from the pointer, down and to the right.
 const TOOLTIP_OFFSET_PX: Vec2 = Vec2::new(14.0, 18.0);
 
-/// HOV-02: the tooltip sits by the pointer, whatever it is over.
+/// GRP-07: the pill's list sits by the pointer.
 fn place_tooltip(windows: Query<&Window>, mut tooltips: Query<&mut Node, With<TooltipRoot>>) {
     let Some(cursor) = windows.single().ok().and_then(Window::cursor_position) else {
         return;
@@ -103,77 +102,14 @@ fn spawn_tooltip(mut commands: Commands, fonts: Res<Fonts>) {
         });
 }
 
-fn child_counts(children: &Children, classes: &Query<&BodyClass>) -> (usize, usize) {
-    let mut moons = 0;
-    let mut stations = 0;
-    for child in children.iter() {
-        match classes.get(child) {
-            Ok(BodyClass::Moon) => moons += 1,
-            Ok(BodyClass::Station) => stations += 1,
-            _ => {}
-        }
-    }
-    (moons, stations)
-}
-
-/// A marker's tooltip: name, affiliation and what orbits it, then how to
-/// click it (HOV-01).
-pub fn marker_tooltip(name: &str, ownership: &str, moons: usize, stations: usize) -> String {
-    let contents = match (moons, stations) {
-        (0, 0) => String::new(),
-        (m, 0) => format!(" · {m} moons"),
-        (0, s) => format!(" · {s} stations"),
-        (m, s) => format!(" · {m} moons, {s} stations"),
-    };
-    format!(
-        "{name} · {}{contents} — Click: inspect · Double-click: frame its moons · Double-click again: planetary view",
-        ownership
-    )
-}
-
-pub fn on_marker_over(
-    over: On<PointerOver>,
-    markers: Query<&MarkerFor>,
-    bodies: Query<(
-        &DisplayName,
-        &Affiliation,
-        Option<&ShipRecord>,
-        Option<&Children>,
-    )>,
-    classes: Query<&BodyClass>,
-    mut commands: Commands,
-    mut tooltip_nodes: Query<&mut Node, With<TooltipRoot>>,
-    mut tooltip_labels: Query<&mut Text, With<TooltipLabel>>,
-) {
-    // HOV-01: the white ring, drawn by the marker overlay.
+/// HOV-01: hovering a marker, label or ring marks it for the white ring.
+pub fn on_marker_over(over: On<PointerOver>, mut commands: Commands) {
     commands.entity(over.entity).insert(Hovered);
-    let Ok(marker_for) = markers.get(over.entity) else {
-        return;
-    };
-    let Ok((name, affiliation, record, children)) = bodies.get(marker_for.0) else {
-        return;
-    };
-    let (moons, stations) = children.map_or((0, 0), |children| child_counts(children, &classes));
-    let ownership = ownership_text(*affiliation, record);
-    let tooltip = marker_tooltip(&name.0, ownership, moons, stations);
-    for mut text in &mut tooltip_labels {
-        *text = Text::new(tooltip.clone());
-    }
-    for mut node in &mut tooltip_nodes {
-        node.display = Display::Flex;
-    }
 }
 
-pub fn on_marker_out(
-    out: On<PointerOut>,
-    mut commands: Commands,
-    mut tooltip_nodes: Query<&mut Node, With<TooltipRoot>>,
-) {
+pub fn on_marker_out(out: On<PointerOut>, mut commands: Commands) {
     if let Ok(mut node) = commands.get_entity(out.entity) {
         node.remove::<Hovered>();
-    }
-    for mut node in &mut tooltip_nodes {
-        node.display = Display::None;
     }
 }
 
@@ -321,21 +257,6 @@ mod tests {
 
     use super::*;
 
-    /// HOV-01: name, affiliation and contents, then the click hints.
-    #[test]
-    fn marker_tooltip_names_the_body_its_ownership_and_contents() {
-        let hints = " — Click: inspect · Double-click: frame its moons · Double-click again: planetary view";
-        assert_eq!(
-            marker_tooltip("Halden IV", "own", 4, 1),
-            format!("Halden IV · own · 4 moons, 1 stations{hints}")
-        );
-        assert_eq!(
-            marker_tooltip("Pell", "neutral", 0, 0),
-            format!("Pell · neutral{hints}")
-        );
-        assert!(marker_tooltip("K-3", "unknown", 0, 2).starts_with("K-3 · unknown · 2 stations —"));
-    }
-
     /// GRP-07: the pill's tooltip lists the folded satellites.
     #[test]
     fn pill_tooltip_lists_the_folded_satellites() {
@@ -437,24 +358,12 @@ mod tests {
         assert_eq!(planetary.0, None);
     }
 
-    /// HOV-01: hovering a marker marks it for the white ring and shows the
-    /// tooltip with the body's name; leaving it undoes both.
+    /// HOV-01: hovering a marker marks it for the white ring and leaving it
+    /// clears it. There is no tooltip.
     #[test]
-    fn hovering_a_marker_rings_it_and_shows_the_tooltip() {
+    fn hovering_a_marker_rings_it_without_a_tooltip() {
         let mut world = World::new();
-        let tooltip = world
-            .spawn((
-                TooltipRoot,
-                Node {
-                    display: Display::None,
-                    ..default()
-                },
-            ))
-            .id();
-        let label = world.spawn((TooltipLabel, Text::new(""))).id();
-        let body = world
-            .spawn((DisplayName("Morrow".into()), Affiliation::Neutral))
-            .id();
+        let body = world.spawn_empty().id();
         let marker = world
             .spawn(MarkerFor(body))
             .observe(on_marker_over)
@@ -470,14 +379,7 @@ mod tests {
         });
         world.flush();
         assert!(world.get::<Hovered>(marker).is_some());
-        assert_eq!(world.get::<Node>(tooltip).unwrap().display, Display::Flex);
-        assert!(
-            world
-                .get::<Text>(label)
-                .unwrap()
-                .0
-                .starts_with("Morrow · neutral —")
-        );
+        assert_eq!(world.query::<&TooltipRoot>().iter(&world).count(), 0);
 
         world.trigger(PointerOut {
             entity: marker,
@@ -486,6 +388,5 @@ mod tests {
         });
         world.flush();
         assert!(world.get::<Hovered>(marker).is_none());
-        assert_eq!(world.get::<Node>(tooltip).unwrap().display, Display::None);
     }
 }

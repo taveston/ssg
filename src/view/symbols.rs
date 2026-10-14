@@ -203,7 +203,7 @@ pub fn label_second_line(
     (!parts.is_empty()).then(|| parts.join(" · "))
 }
 
-/// SYM-15: ownership as the tooltip and inset say it: "own", "own flag ·
+/// SYM-15: ownership as the inset says it: "own", "own flag ·
 /// civilian", "requisitioned", "allied", "neutral", "hostile" or
 /// "unknown". A body with no ship record is just its affiliation.
 pub fn ownership_text(affiliation: Affiliation, record: Option<&ShipRecord>) -> &'static str {

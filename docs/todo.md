@@ -12,13 +12,8 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **Edge arrows as tabs** · EDGE-02, EDGE-03
-  - Was F-119: a label was clipped to "Gat" and one arrow had no label. Do it with the "Gate edge labels" fix below.
 - [ ] **Frame body's orbit as a tail; bearing tick to its parent** · MRK-14, MRK-15
   - Was F-122: close in, the frame body's own orbit crossed the view as a stray straight line. HOV-02 still applies: the arc is never a target.
-- [ ] **Morrow IX's trader at about 9 d** · TEST-09
-  - The build already uses 9 d (was F-113); check and mark ✓.
-- [ ] **Remove the hover tooltip** · HOV-01, HOV-02
 - [ ] **Ease tail length on rate changes** · MOT-13
 - [ ] **Inset as a sidebar; "In orbit" outline** · INS-05, INS-07
   - `inset_dock_margin_px` is withdrawn; `sidebar_slide_ms` is new.
@@ -26,6 +21,10 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - Was F-120. Build after the sidebar.
 - [ ] **Label placement** · LBL-01 to LBL-04
   - Was F-115: labels overprinted each other round Halden IV. `label_gap_px` and `label_fade_ms` are new. The hardest item here; keep placement in its own view module.
+- [ ] **Morrow IX's trader at about 9 d** · TEST-09
+  - The build already uses 9 d (was F-113); check and mark ✓.
+  - Was F-119: a label was clipped to "Gat" and one arrow had no label. Do it with the "Gate edge labels" fix below.
+- [ ] **Edge arrows as tabs** · EDGE-02, EDGE-03
 - [ ] **Ship groups and condition** · SYM-09, SYM-10, SYM-12, GRP-09, TEST-06
   - The symbols are built; groups add to them (`view/symbols.rs`, `symbol_draw.rs`).
 - [ ] **Velocity leaders** · SYM-11
