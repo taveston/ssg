@@ -2,9 +2,10 @@
 //! units (km, kg, days). Its values serve the system-view rules first: see
 //! the TEST IDs in `docs/spec/system-view.md`.
 //!
-//! Natural bodies have orbits of their own; every ship and station sits in
-//! a named orbit of its parent (SCL-07). Halden IV's "High" orbit holds two
-//! warships, so the system has a shared orbit (TEST-10).
+//! Natural bodies, stations and the contact K-3 have orbits of their own.
+//! Halden IV offers two named orbits (SCL-07): "Low", empty, and "High",
+//! which holds every ship parked there, so the system has one shared orbit
+//! with many members (TEST-10).
 //!
 //! This is the seam a generator replaces (SCL-03): anything that builds a
 //! `SystemData` the same shape can stand in for `hand_made_system`.
@@ -27,30 +28,13 @@ const MORROW_IX_MASS_KG: f64 = 0.02 * EARTH_MASS_KG;
 /// Where Morrow IX sits among Morrow's moons.
 const MORROW_IX: usize = 8;
 
-/// TEST-02 / TEST-10: Halden IV's station orbit (0.1 d) and the parking
-/// orbit both warships share (12 d), by period.
-const HALDEN_LOW_DAYS: f64 = 0.1;
+/// TEST-02 / TEST-10: Halden IV's orbits by period: Arden Highport's own
+/// (0.1 d), the empty "Low" band just above it, "High" (12 d, every parked
+/// ship, slow enough to be a dot at 1 d/s) and K-3's own slow orbit.
+const HALDEN_HIGHPORT_DAYS: f64 = 0.1;
+const HALDEN_LOW_DAYS: f64 = 0.15;
 const HALDEN_HIGH_DAYS: f64 = 12.0;
-
-/// TEST-05: the parking orbits of the other ships and contacts round
-/// Halden IV, one each, by name and period: between IVc (31 d) and IVd
-/// (68 d) in spread, slow enough to be dots at 1 d/s without stretching
-/// the satellite fit.
-const HALDEN_PARKING: [(&str, f64); 13] = [
-    ("Parking 1", 14.0),
-    ("Parking 2", 16.0),
-    ("Parking 3", 18.0),
-    ("Parking 4", 20.0),
-    ("Parking 5", 22.0),
-    ("Parking 6", 24.0),
-    ("Parking 7", 26.0),
-    ("Parking 8", 28.0),
-    ("Parking 9", 35.0),
-    ("Parking 10", 40.0),
-    ("Parking 11", 45.0),
-    ("Parking 12", 50.0),
-    ("Parking 13", 55.0),
-];
+const HALDEN_K3_DAYS: f64 = 45.0;
 
 fn surveyed_today() -> Knowledge {
     Knowledge::Surveyed
@@ -152,7 +136,7 @@ fn pell() -> BodyBlueprint {
     }
 }
 
-/// TEST-01: Iver, with the station Iver Yard in its "Yard" orbit.
+/// TEST-01: Iver, with the station Iver Yard in an orbit of its own.
 fn iver() -> BodyBlueprint {
     BodyBlueprint {
         name: "Iver",
@@ -166,10 +150,7 @@ fn iver() -> BodyBlueprint {
         radius_km: 5800.0,
         phase0_rad: 2.1,
         mass_kg: 0.9 * EARTH_MASS_KG,
-        orbits: vec![NamedOrbitBlueprint {
-            name: "Yard",
-            radius_km: 45_000.0,
-        }],
+        orbits: vec![],
         children: vec![BodyBlueprint {
             name: "Iver Yard",
             class: BodyClass::Station,
@@ -178,7 +159,7 @@ fn iver() -> BodyBlueprint {
             description: "A dormant pre-collapse shipyard, barely maintained.",
             key_facts: vec![("Status", "Dormant"), ("Owner", "State")],
             knowledge: surveyed_today(),
-            orbit: OrbitPlacement::Named("Yard"),
+            orbit: own(45_000.0),
             radius_km: 1.0,
             phase0_rad: 0.9,
             mass_kg: 0.0,
@@ -189,8 +170,8 @@ fn iver() -> BodyBlueprint {
 }
 
 /// TEST-01 to TEST-04, TEST-10: Halden IV, the capital, with the
-/// satellites the motion rule and grouping are tuned against, and the named
-/// orbits its station, ships and contacts sit in.
+/// satellites the motion rule and grouping are tuned against, its two named
+/// orbits, and the ships parked in "High".
 fn halden_iv() -> BodyBlueprint {
     let moon =
         |name, description, orbit_radius_km, radius_km, phase0_rad, knowledge| BodyBlueprint {
@@ -278,7 +259,7 @@ fn halden_iv() -> BodyBlueprint {
                 description: "Halden IV's primary orbital station.",
                 key_facts: vec![("Status", "Active"), ("Owner", "State")],
                 knowledge: surveyed_today(),
-                orbit: OrbitPlacement::Named("Low"),
+                orbit: own(halden_orbit_km(HALDEN_HIGHPORT_DAYS)),
                 radius_km: 1.0,
                 phase0_rad: 2.4,
                 mass_kg: 0.0,
@@ -294,18 +275,15 @@ fn halden_iv() -> BodyBlueprint {
     }
 }
 
-/// SCL-07 / TEST-02 / TEST-10: Halden IV's named orbits: "Low" for the
-/// highport (0.1 d), "High" for the warships (12 d), and a parking orbit
-/// per other ship.
+/// SCL-07 / TEST-10: Halden IV's two named orbits: "Low", empty, and
+/// "High", where every parked ship sits.
 fn halden_orbits() -> Vec<NamedOrbitBlueprint> {
-    let orbit = |name, period_days| NamedOrbitBlueprint {
-        name,
-        radius_km: halden_orbit_km(period_days),
-    };
     [("Low", HALDEN_LOW_DAYS), ("High", HALDEN_HIGH_DAYS)]
         .into_iter()
-        .chain(HALDEN_PARKING)
-        .map(|(name, period_days)| orbit(name, period_days))
+        .map(|(name, period_days)| NamedOrbitBlueprint {
+            name,
+            radius_km: halden_orbit_km(period_days),
+        })
         .collect()
 }
 
@@ -324,13 +302,13 @@ fn orbit_km_for_period(mass_kg: f64, period_days: f64) -> f64 {
     radius_m / M_PER_KM
 }
 
-/// A ship or contact parked round Halden IV, in one of its named orbits.
+/// A ship or contact parked round Halden IV, where `orbit` puts it.
 fn parked(
     name: &'static str,
     affiliation: Affiliation,
     record: ShipRecord,
     description: &'static str,
-    (orbit, phase0_rad): (&'static str, f64),
+    (orbit, phase0_rad): (OrbitPlacement, f64),
 ) -> BodyBlueprint {
     let own = affiliation == Affiliation::Own;
     BodyBlueprint {
@@ -345,7 +323,7 @@ fn parked(
         } else {
             Knowledge::Unsurveyed
         },
-        orbit: OrbitPlacement::Named(orbit),
+        orbit,
         radius_km: 0.1,
         phase0_rad,
         mass_kg: 0.0,
@@ -354,8 +332,15 @@ fn parked(
     }
 }
 
+/// TEST-10: the phase of the `i`th of `count` ships in "High": spread
+/// evenly round the ring, so no two coincide.
+fn spread_phase(i: usize, count: usize) -> f64 {
+    std::f64::consts::TAU * i as f64 / count as f64
+}
+
 /// TEST-03 / TEST-05 / TEST-10: one of each kind of ship and contact the
-/// symbols must tell apart, and the two warships that share "High".
+/// symbols must tell apart. Every ship shares "High"; K-3 keeps a slow
+/// orbit of its own.
 fn ships_at_halden() -> Vec<BodyBlueprint> {
     let warship = ShipRecord::new(ShipClass::Warship, true);
     let civilian_cargo = ShipRecord::new(ShipClass::Cargo, false);
@@ -363,8 +348,8 @@ fn ships_at_halden() -> Vec<BodyBlueprint> {
         load,
         ..ShipRecord::new(ShipClass::TroopTransport, true)
     };
-    vec![
-        parked(
+    let in_high: Vec<(&'static str, Affiliation, ShipRecord, &'static str)> = vec![
+        (
             "Orison",
             Affiliation::Own,
             ShipRecord {
@@ -372,9 +357,8 @@ fn ships_at_halden() -> Vec<BodyBlueprint> {
                 ..warship.clone()
             },
             "A state warship parked in high orbit over Halden IV.",
-            ("High", 1.0),
         ),
-        parked(
+        (
             "Ardent",
             Affiliation::Own,
             ShipRecord {
@@ -382,9 +366,8 @@ fn ships_at_halden() -> Vec<BodyBlueprint> {
                 ..warship.clone()
             },
             "A state warship sharing Orison's high orbit over Halden IV.",
-            ("High", 3.5),
         ),
-        parked(
+        (
             "RFA Tolland",
             Affiliation::Own,
             ShipRecord {
@@ -392,9 +375,8 @@ fn ships_at_halden() -> Vec<BodyBlueprint> {
                 ..ShipRecord::new(ShipClass::FleetSupply, true)
             },
             "A fleet tanker on station.",
-            ("Parking 1", 0.2),
         ),
-        parked(
+        (
             "Transport Cassel",
             Affiliation::Own,
             transport(TroopLoad::Embarked(vec![Formation {
@@ -402,16 +384,14 @@ fn ships_at_halden() -> Vec<BodyBlueprint> {
                 echelon: Some(Echelon::Battalion),
             }])),
             "A troop transport with the 1st Arden Guard embarked.",
-            ("Parking 2", 2.2),
         ),
-        parked(
+        (
             "Transport Hale",
             Affiliation::Own,
             transport(TroopLoad::Empty),
             "A troop transport, empty.",
-            ("Parking 3", 3.4),
         ),
-        parked(
+        (
             "Transport Brask",
             Affiliation::Own,
             transport(TroopLoad::Embarked(vec![
@@ -425,16 +405,14 @@ fn ships_at_halden() -> Vec<BodyBlueprint> {
                 },
             ])),
             "A troop transport carrying a regiment and a brigade staff.",
-            ("Parking 4", 4.8),
         ),
-        parked(
+        (
             "Varga Prospector",
             Affiliation::Own,
             civilian_cargo.clone(),
             "An ore carrier of Varga Mining, under its own orders.",
-            ("Parking 5", 4.1),
         ),
-        parked(
+        (
             "Delve",
             Affiliation::Own,
             ShipRecord {
@@ -443,9 +421,8 @@ fn ships_at_halden() -> Vec<BodyBlueprint> {
                 ..civilian_cargo.clone()
             },
             "A civilian ore carrier chartered by the state.",
-            ("Parking 6", 5.0),
         ),
-        parked(
+        (
             "Marten",
             Affiliation::Own,
             ShipRecord {
@@ -453,40 +430,26 @@ fn ships_at_halden() -> Vec<BodyBlueprint> {
                 ..civilian_cargo.clone()
             },
             "A licensed armed hauler under its owner's orders.",
-            ("Parking 7", 5.8),
         ),
-        parked(
+        (
             "Ostra trader",
             Affiliation::Neutral,
             ShipRecord::new(ShipClass::Cargo, false),
             "A neutral trader of Halvard Lines.",
-            ("Parking 8", 0.7),
         ),
-        parked(
+        (
             "Sennet",
             Affiliation::Allied,
             ShipRecord::new(ShipClass::Warship, false),
             "An allied frigate.",
-            ("Parking 9", 1.6),
         ),
-        parked(
+        (
             "Transport T-4",
             Affiliation::Hostile,
             ShipRecord::new(ShipClass::TroopTransport, false),
             "A hostile troop transport; what it carries is unknown.",
-            ("Parking 10", 2.9),
         ),
-        parked(
-            "K-3",
-            Affiliation::Unknown,
-            ShipRecord {
-                track: Track::Weak,
-                ..ShipRecord::new(ShipClass::Unknown, false)
-            },
-            "An unidentified contact holding a slow parking orbit.",
-            ("Parking 11", 2.6),
-        ),
-        parked(
+        (
             "Raider R-2",
             Affiliation::Hostile,
             ShipRecord {
@@ -496,16 +459,38 @@ fn ships_at_halden() -> Vec<BodyBlueprint> {
                 ..ShipRecord::new(ShipClass::Warship, false)
             },
             "A hostile raider, last seen six days ago.",
-            ("Parking 12", 4.6),
         ),
-        parked(
+        (
             "Contact C-9",
             Affiliation::Unknown,
             ShipRecord::new(ShipClass::Cargo, false),
             "A cargo ship whose flag is not known.",
-            ("Parking 13", 3.9),
         ),
-    ]
+    ];
+    let count = in_high.len();
+    in_high
+        .into_iter()
+        .enumerate()
+        .map(|(i, (name, affiliation, record, description))| {
+            parked(
+                name,
+                affiliation,
+                record,
+                description,
+                (OrbitPlacement::Named("High"), spread_phase(i, count)),
+            )
+        })
+        .chain([parked(
+            "K-3",
+            Affiliation::Unknown,
+            ShipRecord {
+                track: Track::Weak,
+                ..ShipRecord::new(ShipClass::Unknown, false)
+            },
+            "An unidentified contact holding a slow parking orbit.",
+            (own(halden_orbit_km(HALDEN_K3_DAYS)), 2.6),
+        )])
+        .collect()
 }
 
 /// TEST-01: Morrow, the outer giant with many moons.
@@ -571,16 +556,13 @@ fn morrow() -> BodyBlueprint {
     }
 }
 
-/// TEST-09: Morrow IX's named orbits, by period: "Low" for the relay
-/// (0.3 d) and "High" for the parked trader (9 d).
+/// TEST-09: Morrow IX's one named orbit, "High", for the parked trader
+/// (9 d); the relay has an orbit of its own.
 fn morrow_ix_orbits() -> Vec<NamedOrbitBlueprint> {
-    [("Low", 0.3), ("High", 9.0)]
-        .into_iter()
-        .map(|(name, period_days)| NamedOrbitBlueprint {
-            name,
-            radius_km: orbit_km_for_period(MORROW_IX_MASS_KG, period_days),
-        })
-        .collect()
+    vec![NamedOrbitBlueprint {
+        name: "High",
+        radius_km: orbit_km_for_period(MORROW_IX_MASS_KG, 9.0),
+    }]
 }
 
 /// TEST-09: Morrow IX's own satellites, for nested folding, nested pills
@@ -595,7 +577,7 @@ fn morrow_ix_satellites() -> Vec<BodyBlueprint> {
         description,
         key_facts: vec![],
         knowledge: Knowledge::Unsurveyed,
-        orbit: OrbitPlacement::Named(orbit),
+        orbit,
         radius_km: 0.1,
         phase0_rad,
         mass_kg: 0.0,
@@ -612,7 +594,7 @@ fn morrow_ix_satellites() -> Vec<BodyBlueprint> {
             Affiliation::Own,
             ShipRecord::new(ShipClass::Station, true),
             "A signal relay in low orbit round Morrow IX.",
-            "Low",
+            own(orbit_km_for_period(MORROW_IX_MASS_KG, 0.3)),
             0.4,
         )
     };
@@ -621,7 +603,7 @@ fn morrow_ix_satellites() -> Vec<BodyBlueprint> {
         Affiliation::Neutral,
         ShipRecord::new(ShipClass::Cargo, false),
         "A neutral trader parked round Morrow IX.",
-        "High",
+        OrbitPlacement::Named("High"),
         2.2,
     );
     vec![relay, trader]
@@ -716,18 +698,24 @@ mod tests {
         assert!(satellite_period_days(&halden, "Halden IVd") >= 25.0);
     }
 
-    /// SCL-07: every ship and station sits in a named orbit of its parent
-    /// and carries no radius of its own; every natural body has an orbit of
-    /// its own, and no two natural bodies share a radius.
+    /// SCL-07 / TEST-10: every parked ship but K-3 sits in a named orbit
+    /// of its parent and carries no radius of its own; stations, K-3 and
+    /// every natural body have orbits of their own, and no two natural
+    /// bodies share a radius.
     #[test]
-    fn ships_and_stations_sit_in_named_orbits_and_natural_bodies_apart() {
+    fn ships_sit_in_named_orbits_and_natural_bodies_apart() {
         fn check(parent: &BodyBlueprint) {
             let mut natural_radii: Vec<f64> = Vec::new();
             for child in &parent.children {
                 match child.class {
-                    BodyClass::Ship | BodyClass::Station => assert!(
+                    BodyClass::Ship if child.name != "K-3" => assert!(
                         matches!(child.orbit, OrbitPlacement::Named(_)),
                         "{} carries a radius of its own",
+                        child.name
+                    ),
+                    BodyClass::Ship | BodyClass::Station => assert!(
+                        matches!(child.orbit, OrbitPlacement::Own { .. }),
+                        "{} keeps an orbit of its own",
                         child.name
                     ),
                     _ => {
@@ -752,25 +740,40 @@ mod tests {
         }
     }
 
-    /// TEST-10: Halden IV's "High" orbit holds Orison (TEST-03) and a
-    /// second own commanded warship, Ardent, and nothing else: a shared
-    /// orbit with two members.
+    /// TEST-10: Halden IV has exactly "Low" (empty) and "High"; "High"
+    /// holds every parked ship - Orison (TEST-03), a second own commanded
+    /// warship, Ardent, and the TEST-05 ships - at distinct phases, while
+    /// Arden Highport and K-3 keep orbits of their own.
     #[test]
-    fn halden_iv_high_orbit_holds_two_warships() {
+    fn halden_iv_high_orbit_holds_every_parked_ship() {
         let halden = planet("Halden IV");
-        assert!(halden.orbits.iter().any(|o| o.name == "High"));
-        let in_high: Vec<&str> = halden
+        let names: Vec<&str> = halden.orbits.iter().map(|o| o.name).collect();
+        assert_eq!(names, ["Low", "High"]);
+        let (in_high, elsewhere): (Vec<&BodyBlueprint>, Vec<&BodyBlueprint>) = halden
             .children
             .iter()
-            .filter(|c| c.orbit == OrbitPlacement::Named("High"))
-            .map(|c| c.name)
-            .collect();
-        assert_eq!(in_high, ["Orison", "Ardent"]);
-        for name in in_high {
+            .filter(|c| c.record.is_some())
+            .partition(|c| c.orbit == OrbitPlacement::Named("High"));
+        assert!(in_high.len() >= 13, "{} ships in High", in_high.len());
+        let elsewhere: Vec<&str> = elsewhere.iter().map(|c| c.name).collect();
+        assert_eq!(elsewhere, ["Arden Highport", "K-3"]);
+        assert!(
+            !halden
+                .children
+                .iter()
+                .any(|c| c.orbit == OrbitPlacement::Named("Low"))
+        );
+        for name in ["Orison", "Ardent"] {
             let ship = child(&halden, name);
             let record = ship.record.as_ref().unwrap();
+            assert!(in_high.iter().any(|c| c.name == name));
             assert_eq!(ship.affiliation, Affiliation::Own);
             assert!(record.commanded && record.class == ShipClass::Warship);
+        }
+        let mut phases: Vec<f64> = in_high.iter().map(|c| c.phase0_rad).collect();
+        phases.sort_by(f64::total_cmp);
+        for pair in phases.windows(2) {
+            assert!(pair[1] - pair[0] > 1e-6, "two ships share a phase");
         }
         let period = satellite_period_days(&halden, "Ardent");
         assert!((period - HALDEN_HIGH_DAYS).abs() < HALDEN_HIGH_DAYS * 0.02);

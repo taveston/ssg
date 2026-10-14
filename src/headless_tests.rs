@@ -201,18 +201,21 @@ fn orbital_positions_after_a_known_time() {
     }
 
     // And in absolute terms: Halden IV is on its 2 AU orbit, and Arden
-    // Highport (0.1 d) has gone round about 100 times but is still on its
-    // named orbit, about 9,394 km from its planet (SCL-07).
+    // Highport (0.1 d) has gone round about 100 times but is still about
+    // 9,394 km from its planet; Orison sits on its named orbit "High"
+    // (SCL-07).
     let halden = body(&mut app, "Halden IV");
     let halden_km = app.world().get::<OrbitPositionKm>(halden).unwrap().0;
     assert!((halden_km.length() / KM_PER_AU - 2.0).abs() < 1e-9);
     let highport = body(&mut app, "Arden Highport");
     let highport_km = app.world().get::<OrbitPositionKm>(highport).unwrap().0;
-    let low = app.world().get::<InNamedOrbit>(highport).unwrap().0;
-    let low = app.world().get::<NamedOrbit>(low).unwrap();
-    assert_eq!((low.parent, low.name.as_str()), (halden, "Low"));
-    assert!((highport_km.length() - low.radius_km).abs() < 1e-6);
-    assert!((low.radius_km - 9_394.0).abs() < 1.0);
+    assert!((highport_km.length() - 9_394.0).abs() < 1.0);
+    let orison = body(&mut app, "Orison");
+    let orison_km = app.world().get::<OrbitPositionKm>(orison).unwrap().0;
+    let high = app.world().get::<InNamedOrbit>(orison).unwrap().0;
+    let high = app.world().get::<NamedOrbit>(high).unwrap();
+    assert_eq!((high.parent, high.name.as_str()), (halden, "High"));
+    assert!((orison_km.length() - high.radius_km).abs() < 1e-6);
 }
 
 /// ARCH-31 / GRP-01 / GRP-02 / GRP-04: fold state follows the scale. At the
@@ -2067,14 +2070,14 @@ fn the_scale_bar_fits_and_the_north_dial_follows_and_resets_the_heading() {
     assert!(arrow_angle(&mut app).abs() < 1e-3);
 }
 
-/// SCL-07 / TEST-10 / HOV-04 / HOV-02: Orison and Ardent sit in Halden
-/// IV's named orbit "High" with no radius of their own, so they share one
-/// ring: the orbit is a ring owner and the ships are not, and the ring has
-/// one hit target standing for the orbit, traced at Halden IV's satellite
-/// fit. Arden Highport's "Low" orbit, with one member, is the highport's
-/// own ring.
+/// SCL-07 / TEST-10 / HOV-04 / HOV-02: every ship parked at Halden IV
+/// sits in its named orbit "High" with no radius of its own, so they share
+/// one ring: the orbit is a ring owner and the ships are not, and the ring
+/// has one hit target standing for the orbit, traced at Halden IV's
+/// satellite fit. "Low" is empty and gets no ring. Arden Highport, with an
+/// orbit of its own, is its own ring.
 #[test]
-fn two_warships_in_one_named_orbit_share_one_ring() {
+fn ships_parked_in_one_named_orbit_share_one_ring() {
     use crate::view::ring_picking::{RingPaths, RingPickingPlugin, RingTarget};
     use crate::view::shared_orbit::OrbitRings;
     use crate::view::targets::OrbitFor;
@@ -2118,7 +2121,17 @@ fn two_warships_in_one_named_orbit_share_one_ring() {
         .unwrap();
     assert!(ring.shared);
     let members: Vec<Entity> = ring.members.iter().map(|m| m.body).collect();
-    assert_eq!(members, [orison, ardent]);
+    assert_eq!(&members[..2], [orison, ardent]);
+    assert!(members.len() >= 13 && members.contains(&body(&mut app, "Sennet")));
+    let low = {
+        let mut named = app.world_mut().query::<(Entity, &NamedOrbit)>();
+        named
+            .iter(app.world())
+            .find(|(_, o)| o.parent == halden && o.name == "Low")
+            .map(|(e, _)| e)
+            .expect("Halden IV offers Low")
+    };
+    assert!(!owners.contains(&low), "an empty named orbit has no ring");
 
     let mut targets = app
         .world_mut()
@@ -2173,7 +2186,7 @@ fn descendants(app: &mut App, root: Entity) -> Vec<Entity> {
 /// targeting the orbit for a shared orbit, a symbol for a lone ship or
 /// station, a body marker for a lone moon. At 1 d/s in Halden IV's frame
 /// IVb's ring is an exposure ring, so its mark shows, centred on a whole
-/// pixel; the warships' 12 d ring is in dot mode, so its pill is hidden,
+/// pixel; the parked ships' 12 d ring is in dot mode, so its pill is hidden,
 /// and the highport, folded at that fit, shows no mark either.
 #[test]
 fn an_exposure_ring_carries_an_identity_mark() {
@@ -2196,7 +2209,6 @@ fn an_exposure_ring_carries_an_identity_mark() {
     let highport = body(&mut app, "Arden Highport");
     let ivb = body(&mut app, "Halden IVb");
     let high = app.world().get::<InNamedOrbit>(orison).unwrap().0;
-    let low = app.world().get::<InNamedOrbit>(highport).unwrap().0;
 
     let mark_of = |app: &mut App, owner: Entity| {
         let mut marks =
@@ -2221,7 +2233,16 @@ fn an_exposure_ring_carries_an_identity_mark() {
         .iter()
         .find(|&&e| app.world().get::<PillCountText>(e).is_some())
         .unwrap();
-    assert_eq!(app.world().get::<Text>(*count).unwrap().0, "+2");
+    let in_high = app
+        .world()
+        .resource::<crate::view::shared_orbit::OrbitMembers>()
+        .0[&high]
+        .len();
+    assert!(in_high >= 13);
+    assert_eq!(
+        app.world().get::<Text>(*count).unwrap().0,
+        format!("+{in_high}")
+    );
     assert!(
         parts
             .iter()
@@ -2229,10 +2250,10 @@ fn an_exposure_ring_carries_an_identity_mark() {
         "the pill is labelled with the orbit's name"
     );
 
-    let (low_mark, _, orbit_for, marker_for) = mark_of(&mut app, low);
+    let (highport_mark, _, orbit_for, marker_for) = mark_of(&mut app, highport);
     assert_eq!((orbit_for, marker_for), (None, Some(highport)));
     assert!(
-        descendants(&mut app, low_mark)
+        descendants(&mut app, highport_mark)
             .iter()
             .any(|&e| app.world().get::<SymbolPart>(e).is_some()),
         "a lone station's mark is its symbol"
@@ -2254,7 +2275,11 @@ fn an_exposure_ring_carries_an_identity_mark() {
     assert_eq!(frame_body(&app), halden);
     let shown = |app: &App, mark: Entity| app.world().get::<Node>(mark).unwrap().display;
     assert_eq!(shown(&app, high_mark), Display::None, "12 d is dot mode");
-    assert_eq!(shown(&app, low_mark), Display::None, "folded at this fit");
+    assert_eq!(
+        shown(&app, highport_mark),
+        Display::None,
+        "folded at this fit"
+    );
     assert_eq!(shown(&app, ivb_mark), Display::Flex);
     let node = app.world().get::<Node>(ivb_mark).unwrap();
     let (Val::Px(left), Val::Px(top)) = (node.left, node.top) else {
