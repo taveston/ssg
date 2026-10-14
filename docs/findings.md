@@ -21,11 +21,6 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Affects:** HOV-01, GRP-07 · **Type:** spec gap
 - **Disposition:** open. Keep the pill's list, or drop it and rely on the inset's outline.
 
-### F-130 · The exposure ring snapped in at the end of a closing tail
-- **Observation:** MOT-01 has a tail fade to the ring's normal brightness at its end, and MOT-02 makes the exposure ring bright all round. So at 360° the far end of the tail jumped from faint to bright in one frame, even with the tail easing (MOT-13). The build now flattens the tail's fade as it closes (MOT-11): at `dot_fade_from_degrees` it fades fully, and at 360° it is even all round, so the closing has no jump.
-- **Affects:** MOT-01, MOT-11 · **Type:** spec gap
-- **Disposition:** open. Keep this and add it to MOT-11, or choose another hand-over.
-
 ### F-131 · You can't tell what a fast-moving object is
 - **Observation:** an object in exposure-ring mode (MOT-02) has no dot or symbol, and its ring is drawn in the neutral colour like every other ring. So a fast ship, a station and a moon look the same on the map: only the label on the ring tells them apart.
 - **Affects:** MOT-02, MRK-09, SYM-02 · **Type:** spec gap
