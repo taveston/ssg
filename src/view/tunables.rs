@@ -41,6 +41,9 @@ pub struct Tunables {
     pub tail_ease_ms: f32,
     /// Line width of an exposure ring (MOT-02).
     pub exposure_ring_width_px: f32,
+    /// An exposure ring's identity mark and label fade in once its tail has
+    /// closed, and out when it opens, over this many milliseconds (MOT-14).
+    pub identity_mark_fade_ms: f32,
     /// Alpha of an exposure ring and of a tail's head, so an exposure ring
     /// never matches the full-white selected ring (MOT-01, MOT-02).
     pub exposure_ring_alpha: f32,
@@ -214,6 +217,7 @@ impl Default for Tunables {
             dot_fade_from_degrees: 300.0,
             tail_ease_ms: 500.0,
             exposure_ring_width_px: 3.0,
+            identity_mark_fade_ms: 150.0,
             exposure_ring_alpha: 0.5,
             orbit_ring_width_px: 1.0,
             orbit_ring_alpha: 0.35,

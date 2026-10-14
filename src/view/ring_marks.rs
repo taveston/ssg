@@ -3,8 +3,10 @@
 //! what is on it without reading the label beside it. A lone ship or
 //! station shows its symbol at `ship_symbol_px`, a lone natural body its
 //! body marker, and a shared orbit a "+N" pill styled as a fold pill, with
-//! the orbit's name as its label. The mark fades in as the dot and its
-//! label fade out (MOT-11), so the hand-over has no jump.
+//! the orbit's name as its label. The mark shows only once the tail has
+//! closed to a full circle and the dot has gone (MOT-11), fading in and
+//! out over `identity_mark_fade_ms`, so a ring held short of closing never
+//! shows a moving dot and a still mark together.
 //!
 //! The mark is placed with its centre on a whole pixel (SYM-16) and is a
 //! target for the same thing the ring is: the body, or the shared orbit
@@ -12,6 +14,7 @@
 
 use bevy::prelude::*;
 
+use super::anim::{advance_towards, step_per_frame};
 use super::colors;
 use super::fonts::Fonts;
 use super::hover;
@@ -31,7 +34,7 @@ use crate::sim::body::{Affiliation, BodyClass};
 use crate::sim::track::ShipRecord;
 use crate::{Boot, Stage};
 
-/// Below this much closing a ring's mark and label aren't drawn.
+/// Below this much fade a ring's mark and label aren't drawn.
 const MIN_MARK_ALPHA: f32 = 0.05;
 /// Gap between the mark and its label, which sits to its right.
 const LABEL_GAP_PX: f32 = 4.0;
@@ -39,11 +42,13 @@ const LABEL_FONT_PX: f32 = 11.0;
 
 /// A ring's mark and label, for the body or named orbit the ring stands
 /// for; `half` is how far the mark reaches from the ring point, so the
-/// node can be placed with the mark centred there.
+/// node can be placed with the mark centred there. `shown` is how far it
+/// has faded in, 0 to 1.
 #[derive(Component)]
 pub struct RingMarkFor {
     pub owner: Entity,
     pub half: f32,
+    pub shown: f32,
 }
 
 /// The label beside a ring's mark, for the ring it names, and its colour
@@ -72,11 +77,11 @@ impl Plugin for RingMarksPlugin {
     }
 }
 
-/// MOT-02 / MOT-11: how strongly a ring's mark and label show: they fade
-/// in as the tail closes, as the dot and its label fade out. A ring with
-/// nothing drawn on it (every body folded) shows none.
-pub fn ring_mark_alpha(state: &MotionModeState, nothing_drawn: bool) -> f32 {
-    if nothing_drawn { 0.0 } else { state.closing }
+/// MOT-14: whether a ring's mark and label should show: only once the
+/// tail has closed to a full circle, so the dot has fully faded (MOT-11).
+/// A ring with nothing drawn on it (every body folded) shows none.
+pub fn ring_mark_wanted(state: &MotionModeState, nothing_drawn: bool) -> bool {
+    !nothing_drawn && state.closing >= 1.0
 }
 
 /// MOT-14: what a ring's identity mark is.
@@ -142,7 +147,11 @@ fn spawn_ring_marks(
 /// The node a mark and its label sit in: a row, hidden until placed.
 fn mark_root(owner: Entity, half: f32) -> impl Bundle {
     (
-        RingMarkFor { owner, half },
+        RingMarkFor {
+            owner,
+            half,
+            shown: 0.0,
+        },
         GlobalZIndex(layers::LABELS),
         Node {
             position_type: PositionType::Absolute,
@@ -246,12 +255,14 @@ fn ring_identity_pills(
 }
 
 /// MOT-02 / MOT-14 / SYM-16: place each ring's mark with its centre on the
-/// ring at the label spot, on a whole pixel, and fade it with the closing.
+/// ring at the label spot, on a whole pixel, fading it in once the ring
+/// has closed and out when it opens. A pill's node is as tall as the pill,
+/// so its left edge sits half a pill-height before the ring point.
 fn place_ring_marks(
-    view: ViewNow,
+    (view, time, tunables): (ViewNow, Res<Time>, Res<Tunables>),
     windows: Query<&Window>,
     rings: OrbitRings,
-    mut marks: Query<(Entity, &RingMarkFor, &mut Node)>,
+    mut marks: Query<(Entity, &mut RingMarkFor, &mut Node)>,
     (children, mut parts): (Query<&Children>, TintedParts),
 ) {
     let Ok(window) = windows.single() else {
@@ -259,9 +270,14 @@ fn place_ring_marks(
     };
     let viewport = Vec2::new(window.width(), window.height());
     let scale = window.scale_factor();
-    for (entity, mark, mut node) in &mut marks {
+    let step = step_per_frame(time.delta_secs(), tunables.identity_mark_fade_ms);
+    for (entity, mut mark, mut node) in &mut marks {
+        let wanted = rings
+            .ring(mark.owner)
+            .is_some_and(|ring| ring_mark_wanted(&ring.mode(), ring.drawn().next().is_none()));
+        mark.shown = advance_towards(mark.shown, if wanted { 1.0 } else { 0.0 }, step);
+        let alpha = mark.shown;
         let placed = rings.ring(mark.owner).and_then(|ring| {
-            let alpha = ring_mark_alpha(&ring.mode(), ring.drawn().next().is_none());
             if alpha < MIN_MARK_ALPHA {
                 return None;
             }
@@ -285,20 +301,19 @@ mod tests {
     use super::*;
     use crate::view::shared_orbit::Member;
 
-    /// MOT-02 / MOT-11: the mark and label fade in as the dot fades out,
-    /// and a ring with nothing drawn on it shows neither.
+    /// MOT-14: the mark shows only once the tail is a full circle, never
+    /// beside a fading dot, and not on a ring with nothing drawn.
     #[test]
-    fn the_ring_mark_takes_over_from_the_dot() {
+    fn the_ring_mark_waits_for_a_closed_ring() {
         let state = |closing: f32| MotionModeState {
             tail_degrees: 300.0 + 60.0 * closing,
             closing,
             ring_mode: closing >= 1.0,
         };
-        for closing in [0.0, 0.3, 1.0] {
-            let s = state(closing);
-            assert!((ring_mark_alpha(&s, false) + s.dot_alpha() - 1.0).abs() < 1e-6);
-        }
-        assert_eq!(ring_mark_alpha(&state(1.0), true), 0.0);
+        assert!(!ring_mark_wanted(&state(0.0), false));
+        assert!(!ring_mark_wanted(&state(0.95), false));
+        assert!(ring_mark_wanted(&state(1.0), false));
+        assert!(!ring_mark_wanted(&state(1.0), true));
     }
 
     /// MOT-14: a shared orbit's mark is a pill; a lone body's is its own

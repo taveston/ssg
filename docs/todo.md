@@ -12,9 +12,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **Identity mark only on a closed ring** · MOT-14
-  - Was F-139. The build fades the mark in as the dot fades out (300° to 360°), so a held rate shows both. Now the mark appears only once the displayed tail reaches 360°, with a time fade. `identity_mark_fade_ms` is new.
-  - MOT-14 also now states the pill anchor the build already uses (was F-133); check it.
 - [ ] **Close orbits pass in front of a true-size disc** · MRK-12
   - Was F-138. Rings are world gizmos and bodies UI nodes above them, so the near arc needs its own pass above the parent's disc: split the ring at the parent's centre depth into a far and a near arc. Only for satellites of a body drawn as a disc (MRK-07).
 - [ ] **Frame body in a shared orbit** · HOV-02
