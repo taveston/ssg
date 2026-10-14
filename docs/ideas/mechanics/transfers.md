@@ -24,6 +24,7 @@ A transfer between two places has three parts: leave the departure body's orbit,
 - **The crossing** is a conic arc round the primary (the star for planets, the planet for moons and stations). This is the trajectory the player sees and tunes.
 - **Departure and capture** are not simulated. Each body has a *departure cost* (delta-v, from its mass and the parking orbit it's reached from) and a short *approach time* (days). The planner adds the cost to the burn and the time to the trip. Leaving Halden's low orbit costs about 2.8 km/s; leaving Arden Highport much less. Ships based at highports and depots are cheaper to send, which is the reason to build them (*Drives & Transit* 2).
 - **Why not simulate the hyperbolic legs:** at system scale they're a few hours inside a marker, and they'd add a sphere-of-influence hand-over that is the classic source of bugs and confusion. The cost and the delay are what matter strategically.
+- **Bodies never bend a coasting ship.** The same choice, stated the other way round: gravity acts only through the departure and capture costs. A ship coasting on a free conic that crosses a planet's sphere of influence keeps its conic. No gravity assists, no capture by accident, no hand-over. The crossing is an *event* (a "passing Halden IV" alert, a detection, an engagement if hostile), never a change of path. This is the one place the model is knowingly unphysical, and it is worth it: every trajectory stays a single analytic arc from the moment it's planned.
 - **Nested primaries.** Moon-to-moon and station-to-station trips round the same planet use the planet as the primary and the same model. A trip from a moon to another planet is a moon-departure cost plus the star-centred crossing. Within a planet's frame nothing changes except the mass.
 
 ### 2.2 Ships fly on rails
@@ -104,7 +105,8 @@ The player never picks an orbit by its radius. They pick a thing: a body, a stat
 - **Gates** are a place at the gate's orbit, with the entry rule in section 5.
 - **Belts and sites** are points on a ring; arriving means that point's orbit.
 - **Ships** can be destinations too (section 7): the target is a trajectory rather than a body, and the planner aims at where it will be.
-- **No free solar orbits.** A ship can't be sent to "2.3 AU, 40° ahead of Halden". The one exception is **Hold**: a ship in flight can be told to stop manoeuvring and coast, which is simply its current conic with no further burns. That is enough for pickets and ambushes without an orbit editor.
+- **No free orbit as a destination.** A ship can't be sent to "2.3 AU, 40° ahead of Halden". But **coasting** is a state a ship can be in: a ship told to **Hold**, or one that has made a *Pass* (section 7), is on a free conic round the primary with no further burns. Its place is named by what it's doing ("Coasting, Halden IV → Iver, passed Halden IV") and the only thing it can be ordered to do is a new transfer from its current state. That is enough for pickets and ambushes without an orbit editor.
+- **Coasting ships drift.** A free conic is an ellipse that crosses planet orbits, or a hyperbola that leaves the system. Neither needs simulating beyond the arc: bodies don't bend it (2.1), and a crossing is an event. The planner shows the consequence of a Pass before it's scheduled: the arc after the flyby, "crosses Iver's orbit in 40 d", or "leaves the system in 310 d" in the warning colour. A ship on a hyperbola with no delta-v to turn back is lost once it's past the last body it could reach, and the game says so while there's still time.
 
 ### 4.2 Why bands, not a free radius
 
@@ -157,6 +159,7 @@ Combat is auto-resolved on the system view with the clock slowed (*Conflict*), s
 - **The planet legs.** Is "departure cost plus a few days" enough, or should a transfer from a deep well visibly stage through a highport (two orders, not one)? The economic reason for highports exists either way.
 - **Impulsive versus low-thrust boundary.** Where does pulsed fusion sit? A month-long burn on a two-month trip is neither.
 - **Groups:** split a group when the slow ship holds it up, or always move together?
+- **Lost ships.** A coasting ship with no affordable destination: does it strand (a rescue tug becomes an order), or is it simply gone at the system's edge?
 - **Band count.** Are low and high enough, or does a third band (a staging orbit near the Hill sphere, for fleets that must leave fast) earn its place?
 - **Pass and ground targets.** Can a passing ship bombard, drop troops or scan, or does anything that acts on a body need Stop in the right band?
 - **Intercepting weak tracks.** How far should a miss send the interceptor, and does it get a free re-task when the track firms up?
