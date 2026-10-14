@@ -13,7 +13,7 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 ## Spec changes
 
 - [ ] **Named orbits, shared rings and exposure-ring identity** · SCL-07, HOV-02, HOV-04, HOV-05, MOT-02, MOT-14, INS-05, TEST-10
-  - Was F-131 (fast objects look alike) plus the gap that every object got its own ring. Orbits become data: a body's named orbits, referenced by the ships and stations in them (`sim/orbit.rs` and the Corvane content). One ring per named orbit; nothing is grouped by radius in the view. The identity mark reuses the fold pill and the list symbol. Build the INS-05 orbit row with the "In orbit" outline item below if that is still open.
+  - Was F-131 (fast objects look alike) plus the gap that every object got its own ring. Orbits become data: a body's named orbits, referenced by the ships and stations in them (`sim/orbit.rs` and the Corvane content). One ring per named orbit; nothing is grouped by radius in the view. Per TEST-10, every ship parked at Halden IV goes in "High": no per-ship parking orbits. The identity mark reuses the fold pill and the list symbol. Build the INS-05 orbit row with the "In orbit" outline item below if that is still open.
 - [ ] **Inset as a sidebar; "In orbit" outline** · INS-05, INS-07
   - `inset_dock_margin_px` is withdrawn; `sidebar_slide_ms` is new.
 - [ ] **Inset panel anatomy** · INS-09
