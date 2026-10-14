@@ -3,19 +3,21 @@
 //!
 //! `Orbit` holds the orbital elements in km, days and radians, and
 //! `update_orbit_positions` writes each body's position in km into
-//! `OrbitPositionKm` from the clock alone. Turning that into something on
-//! screen is the view's job (`view/projection.rs`); nothing here knows a
-//! render unit exists.
+//! `OrbitPositionKm` from the clock alone. The maths is the `orbits`
+//! crate's (ARCH-40); this module holds the components and turns a mass
+//! into the gravitational parameter the crate wants. Turning a position
+//! into something on screen is the view's job (`view/projection.rs`);
+//! nothing here knows a render unit exists.
 //!
 //! Positions are relative to whatever the body orbits: the star at the
 //! origin for a planet, the parent body (`ChildOf`) for a satellite.
 
 use bevy::math::DVec3;
 use bevy::prelude::*;
-use std::f64::consts::TAU;
+use orbits::CircularOrbit;
 
 use super::clock::GameClock;
-use super::units::{GRAVITATIONAL_CONSTANT, M_PER_KM, SECS_PER_DAY};
+use super::units::gravitational_parameter_km3_per_day2;
 
 /// Orbital elements in real units: a circular, coplanar orbit (SCL-04).
 #[derive(Component, Debug, Clone, Copy)]
@@ -30,33 +32,34 @@ pub struct Orbit {
 #[derive(Component, Debug, Clone, Copy, Default)]
 pub struct OrbitPositionKm(pub DVec3);
 
+impl From<&Orbit> for CircularOrbit {
+    /// The same elements as the `orbits` crate's circular orbit; the
+    /// component exists so the simulation can attach them to an entity.
+    fn from(orbit: &Orbit) -> Self {
+        CircularOrbit {
+            radius_km: orbit.radius_km,
+            period_days: orbit.period_days,
+            phase0_rad: orbit.phase0_rad,
+        }
+    }
+}
+
 /// SCL-04: Kepler's third law - the period of a circular orbit of
 /// `radius_km` round a point mass of `central_mass_kg`, in days. Used
 /// uniformly for planets round the star and satellites round their parent.
 pub fn kepler_period_days(radius_km: f64, central_mass_kg: f64) -> f64 {
-    let radius_m = radius_km * M_PER_KM;
-    let seconds = TAU * (radius_m.powi(3) / (GRAVITATIONAL_CONSTANT * central_mass_kg)).sqrt();
-    seconds / SECS_PER_DAY
+    orbits::circular_period(
+        gravitational_parameter_km3_per_day2(central_mass_kg),
+        radius_km,
+    )
 }
 
 /// SCL-04 / ARCH-11: where a body on a circular orbit is after
 /// `elapsed_days`, in km relative to what it orbits. The orbital plane is
-/// XZ, so y is always zero.
+/// XZ, so y is always zero. A body with a zero or non-finite period sits
+/// at its start phase.
 pub fn orbit_position_km(orbit: &Orbit, elapsed_days: f64) -> DVec3 {
-    let angle = orbit.phase0_rad + orbital_fraction(orbit.period_days, elapsed_days) * TAU;
-    let (sin, cos) = angle.sin_cos();
-    DVec3::new(orbit.radius_km * cos, 0.0, orbit.radius_km * sin)
-}
-
-/// How many orbits a body has completed in `elapsed_days`. A zero or
-/// non-finite period would otherwise divide by zero; such a body simply
-/// sits at its start phase.
-fn orbital_fraction(period_days: f64, elapsed_days: f64) -> f64 {
-    if period_days.is_finite() && period_days != 0.0 {
-        elapsed_days / period_days
-    } else {
-        0.0
-    }
+    CircularOrbit::from(orbit).position_at(elapsed_days)
 }
 
 /// ARCH-11: clock and orbital elements in, km out.

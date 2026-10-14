@@ -1,3 +1,6 @@
+[workspace]
+members = ["crates/orbits"]
+
 [package]
 name = "orphan_worlds"
 version = "0.1.0"
@@ -5,6 +8,7 @@ edition = "2024"
 
 [dependencies]
 bevy = "0.20.0"
+orbits = { path = "crates/orbits" }
 
 # Bevy's default debug build is very slow at runtime; these overrides keep
 # iteration fast without giving up debug builds for our own code.

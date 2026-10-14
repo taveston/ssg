@@ -16,7 +16,7 @@ use crate::sim::system::{
 };
 use crate::sim::track::{Echelon, Formation, ShipClass, ShipRecord, Track, TroopLoad};
 use crate::sim::units::{
-    EARTH_MASS_KG, GRAVITATIONAL_CONSTANT, KM_PER_AU, M_PER_KM, SECS_PER_DAY, SOLAR_MASS_KG,
+    EARTH_MASS_KG, KM_PER_AU, SOLAR_MASS_KG, gravitational_parameter_km3_per_day2,
 };
 
 /// Halden IV's mass, which sets its satellites' periods.
@@ -296,10 +296,7 @@ fn halden_orbit_km(period_days: f64) -> f64 {
 /// The orbit radius round a body of `mass_kg` for a period in days, by the
 /// inverse of Kepler's third law.
 fn orbit_km_for_period(mass_kg: f64, period_days: f64) -> f64 {
-    let mu = GRAVITATIONAL_CONSTANT * mass_kg;
-    let seconds = period_days * SECS_PER_DAY;
-    let radius_m = (mu * seconds * seconds / std::f64::consts::TAU.powi(2)).cbrt();
-    radius_m / M_PER_KM
+    orbits::circular_radius_for_period(gravitational_parameter_km3_per_day2(mass_kg), period_days)
 }
 
 /// A ship or contact parked round Halden IV, where `orbit` puts it.

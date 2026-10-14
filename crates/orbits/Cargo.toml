@@ -1,0 +1,9 @@
+[package]
+name = "orbits"
+version = "0.1.0"
+edition = "2024"
+description = "Two-dimensional orbital mechanics in km and days: circular orbits, conics, Lambert arcs, low-thrust spirals and trajectories."
+
+[dependencies]
+# The same glam Bevy 0.20 uses, so the game passes its vectors straight in.
+glam = "0.33"

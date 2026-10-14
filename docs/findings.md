@@ -2,9 +2,19 @@
 
 Open observations from building and playing the prototype. Each one is waiting for a decision. Once it's settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings take the next free number from F-135.
+Format and types are in `docs/README.md`. New findings take the next free number from F-137.
 
 ---
+
+### F-135 · A conic's elements don't say which way it goes round
+- **Observation:** RAIL-05 lists a conic's elements as *p*, *e*, ω and *t_p*. Those four fix the shape and timing but not the sense of motion, and RAIL-06 asks for round trips in both senses. The crate's `Conic` stores a fifth element, `sense` (prograde or retrograde), and measures ω in the sense of motion.
+- **Affects:** RAIL-05 · **Type:** spec gap
+- **Disposition:** open. Add the sense to RAIL-05's element list.
+
+### F-136 · XFER-12's figures come from a different Corvane than the content's
+- **Observation:** XFER-12's worked checks hold for the layout in `drives-and-transit.md` section 2 (star 0.75 solar masses, Iver at 0.5 AU, Halden IV at 0.8 AU with radius 5,753 km and 0.82 g, belt at 0.64 AU); the crate's tests use those plain figures and pass within 3%. The content's Corvane (`content/corvane.rs`) has the star at 0.78 solar masses, Iver at 0.7 AU, Halden IV at 2.0 AU with radius 6,700 km and 1.1 Earth masses, and the belt at 1.15 to 1.45 AU. With those, Halden IV's Low departure cost is about 3.2 km/s and its High cost about 1.1 km/s, and the Iver → Halden IV Hohmann crossing is nothing like 111 days. A test of XFER-12 against the game content would fail.
+- **Affects:** XFER-12, TEST-01, TEST-07 · **Type:** conflict
+- **Disposition:** open. Either state XFER-12 in plain figures (as the crate's tests do) and keep it a crate-level check, or bring the content's Corvane to the reference layout, or recompute the figures for the content.
 
 ### F-126 · A stale symbol's inside stays opaque
 - **Observation:** SYM-03 says every inside is opaque; SYM-08 draws a stale track at `stale_symbol_alpha`. The build keeps the inside fully opaque on a stale track and fades only the frame, icon and text, so lines beneath never show through.

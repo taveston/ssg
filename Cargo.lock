@@ -4276,6 +4276,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "orbits"
+version = "0.1.0"
+dependencies = [
+ "glam",
+]
+
+[[package]]
 name = "ordered-float"
 version = "5.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4289,6 +4296,7 @@ name = "orphan_worlds"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "orbits",
 ]
 
 [[package]]
