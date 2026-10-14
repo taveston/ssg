@@ -33,42 +33,33 @@ const TAB_INSET_PX: f32 = 4.0;
 #[derive(Component)]
 pub struct TabChevron;
 
-/// Which edge of the map area a tab is pinned to.
+/// Which end of a tab its chevron is at. A tab is always one row, so its
+/// label never sits on a second line.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EdgeSide {
+    /// The chevron first, the label to its right.
     Left,
+    /// The chevron last, the label to its left.
     Right,
-    Top,
-    Bottom,
 }
 
-/// EDGE-02: the edge a pinned point is on: the one it is nearest, as a
-/// share of the map area's half size, so a point in a corner goes to the
-/// side it is pressed hardest against.
+/// EDGE-02: which end of the tab the chevron goes at: the end nearer the
+/// side of the map area the point is on, so the label reaches towards the
+/// middle. On the top and bottom edges that is the nearer half.
 pub fn edge_side(at: Vec2, area: &MapArea) -> EdgeSide {
-    let half = (area.size / 2.0).max(Vec2::ONE);
-    let rel = (at - area.offset - area.size / 2.0) / half;
-    if rel.x.abs() >= rel.y.abs() {
-        if rel.x < 0.0 {
-            EdgeSide::Left
-        } else {
-            EdgeSide::Right
-        }
-    } else if rel.y < 0.0 {
-        EdgeSide::Top
+    if at.x < area.offset.x + area.size.x / 2.0 {
+        EdgeSide::Left
     } else {
-        EdgeSide::Bottom
+        EdgeSide::Right
     }
 }
 
-/// EDGE-02: lay the tab out with the chevron on the edge side and the
-/// content on its inner side.
+/// EDGE-02: lay the tab out as one row with the chevron at its outer end
+/// and the content on its inner side.
 pub fn tab_direction(side: EdgeSide) -> FlexDirection {
     match side {
         EdgeSide::Left => FlexDirection::Row,
         EdgeSide::Right => FlexDirection::RowReverse,
-        EdgeSide::Top => FlexDirection::Column,
-        EdgeSide::Bottom => FlexDirection::ColumnReverse,
     }
 }
 
@@ -77,12 +68,9 @@ pub fn tab_direction(side: EdgeSide) -> FlexDirection {
 /// lies inside the map area. `stroke` is the outline width.
 pub fn tab_origin(at: Vec2, size: Vec2, side: EdgeSide, stroke: f32, area: &MapArea) -> Vec2 {
     let across = TAB_PAD_ALONG_PX + stroke + ARROW_HALF_PX;
-    let down = TAB_PAD_PX + stroke + ARROW_HALF_PX;
     let origin = match side {
         EdgeSide::Left => Vec2::new(at.x - across, at.y - size.y / 2.0),
         EdgeSide::Right => Vec2::new(at.x + across - size.x, at.y - size.y / 2.0),
-        EdgeSide::Top => Vec2::new(at.x - size.x / 2.0, at.y - down),
-        EdgeSide::Bottom => Vec2::new(at.x - size.x / 2.0, at.y + down - size.y),
     };
     let low = area.offset + Vec2::splat(TAB_INSET_PX);
     let high = (area.offset + area.size - size - Vec2::splat(TAB_INSET_PX)).max(low);
@@ -181,16 +169,17 @@ mod tests {
         MapArea::of(Vec2::new(1600.0, 900.0))
     }
 
-    /// EDGE-02: a point is on the edge it is pressed hardest against.
+    /// EDGE-02: the chevron goes at the end nearer the point's side, on
+    /// the top and bottom edges too.
     #[test]
-    fn a_pinned_point_belongs_to_its_nearest_edge() {
+    fn the_chevron_goes_at_the_outer_end() {
         let area = area();
         let mid = area.offset + area.size / 2.0;
         let side = |d: Vec2| edge_side(mid + d, &area);
         assert_eq!(side(Vec2::new(-780.0, 10.0)), EdgeSide::Left);
         assert_eq!(side(Vec2::new(780.0, -10.0)), EdgeSide::Right);
-        assert_eq!(side(Vec2::new(30.0, -400.0)), EdgeSide::Top);
-        assert_eq!(side(Vec2::new(30.0, 400.0)), EdgeSide::Bottom);
+        assert_eq!(side(Vec2::new(30.0, -400.0)), EdgeSide::Right);
+        assert_eq!(side(Vec2::new(-30.0, 400.0)), EdgeSide::Left);
     }
 
     /// EDGE-02: the label is on the inner side of the arrow: the chevron
@@ -210,11 +199,6 @@ mod tests {
         let origin = tab_origin(left, size, EdgeSide::Left, 1.0, &area);
         assert_eq!(tab_direction(EdgeSide::Left), FlexDirection::Row);
         assert!((origin.x + 6.0 + 1.0 + ARROW_HALF_PX - left.x).abs() < 1e-3);
-        assert_eq!(tab_direction(EdgeSide::Top), FlexDirection::Column);
-        assert_eq!(
-            tab_direction(EdgeSide::Bottom),
-            FlexDirection::ColumnReverse
-        );
     }
 
     /// EDGE-02 / MRK-15: the whole tab stays inside the map area, however
@@ -230,12 +214,7 @@ mod tests {
             area.offset + Vec2::new(0.0, area.size.y),
         ];
         for corner in corners {
-            for side in [
-                EdgeSide::Left,
-                EdgeSide::Right,
-                EdgeSide::Top,
-                EdgeSide::Bottom,
-            ] {
+            for side in [EdgeSide::Left, EdgeSide::Right] {
                 let origin = tab_origin(corner, size, side, 1.0, &area);
                 assert!(origin.cmpge(area.offset).all(), "{corner} {side:?}");
                 assert!(
