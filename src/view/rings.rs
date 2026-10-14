@@ -44,6 +44,30 @@ const MAX_RING_SPLITS: u32 = 12;
 /// A point must be at least this far in front of the camera to be drawn.
 const NEAR_EPSILON: f32 = 0.01;
 
+/// One straight piece of a drawn ring, in world space, with the colour at
+/// each end.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct RingLine {
+    pub from: Vec3,
+    pub to: Vec3,
+    pub from_color: Color,
+    pub to_color: Color,
+}
+
+/// A ring as drawn this frame: the body at its centre (`None` for the
+/// star), its width in physical pixels and its lines.
+#[derive(Clone, Debug, Default)]
+pub struct DrawnRing {
+    pub centre: Option<Entity>,
+    pub width: f32,
+    pub lines: Vec<RingLine>,
+}
+
+/// Every ring drawn this frame, by owner, so `near_arcs.rs` can redraw a
+/// close orbit's near side over its body (MRK-12).
+#[derive(Resource, Default)]
+pub struct DrawnRings(pub std::collections::HashMap<Entity, DrawnRing>);
+
 /// The retained gizmo that draws one ring, for the body or named orbit it
 /// stands for.
 #[derive(Component)]
@@ -53,7 +77,8 @@ pub struct RingsPlugin;
 
 impl Plugin for RingsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_ring_strokes.in_set(Boot::Overlay))
+        app.init_resource::<DrawnRings>()
+            .add_systems(Startup, spawn_ring_strokes.in_set(Boot::Overlay))
             // Drawn with the rest of the overlay, once grouping and motion
             // have decided what shows.
             .add_systems(Update, draw_orbit_rings.in_set(Stage::Overlay));
@@ -255,6 +280,8 @@ pub fn ring_color_at(colors: RingColors, brightness: f32) -> Color {
 /// What one ring stroke needs this frame, if its ring shows.
 struct StrokeLook {
     center: Vec3,
+    /// The body the ring is centred on; `None` for the star.
+    centre_body: Option<Entity>,
     radius: f32,
     /// Where each drawn body sits on the ring: each carries a tail.
     body_angles: Vec<f32>,
@@ -280,7 +307,7 @@ impl RingColors {
 /// body's tail (or all round in ring mode), as wide as its closing makes
 /// it, and faded by its size on screen.
 #[allow(clippy::too_many_arguments)]
-fn draw_orbit_rings(
+pub fn draw_orbit_rings(
     screen: Res<ScreenPositions>,
     selection: Res<Selection>,
     hovered: Res<HoveredBodies>,
@@ -291,7 +318,9 @@ fn draw_orbit_rings(
     origin: Res<RenderOrigin>,
     mut strokes: Query<(&RingStrokeFor, &mut Gizmo)>,
     mut assets: ResMut<Assets<GizmoAsset>>,
+    mut drawn: ResMut<DrawnRings>,
 ) {
+    drawn.0.clear();
     // This frame's camera and positions (CAM-05), so rings and markers
     // agree.
     let Ok((camera, camera_transform, projection)) = camera_q.single() else {
@@ -322,21 +351,29 @@ fn draw_orbit_rings(
         }
         look.colors = look.colors.faded(factor);
         let segments = ring_segments(look.center, look.radius, view);
+        let width = look
+            .mode
+            .ring_width(look.base_width, tunables.exposure_ring_width_px);
+        let mut ring = DrawnRing {
+            centre: look.centre_body,
+            width,
+            lines: Vec::new(),
+        };
         for segment in segments
             .into_iter()
             .flat_map(|segment| split_at_angles(segment, &look.body_angles))
         {
             let (from, to) = ends_brightness(&segment, &look.body_angles, &look.mode);
-            asset.line_gradient(
-                segment.from,
-                segment.to,
-                ring_color_at(look.colors, from),
-                ring_color_at(look.colors, to),
-            );
+            let line = RingLine {
+                from: segment.from,
+                to: segment.to,
+                from_color: ring_color_at(look.colors, from),
+                to_color: ring_color_at(look.colors, to),
+            };
+            asset.line_gradient(line.from, line.to, line.from_color, line.to_color);
+            ring.lines.push(line);
         }
-        let width = look
-            .mode
-            .ring_width(look.base_width, tunables.exposure_ring_width_px);
+        drawn.0.insert(stroke_for.0, ring);
         if gizmo.line_config.width != width {
             gizmo.line_config.width = width;
         }
@@ -384,6 +421,7 @@ fn stroke_look(
         .unwrap_or(star);
     Some(StrokeLook {
         center,
+        centre_body: ring.centre,
         radius: km_to_render(ring.radius_km),
         body_angles,
         mode,

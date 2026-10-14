@@ -8,7 +8,8 @@
 
 use bevy::prelude::*;
 
-/// The lowest layer: natural bodies, one step per body by depth.
+/// The lowest layer: natural bodies, two steps per body by depth; the step
+/// between is for a satellite ring's near side drawn over its body.
 pub const BODIES: i32 = 0;
 /// Ship, group and station symbols, and the other non-body markers.
 pub const SYMBOLS: i32 = 10_000;
@@ -27,7 +28,7 @@ pub fn depth_layers<T: Copy>(depths: &[(T, f32)]) -> Vec<(T, i32)> {
     order.sort_by(|&a, &b| depths[b].1.total_cmp(&depths[a].1));
     let mut layers = vec![0; depths.len()];
     for (rank, index) in order.into_iter().enumerate() {
-        layers[index] = BODIES + rank as i32;
+        layers[index] = BODIES + 2 * rank as i32;
     }
     depths
         .iter()

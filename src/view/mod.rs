@@ -36,6 +36,7 @@ pub mod marker_picking;
 pub mod markers;
 pub mod motion;
 pub mod motion_mode;
+pub mod near_arcs;
 pub mod parent_tab;
 pub mod pills;
 pub mod plot_marks;
@@ -82,7 +83,11 @@ impl Plugin for ViewPlugin {
                 marker_picking::MarkerPickingPlugin,
                 parent_tab::ParentTabPlugin,
             ))
-            .add_plugins((shared_orbit::SharedOrbitPlugin, ring_marks::RingMarksPlugin))
+            .add_plugins((
+                shared_orbit::SharedOrbitPlugin,
+                ring_marks::RingMarksPlugin,
+                near_arcs::NearArcsPlugin,
+            ))
             .add_plugins((
                 grouping::GroupingPlugin,
                 motion::MotionPlugin,

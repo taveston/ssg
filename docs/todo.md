@@ -12,8 +12,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **Close orbits pass in front of a true-size disc** · MRK-12
-  - Was F-138. Rings are world gizmos and bodies UI nodes above them, so the near arc needs its own pass above the parent's disc: split the ring at the parent's centre depth into a far and a near arc. Only for satellites of a body drawn as a disc (MRK-07).
 - [ ] **Frame body in a shared orbit** · HOV-02
   - Was F-134. The build makes the whole shared ring no target; the other members' dots and tails should still target them (HOV-05). The frame-body tail is gone (MRK-14 is built).
 - [ ] **No hover list on the fold pill** · HOV-01, GRP-07
