@@ -162,6 +162,11 @@ pub fn astronomical_facts(
 
 pub struct InspectPlugin;
 
+/// The inset has been rebuilt for a changed selection this frame
+/// (`rebuild_inset`); systems that fill what it contains run after it.
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct InsetRebuilt;
+
 /// CAM-24: the Focus button is disabled (dimmed, and the camera ignores its
 /// click) while its body is in exposure-ring mode.
 fn dim_focus_buttons(
@@ -183,7 +188,7 @@ impl Plugin for InspectPlugin {
                 Update,
                 (
                     handle_escape,
-                    rebuild_inset,
+                    rebuild_inset.in_set(InsetRebuilt),
                     update_position_notes,
                     dim_focus_buttons,
                     scroll_inset,

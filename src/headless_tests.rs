@@ -2339,3 +2339,65 @@ fn a_shared_orbit_click_reveals_its_row_in_the_list() {
     run(&mut app, 2);
     assert!(!texts(&mut app).contains(&"Orison".to_string()));
 }
+
+/// HOV-05 / INS-05: a click on a shared orbit's ring changes the selection
+/// and reveals the orbit in one frame. The inset is rebuilt for the new
+/// selection and its fresh "In orbit" list filled with the row open, with
+/// no command left aimed at the list the rebuild threw away.
+#[test]
+fn a_ring_click_refills_the_rebuilt_inset_with_the_orbit_open() {
+    use crate::view::fidelity::FidelityImages;
+    use crate::view::in_orbit::{InOrbitList, InOrbitPlugin};
+    use crate::view::inspect::InspectPlugin;
+
+    let mut app = headless_app(FRAME);
+    app.add_plugins((
+        ContentPlugin,
+        SimPlugin,
+        TunablesPlugin,
+        BindingsPlugin,
+        InOrbitPlugin,
+        InspectPlugin,
+    ))
+    .init_resource::<Selection>()
+    .init_resource::<Frame>()
+    .init_resource::<FrameRequest>()
+    .init_resource::<ButtonInput<KeyCode>>()
+    .init_resource::<bevy::input::mouse::AccumulatedMouseScroll>()
+    .insert_resource(FidelityImages {
+        surveyed: Handle::default(),
+        unsurveyed: Handle::default(),
+    })
+    .insert_resource(placeholder_fonts());
+    run(&mut app, 1);
+    let halden = body(&mut app, "Halden IV");
+    let orison = body(&mut app, "Orison");
+    let high = app.world().get::<InNamedOrbit>(orison).unwrap().0;
+
+    let list_texts = |app: &mut App| -> Vec<String> {
+        let lists: Vec<Entity> = app
+            .world_mut()
+            .query_filtered::<Entity, With<InOrbitList>>()
+            .iter(app.world())
+            .collect();
+        assert_eq!(lists.len(), 1, "one list in the inset");
+        descendants(app, lists[0])
+            .into_iter()
+            .filter_map(|e| app.world().get::<Text>(e).map(|t| t.0.clone()))
+            .collect()
+    };
+
+    // Halden IV is inspected, its list filled and "High" collapsed.
+    app.world_mut().resource_mut::<Selection>().select(halden);
+    run(&mut app, 3);
+    let listed = list_texts(&mut app);
+    assert!(listed.contains(&"Halden IV · High".to_string()));
+    assert!(!listed.contains(&"Orison".to_string()));
+
+    // The ring click: the same selection again, through the orbit.
+    app.world_mut()
+        .resource_mut::<Selection>()
+        .select_through_orbit(halden, high);
+    run(&mut app, 3);
+    assert!(list_texts(&mut app).contains(&"Orison".to_string()));
+}

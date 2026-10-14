@@ -23,6 +23,7 @@ use super::camera::requests::{FrameRequest, PlanetaryViewRequest};
 use super::colors;
 use super::frame::Frame;
 use super::hover::double_click;
+use super::inspect::InsetRebuilt;
 use super::markers::{BodyLook, MarkerAssets, spawn_list_icon};
 use super::selection::Selection;
 use super::tunables::Tunables;
@@ -195,7 +196,13 @@ impl Plugin for InOrbitPlugin {
                 Update,
                 (reveal_orbit, fill_lists, commit_entry_click)
                     .chain()
-                    .in_set(Stage::Overlay),
+                    .in_set(Stage::Overlay)
+                    // A selection made through a ring both rebuilds the
+                    // inset and opens a row in the same frame. The lists
+                    // are filled after the rebuild's commands have applied,
+                    // so the list of the discarded inset is gone before
+                    // its refill could be queued.
+                    .after(InsetRebuilt),
             );
     }
 }
