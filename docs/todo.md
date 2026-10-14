@@ -12,6 +12,17 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
+- [ ] **Identity mark only on a closed ring** · MOT-14
+  - Was F-139. The build fades the mark in as the dot fades out (300° to 360°), so a held rate shows both. Now the mark appears only once the displayed tail reaches 360°, with a time fade. `identity_mark_fade_ms` is new.
+  - MOT-14 also now states the pill anchor the build already uses (was F-133); check it.
+- [ ] **Close orbits pass in front of a true-size disc** · MRK-12
+  - Was F-138. Rings are world gizmos and bodies UI nodes above them, so the near arc needs its own pass above the parent's disc: split the ring at the parent's centre depth into a far and a near arc. Only for satellites of a body drawn as a disc (MRK-07).
+- [ ] **Frame body in a shared orbit** · HOV-02
+  - Was F-134. The build makes the whole shared ring no target; the other members' dots and tails should still target them (HOV-05). The frame-body tail is gone (MRK-14 is built).
+- [ ] **No hover list on the fold pill** · HOV-01, GRP-07
+  - Was F-129. Remove the pill's hover list; hovering it gives the white ring only. The folded satellites are in the inset's outline once the parent is selected.
+- [ ] **Shared ring label** · MOT-02
+  - Was F-132. The build already labels a shared ring with the orbit name alone; check and mark ✓.
 - [ ] **Transfer simulation** · RAIL-02, RAIL-08, RAIL-09, BAND-01 to BAND-08, XFER-01 to XFER-12, PLAN-01 to PLAN-30, TEST-20, ARCH-22
   - Builds on the orbits crate (`crates/orbits`: `Trajectory<K>` takes any segment kind that implements `Rail`; `Path` is the crate's own Circular / Conic / Spiral). RAIL-02's game kinds (Parked with a named-orbit reference, Conic and Spiral with their primary) belong here, as a sim segment kind wrapping the crate's paths. Bands and costs, then legs against XFER-12's figures (see F-136), then plans and delta-v accounting. No UI; nothing new is drawn. `SimTunables` is new (ARCH-22). Headless tests can schedule a plan on the TEST-20 warship and advance the clock.
 - [ ] **Inset as a sidebar; "In orbit" outline** · INS-05, INS-07
