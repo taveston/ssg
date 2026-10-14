@@ -141,6 +141,8 @@ pub struct Tunables {
     pub scale_bar_max_px: f32,
     /// The north dial's diameter (MRK-17).
     pub north_dial_px: f32,
+    /// The length of the north dial's filled head, tip to base (MRK-17).
+    pub north_head_px: f32,
     /// Distances from this many AU up read in AU; shorter ones in km
     /// (UNIT-01).
     pub distance_au_threshold_au: f64,
@@ -236,6 +238,7 @@ impl Default for Tunables {
             plot_margin_px: 24.0,
             scale_bar_max_px: 160.0,
             north_dial_px: 34.0,
+            north_head_px: 10.0,
             distance_au_threshold_au: 0.1,
 
             body_fill_mix: 0.32,

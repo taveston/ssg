@@ -1,5 +1,5 @@
 //! Ship and station symbol parts as vector geometry (SYM-02 to SYM-08,
-//! SYM-17). Each part is a UI node carrying a `SymbolPart`: which shape it
+//! SYM-17), and the north dial's head (MRK-17). Each part is a UI node carrying a `SymbolPart`: which shape it
 //! is, its colour and the size it is drawn at. A UI material evaluates the
 //! shape per screen pixel in `symbol_shape.wesl`, so outlines are exactly
 //! `symbol_stroke_px` wide and as sharp as the orbit rings at any size or
@@ -32,6 +32,9 @@ pub enum SymbolMask {
     /// Outline unit box, with both diagonals when `crossed` (SYM-05,
     /// SYM-06).
     UnitBox { crossed: bool },
+    /// A filled isosceles triangle filling its node, tip up: the north
+    /// dial's head (MRK-17).
+    Head,
 }
 
 /// A symbol part on a node `size_px` across, drawn in `color`.
@@ -86,6 +89,7 @@ pub fn shape_uniform(part: &SymbolPart, stroke_px: f32) -> ShapeUniform {
         SymbolMask::Drop => (3, 0, false, false),
         SymbolMask::Crate => (4, 0, false, false),
         SymbolMask::UnitBox { crossed } => (5, 0, false, crossed),
+        SymbolMask::Head => (6, 0, false, false),
     };
     ShapeUniform {
         color: part.color.to_linear().to_vec4(),

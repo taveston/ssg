@@ -8,7 +8,7 @@ import bevy_ui_render::ui_vertex_output::UiVertexOutput;
 
 struct SymbolShape {
     color: vec4<f32>,
-    // 0 frame, 1 fill, 2 triangle, 3 drop, 4 crate, 5 unit box.
+    // 0 frame, 1 fill, 2 triangle, 3 drop, 4 crate, 5 unit box, 6 head.
     mask: u32,
     // 0 circle, 1 square, 2 diamond, 3 quatrefoil.
     shape: u32,
@@ -33,6 +33,8 @@ const SQUARE_SCALE: f32 = 0.85;
 const QUATREFOIL_LOBE: f32 = 0.6;
 // The icon's half-size, as a fraction of the frame's.
 const ICON_SCALE: f32 = 0.45;
+// The north dial head's half-width, as a fraction of its half-length.
+const HEAD_WIDTH: f32 = 0.7;
 
 fn box_sdf(p: vec2<f32>, half: vec2<f32>) -> f32 {
     let d = abs(p) - half;
@@ -107,6 +109,13 @@ fn region(p: vec2<f32>) -> f32 {
             let box_line = line(box_sdf(p, vec2<f32>(icon, icon * 0.75)));
             let middle = line(segment_distance(p, vec2<f32>(-icon, 0.0), vec2<f32>(icon, 0.0)));
             return min(box_line, middle);
+        }
+        case 6u: {
+            // The north dial's head: tip at the top edge, base at the
+            // bottom, its width this fraction of its length.
+            let h = part.size_px / 2.0;
+            let w = h * HEAD_WIDTH;
+            return triangle_sdf(p, vec2<f32>(0.0, -h), vec2<f32>(w, h), vec2<f32>(-w, h));
         }
         default: {
             let corner = vec2<f32>(icon * 1.1, icon * 0.65);

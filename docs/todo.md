@@ -12,8 +12,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **North dial as a filled head with an N** · MRK-17
-  - The built dial is a line arrow in a circle. Replace it with a filled triangle touching the rim, no shaft, and an upright "N" outside the rim beyond the tip. `north_head_px` is new; the projection is unchanged.
 - [ ] **Edge arrows as tabs** · EDGE-02, EDGE-03
   - Was F-119: a label was clipped to "Gat" and one arrow had no label. Do it with the "Gate edge labels" fix below.
 - [ ] **Frame body's orbit as a tail; bearing tick to its parent** · MRK-14, MRK-15

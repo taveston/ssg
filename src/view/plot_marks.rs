@@ -15,6 +15,7 @@ use super::layers;
 use super::readout::format_distance;
 use super::scale::{km_to_render, render_to_km};
 use super::screen::MapArea;
+use super::symbol_shape::{SymbolMask, SymbolPart};
 use super::targets::MapInputBlocker;
 use super::tunables::Tunables;
 use super::world::ViewNow;
@@ -29,21 +30,21 @@ pub struct ScaleBarLine;
 #[derive(Component)]
 struct ScaleBarLength;
 
-/// The north dial and the holder its arrow turns with.
+/// The north dial, the holder its head turns with, and its "N".
 #[derive(Component)]
 pub struct NorthDial;
 #[derive(Component)]
 pub struct NorthArrow;
+#[derive(Component)]
+pub struct NorthLabel;
 
 const LABEL_FONT_PX: f32 = 10.0;
 /// The scale bar's end and middle ticks.
 const TICK_PX: f32 = 5.0;
 const LINE_PX: f32 = 1.0;
-/// The arrow's length and its head's arms, as fractions of the dial.
-const ARROW_LENGTH: f32 = 0.6;
-const ARROW_HEAD: f32 = 0.18;
-/// The head's arms open this far either side of the shaft.
-const ARROW_HEAD_ANGLE_DEG: f32 = 35.0;
+/// The box the dial's "N" is centred in, and its gap outside the rim.
+const N_BOX_PX: f32 = 10.0;
+const N_GAP_PX: f32 = 1.0;
 
 /// The largest 1, 2 or 5 times a power of ten that is at most `x`.
 pub fn round_floor(x: f64) -> f64 {
@@ -226,20 +227,19 @@ fn update_scale_bar(
     }
 }
 
-/// MRK-17: a flat, upright circle with a neutral arrow; clicking it does
-/// what N does (CAM-03).
-fn spawn_north_dial(mut commands: Commands, tunables: Res<Tunables>) {
+/// MRK-17: where the dial's "N" sits, from the dial's centre (y down):
+/// just outside the circle, beyond the head's tip at `angle` clockwise
+/// from screen up.
+pub fn north_label_offset(angle: f32, dial_px: f32) -> Vec2 {
+    let reach = dial_px / 2.0 + N_GAP_PX + N_BOX_PX / 2.0;
+    Vec2::new(angle.sin(), -angle.cos()) * reach
+}
+
+/// MRK-17: a flat, upright circle with a filled head touching its rim and
+/// an upright "N" beyond the tip; clicking it does what N does (CAM-03).
+fn spawn_north_dial(mut commands: Commands, fonts: Res<Fonts>, tunables: Res<Tunables>) {
     let size = tunables.north_dial_px;
-    let shaft = size * ARROW_LENGTH;
-    let head = size * ARROW_HEAD;
-    let full = || Node {
-        position_type: PositionType::Absolute,
-        left: px(0),
-        top: px(0),
-        width: percent(100),
-        height: percent(100),
-        ..default()
-    };
+    let head = tunables.north_head_px;
     commands
         .spawn((
             NorthDial,
@@ -265,47 +265,61 @@ fn spawn_north_dial(mut commands: Commands, tunables: Res<Tunables>) {
             },
         )
         .with_children(|dial| {
-            dial.spawn((NorthArrow, full(), Pickable::IGNORE))
-                .with_children(|arrow| {
-                    // The shaft is centred on the dial; each arm of the
-                    // head hangs down from the shaft's tip.
-                    arrow.spawn(segment(
-                        Vec2::new(0.0, shaft / 2.0),
-                        Vec2::new(0.0, -shaft / 2.0),
-                    ));
-                    let tip = Vec2::new(0.0, -shaft / 2.0);
-                    for side in [-1.0, 1.0] {
-                        let angle = (ARROW_HEAD_ANGLE_DEG * side).to_radians();
-                        let arm = Vec2::new(angle.sin(), angle.cos()) * head;
-                        arrow.spawn(segment(tip, tip + arm));
-                    }
-                });
+            // The head hangs from the top of a full-size holder that turns
+            // about the dial's centre, so its tip stays on the rim.
+            dial.spawn((
+                NorthArrow,
+                Node {
+                    position_type: PositionType::Absolute,
+                    left: px(0),
+                    top: px(0),
+                    width: percent(100),
+                    height: percent(100),
+                    ..default()
+                },
+                Pickable::IGNORE,
+            ))
+            .with_children(|holder| {
+                holder.spawn((
+                    Node {
+                        position_type: PositionType::Absolute,
+                        top: px(0),
+                        left: percent(50),
+                        margin: UiRect::left(px(-head / 2.0)),
+                        width: px(head),
+                        height: px(head),
+                        ..default()
+                    },
+                    SymbolPart {
+                        mask: SymbolMask::Head,
+                        color: colors::NEUTRAL,
+                        size_px: head,
+                    },
+                    Pickable::IGNORE,
+                ));
+            });
+            dial.spawn((
+                NorthLabel,
+                Node {
+                    position_type: PositionType::Absolute,
+                    width: px(N_BOX_PX),
+                    height: px(N_BOX_PX),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    ..default()
+                },
+                Pickable::IGNORE,
+            ))
+            .with_children(|label| {
+                label.spawn((
+                    Text::new("N"),
+                    TextLayout::linebreak(LineBreak::NoWrap),
+                    fonts.mono(LABEL_FONT_PX),
+                    TextColor(colors::NEUTRAL),
+                    Pickable::IGNORE,
+                ));
+            });
         });
-}
-
-/// A line from `a` to `b`, in pixels from the holder's centre (y down),
-/// drawn as a thin node turned about its own centre.
-fn segment(a: Vec2, b: Vec2) -> impl Bundle {
-    let middle = (a + b) / 2.0;
-    let length = a.distance(b);
-    (
-        Node {
-            position_type: PositionType::Absolute,
-            width: px(LINE_PX),
-            height: px(length),
-            left: percent(50),
-            top: percent(50),
-            margin: UiRect {
-                left: px(middle.x - LINE_PX / 2.0),
-                top: px(middle.y - length / 2.0),
-                ..default()
-            },
-            ..default()
-        },
-        UiTransform::from_rotation(Rot2::radians(screen_angle(a, b))),
-        BackgroundColor(colors::NEUTRAL),
-        Pickable::IGNORE,
-    )
 }
 
 /// MRK-17: place the dial and turn its arrow to the on-screen direction of
@@ -316,8 +330,9 @@ fn update_north_dial(
     rig: Res<CameraRig>,
     tunables: Res<Tunables>,
     windows: Query<&Window>,
-    mut dials: Query<&mut Node, With<NorthDial>>,
+    mut dials: Query<&mut Node, (With<NorthDial>, Without<NorthLabel>)>,
     mut arrows: Query<&mut UiTransform, With<NorthArrow>>,
+    mut labels: Query<&mut Node, (With<NorthLabel>, Without<NorthDial>)>,
 ) {
     let Some((viewport, map)) = map_area(&windows) else {
         return;
@@ -334,11 +349,21 @@ fn update_north_dial(
     ) else {
         return;
     };
-    let rotation = Rot2::radians(screen_angle(at, north));
+    let angle = screen_angle(at, north);
+    let rotation = Rot2::radians(angle);
     for mut transform in &mut arrows {
         if transform.rotation != rotation {
             transform.rotation = rotation;
         }
+    }
+    // The "N" moves round with the tip but stays upright. Children are
+    // placed inside the dial's border.
+    let centre = tunables.north_dial_px / 2.0 - LINE_PX;
+    let at = Vec2::splat(centre) + north_label_offset(angle, tunables.north_dial_px)
+        - Vec2::splat(N_BOX_PX / 2.0);
+    for mut node in &mut labels {
+        node.left = px(at.x);
+        node.top = px(at.y);
     }
 }
 
@@ -370,6 +395,18 @@ mod tests {
         assert_eq!(km, 10_000_000.0);
         assert_eq!(format_distance(km, threshold), "10,000,000 km");
         assert_eq!(format_distance(2.0 * KM_PER_AU, threshold), "2 AU");
+    }
+
+    /// MRK-17: the "N" sits beyond the tip, outside the circle, at every
+    /// angle.
+    #[test]
+    fn the_n_sits_outside_the_rim_beyond_the_tip() {
+        let dial = 34.0;
+        for angle in [0.0_f32, 1.0, 2.5, -2.0] {
+            let at = north_label_offset(angle, dial);
+            assert!(at.length() - N_BOX_PX / 2.0 > dial / 2.0);
+            assert!((screen_angle(Vec2::ZERO, at) - angle).abs() < 1e-4);
+        }
     }
 
     /// MRK-17: angles are clockwise from screen up.
