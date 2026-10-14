@@ -22,8 +22,10 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - Was F-138. Rings are world gizmos and bodies UI nodes above them, so the near arc needs its own pass above the parent's disc: split the ring at the parent's centre depth into a far and a near arc. Only for satellites of a body drawn as a disc (MRK-07).
 - [ ] **Frame body in a shared orbit** · HOV-02
   - Was F-134. The build makes the whole shared ring no target; the other members' dots and tails should still target them (HOV-05). Do it with or after "Large orbits fade out" above, which removes the frame-body tail.
-- [ ] **Confirm built choices** · MOT-02, HOV-01
-  - Was F-132 (shared ring labelled with the orbit name alone) and F-129 (the fold pill keeps its hover list). The build already does both; check and mark ✓.
+- [ ] **No hover list on the fold pill** · HOV-01, GRP-07
+  - Was F-129. Remove the pill's hover list; hovering it gives the white ring only. The folded satellites are in the inset's outline once the parent is selected.
+- [ ] **Shared ring label** · MOT-02
+  - Was F-132. The build already labels a shared ring with the orbit name alone; check and mark ✓.
 - [ ] **Transfer simulation** · RAIL-02, RAIL-08, RAIL-09, BAND-01 to BAND-08, XFER-01 to XFER-12, PLAN-01 to PLAN-30, TEST-20, ARCH-22
   - Builds on the orbits crate (`crates/orbits`: `Trajectory<K>` takes any segment kind that implements `Rail`; `Path` is the crate's own Circular / Conic / Spiral). RAIL-02's game kinds (Parked with a named-orbit reference, Conic and Spiral with their primary) belong here, as a sim segment kind wrapping the crate's paths. Bands and costs, then legs against XFER-12's figures (see F-136), then plans and delta-v accounting. No UI; nothing new is drawn. `SimTunables` is new (ARCH-22). Headless tests can schedule a plan on the TEST-20 warship and advance the clock.
 - [ ] **Inset as a sidebar; "In orbit" outline** · INS-05, INS-07
