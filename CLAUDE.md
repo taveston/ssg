@@ -16,7 +16,7 @@ Hard sci-fi space strategy game for PC. This repo holds the prototype and the wh
 ## Stack
 
 - Rust (stable) and Bevy, pinned in `Cargo.toml`. Bevy's API changes between versions, so check the docs and examples for the pinned version rather than relying on memory.
-- Keep dependencies minimal. Ask before adding crates beyond Bevy. Fonts are assets in `assets/fonts/` (Barlow, JetBrains Mono, OFL).
+- Keep dependencies minimal. Ask before adding crates beyond Bevy. Fonts are assets in `assets/fonts/`, all OFL; which font fills each type role is set by the type roles table in `docs/spec/system-view.md` (MRK-02).
 
 ## How to work
 

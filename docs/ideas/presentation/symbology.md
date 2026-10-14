@@ -103,7 +103,7 @@ Steps can come in other orders (a ship's transponder may give the owner before t
 
 ## 8. Labels and paths
 
-- **Label:** name in Barlow to the right of the symbol, then one line of JetBrains Mono summarising group make-up, embarked troops, civilian or requisitioned status, and track age.
+- **Label:** name in the label face to the right of the symbol, then one line in the data face summarising group make-up, embarked troops, civilian or requisitioned status, and track age.
 - **Candidate:** a fuller data block (ETA, propellant) for own task forces and the hovered or selected object, hidden elsewhere at low zoom to limit clutter.
 - **Paths:** planned paths dashed in the affiliation colour; flown arcs solid (already the convention in the sketches).
 - **Simpler fallback (candidate):** if full frames prove too busy, drop to the older NTDS naval radar style (the same affiliation shapes, small, with no icon inside) at low zoom, and show icons from mid zoom.

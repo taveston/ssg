@@ -19,7 +19,11 @@ The console register is **decided** (2026-10-12); everything else is **candidate
 
 ## 2. Type, colour and controls
 
-- **Type:** Barlow for text and labels; JetBrains Mono for figures, dates and stamps (MRK-02). Section headings in small spaced capitals. Body text 14 px, nothing under 11 px. Reading width kept under about 70 characters.
+- **Type:** three roles, all from IBM Plex, named by role in the spec so the fonts can change in one place (MRK-02). The **label face** (Plex Sans Condensed) is for map names, labels, buttons and headings; the **text face** (Plex Sans) for running prose; the **data face** (Plex Mono) for figures, dates and stamps. Section headings in small spaced capitals. Body text 14 px, nothing under 11 px. Reading width kept under about 70 characters.
+  - *Why separate faces for data:* consoles set names in a plain sans and readouts in a fixed-width face that looks machine-printed. The split makes figures read as measurements, which carries the certainty notation (section 3), and fixed width lines up columns, date-time groups and stamps like a signal printout.
+  - *Why a condensed label face (decided 2026-10-14):* map labels compete for space (LBL-01 to LBL-03); a condensed face fits more in the same width, so fewer labels lose their second line or hide. Labels are short, so narrow letters cost little. Long prose reads better at normal width, hence a separate text face.
+  - *Why IBM Plex (decided 2026-10-14):* one family designed to work together, so a panel header, its figures and the report under it share proportions and details. It reads as engineered, institutional documentation, closer to a staff manual than a website or code editor. Chosen after comparing five font sets (Barlow and JetBrains Mono, the first build's pair; Public Sans; B612; Overpass), then Public Sans against Plex Sans for prose.
+  - Avoid "future" display faces: they read as a game HUD. Keep the data face to data: mono everywhere makes the screen read as a log.
 - **Colour has meaning or none.** Colours are reserved:
   - Affiliation colours (SYM-02) only for affiliation: symbols, references and owner lines.
   - Orange for "needs attention" (a shortfall, low readiness, an urgent message). Same orange as unknown contacts; both mean "look at this".
