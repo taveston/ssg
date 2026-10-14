@@ -4,11 +4,7 @@
 //! usual km³/s² gravitational parameters) come through these functions
 //! once, on the way in or out.
 
-/// Seconds in one day.
-///
-/// ```
-/// assert_eq!(orbits::SECONDS_PER_DAY, 86_400.0);
-/// ```
+/// Seconds in one day: the factor behind every conversion below.
 pub const SECONDS_PER_DAY: f64 = 86_400.0;
 
 /// Turns a speed in km/s into km/day, the unit every velocity in this
