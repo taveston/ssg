@@ -13,8 +13,8 @@
 //! and an exposure ring is bright all round. Each ring is its own retained
 //! gizmo, so it can widen on its own as its tail closes (MOT-11). A hovered
 //! ring is white at `orbit_hover_alpha`, a selected body's white at
-//! `orbit_selected_alpha` (HOV-03). Outside the star's frame the frame
-//! body's own ring is left to `frame_orbit.rs` (MRK-14).
+//! `orbit_selected_alpha` (HOV-03). A ring too large on screen to read as
+//! a ring fades out and then isn't drawn, in every frame (MRK-14).
 
 use bevy::color::Mix;
 use bevy::prelude::*;
@@ -22,10 +22,10 @@ use bevy::prelude::*;
 use crate::sim::body::BodyClass;
 use crate::view::camera::state::camera_fov;
 use crate::view::colors;
-use crate::view::frame::Frame;
 use crate::view::hovered::HoveredBodies;
 use crate::view::motion_mode::{MotionModeState, degrees_behind, tail_brightness};
 use crate::view::scale::km_to_render;
+use crate::view::screen::{MapArea, ScreenPositions};
 use crate::view::selection::Selection;
 use crate::view::shared_orbit::OrbitRings;
 use crate::view::tunables::Tunables;
@@ -144,6 +144,73 @@ pub fn ring_highlight(
     }
 }
 
+/// MRK-14: how large a ring of `radius` round `center` looks on screen, in
+/// pixels: its radius at the scale of its point nearest the camera. A ring
+/// the camera sits close to counts as huge, though its far side is small,
+/// since near the camera it crosses the view as a near-straight line.
+pub fn ring_screen_radius_px(center: Vec3, radius: f32, camera_pos: Vec3, px_per_rad: f32) -> f32 {
+    let from_center = camera_pos - center;
+    let across = Vec2::new(from_center.x, from_center.z).length();
+    let nearest = Vec2::new(across - radius, from_center.y)
+        .length()
+        .max(NEAR_EPSILON);
+    radius * px_per_rad / nearest
+}
+
+/// MRK-14: what a ring's alpha is multiplied by, for an on-screen radius
+/// `ratio` times half the map area's diagonal: 1 up to `from`, falling
+/// evenly to 0 at `to`, and 0 beyond.
+pub fn orbit_fade(ratio: f32, from: f32, to: f32) -> f32 {
+    if to <= from {
+        return if ratio < from { 1.0 } else { 0.0 };
+    }
+    1.0 - ((ratio - from) / (to - from)).clamp(0.0, 1.0)
+}
+
+/// What a ring's size fade is judged against this frame (MRK-14).
+#[derive(Clone, Copy, Debug)]
+pub struct FadeView {
+    pub camera_pos: Vec3,
+    pub px_per_rad: f32,
+    pub half_diagonal_px: f32,
+    pub from: f32,
+    pub to: f32,
+}
+
+impl FadeView {
+    /// The fade for this frame's camera and map area.
+    pub fn new(
+        (camera, transform, projection): (&Camera, &Transform, &Projection),
+        screen: &ScreenPositions,
+        tunables: &Tunables,
+    ) -> Option<Self> {
+        Some(Self {
+            camera_pos: transform.translation,
+            px_per_rad: px_per_rad(camera, projection)?,
+            half_diagonal_px: MapArea::of(screen.viewport).size.length() / 2.0,
+            from: tunables.orbit_fade_from,
+            to: tunables.orbit_fade_to,
+        })
+    }
+
+    /// MRK-14: the alpha factor for a ring of `radius` round `center`. 0
+    /// means the ring isn't drawn, and so is no target (HOV-02).
+    pub fn of(&self, center: Vec3, radius: f32) -> f32 {
+        if self.half_diagonal_px <= 0.0 {
+            return 1.0;
+        }
+        let screen = ring_screen_radius_px(center, radius, self.camera_pos, self.px_per_rad);
+        orbit_fade(screen / self.half_diagonal_px, self.from, self.to)
+    }
+}
+
+/// How many pixels one radian of view covers, from the viewport's height
+/// and the vertical field of view; `None` before there is a viewport.
+pub fn px_per_rad(camera: &Camera, projection: &Projection) -> Option<f32> {
+    let size = camera.logical_viewport_size()?;
+    Some((size.y / 2.0) / (camera_fov(projection) / 2.0).tan())
+}
+
 /// The two ends of a ring's brightness: its normal colour and the
 /// exposure brightness its tail starts from.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -196,12 +263,25 @@ struct StrokeLook {
     base_width: f32,
 }
 
-/// MRK-05 / MOT-01 / MOT-02 / MOT-11 / HOV-03 / HOV-04: refill every ring
-/// stroke: the ring as the camera sees it, bright along each body's tail
-/// (or all round in ring mode), as wide as its closing makes it.
+impl RingColors {
+    /// MRK-14: both ends of the brightness with their alpha multiplied by
+    /// `factor`.
+    fn faded(self, factor: f32) -> Self {
+        let fade = |c: Color| c.with_alpha(c.alpha() * factor);
+        Self {
+            normal: fade(self.normal),
+            exposure: fade(self.exposure),
+        }
+    }
+}
+
+/// MRK-05 / MOT-01 / MOT-02 / MOT-11 / HOV-03 / HOV-04 / MRK-14: refill
+/// every ring stroke: the ring as the camera sees it, bright along each
+/// body's tail (or all round in ring mode), as wide as its closing makes
+/// it, and faded by its size on screen.
 #[allow(clippy::too_many_arguments)]
 fn draw_orbit_rings(
-    frame: Res<Frame>,
+    screen: Res<ScreenPositions>,
     selection: Res<Selection>,
     hovered: Res<HoveredBodies>,
     tunables: Res<Tunables>,
@@ -222,19 +302,25 @@ fn draw_orbit_rings(
         camera_forward: camera_transform.forward().as_vec3(),
         max_error_rad: max_error_rad(camera, projection),
     };
+    let fade = FadeView::new((camera, camera_transform, projection), &screen, &tunables);
     for (stroke_for, mut gizmo) in &mut strokes {
         let Some(mut asset) = assets.get_mut(&gizmo.handle) else {
             continue;
         };
         asset.clear();
-        let Some(look) = stroke_look(
+        let Some(mut look) = stroke_look(
             stroke_for.0,
             &rings,
-            (&positions, origin.star, frame.non_star_body()),
+            (&positions, origin.star),
             (&selection, &hovered, &tunables),
         ) else {
             continue;
         };
+        let factor = fade.map_or(1.0, |fade| fade.of(look.center, look.radius));
+        if factor <= 0.0 {
+            continue;
+        }
+        look.colors = look.colors.faded(factor);
         let segments = ring_segments(look.center, look.radius, view);
         for segment in segments
             .into_iter()
@@ -258,17 +344,15 @@ fn draw_orbit_rings(
 }
 
 /// Where a ring is, where the bodies on it are, and how it is coloured;
-/// `None` if the ring isn't drawn. MRK-14: outside the star's frame the
-/// frame body's orbit is only a tail (`frame_orbit.rs`), so it is left off
-/// its ring, and a ring with nothing else on it isn't drawn.
+/// `None` if the ring isn't drawn.
 fn stroke_look(
     owner: Entity,
     rings: &OrbitRings,
-    (positions, star, frame_body): (&WorldPositions, Vec3, Option<Entity>),
+    (positions, star): (&WorldPositions, Vec3),
     (selection, hovered, tunables): (&Selection, &HoveredBodies, &Tunables),
 ) -> Option<StrokeLook> {
     let ring = rings.ring(owner)?;
-    let body_angles: Vec<f32> = ring.drawn(frame_body).map(|m| m.angle).collect();
+    let body_angles: Vec<f32> = ring.drawn().map(|m| m.angle).collect();
     let mode = ring.mode();
     let (selected, is_hovered) = ring.highlight(selection, hovered);
     let highlight = ring_highlight(
@@ -311,11 +395,7 @@ fn stroke_look(
 /// `MAX_RING_ERROR_PX` as an angle seen from the camera. Without a viewport
 /// yet there is nothing to be accurate to, and rings stay as plain chords.
 fn max_error_rad(camera: &Camera, projection: &Projection) -> f32 {
-    let Some(size) = camera.logical_viewport_size() else {
-        return f32::INFINITY;
-    };
-    let px_per_rad = (size.y / 2.0) / (camera_fov(projection) / 2.0).tan();
-    MAX_RING_ERROR_PX / px_per_rad
+    px_per_rad(camera, projection).map_or(f32::INFINITY, |px| MAX_RING_ERROR_PX / px)
 }
 
 /// How the camera sees a ring: where it is, which way it looks, and how
@@ -497,6 +577,40 @@ pub fn clip_to_front((from, to): (Vec3, Vec3), view: RingView) -> Option<(Vec3, 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// MRK-14: a ring is whole up to `orbit_fade_from` times half the
+    /// diagonal, fades evenly to nothing at `orbit_fade_to`, and stays gone
+    /// beyond it.
+    #[test]
+    fn large_rings_fade_out_between_the_two_limits() {
+        assert_eq!(orbit_fade(0.2, 1.5, 3.0), 1.0);
+        assert_eq!(orbit_fade(1.5, 1.5, 3.0), 1.0);
+        assert!((orbit_fade(2.25, 1.5, 3.0) - 0.5).abs() < 1e-6);
+        assert_eq!(orbit_fade(3.0, 1.5, 3.0), 0.0);
+        assert_eq!(orbit_fade(40.0, 1.5, 3.0), 0.0);
+    }
+
+    /// MRK-14: seen from straight above, a ring's screen radius is its
+    /// angular radius; with the camera right by the ring, as in a planet's
+    /// frame looking at the planet's own orbit, it counts as huge.
+    #[test]
+    fn a_ring_beside_the_camera_counts_as_huge() {
+        let above = ring_screen_radius_px(Vec3::ZERO, 10.0, Vec3::Y * 1000.0, 1000.0);
+        assert!((above - 10.0).abs() < 0.01, "{above}");
+        let planet = Vec3::new(180.0, 0.0, 0.0);
+        let beside = ring_screen_radius_px(Vec3::ZERO, 180.0, planet + Vec3::Y, 1000.0);
+        assert!(beside > 100_000.0, "{beside}");
+    }
+
+    /// MRK-14: the fade multiplies both ends of a ring's brightness, so a
+    /// hovered or selected ring fades too.
+    #[test]
+    fn the_fade_applies_to_highlighted_rings() {
+        let hovered = ring_colors(ring_highlight(false, true, 0.85, 0.6), 0.35, 0.5);
+        let faded = hovered.faded(0.5);
+        assert!((faded.normal.alpha() - 0.3).abs() < 1e-6);
+        assert!((faded.exposure.alpha() - 0.5).abs() < 1e-6);
+    }
 
     /// HOV-03: a selected ring is white at the selected alpha and wins over
     /// hover; a hovered one is white at the hover alpha; otherwise the

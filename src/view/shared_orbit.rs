@@ -97,12 +97,9 @@ impl Ring {
         self.members.first().map(|m| m.mode).unwrap_or_default()
     }
 
-    /// HOV-04: the members drawn this frame, leaving out folded ones and
-    /// the frame body, whose own orbit is only a tail (MRK-14).
-    pub fn drawn(&self, frame_body: Option<Entity>) -> impl Iterator<Item = &Member> {
-        self.members
-            .iter()
-            .filter(move |m| !m.hidden && Some(m.body) != frame_body)
+    /// HOV-04: the members drawn this frame, leaving out folded ones.
+    pub fn drawn(&self) -> impl Iterator<Item = &Member> {
+        self.members.iter().filter(|m| !m.hidden)
     }
 
     /// Whether the frame body sits on this ring, which makes it no target
@@ -300,10 +297,10 @@ mod tests {
         assert_eq!(ring.highlight(&selection, &hovered), (true, true));
     }
 
-    /// HOV-04 / MRK-14: folded members and the frame body aren't drawn on
-    /// the ring; the ring carrying the frame body is no target.
+    /// HOV-04 / HOV-02: folded members aren't drawn on the ring; the ring
+    /// carrying the frame body is no target.
     #[test]
-    fn folded_members_and_the_frame_body_are_left_off_the_ring() {
+    fn folded_members_are_left_off_the_ring() {
         let mut world = World::new();
         let a = member(&mut world, BodyClass::Ship, Affiliation::Own);
         let folded = Member {
@@ -311,9 +308,8 @@ mod tests {
             ..member(&mut world, BodyClass::Ship, Affiliation::Own)
         };
         let ring = ring(&mut world, vec![a, folded]);
-        let drawn: Vec<Entity> = ring.drawn(None).map(|m| m.body).collect();
+        let drawn: Vec<Entity> = ring.drawn().map(|m| m.body).collect();
         assert_eq!(drawn, [a.body]);
-        assert_eq!(ring.drawn(Some(a.body)).count(), 0);
         assert!(ring.carries(Some(a.body)));
         assert!(!ring.carries(None));
     }

@@ -12,9 +12,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **Large orbits fade out; parent as an edge tab** · MRK-14, MRK-15
-  - Was F-137. Remove the frame-body tail (`frame_orbit.rs`, `frame_orbit_arc_px`); the frame body's orbit is now an ordinary ring under the size fade. `orbit_fade_from` and `orbit_fade_to` are new. A ring faded to nothing is not drawn, so it's no target (HOV-02).
-  - MRK-15 changes from a bearing tick to an edge tab for the parent; reuse the gate edge-tab code. `bearing_tick_px` and `bearing_tick_radius_px` are withdrawn.
 - [ ] **Transfer simulation** · RAIL-02, RAIL-08, RAIL-09, BAND-01 to BAND-08, XFER-01 to XFER-12, PLAN-01 to PLAN-30, TEST-20, ARCH-22
   - Builds on the orbits crate (`crates/orbits`: `Trajectory<K>` takes any segment kind that implements `Rail`; `Path` is the crate's own Circular / Conic / Spiral). RAIL-02's game kinds (Parked with a named-orbit reference, Conic and Spiral with their primary) belong here, as a sim segment kind wrapping the crate's paths. Bands and costs, then legs against XFER-12's figures (see F-136), then plans and delta-v accounting. No UI; nothing new is drawn. `SimTunables` is new (ARCH-22). Headless tests can schedule a plan on the TEST-20 warship and advance the clock.
 - [ ] **Inset as a sidebar; "In orbit" outline** · INS-05, INS-07

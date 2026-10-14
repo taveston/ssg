@@ -2,7 +2,8 @@
 //! backend that hits any drawn ring, tail or exposure ring anywhere along
 //! its length, by distance from it as drawn on screen. Only what is drawn
 //! is a target: a ship's tail in dot mode, not the rest of its orbit
-//! (MRK-09). A ring carrying the frame body is never a target.
+//! (MRK-09), and not a ring faded out by its size (MRK-14). A ring
+//! carrying the frame body is never a target.
 //!
 //! Gizmo-drawn rings aren't pickable on their own. Each ring gets one
 //! invisible target entity. A natural body's ring, or a named orbit with
@@ -24,7 +25,9 @@ use bevy::prelude::*;
 use super::frame::Frame;
 use super::hover;
 use super::hovered::HoveredBodies;
-use super::rings::{RingExtent, ring_extent};
+use super::rings::{FadeView, RingExtent, ring_extent};
+use super::scale::km_to_render;
+use super::screen::ScreenPositions;
 use super::selection::Selection;
 use super::shared_orbit::{OrbitRings, ring_screen_point};
 use super::targets::{MarkerFor, OrbitFor};
@@ -135,16 +138,24 @@ pub fn drawn_arcs(extent: RingExtent, body_angles: &[f32], tail_degrees: f32) ->
 
 /// HOV-02: trace every drawn ring and tail on screen. A folded satellite's
 /// ring isn't drawn, so it has no path (GRP-07: its pill stands for it),
-/// and a ring carrying the frame body is left out.
+/// and a ring carrying the frame body is left out, as is one faded out by
+/// its size (MRK-14).
+#[allow(clippy::too_many_arguments)]
 fn trace_rings(
     view: ViewNow,
     rings: OrbitRings,
     (frame, selection, hovered): (Res<Frame>, Res<Selection>, Res<HoveredBodies>),
+    (screen, tunables): (Res<ScreenPositions>, Res<Tunables>),
+    camera_q: Query<(&Camera, &Transform, &Projection)>,
     targets: Query<(Entity, &RingTarget)>,
     mut paths: ResMut<RingPaths>,
 ) {
     paths.0.clear();
     let frame_body = frame.non_star_body();
+    let fade = camera_q
+        .single()
+        .ok()
+        .and_then(|camera| FadeView::new(camera, &screen, &tunables));
     for (target, ring_target) in &targets {
         let Some(ring) = rings.ring(ring_target.0) else {
             continue;
@@ -152,7 +163,17 @@ fn trace_rings(
         if ring.carries(frame_body) {
             continue;
         }
-        let angles: Vec<f32> = ring.drawn(frame_body).map(|m| m.angle).collect();
+        let centre = match ring.centre {
+            Some(parent) => view.position(parent),
+            None => Some(view.star()),
+        };
+        let faded_out = fade
+            .zip(centre)
+            .is_some_and(|(fade, centre)| fade.of(centre, km_to_render(ring.radius_km)) <= 0.0);
+        if faded_out {
+            continue;
+        }
+        let angles: Vec<f32> = ring.drawn().map(|m| m.angle).collect();
         let mode = ring.mode();
         let (selected, is_hovered) = ring.highlight(&selection, &hovered);
         let extent = ring_extent(

@@ -47,10 +47,15 @@ pub struct Tunables {
     /// Line width of a normal orbit ring (MRK-05, MOT-11).
     pub orbit_ring_width_px: f32,
     /// The alpha of a faint orbit ring in the orbit colour, and of a tail's
-    /// far end (MRK-05, MOT-01, MRK-14).
+    /// far end (MRK-05, MOT-01).
     pub orbit_ring_alpha: f32,
     /// Line width of a hovered or selected orbit ring (HOV-03).
     pub orbit_highlight_width_px: f32,
+    /// An orbit ring starts to fade out once its on-screen radius passes
+    /// this many times half the map area's diagonal (MRK-14).
+    pub orbit_fade_from: f32,
+    /// ...and is gone, not drawn at all, at this many times (MRK-14).
+    pub orbit_fade_to: f32,
 
     // --- Zoom and navigation ---
     /// Each wheel notch multiplies the view scale by this factor.
@@ -175,21 +180,13 @@ pub struct Tunables {
     pub star_tick_px: f32,
     /// The diameter of a planet marker's centre dot (MRK-13).
     pub planet_dot_px: f32,
-    /// How long, on screen, the frame body's own orbit is drawn as a tail
-    /// outside the star's frame (MRK-14).
-    pub frame_orbit_arc_px: f32,
-    /// The length of the bearing tick pointing from the frame body towards
-    /// its parent (MRK-15).
-    pub bearing_tick_px: f32,
-    /// How far from the frame body the bearing tick sits when none of its
-    /// satellites' orbits is drawn (MRK-15).
-    pub bearing_tick_radius_px: f32,
 
     // --- Ship and station symbols ---
     /// A symbol's frame fits a square this many pixels across, at every
     /// zoom (SYM-04, SYM-14).
     pub ship_symbol_px: f32,
-    /// A symbol's size in lists such as the inset's "In orbit" (INS-05).
+    /// A symbol's size in lists such as the inset's "In orbit" (INS-05),
+    /// and the parent's marker in its edge tab (MRK-15).
     pub list_symbol_px: f32,
     /// A symbol's outline width (SYM-02).
     pub symbol_stroke_px: f32,
@@ -221,6 +218,8 @@ impl Default for Tunables {
             orbit_ring_width_px: 1.0,
             orbit_ring_alpha: 0.35,
             orbit_highlight_width_px: 1.0,
+            orbit_fade_from: 1.5,
+            orbit_fade_to: 3.0,
 
             zoom_step_factor: 2.0,
             zoom_anim_ms: 200.0,
@@ -267,9 +266,6 @@ impl Default for Tunables {
             star_tick_count: 8,
             star_tick_px: 3.0,
             planet_dot_px: 3.0,
-            frame_orbit_arc_px: 160.0,
-            bearing_tick_px: 6.0,
-            bearing_tick_radius_px: 60.0,
 
             ship_symbol_px: 22.0,
             list_symbol_px: 14.0,

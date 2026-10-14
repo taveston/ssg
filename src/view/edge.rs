@@ -19,16 +19,16 @@ use crate::sim::body::{BodyClass, DisplayName};
 use crate::{Boot, Stage};
 
 /// How far inside the viewport edge a pinned arrow sits.
-const EDGE_MARGIN_PX: f32 = 28.0;
+pub const EDGE_MARGIN_PX: f32 = 28.0;
 /// Half the arrowhead's box. The same footprint as a gate's own marker, so
 /// the hand-over between the two doesn't change size.
-const ARROW_HALF_PX: f32 = 5.5;
+pub const ARROW_HALF_PX: f32 = 5.5;
 /// The arrowhead glyph is drawn a little larger than its box so it reads
 /// as a solid head rather than a caret.
-const ARROW_GLYPH_SCALE: f32 = 2.2;
+pub const ARROW_GLYPH_SCALE: f32 = 2.2;
 /// Where the label sits relative to the arrow's centre.
 const LABEL_OFFSET_PX: Vec2 = Vec2::new(10.0, 10.0);
-const LABEL_FONT_PX: f32 = 12.0;
+pub const LABEL_FONT_PX: f32 = 12.0;
 
 /// Edge-of-screen arrowhead for a gate that's off-screen, rotated each
 /// frame to point toward it.
@@ -102,6 +102,28 @@ pub fn edge_arrow_angle(edge_pos: Vec2, viewport: Vec2) -> f32 {
     let dir = edge_pos - viewport / 2.0;
     // Screen y grows downwards, so "up" is -y.
     dir.x.atan2(-dir.y)
+}
+
+/// EDGE-01: where on the map area's edge, in window pixels, the arrow for
+/// a body sits: pinned towards its projected position `on_screen`, or, if
+/// it is behind the camera, towards its direction from the camera. `None`
+/// while it is comfortably inside the map area.
+pub fn edge_point(
+    on_screen: Option<Vec2>,
+    world: Option<Vec3>,
+    camera: Option<&GlobalTransform>,
+    area: &MapArea,
+) -> Option<Vec2> {
+    let edge = match (on_screen, camera) {
+        (Some(pos), _) => clamp_to_viewport_edge(pos - area.offset, area.size, EDGE_MARGIN_PX),
+        (None, Some(camera)) => {
+            let to_body = world? - camera.translation();
+            let direction = screen_direction(to_body, *camera.right(), *camera.up());
+            pin_direction_to_edge(direction, area.size, EDGE_MARGIN_PX)
+        }
+        (None, None) => None,
+    };
+    edge.map(|edge| edge + area.offset)
 }
 
 pub struct EdgePlugin;
@@ -179,25 +201,14 @@ fn update_edge_targets(
 ) {
     targets.0.clear();
     let camera = view.camera().map(|(_, transform)| transform);
+    let area = MapArea::of(screen.viewport);
     for (entity, class) in &gates {
         if *class != BodyClass::Gate {
             continue;
         }
-        let area = MapArea::of(screen.viewport);
-        let edge = match (screen.get(entity), camera) {
-            (Some(pos), _) => clamp_to_viewport_edge(pos - area.offset, area.size, EDGE_MARGIN_PX),
-            (None, Some(camera)) => {
-                let Some(gate) = view.position(entity) else {
-                    continue;
-                };
-                let to_gate = gate - camera.translation();
-                let direction = screen_direction(to_gate, *camera.right(), *camera.up());
-                pin_direction_to_edge(direction, area.size, EDGE_MARGIN_PX)
-            }
-            (None, None) => None,
-        };
-        if let Some(edge) = edge {
-            targets.0.insert(entity, edge + area.offset);
+        let at = view.position(entity);
+        if let Some(edge) = edge_point(screen.get(entity), at, camera.as_ref(), &area) {
+            targets.0.insert(entity, edge);
         }
     }
 }

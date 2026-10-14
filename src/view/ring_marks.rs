@@ -261,7 +261,7 @@ fn place_ring_marks(
     let scale = window.scale_factor();
     for (entity, mark, mut node) in &mut marks {
         let placed = rings.ring(mark.owner).and_then(|ring| {
-            let alpha = ring_mark_alpha(&ring.mode(), ring.drawn(None).next().is_none());
+            let alpha = ring_mark_alpha(&ring.mode(), ring.drawn().next().is_none());
             if alpha < MIN_MARK_ALPHA {
                 return None;
             }
