@@ -2,7 +2,7 @@
 
 Open observations from building and playing the prototype. Each one is waiting for a decision. Once it's settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings take the next free number from F-130.
+Format and types are in `docs/README.md`. New findings take the next free number from F-131.
 
 ---
 
@@ -20,3 +20,8 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Observation:** HOV-01 says there is no hover tooltip, but GRP-07 still has hovering a "+N" pill list the folded satellites. The build dropped the marker tooltip and kept the pill's list, which is the only way to see what a pill holds without clicking.
 - **Affects:** HOV-01, GRP-07 · **Type:** spec gap
 - **Disposition:** open. Keep the pill's list, or drop it and rely on the inset's outline.
+
+### F-130 · The exposure ring snapped in at the end of a closing tail
+- **Observation:** MOT-01 has a tail fade to the ring's normal brightness at its end, and MOT-02 makes the exposure ring bright all round. So at 360° the far end of the tail jumped from faint to bright in one frame, even with the tail easing (MOT-13). The build now flattens the tail's fade as it closes (MOT-11): at `dot_fade_from_degrees` it fades fully, and at 360° it is even all round, so the closing has no jump.
+- **Affects:** MOT-01, MOT-11 · **Type:** spec gap
+- **Disposition:** open. Keep this and add it to MOT-11, or choose another hand-over.

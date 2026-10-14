@@ -182,6 +182,10 @@ pub fn degrees_behind(body_angle: f32, point_angle: f32) -> f32 {
 /// ring has, 0 to 1: 1 at the dot, falling linearly to 0 (the ring's
 /// normal brightness) at the tail's end, 0 beyond it. In ring mode the
 /// whole ring is at full exposure brightness.
+///
+/// MOT-11: as the tail closes, its fade flattens, so the far end brightens
+/// with it and the tail is already even all round when it becomes the
+/// exposure ring, with no jump.
 pub fn tail_brightness(behind_degrees: f32, state: &MotionModeState) -> f32 {
     if state.ring_mode {
         return 1.0;
@@ -189,7 +193,7 @@ pub fn tail_brightness(behind_degrees: f32, state: &MotionModeState) -> f32 {
     if state.tail_degrees <= 0.0 || behind_degrees > state.tail_degrees {
         return 0.0;
     }
-    1.0 - behind_degrees / state.tail_degrees
+    1.0 - behind_degrees / state.tail_degrees * (1.0 - state.closing)
 }
 
 #[cfg(test)]
@@ -319,5 +323,16 @@ mod tests {
         let closing = state_for_tail(330.0, 300.0);
         assert!(!closing.ring_mode);
         assert!((closing.dot_alpha() - 0.5).abs() < 1e-6);
+    }
+
+    /// MOT-11 / MOT-13: a closing tail's far end brightens with it, so it
+    /// meets the even exposure ring without a jump at 360°.
+    #[test]
+    fn a_closing_tail_evens_out_into_the_exposure_ring() {
+        let far_end = |tail: f32| tail_brightness(tail, &state_for_tail(tail, 300.0));
+        assert_eq!(far_end(300.0), 0.0);
+        assert!((far_end(330.0) - 0.5).abs() < 1e-5);
+        assert!(far_end(359.9) > 0.99);
+        assert_eq!(far_end(360.0), 1.0);
     }
 }
