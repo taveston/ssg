@@ -93,6 +93,9 @@ The interface says Depart, Travel time, Arrive, Delta-v (with a km/s figure) and
 ### 3.3 On the map
 
 - **The preview** is the arc the ship would fly, drawn from the departure point to the arrival point, with the arrival point marked on the target's orbit ring at its arrival-day position (dot mode) or on the ring itself (exposure-ring mode), as *Presentation* already says.
+- **The arc is drawn in the geometry of its own dates.** It starts where the ship will be on the departure day and ends where the target will be on arrival, each marked on its ring. The ship's symbol stays where the ship is now; once the order is scheduled, its body carries it round the ring towards the departure mark, so the countdown shows on the map. Drawing from today's positions would be wrong in a visible way: a two-burn arc only meets the orbit at a tangent from its true departure point.
+- **Marks are labelled objects.** The departure and arrival marks carry short labels ("arrive day 93") and take part in label placement (LBL) at a priority below the selection, so they give way to the target's own label when the two sit close.
+- **Consequences are drawn in the warning colour.** The part of a path the player didn't ask for, such as the coast after a Pass, is drawn dotted in the warning colour with its consequence labelled ("crosses Halden's orbit in 140 d"), so a planned path reads as two things: what you ordered, and what follows from it.
 - **One preview, not a fan.** The earlier candidate (a fan of alternative paths, each labelled) is replaced by one live path plus the coloured slider tracks, which carry the same information with far less clutter. *(Proposed change to Presentation, Motion.)*
 - **Scheduled transfers** show the planned arc dashed from the ship's departure point, and the ship's label carries "Departs in N d". In flight, the arc is solid behind the ship and dashed ahead, with "Arrives in N d". The velocity leader (SYM-11) applies once ships move.
 
