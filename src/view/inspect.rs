@@ -678,7 +678,7 @@ mod tests {
         assert_eq!(
             fact_pairs(&facts),
             vec![
-                ("Orbit", "2.00 AU"),
+                ("Orbit", "2 AU"),
                 ("Period", "2.7 y"),
                 ("Mean radius", "6,700 km"),
             ]

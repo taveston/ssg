@@ -4,21 +4,21 @@
 
 use crate::sim::units::KM_PER_AU;
 
-/// Significant figures a distance is shown to (UNIT-01).
-const DISTANCE_SIG_FIGS: i32 = 3;
+/// Decimal places a distance in AU is shown to (UNIT-01).
+const AU_DECIMALS: usize = 2;
 const MINUTES_PER_DAY: f64 = 1440.0;
 const HOURS_PER_DAY: f64 = 24.0;
 const DAYS_PER_YEAR: f64 = 365.25;
 
-/// A distance in km as a readout: km below `au_threshold_au`, AU at or
-/// above it, to three significant figures with thousands separators
-/// ("182,000 km", "0.362 AU") (UNIT-01).
+/// A distance in km as a readout: whole km below `au_threshold_au`, AU
+/// to two decimal places at or above it with trailing zeros dropped, both
+/// with thousands separators ("182,345 km", "0.36 AU", "2 AU") (UNIT-01).
 pub fn format_distance(km: f64, au_threshold_au: f64) -> String {
     let au = km / KM_PER_AU;
     if au >= au_threshold_au {
-        format!("{} AU", significant(au))
+        format!("{} AU", decimal(au, AU_DECIMALS))
     } else {
-        format!("{} km", significant(km))
+        format!("{} km", decimal(km, 0))
     }
 }
 
@@ -37,21 +37,22 @@ pub fn format_duration(days: f64) -> String {
     }
 }
 
-/// `value` rounded to three significant figures, with its integer part
-/// grouped in thousands. Trailing zeros after the point are kept, so the
-/// precision shows ("1.30").
-fn significant(value: f64) -> String {
-    if value == 0.0 || !value.is_finite() {
-        return "0".to_string();
-    }
-    let magnitude = value.abs().log10().floor() as i32;
-    let decimals = (DISTANCE_SIG_FIGS - 1 - magnitude).max(0);
-    let step = 10f64.powi(magnitude + 1 - DISTANCE_SIG_FIGS);
-    let rounded = (value / step).round() * step;
-    let text = format!("{rounded:.*}", decimals as usize);
+/// `value` rounded to `places` decimals, trailing zeros (and a bare
+/// point) dropped, with thousands separators.
+fn decimal(value: f64, places: usize) -> String {
+    // Round half away from zero first; formatting alone rounds half to
+    // even ("0.5" would read "0").
+    let factor = 10f64.powi(places as i32);
+    let rounded = (value * factor).round() / factor;
+    let text = format!("{rounded:.places$}");
+    let text = if text.contains('.') {
+        text.trim_end_matches('0').trim_end_matches('.')
+    } else {
+        &text
+    };
     let (int_part, frac_part) = match text.split_once('.') {
         Some((int, frac)) => (int, Some(frac)),
-        None => (text.as_str(), None),
+        None => (text, None),
     };
     let grouped = group_thousands(int_part);
     match frac_part {
@@ -85,19 +86,21 @@ mod tests {
         format_distance(km, THRESHOLD_AU)
     }
 
-    /// UNIT-01: km below the threshold, AU from it, to three significant
-    /// figures with thousands separators.
+    /// UNIT-01: whole km below the threshold, AU to two decimals from it
+    /// with trailing zeros dropped, with thousands separators.
     #[test]
     fn distances_switch_from_km_to_au_at_the_threshold() {
-        assert_eq!(distance(850.0), "850 km");
-        assert_eq!(distance(182_345.0), "182,000 km");
-        assert_eq!(distance(1_234_567.0), "1,230,000 km");
-        assert_eq!(distance(0.362 * KM_PER_AU), "0.362 AU");
-        assert_eq!(distance(12.43 * KM_PER_AU), "12.4 AU");
-        assert_eq!(distance(1.3 * KM_PER_AU), "1.30 AU");
-        assert_eq!(distance(0.5), "0.500 km");
-        assert_eq!(distance(0.0099 * KM_PER_AU), "1,480,000 km");
-        assert_eq!(distance(0.01 * KM_PER_AU), "0.0100 AU");
+        assert_eq!(distance(850.4), "850 km");
+        assert_eq!(distance(182_345.0), "182,345 km");
+        assert_eq!(distance(1_234_567.6), "1,234,568 km");
+        assert_eq!(distance(0.5), "1 km");
+        assert_eq!(distance(0.0099 * KM_PER_AU), "1,481,019 km");
+        assert_eq!(distance(0.362 * KM_PER_AU), "0.36 AU");
+        assert_eq!(distance(12.43 * KM_PER_AU), "12.43 AU");
+        assert_eq!(distance(1.3 * KM_PER_AU), "1.3 AU");
+        assert_eq!(distance(2.0 * KM_PER_AU), "2 AU");
+        assert_eq!(distance(0.01 * KM_PER_AU), "0.01 AU");
+        assert_eq!(distance(1234.5 * KM_PER_AU), "1,234.5 AU");
     }
 
     /// UNIT-02: each duration reads in the largest unit it reaches.

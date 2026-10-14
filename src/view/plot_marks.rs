@@ -369,7 +369,7 @@ mod tests {
         assert!(km / KM_PER_AU < threshold);
         assert_eq!(km, 10_000_000.0);
         assert_eq!(format_distance(km, threshold), "10,000,000 km");
-        assert_eq!(format_distance(2.0 * KM_PER_AU, threshold), "2.00 AU");
+        assert_eq!(format_distance(2.0 * KM_PER_AU, threshold), "2 AU");
     }
 
     /// MRK-17: angles are clockwise from screen up.
