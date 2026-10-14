@@ -36,6 +36,11 @@ pub struct DisplayName(pub String);
 #[derive(Component, Clone, Debug, PartialEq, Eq)]
 pub struct GateDestination(pub String);
 
+/// PLAN-30: how closely a ship must match a gate's speed to enter it, in
+/// km/s. Stored on the gate; no rule reads it yet.
+#[derive(Component, Clone, Copy, Debug, PartialEq)]
+pub struct GateEntryTolerance(pub f64);
+
 /// The authored one-line description of a body, as the player's records
 /// have it.
 #[derive(Component, Clone, Debug, Default)]
@@ -50,6 +55,12 @@ pub struct KeyFacts(pub Vec<(String, String)>);
 /// sets a marker's size.
 #[derive(Component, Clone, Copy, Debug, PartialEq)]
 pub struct PhysicalRadius(pub f64);
+
+/// A body's mass in kg, for the gravity of everything round it: its
+/// gravitational parameter, its Hill radius and its bands (BAND-01). Zero
+/// for a body too light to matter.
+#[derive(Component, Clone, Copy, Debug, PartialEq)]
+pub struct Mass(pub f64);
 
 /// A star's mass in kg. Its inset reports it (INS-08); orbits round it
 /// are already worked out from it at spawn.

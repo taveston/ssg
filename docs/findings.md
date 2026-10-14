@@ -2,7 +2,7 @@
 
 Open observations from building and playing the prototype. Each one is waiting for a decision. Once it's settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings take the next free number from F-144.
+Format and types are in `docs/README.md`. New findings take the next free number from F-148.
 
 ---
 
@@ -25,3 +25,23 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Observation:** MRK-15 puts the chevron inside the tab, beside the parent's marker. On screen it reads poorly. It should either sit outside the box, on its edge-facing side, or be merged with the marker (for example, the marker with a pointer on its rim towards the parent).
 - **Affects:** MRK-15, EDGE-03 · **Type:** spec wrong
 - **Disposition:** open. Choose the chevron outside the tab or merged with the marker; the gate tabs (EDGE-03) should follow the same choice.
+
+### F-144 · Morrow's two innermost moons can't have a High band
+- **Observation:** TEST-20 says every star, planet and moon in Corvane carries its two bands. BAND-01 caps High at `high_band_hill_fraction` of the Hill radius, and for a moon the Hill radius scales with its own radius: at 143,000 km from a Jupiter-mass giant, a rocky moon's Hill radius is about 1.9 times its radius, so half of it never clears Low (radius + 500 km). Morrow I and II have a Low band only, whatever plausible mass they are given. The moons now carry masses from their radii at rock density (3,000 kg/m³); every other moon gets both bands.
+- **Affects:** TEST-20, BAND-01 · **Type:** spec wrong
+- **Disposition:** open. Accept that some small moons have no High band (the build does this), or move Morrow I and II out.
+
+### F-145 · Halden IV's High band makes every parked ship an exposure ring at 1 d/s
+- **Observation:** TEST-20 makes Corvane's "High" orbit the BAND-01 band: 10 radii = 67,000 km, a period of about 1.9 d (it was 12 d). TEST-05 and TEST-10 put every parked ship there, and TEST-05 says they sit in "slow orbits (dot mode at 1 d/s)". At 1 d/s the band is now an exposure ring with a "+14" pill (MOT-14), and the symbols only show when paused or below 0.24 d/s. The build follows TEST-20; the headless identity-mark test now runs at 0.2 d/s.
+- **Affects:** TEST-05, TEST-10, TEST-20, BAND-01 · **Type:** conflict
+- **Disposition:** open. Raise `high_band_radii` (about 34 radii gives 12 d at Halden IV), accept the ring, or state that the parked ships sit elsewhere.
+
+### F-146 · XFER-07 would forbid every trip to a Low band
+- **Observation:** XFER-07 makes a crossing infeasible if its periapsis is inside `min_periapsis_radii` (2) × the primary's radius and is reached during the crossing. A Low band is at radius + 500 km, inside that limit for any body over 500 km, and a transfer between two bands has the body as its primary (XFER-01) and reaches periapsis at one end: High → Low arrives at periapsis, Low → High leaves from it. So no band-to-band trip touching Low could be flown. The build exempts a crossing that starts or ends in an orbit of the primary itself, and applies the rule to every other crossing (a fall towards the star from a planet, say).
+- **Affects:** XFER-07, BAND-01 · **Type:** spec wrong
+- **Disposition:** open. Accept the exemption, or lower the limit below the Low altitude.
+
+### F-147 · Choices the transfer spec leaves open
+- **Observation:** The build had to settle these: (a) the end state of a band of the crossing's primary (band-to-band trips, a station at the primary as the start) is the band's circle aimed half a turn ahead of the start, so a Hohmann travel time gives the Hohmann burns; (b) XFER-06's spiral spans the whole crossing, whose length includes the departure and capture costs, so the spiral winds at `|v0 − v1| ÷ travel_days` and lands at the end's angle on the last day; (c) a place whose body is the crossing's primary charges nothing (XFER-01's band-to-band rule, extended to a station or a gate round the primary), and a station, gate or site is aimed at by its own orbit's state, not its parent's; (d) a parked ship as a destination is aimed at as its orbit's body (BAND-05), and the closing speed of a Pass at a ship is relative to that body's velocity; (e) Hold on an InFlight plan leaves that plan on the ship as **Holding** with its rail cut, rather than replacing it with a Done Hold plan, so PLAN-12's origin and destination survive; (f) a ship's position in a named orbit is its orbit's at its own phase, and a captured ship's phase is set so its angle at the arrival day is its arrival direction (BAND-06).
+- **Affects:** XFER-01, XFER-06, XFER-09, XFER-10, PLAN-13, BAND-06 · **Type:** spec gap
+- **Disposition:** open. Copy the choices that are fine into the spec.

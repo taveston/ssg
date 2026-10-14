@@ -42,7 +42,7 @@ The code is split into domains, each a folder under `src/` with its own Bevy plu
 |---|---|---|
 | ARCH-20 | Every rule in a spec (fold hysteresis, motion mode, zoom stops, Kepler periods, apparent period, label rules) is a plain function with no Bevy queries or resources in its signature, taking and returning plain values. Systems gather inputs, call the function and apply the result. | ✓ |
 | ARCH-21 | Systems stay small: as a guide, under about 50 lines. Longer systems are split into a gather / decide / apply sequence or into helper functions. UI spawning is split into one helper per panel section. Content data and tests are exempt. | ✓ |
-| ARCH-22 | Magic numbers are named constants with a comment saying what they are. Numbers the spec calls tunable stay in one config resource per domain: `Tunables` (`src/view/tunables.rs`) for the view, `SimTunables` (`src/sim/tunables.rs`) for the simulation; simulation constants (for example `KM_PER_AU`, `G`) live in `src/sim/`. |  |
+| ARCH-22 | Magic numbers are named constants with a comment saying what they are. Numbers the spec calls tunable stay in one config resource per domain: `Tunables` (`src/view/tunables.rs`) for the view, `SimTunables` (`src/sim/tunables.rs`) for the simulation; simulation constants (for example `KM_PER_AU`, `G`) live in `src/sim/`. | ✓ |
 | ARCH-23 | A comment at the function implementing a spec rule explains the rule in its own terms, so the code can be understood without the spec open. It may end with the rule's ID, e.g. `// Satellites fold below fold_px and unfold only above unfold_px, so they don't flicker (GRP-01)`. A comment that is only an ID doesn't meet this. | ✓ |
 
 ## 3a. The orbits crate

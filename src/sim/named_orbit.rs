@@ -29,3 +29,9 @@ pub struct NamedOrbit {
 /// On a ship or station in orbit: the named orbit it occupies (SCL-07).
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct InNamedOrbit(pub Entity);
+
+/// On the named orbit a station, gate or salvage site offers for docking
+/// (BAND-02): the orbit a ship sent to that place arrives in. Names the
+/// place that offers it.
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DockingOrbitOf(pub Entity);

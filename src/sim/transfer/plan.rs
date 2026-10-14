@@ -1,0 +1,758 @@
+//! Orders and status (PLAN-01 to PLAN-30): a plan is the order a ship was
+//! given, the leg solved from it, and where it has got to. The order is
+//! the truth; the leg's trajectory is derived from it and can be rebuilt
+//! (PLAN-03). The transitions are a pure function of the plan and the day
+//! (`advance`, ARCH-20); `run_plans` applies what they ask for to the ship.
+//!
+//! `Planner` is the simulation-owned way to give orders (ARCH-14): it
+//! solves the leg against the system as it stands, reserves the delta-v
+//! and puts the plan on the ship.
+
+use bevy::ecs::system::SystemParam;
+use bevy::prelude::*;
+use orbits::{CircularOrbit, Segment};
+
+use super::legs::{Arrival, Departure, Infeasible, Landing, LegBurns, Order, SolvedLeg, solve_leg};
+use super::places::{Place, is_escaping};
+use super::tree::{ShipState, TreeQuery};
+use crate::sim::body::BodyClass;
+use crate::sim::clock::GameClock;
+use crate::sim::named_orbit::InNamedOrbit;
+use crate::sim::orbit::{Orbit, OrbitPositionKm};
+use crate::sim::rail::{SegmentKind, ShipTrajectory};
+use crate::sim::ship::{DeltaV, Drive, InFlight, ShipRail};
+use crate::sim::tunables::SimTunables;
+use crate::sim::units::KM_PER_AU;
+
+/// PLAN-02: where a plan has got to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Status {
+    Scheduled,
+    InFlight,
+    /// Told to Hold mid-flight: coasting, with its later burns dropped
+    /// (PLAN-13).
+    Holding,
+    Done,
+    Failed,
+}
+
+/// PLAN-01: one leg: the order and what was solved from it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Leg {
+    pub destination: Place,
+    pub arrival: Arrival,
+    pub depart_day: f64,
+    pub travel_days: f64,
+    pub trajectory: ShipTrajectory,
+    /// PLAN-12: where the ship set out from; `None` from a coasting state.
+    pub origin: Option<Place>,
+    pub primary: Entity,
+    pub delta_v_kms: f64,
+    pub burns: LegBurns,
+    pub crossing_start_day: f64,
+    pub crossing_end_day: f64,
+    pub arrival_day: f64,
+    pub landing: Landing,
+    pub pass_speed_kms: Option<f64>,
+}
+
+impl Leg {
+    pub fn new(order: &Order, solved: SolvedLeg) -> Self {
+        Self {
+            destination: order.destination,
+            arrival: order.arrival,
+            depart_day: order.depart_day,
+            travel_days: solved.travel_days,
+            trajectory: solved.trajectory,
+            origin: solved.origin,
+            primary: solved.primary,
+            delta_v_kms: solved.delta_v_kms,
+            burns: solved.burns,
+            crossing_start_day: solved.crossing_start_day,
+            crossing_end_day: solved.crossing_end_day,
+            arrival_day: solved.arrival_day,
+            landing: solved.landing,
+            pass_speed_kms: solved.pass_speed_kms,
+        }
+    }
+
+    /// The named orbit the leg assumes the ship departs from (PLAN-11).
+    pub fn departure_orbit(&self) -> Option<Entity> {
+        self.trajectory.segments().first()?.kind.parked_in()
+    }
+}
+
+/// Which of a leg's burns have been made.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+struct BurnsMade {
+    start: bool,
+    end: bool,
+}
+
+/// PLAN-01 / PLAN-02: a ship's plan. As a component on the ship there is
+/// at most one.
+#[derive(Component, Debug, Clone, PartialEq)]
+pub struct Plan {
+    pub ship: Entity,
+    pub legs: Vec<Leg>,
+    pub status: Status,
+    /// What this plan still holds reserved on the ship's account.
+    reserved_kms: f64,
+    burned: BurnsMade,
+}
+
+impl Plan {
+    /// PLAN-01: a plan of one leg; more legs are rejected until multi-leg
+    /// plans are specced.
+    pub fn new(ship: Entity, legs: Vec<Leg>) -> Result<Self, Infeasible> {
+        if legs.len() != 1 {
+            return Err(Infeasible::MultiLeg);
+        }
+        let reserved_kms = legs[0].delta_v_kms;
+        Ok(Self {
+            ship,
+            legs,
+            status: Status::Scheduled,
+            reserved_kms,
+            burned: BurnsMade::default(),
+        })
+    }
+
+    /// PLAN-12: the last leg, which describes the ship's place.
+    pub fn leg(&self) -> &Leg {
+        self.legs.last().expect("a plan has a leg")
+    }
+
+    /// PLAN-02: Scheduled or InFlight, so no other plan may be given.
+    pub fn is_active(&self) -> bool {
+        matches!(self.status, Status::Scheduled | Status::InFlight)
+    }
+
+    /// What the plan still has reserved (PLAN-21).
+    pub fn reserved_kms(&self) -> f64 {
+        self.reserved_kms
+    }
+}
+
+/// What a transition asks the ship to do.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Effect {
+    /// Move this much from reserved to spent (PLAN-21).
+    Burn(f64),
+    /// Give this much reserved back (PLAN-21).
+    Release(f64),
+    /// Start following the leg's trajectory.
+    Launch(ShipTrajectory),
+    /// Leave the named orbit and fly round `primary` (RAIL-09).
+    LeaveOrbit { primary: Entity },
+    /// Capture into a named orbit of `body` on `path` (BAND-06).
+    JoinOrbit {
+        orbit: Entity,
+        body: Entity,
+        path: CircularOrbit,
+    },
+    /// Cut the rail at its current segment, extended without end
+    /// (PLAN-13).
+    Truncate,
+}
+
+/// PLAN-10 / PLAN-11 / PLAN-21: the transitions a plan makes on `day`:
+/// Scheduled becomes InFlight on the depart day if the ship is still in
+/// the orbit assumed (`in_departure_orbit`) and can still pay
+/// (`available_kms` counts what this plan reserved), else Failed; in
+/// flight, the burns are made as their days pass, the ship leaves and
+/// joins orbits, and the plan is Done on arrival (Stop) or at the
+/// crossing's end (Pass).
+pub fn advance(
+    plan: &mut Plan,
+    day: f64,
+    in_departure_orbit: bool,
+    available_kms: f64,
+) -> Vec<Effect> {
+    let mut effects = Vec::new();
+    let leg = plan.legs.last().cloned().expect("a plan has a leg");
+    if plan.status == Status::Scheduled && day >= leg.depart_day {
+        let can_pay = available_kms + plan.reserved_kms >= leg.delta_v_kms - 1e-9;
+        if in_departure_orbit && can_pay {
+            plan.status = Status::InFlight;
+            effects.push(Effect::Launch(leg.trajectory.clone()));
+        } else {
+            plan.status = Status::Failed;
+            effects.push(Effect::Release(plan.reserved_kms));
+            plan.reserved_kms = 0.0;
+            return effects;
+        }
+    }
+    if plan.status != Status::InFlight {
+        return effects;
+    }
+    if day >= leg.crossing_start_day && !plan.burned.start {
+        plan.burned.start = true;
+        plan.reserved_kms -= leg.burns.start_kms;
+        effects.push(Effect::Burn(leg.burns.start_kms));
+        effects.push(Effect::LeaveOrbit {
+            primary: leg.primary,
+        });
+    }
+    if day >= leg.crossing_end_day && !plan.burned.end {
+        plan.burned.end = true;
+        match leg.landing {
+            Landing::Orbit {
+                orbit,
+                body,
+                phase0_rad,
+            } => {
+                plan.reserved_kms -= leg.burns.end_kms;
+                effects.push(Effect::Burn(leg.burns.end_kms));
+                let path = parked_path(&leg.trajectory, orbit, phase0_rad);
+                effects.push(Effect::JoinOrbit { orbit, body, path });
+            }
+            Landing::Coast => {
+                plan.reserved_kms -= leg.burns.end_kms;
+                effects.push(Effect::Burn(leg.burns.end_kms));
+            }
+            Landing::Pass => plan.status = Status::Done,
+        }
+    }
+    if plan.status == Status::InFlight && leg.arrival == Arrival::Stop && day >= leg.arrival_day {
+        plan.status = Status::Done;
+    }
+    effects
+}
+
+/// The circular path the leg's last segment parks the ship on.
+fn parked_path(trajectory: &ShipTrajectory, orbit: Entity, phase0_rad: f64) -> CircularOrbit {
+    trajectory
+        .segments()
+        .iter()
+        .rev()
+        .find_map(|segment| match segment.kind {
+            SegmentKind::Parked { orbit: o, path, .. } if o == orbit => Some(path),
+            _ => None,
+        })
+        .unwrap_or(CircularOrbit {
+            radius_km: 0.0,
+            period_days: f64::INFINITY,
+            phase0_rad,
+        })
+}
+
+/// PLAN-13: Hold. An InFlight plan keeps its current segment without end,
+/// drops its later burns and is Holding; anything else is left alone (a
+/// parked ship holds already).
+pub fn hold(plan: &mut Plan) -> Vec<Effect> {
+    if plan.status != Status::InFlight || !plan.burned.start {
+        return Vec::new();
+    }
+    plan.status = Status::Holding;
+    plan.burned.end = true;
+    let released = plan.reserved_kms.max(0.0);
+    plan.reserved_kms = 0.0;
+    vec![Effect::Truncate, Effect::Release(released)]
+}
+
+/// PLAN-22: cancelling a Scheduled plan gives back what it reserved and
+/// leaves the ship as it was; an InFlight plan can't be cancelled.
+pub fn cancel(plan: &mut Plan) -> Option<Effect> {
+    if plan.status != Status::Scheduled {
+        return None;
+    }
+    plan.status = Status::Failed;
+    let released = plan.reserved_kms;
+    plan.reserved_kms = 0.0;
+    Some(Effect::Release(released))
+}
+
+/// PLAN-13: `rail` cut at the segment followed on `day`, which then goes
+/// on without end.
+pub fn truncated(rail: &ShipTrajectory, day: f64) -> Option<ShipTrajectory> {
+    let keep = rail
+        .segments()
+        .iter()
+        .position(|segment| segment.contains(day))?;
+    let mut segments: Vec<Segment<SegmentKind>> = rail.segments()[..=keep].to_vec();
+    segments[keep].end_day = None;
+    ShipTrajectory::new(segments).ok()
+}
+
+/// The simulation's API for orders (ARCH-14).
+#[derive(SystemParam)]
+pub struct Planner<'w, 's> {
+    tree: TreeQuery<'w, 's>,
+    tunables: Res<'w, SimTunables>,
+    clock: Res<'w, GameClock>,
+    ships: Query<
+        'w,
+        's,
+        (
+            &'static Drive,
+            &'static mut DeltaV,
+            Option<&'static mut Plan>,
+        ),
+    >,
+    commands: Commands<'w, 's>,
+}
+
+impl Planner<'_, '_> {
+    /// The leg `order` would give `ship` today, without scheduling it.
+    pub fn preview(&self, ship: Entity, order: &Order) -> Result<SolvedLeg, Infeasible> {
+        let (drive, account, _) = self.ships.get(ship).map_err(|_| Infeasible::NoDrive)?;
+        let day = self.clock.elapsed_days();
+        let tree = self.tree.snapshot(day);
+        let departure = match tree.ships.get(&ship).ok_or(Infeasible::UnknownPlace)? {
+            ShipState::Parked { orbit, phase0_rad } => Departure::Parked {
+                orbit: *orbit,
+                phase0_rad: *phase0_rad,
+            },
+            ShipState::Coasting { primary, conic } => Departure::Coasting {
+                primary: *primary,
+                conic: *conic,
+            },
+            ShipState::InFlight => return Err(Infeasible::ShipInFlight),
+        };
+        solve_leg(
+            &tree,
+            &self.tunables,
+            &departure,
+            order,
+            drive,
+            account.available_kms(),
+        )
+    }
+
+    /// PLAN-01 / PLAN-21: give `ship` a one-leg plan for `order`, reserving
+    /// its delta-v. A Hold order holds instead (PLAN-13).
+    pub fn schedule(&mut self, ship: Entity, order: &Order) -> Result<(), Infeasible> {
+        if order.destination == Place::Hold {
+            return self.hold(ship);
+        }
+        if self
+            .ships
+            .get(ship)
+            .is_ok_and(|(_, _, plan)| plan.is_some_and(|plan| plan.is_active()))
+        {
+            return Err(Infeasible::Busy);
+        }
+        let solved = self.preview(ship, order)?;
+        let plan = Plan::new(ship, vec![Leg::new(order, solved)])?;
+        let (_, mut account, _) = self.ships.get_mut(ship).map_err(|_| Infeasible::NoDrive)?;
+        account.reserve(plan.reserved_kms());
+        self.commands.entity(ship).insert(plan);
+        Ok(())
+    }
+
+    /// PLAN-13: Hold: a ship in flight keeps its current segment without
+    /// end; a parked or scheduled ship is left as it is.
+    pub fn hold(&mut self, ship: Entity) -> Result<(), Infeasible> {
+        let day = self.clock.elapsed_days();
+        let (_, mut account, plan) = self.ships.get_mut(ship).map_err(|_| Infeasible::NoDrive)?;
+        let Some(mut plan) = plan else {
+            return Ok(());
+        };
+        for effect in hold(&mut plan) {
+            match effect {
+                Effect::Release(kms) => account.release(kms),
+                Effect::Truncate => {
+                    // The tree's queries read rails, so the cut is queued
+                    // rather than made through a second, conflicting query.
+                    self.commands.queue(move |world: &mut World| {
+                        if let Some(mut rail) = world.get_mut::<ShipRail>(ship)
+                            && let Some(cut) = truncated(&rail.0, day)
+                        {
+                            rail.0 = cut;
+                        }
+                    });
+                }
+                _ => {}
+            }
+        }
+        Ok(())
+    }
+
+    /// PLAN-22: cancel a Scheduled plan; `false` if there was none to
+    /// cancel.
+    pub fn cancel(&mut self, ship: Entity) -> bool {
+        let Ok((_, mut account, Some(mut plan))) = self.ships.get_mut(ship) else {
+            return false;
+        };
+        match cancel(&mut plan) {
+            Some(Effect::Release(kms)) => {
+                account.release(kms);
+                true
+            }
+            _ => false,
+        }
+    }
+}
+
+/// ARCH-14: an order given to a ship, as a message the simulation reads.
+/// A Transfer with `Place::Hold` as its destination holds (PLAN-13).
+#[derive(Message, Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "sent by the planner UI, not yet specced")
+)]
+pub enum ShipOrder {
+    Transfer {
+        ship: Entity,
+        order: Order,
+    },
+    /// PLAN-22: cancel the ship's Scheduled plan.
+    Cancel {
+        ship: Entity,
+    },
+}
+
+/// What came of an order: a message for whoever gave it.
+#[derive(Message, Debug, Clone, Copy, PartialEq)]
+pub struct OrderOutcome {
+    pub ship: Entity,
+    pub result: Result<(), Infeasible>,
+}
+
+/// ARCH-14: every order given this frame goes through the planner, and
+/// its outcome is reported back.
+pub fn take_orders(
+    mut orders: MessageReader<ShipOrder>,
+    mut planner: Planner,
+    mut outcomes: MessageWriter<OrderOutcome>,
+) {
+    for order in orders.read() {
+        let (ship, result) = match *order {
+            ShipOrder::Transfer { ship, order } => (ship, planner.schedule(ship, &order)),
+            ShipOrder::Cancel { ship } => (
+                ship,
+                planner.cancel(ship).then_some(()).ok_or(Infeasible::Busy),
+            ),
+        };
+        outcomes.write(OrderOutcome { ship, result });
+    }
+}
+
+/// The ship a plan drives.
+type PlannedShips<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static mut Plan,
+        &'static mut DeltaV,
+        Option<&'static InNamedOrbit>,
+    ),
+>;
+
+/// PLAN-10 / PLAN-11 / PLAN-21: step every plan to today and apply what
+/// it asks for to its ship.
+pub fn run_plans(
+    mut commands: Commands,
+    clock: Res<GameClock>,
+    bodies: Query<(Entity, &BodyClass)>,
+    mut ships: PlannedShips,
+) {
+    let day = clock.elapsed_days();
+    let star = bodies
+        .iter()
+        .find(|(_, class)| **class == BodyClass::Star)
+        .map(|(e, _)| e);
+    for (ship, mut plan, mut account, in_orbit) in &mut ships {
+        if !plan.is_active() {
+            continue;
+        }
+        let assumed = plan.leg().departure_orbit();
+        let in_departure_orbit = assumed.is_none() || assumed == in_orbit.map(|o| o.0);
+        let available = account.available_kms();
+        for effect in advance(&mut plan, day, in_departure_orbit, available) {
+            apply(&mut commands, ship, star, &mut account, effect);
+        }
+    }
+}
+
+/// What each effect does to the ship's components.
+fn apply(
+    commands: &mut Commands,
+    ship: Entity,
+    star: Option<Entity>,
+    account: &mut DeltaV,
+    effect: Effect,
+) {
+    let mut entity = commands.entity(ship);
+    match effect {
+        Effect::Burn(kms) => account.burn(kms),
+        Effect::Release(kms) => account.release(kms),
+        Effect::Launch(trajectory) => {
+            entity.insert(ShipRail(trajectory));
+        }
+        Effect::LeaveOrbit { primary } => {
+            entity.remove::<(Orbit, InNamedOrbit)>().insert(InFlight);
+            if Some(primary) == star {
+                entity.remove::<ChildOf>();
+            } else {
+                entity.insert(ChildOf(primary));
+            }
+        }
+        Effect::JoinOrbit { orbit, body, path } => {
+            entity.remove::<(InFlight, ShipRail)>().insert((
+                Orbit {
+                    radius_km: path.radius_km,
+                    period_days: path.period_days,
+                    phase0_rad: path.phase0_rad,
+                },
+                InNamedOrbit(orbit),
+            ));
+            if Some(body) == star {
+                entity.remove::<ChildOf>();
+            } else {
+                entity.insert(ChildOf(body));
+            }
+        }
+        Effect::Truncate => {}
+    }
+}
+
+/// RAIL-04 / RAIL-09: a ship in flight is where its rail says today, in
+/// km relative to the segment's primary.
+pub fn drive_rails(
+    clock: Res<GameClock>,
+    mut ships: Query<(&ShipRail, &mut OrbitPositionKm), With<InFlight>>,
+) {
+    let day = clock.elapsed_days();
+    for (rail, mut position) in &mut ships {
+        if let Some(state) = rail.0.state_at(day) {
+            position.0 = state.position;
+        }
+    }
+}
+
+/// BAND-08: an escaping ship with no plan running is removed once it is
+/// `lost_beyond_au` from the star.
+pub fn remove_escaping_ships(
+    mut commands: Commands,
+    clock: Res<GameClock>,
+    tunables: Res<SimTunables>,
+    stars: Query<(Entity, &BodyClass)>,
+    ships: Query<(Entity, &ShipRail, &OrbitPositionKm, Option<&Plan>), With<InFlight>>,
+) {
+    let star = stars
+        .iter()
+        .find(|(_, class)| **class == BodyClass::Star)
+        .map(|(e, _)| e);
+    let day = clock.elapsed_days();
+    let lost_km = tunables.lost_beyond_au * KM_PER_AU;
+    for (ship, rail, position, plan) in &ships {
+        if plan.is_some_and(|plan| plan.is_active()) {
+            continue;
+        }
+        let Some(segment) = rail.0.segment_at(day) else {
+            continue;
+        };
+        let SegmentKind::Conic { primary, conic } = segment.kind else {
+            continue;
+        };
+        if Some(primary) == star && is_escaping(&conic, lost_km) && position.0.length() > lost_km {
+            commands.entity(ship).despawn();
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::sim::transfer::places::Band;
+    use orbits::{Conic, Rail};
+
+    const MU: f64 = 1e21;
+
+    /// A one-leg plan parked in `orbit` of `body`, crossing from day 10
+    /// to day 20 round `primary`, arriving on day 22, costing 5 km/s
+    /// (3 at the start, 2 at the end).
+    fn plan(world: &mut World, arrival: Arrival) -> (Plan, Entity, Entity) {
+        let ship = world.spawn_empty().id();
+        let orbit = world.spawn_empty().id();
+        let body = world.spawn_empty().id();
+        let primary = world.spawn_empty().id();
+        let dest = world.spawn_empty().id();
+        let path = CircularOrbit::new(MU, 1e5, 0.0);
+        let conic = Conic::from_state(
+            MU,
+            CircularOrbit::new(MU, 1e8, 0.0).state_at(10.0),
+            10.0,
+            1e-6,
+        )
+        .unwrap();
+        let stop = arrival == Arrival::Stop;
+        let mut segments = vec![
+            Segment {
+                start_day: 5.0,
+                end_day: Some(10.0),
+                kind: SegmentKind::Parked {
+                    orbit,
+                    primary: body,
+                    path,
+                },
+            },
+            Segment {
+                start_day: 10.0,
+                end_day: stop.then_some(20.0),
+                kind: SegmentKind::Conic { primary, conic },
+            },
+        ];
+        if stop {
+            segments.push(Segment {
+                start_day: 20.0,
+                end_day: None,
+                kind: SegmentKind::Parked {
+                    orbit: dest,
+                    primary: body,
+                    path,
+                },
+            });
+        }
+        let leg = Leg {
+            destination: Place::Body {
+                body,
+                band: Band::High,
+            },
+            arrival,
+            depart_day: 5.0,
+            travel_days: 10.0,
+            trajectory: ShipTrajectory::new(segments).unwrap(),
+            origin: Some(Place::Body {
+                body,
+                band: Band::Low,
+            }),
+            primary,
+            delta_v_kms: if stop { 5.0 } else { 3.0 },
+            burns: LegBurns {
+                start_kms: 3.0,
+                end_kms: if stop { 2.0 } else { 0.0 },
+            },
+            crossing_start_day: 10.0,
+            crossing_end_day: 20.0,
+            arrival_day: 22.0,
+            landing: if stop {
+                Landing::Orbit {
+                    orbit: dest,
+                    body,
+                    phase0_rad: 0.4,
+                }
+            } else {
+                Landing::Pass
+            },
+            pass_speed_kms: (!stop).then_some(4.0),
+        };
+        (Plan::new(ship, vec![leg]).unwrap(), orbit, dest)
+    }
+
+    /// PLAN-01: a plan has exactly one leg until multi-leg plans exist.
+    #[test]
+    fn plans_with_more_than_one_leg_are_rejected() {
+        let mut world = World::new();
+        let (one, ..) = plan(&mut world, Arrival::Stop);
+        let ship = one.ship;
+        let leg = one.leg().clone();
+        assert_eq!(
+            Plan::new(ship, vec![leg.clone(), leg]).unwrap_err(),
+            Infeasible::MultiLeg
+        );
+        assert_eq!(Plan::new(ship, vec![]).unwrap_err(), Infeasible::MultiLeg);
+    }
+
+    /// PLAN-10 / PLAN-21: a Stop leg launches on its depart day, burns
+    /// and leaves orbit at the crossing start, burns and joins the
+    /// destination at the crossing end, and is Done on arrival.
+    #[test]
+    fn a_stop_leg_runs_through_its_transitions() {
+        let mut world = World::new();
+        let (mut plan, _, dest) = plan(&mut world, Arrival::Stop);
+        assert!(advance(&mut plan, 4.0, true, 0.0).is_empty());
+        assert_eq!(plan.status, Status::Scheduled);
+
+        let effects = advance(&mut plan, 5.0, true, 0.0);
+        assert!(matches!(effects.as_slice(), [Effect::Launch(_)]));
+        assert_eq!(plan.status, Status::InFlight);
+
+        let effects = advance(&mut plan, 10.0, true, 0.0);
+        assert_eq!(effects[0], Effect::Burn(3.0));
+        assert!(matches!(effects[1], Effect::LeaveOrbit { .. }));
+        assert!((plan.reserved_kms() - 2.0).abs() < 1e-12);
+
+        let effects = advance(&mut plan, 20.5, true, 0.0);
+        assert_eq!(effects[0], Effect::Burn(2.0));
+        assert!(matches!(effects[1], Effect::JoinOrbit { orbit, .. } if orbit == dest));
+        assert_eq!(plan.status, Status::InFlight, "still approaching");
+        assert!(plan.reserved_kms().abs() < 1e-12);
+
+        assert!(advance(&mut plan, 22.0, true, 0.0).is_empty());
+        assert_eq!(plan.status, Status::Done);
+        assert!(!plan.is_active());
+    }
+
+    /// PLAN-10: a Pass leg is Done at the crossing's end, with no second
+    /// burn and no orbit to join: the ship coasts.
+    #[test]
+    fn a_pass_leg_is_done_at_the_crossing_end() {
+        let mut world = World::new();
+        let (mut plan, ..) = plan(&mut world, Arrival::Pass { band: Band::High });
+        advance(&mut plan, 5.0, true, 0.0);
+        advance(&mut plan, 10.0, true, 0.0);
+        let effects = advance(&mut plan, 20.0, true, 0.0);
+        assert!(effects.is_empty());
+        assert_eq!(plan.status, Status::Done);
+    }
+
+    /// PLAN-11: on the depart day the leg is re-validated: a ship that
+    /// has left the assumed orbit, or can no longer pay, fails and the
+    /// reservation is released.
+    #[test]
+    fn a_plan_fails_if_the_ship_moved_or_cannot_pay() {
+        let mut world = World::new();
+        let (mut plan, ..) = plan(&mut world, Arrival::Stop);
+        let effects = advance(&mut plan, 5.0, false, 10.0);
+        assert_eq!(effects, vec![Effect::Release(5.0)]);
+        assert_eq!(plan.status, Status::Failed);
+
+        let (mut plan, ..) = self::plan(&mut world, Arrival::Stop);
+        // 1 available plus the 5 reserved is short of a leg that now
+        // needs more than 6.
+        plan.legs[0].delta_v_kms = 7.0;
+        let effects = advance(&mut plan, 5.0, true, 1.0);
+        assert_eq!(effects, vec![Effect::Release(5.0)]);
+        assert_eq!(plan.status, Status::Failed);
+    }
+
+    /// PLAN-13: Hold on an InFlight plan truncates the rail at its
+    /// current segment, releases the unspent reservation and leaves the
+    /// plan Holding; on a Scheduled plan it does nothing.
+    #[test]
+    fn hold_cuts_the_rail_and_drops_later_burns() {
+        let mut world = World::new();
+        let (mut plan, ..) = plan(&mut world, Arrival::Stop);
+        assert!(hold(&mut plan).is_empty());
+        assert_eq!(plan.status, Status::Scheduled);
+        advance(&mut plan, 5.0, true, 0.0);
+        advance(&mut plan, 10.0, true, 0.0);
+        let effects = hold(&mut plan);
+        assert_eq!(effects, vec![Effect::Truncate, Effect::Release(2.0)]);
+        assert_eq!(plan.status, Status::Holding);
+        assert!(advance(&mut plan, 25.0, true, 0.0).is_empty());
+
+        let cut = truncated(&plan.leg().trajectory, 15.0).unwrap();
+        assert_eq!(cut.segments().len(), 2);
+        assert_eq!(cut.segments()[1].end_day, None);
+        assert!(truncated(&plan.leg().trajectory, 1.0).is_none());
+    }
+
+    /// PLAN-22: cancelling a Scheduled plan releases its reservation;
+    /// an InFlight plan can't be cancelled.
+    #[test]
+    fn cancelling_releases_a_scheduled_plan_only() {
+        let mut world = World::new();
+        let (mut plan, ..) = plan(&mut world, Arrival::Stop);
+        assert_eq!(cancel(&mut plan), Some(Effect::Release(5.0)));
+        assert!(!plan.is_active());
+        let (mut plan, ..) = self::plan(&mut world, Arrival::Stop);
+        advance(&mut plan, 5.0, true, 0.0);
+        assert_eq!(cancel(&mut plan), None);
+        assert_eq!(plan.status, Status::InFlight);
+    }
+}

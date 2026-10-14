@@ -2,6 +2,11 @@
 //! of planets, moons, stations and parked ships, each body's named orbits
 //! (SCL-07), the belt and its salvage sites, and the gates.
 //!
+//! Every star, planet and moon gets its two bands as named orbits
+//! (BAND-01, PLAN-30), and every station, gate and salvage site a docking
+//! orbit of its own (BAND-02), so content never spells those out. A ship
+//! with propulsion gets its drive and delta-v account (PLAN-20).
+//!
 //! Only simulation components go on here. A satellite is an `Orbit` with a
 //! `ChildOf` naming what it orbits; nothing else marks it out, so the view
 //! can find satellites structurally. A ship or station in a named orbit
@@ -12,19 +17,32 @@
 use bevy::prelude::*;
 
 use super::body::{
-    Affiliation, Belt, BodyClass, Description, DisplayName, GateDestination, KeyFacts, Knowledge,
-    PhysicalRadius, StellarMass,
+    Affiliation, Belt, BodyClass, Description, DisplayName, GateDestination, GateEntryTolerance,
+    KeyFacts, Knowledge, Mass, PhysicalRadius, StellarMass,
 };
-use super::named_orbit::{InNamedOrbit, NamedOrbit};
+use super::named_orbit::{DockingOrbitOf, InNamedOrbit, NamedOrbit};
 use super::orbit::{Orbit, OrbitPositionKm, kepler_period_days, orbit_position_km};
+use super::ship::{DeltaV, Propulsion};
 use super::system::{
     BodyBlueprint, GateBlueprint, NamedOrbitBlueprint, OrbitPlacement, SystemData,
     SystemDataResource,
 };
+use super::transfer::places::{Band, band_radii, hill_radius_km};
+use super::tunables::SimTunables;
+
+/// What every body's spawn needs besides its own record.
+struct Context<'a> {
+    star: Entity,
+    tunables: &'a SimTunables,
+}
 
 /// Spawns the waiting system, once. With no content plugin there is
 /// nothing waiting, and the simulation simply starts empty.
-pub fn spawn_system(mut commands: Commands, system_data: Option<ResMut<SystemDataResource>>) {
+pub fn spawn_system(
+    mut commands: Commands,
+    tunables: Res<SimTunables>,
+    system_data: Option<ResMut<SystemDataResource>>,
+) {
     let Some(system_data) = system_data.and_then(|mut waiting| waiting.0.take()) else {
         return;
     };
@@ -39,23 +57,38 @@ pub fn spawn_system(mut commands: Commands, system_data: Option<ResMut<SystemDat
         gates,
     } = system_data;
 
-    commands.spawn((
-        Name::new(star_name),
-        DisplayName(star_name.to_string()),
-        Description("The system's star.".to_string()),
-        KeyFacts(vec![("Class".to_string(), star_class.to_string())]),
-        BodyClass::Star,
-        PhysicalRadius(star_radius_km),
-        StellarMass(star_mass_kg),
-        Affiliation::Neutral,
-        star_knowledge,
-    ));
+    let star = commands
+        .spawn((
+            Name::new(star_name),
+            DisplayName(star_name.to_string()),
+            Description("The system's star.".to_string()),
+            KeyFacts(vec![("Class".to_string(), star_class.to_string())]),
+            BodyClass::Star,
+            PhysicalRadius(star_radius_km),
+            StellarMass(star_mass_kg),
+            Mass(star_mass_kg),
+            Affiliation::Neutral,
+            star_knowledge,
+        ))
+        .id();
+    let context = Context {
+        star,
+        tunables: &tunables,
+    };
 
-    // The star offers no named orbits: everything round it has an orbit
-    // of its own.
-    let round_the_star = Placements::round(&planets, &[]);
+    // The star offers only its bands: everything natural round it has an
+    // orbit of its own.
+    let star_bands = spawn_bands(
+        &mut commands,
+        star,
+        star_radius_km,
+        None,
+        star_mass_kg,
+        &context,
+    );
+    let round_the_star = Placements::round(&planets, &star_bands);
     for (planet, placed) in planets.into_iter().zip(round_the_star) {
-        spawn_body(&mut commands, planet, placed, None, star_mass_kg);
+        spawn_body(&mut commands, planet, placed, None, star_mass_kg, &context);
     }
 
     commands.spawn((
@@ -67,38 +100,98 @@ pub fn spawn_system(mut commands: Commands, system_data: Option<ResMut<SystemDat
     ));
     let in_the_belt = Placements::round(&belt.salvage_sites, &[]);
     for (site, placed) in belt.salvage_sites.into_iter().zip(in_the_belt) {
-        spawn_body(&mut commands, site, placed, None, star_mass_kg);
+        spawn_body(&mut commands, site, placed, None, star_mass_kg, &context);
     }
 
     for gate in gates {
-        spawn_gate(&mut commands, gate, star_mass_kg);
+        spawn_gate(&mut commands, gate, star_mass_kg, &context);
     }
 }
 
-fn spawn_gate(commands: &mut Commands, gate: GateBlueprint, star_mass_kg: f64) {
+fn spawn_gate(commands: &mut Commands, gate: GateBlueprint, star_mass_kg: f64, context: &Context) {
     let orbit = Orbit {
         radius_km: gate.distance_km,
         period_days: kepler_period_days(gate.distance_km, star_mass_kg),
         phase0_rad: gate.angle_deg.to_radians(),
     };
+    let entity = commands
+        .spawn((
+            Name::new(gate.name),
+            DisplayName(gate.name.to_string()),
+            Description(format!(
+                "A gate linking to the {} system.",
+                gate.destination
+            )),
+            KeyFacts(vec![(
+                "Destination".to_string(),
+                gate.destination.to_string(),
+            )]),
+            BodyClass::Gate,
+            GateDestination(gate.destination.to_string()),
+            GateEntryTolerance(gate.entry_tolerance_kms),
+            PhysicalRadius(gate.radius_km),
+            Mass(0.0),
+            Affiliation::Neutral,
+            Knowledge::Surveyed,
+            orbit_components(orbit),
+        ))
+        .id();
+    spawn_docking_orbit(commands, entity, gate.name, context.star, &orbit);
+}
+
+/// BAND-02: the orbit a station, gate or salvage site offers a ship sent
+/// to it: its own, as a named orbit of what it orbits, named after it.
+fn spawn_docking_orbit(
+    commands: &mut Commands,
+    place: Entity,
+    name: &'static str,
+    parent: Entity,
+    orbit: &Orbit,
+) {
     commands.spawn((
-        Name::new(gate.name),
-        DisplayName(gate.name.to_string()),
-        Description(format!(
-            "A gate linking to the {} system.",
-            gate.destination
-        )),
-        KeyFacts(vec![(
-            "Destination".to_string(),
-            gate.destination.to_string(),
-        )]),
-        BodyClass::Gate,
-        GateDestination(gate.destination.to_string()),
-        PhysicalRadius(gate.radius_km),
-        Affiliation::Neutral,
-        Knowledge::Surveyed,
-        orbit_components(orbit),
+        Name::new(name),
+        NamedOrbit {
+            parent,
+            name: name.to_string(),
+            radius_km: orbit.radius_km,
+            period_days: orbit.period_days,
+        },
+        DockingOrbitOf(place),
     ));
+}
+
+/// BAND-01 / PLAN-30: a star, planet or moon's two bands as named orbits,
+/// and its derived radii on the body. Returns the bands as spawned, for
+/// the body's children to sit in.
+fn spawn_bands(
+    commands: &mut Commands,
+    body: Entity,
+    radius_km: f64,
+    hill_km: Option<f64>,
+    mass_kg: f64,
+    context: &Context,
+) -> Vec<SpawnedOrbit<'static>> {
+    let radii = band_radii(radius_km, hill_km, context.tunables);
+    commands.entity(body).insert(radii);
+    [Band::Low, Band::High]
+        .into_iter()
+        .filter_map(|band| Some((band, radii.radius_km(band)?)))
+        .map(|(band, radius_km)| {
+            let entity = commands
+                .spawn((
+                    Name::new(band.name()),
+                    NamedOrbit {
+                        parent: body,
+                        name: band.name().to_string(),
+                        radius_km,
+                        period_days: kepler_period_days(radius_km, mass_kg),
+                    },
+                    band,
+                ))
+                .id();
+            (band.name(), entity, radius_km)
+        })
+        .collect()
 }
 
 /// An orbiting body's simulation state at the epoch.
@@ -200,12 +293,14 @@ fn spawn_body(
     placed: Placed,
     parent: Option<Entity>,
     central_mass_kg: f64,
+    context: &Context,
 ) -> Entity {
     let BodyBlueprint {
         name,
         class,
         affiliation,
         record,
+        propulsion,
         description,
         key_facts,
         knowledge,
@@ -235,12 +330,17 @@ fn spawn_body(
         ),
         class,
         PhysicalRadius(radius_km),
+        Mass(mass_kg),
         affiliation,
         knowledge,
         orbit_components(orbit),
     ));
     if let Some(record) = record {
         entity_commands.insert(record);
+    }
+    if let Some(Propulsion { drive, delta_v_kms }) = propulsion {
+        // PLAN-20: a ship that can be ordered to move.
+        entity_commands.insert((drive, DeltaV::full(delta_v_kms)));
     }
     if let Some(parent) = parent {
         // What it orbits: positions are relative to this body (ARCH-10).
@@ -252,10 +352,23 @@ fn spawn_body(
     }
     let entity = entity_commands.id();
 
-    let spawned = spawn_named_orbits(commands, entity, &orbits, mass_kg);
+    let mut spawned = spawn_named_orbits(commands, entity, &orbits, mass_kg);
+    match class {
+        BodyClass::Star | BodyClass::Planet | BodyClass::Moon => {
+            let hill_km = hill_radius_km(placed.radius_km, mass_kg, central_mass_kg);
+            spawned.extend(spawn_bands(
+                commands, entity, radius_km, hill_km, mass_kg, context,
+            ));
+        }
+        BodyClass::Station | BodyClass::Gate | BodyClass::SalvageSite => {
+            let round = parent.unwrap_or(context.star);
+            spawn_docking_orbit(commands, entity, name, round, &orbit);
+        }
+        BodyClass::Ship => {}
+    }
     let placements = Placements::round(&children, &spawned);
     for (child, placed) in children.into_iter().zip(placements) {
-        spawn_body(commands, child, placed, Some(entity), mass_kg);
+        spawn_body(commands, child, placed, Some(entity), mass_kg, context);
     }
 
     entity

@@ -19,3 +19,13 @@ pub fn gravitational_parameter_km3_per_day2(mass_kg: f64) -> f64 {
     let si = GRAVITATIONAL_CONSTANT * mass_kg / M_PER_KM.powi(3);
     orbits::km3_per_s2_to_km3_per_day2(si)
 }
+
+/// Standard gravity, in m/s²: the "g" drive catalogues quote
+/// accelerations in.
+pub const STANDARD_GRAVITY_M_PER_S2: f64 = 9.806_65;
+
+/// An acceleration quoted in m/s² as km/day², the unit the rails work in
+/// (PLAN-20). The one place that conversion is made.
+pub fn accel_km_per_day2_from_m_per_s2(m_per_s2: f64) -> f64 {
+    m_per_s2 * orbits::SECONDS_PER_DAY * orbits::SECONDS_PER_DAY / M_PER_KM
+}

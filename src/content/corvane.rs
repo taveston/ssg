@@ -3,21 +3,52 @@
 //! the TEST IDs in `docs/spec/system-view.md`.
 //!
 //! Natural bodies, stations and the contact K-3 have orbits of their own.
-//! Halden IV offers two named orbits (SCL-07): "Low", empty, and "High",
-//! which holds every ship parked there, so the system has one shared orbit
-//! with many members (TEST-10).
+//! Every star, planet and moon gets its two bands at spawn (BAND-01,
+//! TEST-20), so Halden IV's named orbits are "Low", empty, and "High",
+//! which holds every ship parked there: one shared orbit with many members
+//! (TEST-10). Moons carry plausible masses so their bands come out.
 //!
 //! This is the seam a generator replaces (SCL-03): anything that builds a
 //! `SystemData` the same shape can stand in for `hand_made_system`.
 
 use crate::sim::body::{Affiliation, BodyClass, Knowledge};
+use crate::sim::ship::{Drive, Propulsion};
 use crate::sim::system::{
     BeltBlueprint, BodyBlueprint, GateBlueprint, NamedOrbitBlueprint, OrbitPlacement, SystemData,
 };
 use crate::sim::track::{Echelon, Formation, ShipClass, ShipRecord, Track, TroopLoad};
 use crate::sim::units::{
-    EARTH_MASS_KG, KM_PER_AU, SOLAR_MASS_KG, gravitational_parameter_km3_per_day2,
+    EARTH_MASS_KG, KM_PER_AU, M_PER_KM, SOLAR_MASS_KG, STANDARD_GRAVITY_M_PER_S2,
+    gravitational_parameter_km3_per_day2,
 };
+
+/// A rocky moon's density, for masses from radii.
+const ROCK_DENSITY_KG_PER_M3: f64 = 3_000.0;
+
+/// The mass of a rocky ball of `radius_km`, so a moon's gravity (and its
+/// bands, BAND-01) follows from its size.
+fn rocky_mass_kg(radius_km: f64) -> f64 {
+    let radius_m = radius_km * M_PER_KM;
+    ROCK_DENSITY_KG_PER_M3 * 4.0 / 3.0 * std::f64::consts::PI * radius_m.powi(3)
+}
+
+/// TEST-20: the propulsion of the ships that can be ordered to move: the
+/// warship Orison's hydrogen NTR (9.0 km/s exhaust, 0.2 g, impulsive,
+/// 9.9 km/s of delta-v) and the tanker RFA Tolland's NEP ion/Hall drive
+/// (35 km/s, 0.048 milli-g, low-thrust, 24 km/s).
+fn propulsion_for(name: &str) -> Option<Propulsion> {
+    match name {
+        "Orison" => Some(Propulsion {
+            drive: Drive::new(true, 9.0, 0.2 * STANDARD_GRAVITY_M_PER_S2),
+            delta_v_kms: 9.9,
+        }),
+        "RFA Tolland" => Some(Propulsion {
+            drive: Drive::new(false, 35.0, 0.048e-3 * STANDARD_GRAVITY_M_PER_S2),
+            delta_v_kms: 24.0,
+        }),
+        _ => None,
+    }
+}
 
 /// Halden IV's mass, which sets its satellites' periods.
 const HALDEN_IV_MASS_KG: f64 = 1.1 * EARTH_MASS_KG;
@@ -28,12 +59,10 @@ const MORROW_IX_MASS_KG: f64 = 0.02 * EARTH_MASS_KG;
 /// Where Morrow IX sits among Morrow's moons.
 const MORROW_IX: usize = 8;
 
-/// TEST-02 / TEST-10: Halden IV's orbits by period: Arden Highport's own
-/// (0.1 d), the empty "Low" band just above it, "High" (12 d, every parked
-/// ship, slow enough to be a dot at 1 d/s) and K-3's own slow orbit.
+/// TEST-02 / TEST-03: Halden IV's own-orbit satellites by period: Arden
+/// Highport (0.1 d) and K-3's slow orbit. The parked ships sit in the
+/// "High" band, whose radius BAND-01 derives.
 const HALDEN_HIGHPORT_DAYS: f64 = 0.1;
-const HALDEN_LOW_DAYS: f64 = 0.15;
-const HALDEN_HIGH_DAYS: f64 = 12.0;
 const HALDEN_K3_DAYS: f64 = 45.0;
 
 fn surveyed_today() -> Knowledge {
@@ -64,6 +93,7 @@ pub fn hand_made_system() -> SystemData {
                     class: BodyClass::SalvageSite,
                     affiliation: Affiliation::Neutral,
                     record: None,
+                    propulsion: None,
                     description: "An unsurveyed debris field scattered across the belt.",
                     key_facts: vec![("Contents", "unknown")],
                     knowledge: Knowledge::Unsurveyed,
@@ -79,6 +109,7 @@ pub fn hand_made_system() -> SystemData {
                     class: BodyClass::SalvageSite,
                     affiliation: Affiliation::Neutral,
                     record: None,
+                    propulsion: None,
                     description: "The wreck of the station Lantern, last imaged years ago.",
                     key_facts: vec![("Recoverable then", "4-6 kt"), ("Since then", "unknown")],
                     knowledge: Knowledge::Unsurveyed,
@@ -98,6 +129,7 @@ pub fn hand_made_system() -> SystemData {
                 radius_km: 5.0,
                 distance_km: 6.0 * KM_PER_AU,
                 angle_deg: 40.0,
+                entry_tolerance_kms: 0.5,
             },
             GateBlueprint {
                 name: "Gate Brenn",
@@ -105,6 +137,7 @@ pub fn hand_made_system() -> SystemData {
                 radius_km: 5.0,
                 distance_km: 6.3 * KM_PER_AU,
                 angle_deg: 190.0,
+                entry_tolerance_kms: 0.5,
             },
             GateBlueprint {
                 name: "Gate Soll",
@@ -112,6 +145,7 @@ pub fn hand_made_system() -> SystemData {
                 radius_km: 5.0,
                 distance_km: 6.1 * KM_PER_AU,
                 angle_deg: 300.0,
+                entry_tolerance_kms: 0.5,
             },
         ],
     }
@@ -124,6 +158,7 @@ fn pell() -> BodyBlueprint {
         class: BodyClass::Planet,
         affiliation: Affiliation::Own,
         record: None,
+        propulsion: None,
         description: "A scorched inner rock, too hot for anything but automated survey gear.",
         key_facts: vec![("Class", "Hot rocky planet")],
         knowledge: surveyed_today(),
@@ -143,6 +178,7 @@ fn iver() -> BodyBlueprint {
         class: BodyClass::Planet,
         affiliation: Affiliation::Own,
         record: None,
+        propulsion: None,
         description: "A tidally-locked world whose pre-collapse orbital yard has sat dormant for a generation.",
         key_facts: vec![("Class", "Rocky planet")],
         knowledge: surveyed_today(),
@@ -156,6 +192,7 @@ fn iver() -> BodyBlueprint {
             class: BodyClass::Station,
             affiliation: Affiliation::Own,
             record: Some(ShipRecord::new(ShipClass::Station, true)),
+            propulsion: None,
             description: "A dormant pre-collapse shipyard, barely maintained.",
             key_facts: vec![("Status", "Dormant"), ("Owner", "State")],
             knowledge: surveyed_today(),
@@ -170,8 +207,8 @@ fn iver() -> BodyBlueprint {
 }
 
 /// TEST-01 to TEST-04, TEST-10: Halden IV, the capital, with the
-/// satellites the motion rule and grouping are tuned against, its two named
-/// orbits, and the ships parked in "High".
+/// satellites the motion rule and grouping are tuned against, and the
+/// ships parked in its "High" band.
 fn halden_iv() -> BodyBlueprint {
     let moon =
         |name, description, orbit_radius_km, radius_km, phase0_rad, knowledge| BodyBlueprint {
@@ -179,13 +216,14 @@ fn halden_iv() -> BodyBlueprint {
             class: BodyClass::Moon,
             affiliation: Affiliation::Own,
             record: None,
+            propulsion: None,
             description,
             key_facts: vec![("Class", "Moon")],
             knowledge,
             orbit: own(orbit_radius_km),
             radius_km,
             phase0_rad,
-            mass_kg: 0.0,
+            mass_kg: rocky_mass_kg(radius_km),
             orbits: vec![],
             children: vec![],
         };
@@ -194,6 +232,7 @@ fn halden_iv() -> BodyBlueprint {
         class: BodyClass::Planet,
         affiliation: Affiliation::Own,
         record: None,
+        propulsion: None,
         description: "Cold terrestrial capital world: three settlements under a thin nitrogen sky.",
         key_facts: vec![
             ("Class", "Cold terrestrial · capital world"),
@@ -207,7 +246,7 @@ fn halden_iv() -> BodyBlueprint {
         radius_km: 6700.0,
         phase0_rad: 4.4,
         mass_kg: HALDEN_IV_MASS_KG,
-        orbits: halden_orbits(),
+        orbits: vec![],
         children: vec![
             // Moon radii are set from target periods via the inverse of
             // Kepler's third law, so the motion rule has both modes
@@ -256,6 +295,7 @@ fn halden_iv() -> BodyBlueprint {
                 class: BodyClass::Station,
                 affiliation: Affiliation::Own,
                 record: Some(ShipRecord::new(ShipClass::Station, true)),
+                propulsion: None,
                 description: "Halden IV's primary orbital station.",
                 key_facts: vec![("Status", "Active"), ("Owner", "State")],
                 knowledge: surveyed_today(),
@@ -273,18 +313,6 @@ fn halden_iv() -> BodyBlueprint {
         .chain(ships_at_halden())
         .collect(),
     }
-}
-
-/// SCL-07 / TEST-10: Halden IV's two named orbits: "Low", empty, and
-/// "High", where every parked ship sits.
-fn halden_orbits() -> Vec<NamedOrbitBlueprint> {
-    [("Low", HALDEN_LOW_DAYS), ("High", HALDEN_HIGH_DAYS)]
-        .into_iter()
-        .map(|(name, period_days)| NamedOrbitBlueprint {
-            name,
-            radius_km: halden_orbit_km(period_days),
-        })
-        .collect()
 }
 
 /// The orbit radius round Halden IV (1.1 Earth masses) for a period in
@@ -313,6 +341,7 @@ fn parked(
         class: BodyClass::Ship,
         affiliation,
         record: Some(record),
+        propulsion: propulsion_for(name),
         description,
         key_facts: vec![],
         knowledge: if own {
@@ -520,13 +549,14 @@ fn morrow() -> BodyBlueprint {
                 class: BodyClass::Moon,
                 affiliation: Affiliation::Own,
                 record: None,
+                propulsion: None,
                 description: "One of Morrow's eleven moons.",
                 key_facts: vec![("Class", "Moon")],
                 knowledge: surveyed_today(),
                 orbit: own(MOON_RADII_KM[i]),
                 radius_km: MOON_BODY_RADII_KM[i],
                 phase0_rad: i as f64 * 1.3,
-                mass_kg: 0.0,
+                mass_kg: rocky_mass_kg(MOON_BODY_RADII_KM[i]),
                 orbits: vec![],
                 children: vec![],
             }
@@ -541,6 +571,7 @@ fn morrow() -> BodyBlueprint {
         class: BodyClass::Planet,
         affiliation: Affiliation::Own,
         record: None,
+        propulsion: None,
         description: "An outer giant with a retinue of eleven moons.",
         key_facts: vec![("Class", "Gas giant"), ("Moons", "11")],
         knowledge: surveyed_today(),
@@ -553,11 +584,12 @@ fn morrow() -> BodyBlueprint {
     }
 }
 
-/// TEST-09: Morrow IX's one named orbit, "High", for the parked trader
-/// (9 d); the relay has an orbit of its own.
+/// TEST-09: Morrow IX's one named orbit of its own, "Outer", for the
+/// parked trader (9 d, dot mode at 1 d/s); its bands sit closer in. The
+/// relay has an orbit of its own.
 fn morrow_ix_orbits() -> Vec<NamedOrbitBlueprint> {
     vec![NamedOrbitBlueprint {
-        name: "High",
+        name: "Outer",
         radius_km: orbit_km_for_period(MORROW_IX_MASS_KG, 9.0),
     }]
 }
@@ -571,6 +603,7 @@ fn morrow_ix_satellites() -> Vec<BodyBlueprint> {
         class: BodyClass::Ship,
         affiliation,
         record: Some(record),
+        propulsion: None,
         description,
         key_facts: vec![],
         knowledge: Knowledge::Unsurveyed,
@@ -600,7 +633,7 @@ fn morrow_ix_satellites() -> Vec<BodyBlueprint> {
         Affiliation::Neutral,
         ShipRecord::new(ShipClass::Cargo, false),
         "A neutral trader parked round Morrow IX.",
-        OrbitPlacement::Named("High"),
+        OrbitPlacement::Named("Outer"),
         2.2,
     );
     vec![relay, trader]
@@ -624,6 +657,18 @@ const MORROW_MOON_NAMES: [&str; 11] = [
 mod tests {
     use super::*;
     use crate::sim::orbit::kepler_period_days;
+    use crate::sim::transfer::places::{BandRadii, band_radii, hill_radius_km};
+    use crate::sim::tunables::SimTunables;
+
+    /// BAND-01: the bands a planet gets at spawn, from its radius and its
+    /// Hill sphere round the star.
+    fn planet_bands(planet: &BodyBlueprint) -> BandRadii {
+        let OrbitPlacement::Own { radius_km } = planet.orbit else {
+            panic!("{} is not round the star", planet.name);
+        };
+        let hill = hill_radius_km(radius_km, planet.mass_kg, hand_made_system().star_mass_kg);
+        band_radii(planet.radius_km, hill, &SimTunables::default())
+    }
 
     fn planet(name: &str) -> BodyBlueprint {
         hand_made_system()
@@ -642,18 +687,22 @@ mod tests {
     }
 
     /// SCL-07: the radius a child's placement comes to: its own, or its
-    /// parent's named orbit's.
+    /// parent's named orbit's, which is one the parent lists or (for a
+    /// planet) one of its derived bands (BAND-01).
     fn orbit_radius_km(parent: &BodyBlueprint, child: &BodyBlueprint) -> f64 {
         match child.orbit {
             OrbitPlacement::Own { radius_km } => radius_km,
-            OrbitPlacement::Named(orbit) => {
-                parent
-                    .orbits
-                    .iter()
-                    .find(|o| o.name == orbit)
-                    .unwrap_or_else(|| panic!("{} has no orbit {orbit}", parent.name))
-                    .radius_km
-            }
+            OrbitPlacement::Named(orbit) => parent
+                .orbits
+                .iter()
+                .find(|o| o.name == orbit)
+                .map(|o| o.radius_km)
+                .or_else(|| match orbit {
+                    "Low" => Some(planet_bands(parent).low_km),
+                    "High" => planet_bands(parent).high_km,
+                    _ => None,
+                })
+                .unwrap_or_else(|| panic!("{} has no orbit {orbit}", parent.name)),
         }
     }
 
@@ -737,15 +786,16 @@ mod tests {
         }
     }
 
-    /// TEST-10: Halden IV has exactly "Low" (empty) and "High"; "High"
-    /// holds every parked ship - Orison (TEST-03), a second own commanded
-    /// warship, Ardent, and the TEST-05 ships - at distinct phases, while
-    /// Arden Highport and K-3 keep orbits of their own.
+    /// TEST-10 / TEST-20: Halden IV lists no orbits of its own, so its
+    /// named orbits are exactly its two bands, "Low" (empty) and "High";
+    /// "High" holds every parked ship - Orison (TEST-03), a second own
+    /// commanded warship, Ardent, and the TEST-05 ships - at distinct
+    /// phases, while Arden Highport and K-3 keep orbits of their own.
     #[test]
     fn halden_iv_high_orbit_holds_every_parked_ship() {
         let halden = planet("Halden IV");
-        let names: Vec<&str> = halden.orbits.iter().map(|o| o.name).collect();
-        assert_eq!(names, ["Low", "High"]);
+        assert!(halden.orbits.is_empty());
+        assert!(planet_bands(&halden).high_km.is_some());
         let (in_high, elsewhere): (Vec<&BodyBlueprint>, Vec<&BodyBlueprint>) = halden
             .children
             .iter()
@@ -772,8 +822,68 @@ mod tests {
         for pair in phases.windows(2) {
             assert!(pair[1] - pair[0] > 1e-6, "two ships share a phase");
         }
-        let period = satellite_period_days(&halden, "Ardent");
-        assert!((period - HALDEN_HIGH_DAYS).abs() < HALDEN_HIGH_DAYS * 0.02);
+        let high = planet_bands(&halden).high_km.unwrap();
+        assert_eq!(orbit_radius_km(&halden, child(&halden, "Ardent")), high);
+    }
+
+    /// TEST-20: every star, planet and moon has a Low band; each has a
+    /// High band where BAND-01 allows one, which with rocky masses is
+    /// every moon but Morrow's two innermost (whose Hill spheres are too
+    /// small at any plausible density, F-144).
+    #[test]
+    fn every_natural_body_carries_its_bands() {
+        let system = hand_made_system();
+        let tunables = SimTunables::default();
+        let star = band_radii(system.star_radius_km, None, &tunables);
+        assert!(star.high_km.is_some());
+        for planet in &system.planets {
+            let bands = planet_bands(planet);
+            assert!(bands.high_km.is_some(), "{} has no High band", planet.name);
+            let OrbitPlacement::Own { radius_km: a } = planet.orbit else {
+                unreachable!()
+            };
+            for moon in planet
+                .children
+                .iter()
+                .filter(|c| c.class == BodyClass::Moon)
+            {
+                let OrbitPlacement::Own { radius_km } = moon.orbit else {
+                    unreachable!()
+                };
+                assert!(moon.mass_kg > 0.0, "{} is massless", moon.name);
+                let hill = hill_radius_km(radius_km, moon.mass_kg, planet.mass_kg);
+                let bands = band_radii(moon.radius_km, hill, &tunables);
+                assert!(bands.low_km > moon.radius_km);
+                let expect_high = !matches!(moon.name, "Morrow I" | "Morrow II");
+                assert_eq!(
+                    bands.high_km.is_some(),
+                    expect_high,
+                    "{} at {a:.0} km: {bands:?}",
+                    moon.name
+                );
+            }
+        }
+    }
+
+    /// TEST-20: Orison holds a hydrogen NTR (9.0 km/s, 0.2 g, impulsive)
+    /// with 9.9 km/s of delta-v; RFA Tolland an NEP ion/Hall drive (35
+    /// km/s, 0.048 milli-g, low-thrust) with 24 km/s. No other ship can be
+    /// ordered to move yet.
+    #[test]
+    fn the_warship_and_the_tanker_carry_their_drives() {
+        let halden = planet("Halden IV");
+        let orison = child(&halden, "Orison").propulsion.unwrap();
+        assert!(orison.drive.impulsive);
+        assert_eq!(orison.drive.exhaust_velocity_kms, 9.0);
+        let g = crate::sim::units::accel_km_per_day2_from_m_per_s2(STANDARD_GRAVITY_M_PER_S2);
+        assert!((orison.drive.accel / g - 0.2).abs() < 1e-9);
+        assert_eq!(orison.delta_v_kms, 9.9);
+        let tolland = child(&halden, "RFA Tolland").propulsion.unwrap();
+        assert!(!tolland.drive.impulsive);
+        assert_eq!(tolland.drive.exhaust_velocity_kms, 35.0);
+        assert!((tolland.drive.accel / g - 0.048e-3).abs() < 1e-12);
+        assert_eq!(tolland.delta_v_kms, 24.0);
+        assert!(child(&halden, "Ardent").propulsion.is_none());
     }
 
     /// TEST-07, TEST-08: Morrow is Jupiter-sized and its moons keep the
@@ -873,8 +983,9 @@ mod tests {
         assert!(orison.commanded && orison.class == ShipClass::Warship);
     }
 
-    /// TEST-05: one of each kind of ship the symbols tell apart, all in
-    /// slow orbits (dots at 1 d/s, under the 8 s tail), and own stations.
+    /// TEST-05: one of each kind of ship the symbols tell apart, and own
+    /// stations. (Their orbit, Halden IV's High band, is no longer slow
+    /// at 1 d/s: F-145.)
     #[test]
     fn corvane_has_one_of_each_kind_of_ship() {
         let check = |name: &str, want: &dyn Fn(Affiliation, &ShipRecord) -> bool| {
@@ -926,19 +1037,6 @@ mod tests {
             own(a) && r.class == ShipClass::Station
         });
 
-        let halden = planet("Halden IV");
-        for ship in halden
-            .children
-            .iter()
-            .filter(|c| c.class == BodyClass::Ship)
-        {
-            let period = kepler_period_days(orbit_radius_km(&halden, ship), halden.mass_kg);
-            assert!(
-                period >= 8.0,
-                "{} is a dot at 1 d/s: {period:.1} d",
-                ship.name
-            );
-        }
         let iver = planet("Iver");
         let yard = iver.children[0].record.as_ref().unwrap();
         assert_eq!(

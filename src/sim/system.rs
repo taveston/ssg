@@ -6,6 +6,7 @@
 use bevy::prelude::*;
 
 use super::body::{Affiliation, BodyClass, Knowledge};
+use super::ship::Propulsion;
 use super::track::ShipRecord;
 
 /// SCL-07: where a record sits round what it orbits. A natural body has an
@@ -21,8 +22,9 @@ pub enum OrbitPlacement {
     Named(&'static str),
 }
 
-/// A named orbit a body offers (SCL-07): a name and a radius; its period
-/// follows from the body's mass.
+/// A named orbit a body offers (SCL-07) besides its bands, which are
+/// derived (BAND-01): a name and a radius; its period follows from the
+/// body's mass.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct NamedOrbitBlueprint {
     pub name: &'static str,
@@ -39,6 +41,9 @@ pub struct BodyBlueprint {
     /// What the state knows of a ship or station (SYM-01); `None` for
     /// natural bodies.
     pub record: Option<ShipRecord>,
+    /// A ship's drive and delta-v (PLAN-20); `None` for anything that
+    /// can't be ordered to move.
+    pub propulsion: Option<Propulsion>,
     pub description: &'static str,
     pub key_facts: Vec<(&'static str, &'static str)>,
     pub knowledge: Knowledge,
@@ -67,6 +72,9 @@ pub struct GateBlueprint {
     pub radius_km: f64,
     pub distance_km: f64,
     pub angle_deg: f64,
+    /// PLAN-30: how close to the gate's speed a ship must match to enter;
+    /// stored, not yet read by any rule.
+    pub entry_tolerance_kms: f64,
 }
 
 pub struct SystemData {
