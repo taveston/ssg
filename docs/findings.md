@@ -2,9 +2,14 @@
 
 Open observations from building and playing the prototype. Each one is waiting for a decision. Once it's settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings take the next free number from F-138.
+Format and types are in `docs/README.md`. New findings take the next free number from F-139.
 
 ---
+
+### F-138 · A close orbit ring is hidden behind its body's true-size disc
+- **Observation:** MRK-12 draws every orbit ring beneath every natural body, and the build does that: rings are world gizmos and bodies are UI nodes above them. Zoomed in until a body is a true-size disc (MRK-07), a satellite's orbit close to it sits partly behind the disc and partly in front in 3D, but the whole ring is drawn behind, so the near half vanishes. It reads as the ring passing behind the planet on both sides.
+- **Affects:** MRK-12, MRK-07 · **Type:** spec gap
+- **Disposition:** open. Options: at tilt, draw the part of a ring nearer the camera than its parent's centre above the parent's disc (the ring would need a depth-aware pass or a split into a far and a near arc), or accept it.
 
 ### F-137 · The frame body's orbit tail looks odd in play
 - **Observation:** MRK-14 draws the frame body's own orbit only as a tail `frame_orbit_arc_px` (160 px) long on screen, ending at the body. The build does that, and three things look wrong in play. (1) The tail's share of the orbit changes with zoom: zoomed in, 160 px is a sliver of the orbit; zoomed out, it is most of the ring, then all of it, still fading to nothing at one end. (2) Switching focus from a planet to one of its moons makes the planet's orbit reappear as a full ring, because the moon is now the frame body and only its own orbit is cut to a tail, even though the view hardly changes. (3) The orbit is cut even when the whole ring would fit on screen, where a tail gains nothing over the ring.
