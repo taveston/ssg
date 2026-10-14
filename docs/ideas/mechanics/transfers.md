@@ -1,10 +1,10 @@
 # Orphan Worlds: Orbital Transfers
 
-**In short:** ships fly on rails along trajectories computed once, when an order is given. The model is patched conics with the planet-centred legs collapsed to a cost and a short delay, so the only geometry is the arc round the primary. High-thrust drives get a two-burn arc (a Lambert solution); low-thrust drives get an estimated spiral. The player plans a transfer with two sliders, depart and travel time, and sees the path, the dates and the delta-v change as they move. A scheduled transfer is a visible, cancellable order on the ship. A ship in flight can be re-tasked at any moment, because the planner only ever needs where the ship is, how fast it's going and what it has left.
+**In short:** ships fly on rails along trajectories computed once, when an order is given. The model is patched conics with the planet-centred legs collapsed to a cost and a short delay, so the only geometry is the arc round the primary. High-thrust drives get a two-burn arc (a Lambert solution); low-thrust drives get an estimated spiral. The player plans a transfer with two sliders, depart and travel time, and sees the path, the dates and the delta-v change as they move. A destination is always a place (a body, station, gate, site or ship), never a bare orbit; round a body there are two bands, low and high, plus the orbits of its satellites. Ships sharing a band are one marker on the map and a list in the inset. A scheduled transfer is a visible, cancellable order on the ship. A ship in flight can be re-tasked at any moment, because the planner only ever needs where the ship is, how fast it's going and what it has left. Tactical positioning reduces to which place, which band, and whether the ship stops or passes.
 
 *Status:* draft. **Direction** unless marked otherwise. Nothing here is specced yet.
 
-*Companion documents:* *Drives & Transit* (drive performance, transit times, gate placement, entry tolerance), *Gates*, *Component Stats & Ship Assembly* (delta-v and acceleration per design), *Presentation & Visual Style* (how paths are drawn).
+*Companion documents:* *Drives & Transit* (drive performance, transit times, gate placement, entry tolerance), *Gates*, *Combat, Raiders & Diplomacy* (what tactical positioning feeds), *Component Stats & Ship Assembly* (delta-v and acceleration per design), *Presentation & Visual Style* (how paths are drawn).
 
 ---
 
@@ -93,32 +93,73 @@ The interface says Depart, Travel time, Arrive, Delta-v (with a km/s figure) and
 - Delta-v is *reserved* when scheduled and *spent* at each burn, so the inset can show "9.9 available, 7.5 reserved".
 - Alerts on departure, on arrival, and when a window the player was shown is about to close without an order. These are the auto-slowdown hooks the overview's risk register asks for.
 
-## 4. Groups and gates **(Candidate)**
+## 4. Destinations and orbits **(Direction)**
+
+### 4.1 A destination is a place, not an orbit
+
+The player never picks an orbit by its radius. They pick a thing: a body, a station, a gate, a salvage site, or another ship. The planner decides the orbit that "being at" that thing means. This keeps the target step to one click, and it means every ship's position has a name ("High orbit, Halden IV", "At Iver Yard", "At the Ostra gate") rather than a number.
+
+- **Bodies** have two bands: **Low** and **High**. Low is just above the surface or atmosphere: the place for shuttles, ground operations, blockade and bombardment. High is the standard parking orbit, cheap to leave and the default arrival. Both radii come from the body (a tunable altitude for low; a multiple of the radius, capped by the Hill sphere, for high). The departure cost in 2.1 is the cost from the band the ship is in.
+- **Satellites and stations** are places of their own at their own fixed orbits. Arriving at Arden Highport means the highport's orbit, co-moving with it.
+- **Gates** are a place at the gate's orbit, with the entry rule in section 5.
+- **Belts and sites** are points on a ring; arriving means that point's orbit.
+- **Ships** can be destinations too (section 7): the target is a trajectory rather than a body, and the planner aims at where it will be.
+- **No free solar orbits.** A ship can't be sent to "2.3 AU, 40° ahead of Halden". The one exception is **Hold**: a ship in flight can be told to stop manoeuvring and coast, which is simply its current conic with no further burns. That is enough for pickets and ambushes without an orbit editor.
+
+### 4.2 Why bands, not a free radius
+
+Three bands' worth of choice (low, high, or at a satellite) covers every strategic reason to be at a body: close enough to act on the surface, parked cheaply, or docked. A free radius adds a number the player must understand, a slider that mostly does nothing, and no decision that the bands don't already make. Moving between bands is an in-frame transfer (2.1, nested primaries): a small order with a real cost, so low orbit of a deep well is a deliberate place to be.
+
+### 4.3 Ships that share an orbit
+
+Every ship in high orbit of Halden IV is on the same ring. At true scale that was always going to be the case: at any zoom that shows more than one planet, every orbit round Halden is inside its marker, and the satellite folding rule (GRP) already collapses them into one count. So sharing an orbit is not a new problem for selection; it is the same problem with more ships in the count. The design follows from that:
+
+- **Phase along a band doesn't matter.** Ships in a band are treated as co-located for every purpose: selection, departure, combat. The simulation still gives each a phase so they draw as separate dots when unfolded, but no rule reads it. This is the single biggest simplification in the document, and it removes a whole class of "wait for the right moment to leave orbit" bookkeeping that the game doesn't want.
+- **Selection is by list, not by picking.** Clicking a folded body or a band ring selects the band; the inset lists what's there, and picks from the list. Ships that matter (selected, ordered, in a group) can be promoted to their own marker on the fold, the way the label priority order already favours the selection.
+- **Where the detail lives:** the planetary view's orbital layer, where the bands unfold into distinct rings with the ships spread along them, is the place to see and pick individual ships round one body. The system view is for the trip; the planetary view is for the parking lot.
+- **Stacking order:** when several things sit on one point (a station and the ships docked at it), the symbol rules for groups apply (SYM-09, GRP-09): one symbol with a count, and the list in the inset.
+
+## 5. Groups and gates **(Candidate)**
 
 - **Groups** plan with the group's lowest delta-v and lowest acceleration, so the whole group makes the trip. The planner says which ship limits it.
 - **Gates** are a destination like any other, with one extra readout: arrival speed relative to the gate against the gate's entry tolerance (*Drives & Transit* 6.2, *Gates* 4). A fast, cheap arrival that exceeds the tolerance is over-budget in the same way as a trip that needs too much delta-v, and the planner says which limit was hit.
 - **Belts and salvage sites** are points on a ring, so they're ordinary targets.
 
-## 5. Re-tasking in flight **(Direction)**
+## 6. Re-tasking in flight **(Direction)**
 
 A ship in flight can be given a new transfer at any time. The planner starts from the ship's state *now* (position and velocity read off its rail) and its remaining delta-v, and everything in section 3 applies unchanged: the Depart slider means "coast for N days, then burn". The new trajectory replaces the old one from the departure day. The old destination is just one of the choices.
 
 - **Why it costs nothing extra:** the two-burn planner never assumed the ship was parked; it assumed a state. A parked ship's state happens to be its body's.
 - **Aborts** are a re-task to the ship's origin, or to the nearest body it can still reach. A ship with no affordable destination is drifting, and the game should say so before it happens (the over-budget warnings in 3.1).
 
-## 6. Data shape **(Candidate)**
+## 7. Tactical manoeuvring **(Candidate)**
+
+Combat is auto-resolved on the system view with the clock slowed (*Conflict*), so there is no moment-to-moment flying. What the player positions is decided before the engagement, and it should all be expressible with the same planner and the same places:
+
+- **Where to be.** A band at a body (low orbit to blockade or bombard, high orbit to defend the yard), at a station, or at a gate. Picket duty is a transfer with a *Hold* at the end.
+- **Stop or pass.** An arrival has two modes. **Stop** captures into the destination's orbit and pays the capture burn. **Pass** skips it: the ship flies through at speed, saving delta-v and time, and keeps going on its conic. Pass is how a raid, a reconnaissance sweep, a fast gate run (*Drives & Transit* 6.2) or a hit on a convoy works; it also means a fast arrival that can't afford to stop is a legal order, not an error. The planner shows arrival speed for both, and the mode is a toggle next to the sliders.
+- **Intercept.** A ship or group as the destination. The target's rail gives its position at any arrival day, so the two-slider planner works unchanged; the preview arc ends where the two paths meet, and a *Pass* intercept is a closing engagement at that speed while *Stop* is a rendezvous (matching course, for escort, boarding or capture). Against a contact with a weak track (SYM-01), the intercept carries the track's uncertainty and may miss.
+- **Engagement speed matters, position in orbit doesn't.** Relative speed at the meeting point is the tactical number this model produces for free, and *Conflict* notes engagements happen at extreme velocity and range. Phase round a band (4.3) is deliberately not a factor: two fleets in the same band are engaged, full stop.
+- **Retreat** is a re-task (6). A fleet that has spent its budget can't retreat, which the delta-v bar shows before the fight.
+- **Out of scope:** formations, ranges within an engagement, evasive burns. These belong to the auto-resolver, if anywhere.
+
+
+## 8. Data shape **(Candidate)**
 
 - `Trajectory { segments: Vec<Segment> }`, each `Segment { start_day, end_day, kind }` with `kind` one of `Parked { body }`, `Conic { primary, elements }`, `Spiral { primary, r0, r1, θ0, θ1 }`. Position and velocity in km and km/day, `f64`, relative to the segment's primary (SCL-01, SCL-06).
-- `TransferOrder { ship, destination, depart_day, travel_days, trajectory, status }` with `status` one of Scheduled, InFlight, Done, Failed. Orders are the save-game truth; trajectories can be recomputed from them.
-- Per body: `departure_cost_kms` and `approach_days` (or the parking-orbit radius they derive from). Per gate: `entry_tolerance_kms` (*Drives & Transit* 8).
+- `TransferOrder { ship, destination, arrival: Stop | Pass, depart_day, travel_days, trajectory, status }` with `status` one of Scheduled, InFlight, Done, Failed. `destination` is a place: `Body { body, band: Low | High }`, `Satellite { body }` (stations, moons), `Gate { gate }`, `Site { site }`, `Ship { ship }` or `Hold`. Orders are the save-game truth; trajectories can be recomputed from them.
+- Per body: the low and high band radii (or the altitude and multiple they derive from), and from them the departure cost and approach days per band. Per gate: `entry_tolerance_kms` (*Drives & Transit* 8).
 - Per drive: `impulsive: bool`, `exhaust_velocity`, `acceleration` (loaded). Per ship: `delta_v_kms`, with reserved and spent.
 - A `transfer_solver` module in the simulation layer, pure functions from states and budgets to trajectories, so the planner and the tests share it. The view only draws segments and moves sliders.
 
-## 7. Open questions
+## 9. Open questions
 
 - **The planet legs.** Is "departure cost plus a few days" enough, or should a transfer from a deep well visibly stage through a highport (two orders, not one)? The economic reason for highports exists either way.
 - **Impulsive versus low-thrust boundary.** Where does pulsed fusion sit? A month-long burn on a two-month trip is neither.
 - **Groups:** split a group when the slow ship holds it up, or always move together?
+- **Band count.** Are low and high enough, or does a third band (a staging orbit near the Hill sphere, for fleets that must leave fast) earn its place?
+- **Pass and ground targets.** Can a passing ship bombard, drop troops or scan, or does anything that acts on a body need Stop in the right band?
+- **Intercepting weak tracks.** How far should a miss send the interceptor, and does it get a free re-task when the track firms up?
 - **How many windows ahead** should the Depart slider reach? One synodic period covers every option once; further ahead is just waiting.
 - **Delta-v wording.** Keep "delta-v" with a first-use explanation, or call it something softer ("burn", "range")?
 - **Gate arrival on the far side:** does arrival speed carry through, and does the planner on the far side start from it?
