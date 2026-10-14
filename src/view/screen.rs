@@ -1,12 +1,20 @@
-//! Where every body lands on screen this frame (MRK-03). Projected once, in
-//! `Stage::Screen`, and shared by every overlay that sits on a body's
-//! position: markers, pills and gate edge arrows.
+//! Where every body lands on screen this frame (MRK-03), and the map area
+//! they land in. Projected once, in `Stage::Screen`, and shared by every
+//! overlay that sits on a body's position: markers, pills and gate edge
+//! arrows.
+//!
+//! The **viewport** is the part of the window the camera draws in: the
+//! window less the sidebar (INS-07). Screen positions, the map area and
+//! the fits are all measured in it, so the view narrows with the sidebar.
 
 use std::collections::HashMap;
 
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
+use super::sidebar::SidebarState;
 use super::topbar::TOP_BAR_HEIGHT_PX;
+use super::tunables::Tunables;
 use super::world::ViewNow;
 use crate::Stage;
 
@@ -60,6 +68,48 @@ impl MapArea {
     }
 }
 
+/// INS-07: the camera's viewport: the window less the sidebar's width at
+/// its right edge, never narrower than a pixel.
+pub fn camera_viewport(window: Vec2, sidebar_px: f32) -> Vec2 {
+    Vec2::new((window.x - sidebar_px).max(1.0), window.y)
+}
+
+/// The window and the camera's viewport in it this frame (INS-07).
+#[derive(SystemParam)]
+pub struct MapView<'w, 's> {
+    windows: Query<'w, 's, &'static Window>,
+    sidebar: Res<'w, SidebarState>,
+    tunables: Res<'w, Tunables>,
+}
+
+impl MapView<'_, '_> {
+    /// The window's logical size, if there is one.
+    pub fn window(&self) -> Option<Vec2> {
+        let window = self.windows.single().ok()?;
+        Some(Vec2::new(window.width(), window.height()))
+    }
+
+    /// Physical pixels per logical pixel.
+    pub fn scale_factor(&self) -> f32 {
+        self.windows.single().map_or(1.0, Window::scale_factor)
+    }
+
+    /// INS-07: the width the sidebar takes this frame.
+    pub fn sidebar_px(&self) -> f32 {
+        self.sidebar.width_px(&self.tunables)
+    }
+
+    /// INS-07: the camera's viewport: the window less the sidebar.
+    pub fn viewport(&self) -> Option<Vec2> {
+        Some(camera_viewport(self.window()?, self.sidebar_px()))
+    }
+
+    /// The map area this frame.
+    pub fn area(&self) -> Option<MapArea> {
+        Some(MapArea::of(self.viewport()?))
+    }
+}
+
 pub struct ScreenPlugin;
 
 impl Plugin for ScreenPlugin {
@@ -71,13 +121,13 @@ impl Plugin for ScreenPlugin {
 
 /// MRK-03 / CAM-05: project every body with this frame's camera and
 /// positions, so markers and the camera never disagree by a frame.
-fn project_bodies(view: ViewNow, windows: Query<&Window>, mut screen: ResMut<ScreenPositions>) {
-    let Ok(window) = windows.single() else {
+fn project_bodies(view: ViewNow, map: MapView, mut screen: ResMut<ScreenPositions>) {
+    let Some(viewport) = map.viewport() else {
         return;
     };
-    screen.viewport = Vec2::new(window.width(), window.height());
+    screen.viewport = viewport;
     screen.bodies.clear();
-    let scale = window.scale_factor();
+    let scale = map.scale_factor();
     for (&body, &world) in view.positions() {
         if let Some(pos) = view.project(world) {
             screen.bodies.insert(body, snap_to_pixel(pos, scale));
@@ -98,6 +148,15 @@ mod tests {
         assert!(in_viewport(Vec2::new(400.0, 300.0), viewport));
         assert!(!in_viewport(Vec2::new(-0.1, 300.0), viewport));
         assert!(!in_viewport(Vec2::new(400.0, 600.1), viewport));
+    }
+
+    /// INS-07: the viewport is the window less the sidebar, never empty.
+    #[test]
+    fn the_viewport_loses_the_sidebar() {
+        let window = Vec2::new(1600.0, 900.0);
+        assert_eq!(camera_viewport(window, 0.0), window);
+        assert_eq!(camera_viewport(window, 320.0), Vec2::new(1280.0, 900.0));
+        assert_eq!(camera_viewport(window, 5000.0).x, 1.0);
     }
 
     /// SYM-16: positions land on whole physical pixels, at any UI scale.

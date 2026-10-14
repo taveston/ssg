@@ -14,7 +14,7 @@ use super::fonts::Fonts;
 use super::layers;
 use super::readout::format_distance;
 use super::scale::{km_to_render, render_to_km};
-use super::screen::MapArea;
+use super::screen::{MapArea, MapView};
 use super::symbol_shape::{SymbolMask, SymbolPart};
 use super::targets::MapInputBlocker;
 use super::tunables::Tunables;
@@ -98,11 +98,9 @@ impl Plugin for PlotMarksPlugin {
     }
 }
 
-/// The map area this frame, from the primary window.
-fn map_area(windows: &Query<&Window>) -> Option<(Vec2, MapArea)> {
-    let window = windows.single().ok()?;
-    let viewport = Vec2::new(window.width(), window.height());
-    Some((viewport, MapArea::of(viewport)))
+/// The window and the map area in it this frame (INS-07).
+fn map_area(map: &MapView) -> Option<(Vec2, MapArea)> {
+    Some((map.window()?, map.area()?))
 }
 
 fn tick(left: Val) -> impl Bundle {
@@ -186,12 +184,12 @@ fn update_scale_bar(
     view: ViewNow,
     rig: Res<CameraRig>,
     tunables: Res<Tunables>,
-    windows: Query<&Window>,
+    map_view: MapView,
     mut bars: Query<&mut Node, (With<ScaleBar>, Without<ScaleBarLine>)>,
     mut lines: Query<&mut Node, (With<ScaleBarLine>, Without<ScaleBar>)>,
     mut lengths: Query<&mut Text, With<ScaleBarLength>>,
 ) {
-    let (Some((viewport, map)), Some((_, camera))) = (map_area(&windows), view.camera()) else {
+    let (Some((viewport, map)), Some((_, camera))) = (map_area(&map_view), view.camera()) else {
         return;
     };
     // A short step along the camera's right, which lies in the plane.
@@ -329,12 +327,12 @@ fn update_north_dial(
     view: ViewNow,
     rig: Res<CameraRig>,
     tunables: Res<Tunables>,
-    windows: Query<&Window>,
+    map_view: MapView,
     mut dials: Query<&mut Node, (With<NorthDial>, Without<NorthLabel>)>,
     mut arrows: Query<&mut UiTransform, With<NorthArrow>>,
     mut labels: Query<&mut Node, (With<NorthLabel>, Without<NorthDial>)>,
 ) {
-    let Some((viewport, map)) = map_area(&windows) else {
+    let Some((viewport, map)) = map_area(&map_view) else {
         return;
     };
     for mut node in &mut dials {

@@ -312,7 +312,7 @@ pub fn draw_orbit_rings(
     selection: Res<Selection>,
     hovered: Res<HoveredBodies>,
     tunables: Res<Tunables>,
-    camera_q: Query<(&Camera, &Transform, &Projection)>,
+    camera_q: Query<(&Camera, &Transform, &Projection), With<Camera3d>>,
     rings: OrbitRings,
     positions: Res<WorldPositions>,
     origin: Res<RenderOrigin>,

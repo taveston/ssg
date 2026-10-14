@@ -2,8 +2,11 @@
 //! (CAM-02), runs the animated move (ZOOM-01), keeps the pivot on the frame
 //! body (CAM-05) and places the camera from the rig each frame.
 
+use bevy::camera::Viewport;
+use bevy::camera::visibility::RenderLayers;
 use bevy::prelude::*;
 
+use super::fits::FALLBACK_VIEWPORT;
 use super::rules::camera_transform;
 use super::state::{
     ActiveMove, CameraMove, CameraRig, MAX_DISTANCE, MIN_DISTANCE, MoveTarget, OrbitCamera,
@@ -12,6 +15,7 @@ use super::state::{
 use super::stops::{ZoomStops, distance_for_radius};
 use crate::view::anim::ease_out_cubic;
 use crate::view::frame::{Frame, body_position, frame_pivot};
+use crate::view::screen::MapView;
 use crate::view::tunables::Tunables;
 use crate::view::world::{RenderOrigin, WorldPositions};
 
@@ -22,7 +26,23 @@ const FAR_CLIP: f32 = 20_000.0;
 /// Where the camera is spawned, in render units, before its first update.
 const SPAWN_POSITION: Vec3 = Vec3::new(0.0, 40.0, 70.0);
 
+/// The map camera, and a second camera for the overlay: the map camera
+/// draws in the window less the sidebar (INS-07), while the overlay (top
+/// bar, markers, sidebar) is laid out over the whole window, so it is
+/// drawn by a camera of its own that clears nothing and draws after.
 pub fn spawn_camera(mut commands: Commands) {
+    commands.spawn((
+        Camera2d,
+        Camera {
+            order: 1,
+            clear_color: ClearColorConfig::None,
+            ..default()
+        },
+        IsDefaultUiCamera,
+        // Nothing of the map (rings are gizmos) is drawn twice: this
+        // camera renders the overlay only.
+        RenderLayers::none(),
+    ));
     commands.spawn((
         OrbitCamera,
         Camera3d::default(),
@@ -47,14 +67,12 @@ pub fn start_at_system_fit(
     tunables: Res<Tunables>,
     mut rig: ResMut<CameraRig>,
     camera: Query<&Projection, With<OrbitCamera>>,
-    windows: Query<&Window>,
+    map: MapView,
 ) {
     let Ok(projection) = camera.single() else {
         return;
     };
-    let viewport = windows.single().map_or(Vec2::new(1600.0, 900.0), |window| {
-        Vec2::new(window.width(), window.height())
-    });
+    let viewport = map.viewport().unwrap_or(FALLBACK_VIEWPORT);
     rig.tilt = tunables.standard_tilt_deg.to_radians();
     rig.distance = distance_for_radius(
         stops.system_radius,
@@ -151,6 +169,42 @@ pub fn follow_frame(
         return;
     }
     rig.pivot = frame_pivot(body_position(frame.body, &positions), frame.offset);
+}
+
+/// INS-07: the camera draws in the window less the sidebar, so the pivot
+/// (the frame body, CAM-05) sits at the centre of the visible map and the
+/// scale, set by the height, is unchanged. The viewport follows the slide
+/// frame by frame.
+pub fn fit_camera_to_map(map: MapView, mut cameras: Query<&mut Camera, With<OrbitCamera>>) {
+    let (Some(window), Some(viewport)) = (map.window(), map.viewport()) else {
+        return;
+    };
+    let wanted = sidebar_viewport(window, viewport, map.scale_factor());
+    let same = |a: &Option<Viewport>, b: &Option<Viewport>| match (a, b) {
+        (None, None) => true,
+        (Some(a), Some(b)) => {
+            a.physical_position == b.physical_position && a.physical_size == b.physical_size
+        }
+        _ => false,
+    };
+    for mut camera in &mut cameras {
+        if !same(&camera.viewport, &wanted) {
+            camera.viewport = wanted.clone();
+        }
+    }
+}
+
+/// INS-07: the camera's viewport rectangle in physical pixels: the whole
+/// window (`None`) when no sidebar shows, else the part left of it.
+pub fn sidebar_viewport(window: Vec2, viewport: Vec2, scale: f32) -> Option<Viewport> {
+    if viewport.x >= window.x {
+        return None;
+    }
+    Some(Viewport {
+        physical_position: UVec2::ZERO,
+        physical_size: (viewport * scale).round().as_uvec2().max(UVec2::ONE),
+        ..default()
+    })
 }
 
 /// Place the camera from the rig.

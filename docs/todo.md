@@ -12,9 +12,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **Inset as a sidebar; "In orbit" outline** · INS-05, INS-07
-  - `inset_dock_margin_px` is withdrawn; `sidebar_slide_ms` is new.
-  - The shared-orbit row ("Halden IV · High", expand and collapse, revealed by a ring click) is already in the flat list (`view/in_orbit.rs`, `ExpandedOrbits`); carry it into the outline.
 - [ ] **Inset panel anatomy** · INS-09
   - Was F-120. Build after the sidebar.
 - [ ] **Label placement** · LBL-01 to LBL-04

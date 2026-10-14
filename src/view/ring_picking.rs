@@ -173,7 +173,7 @@ fn trace_rings(
     rings: OrbitRings,
     (frame, selection, hovered): (Res<Frame>, Res<Selection>, Res<HoveredBodies>),
     (screen, tunables): (Res<ScreenPositions>, Res<Tunables>),
-    camera_q: Query<(&Camera, &Transform, &Projection)>,
+    camera_q: Query<(&Camera, &Transform, &Projection), With<Camera3d>>,
     (targets, tail_targets): (RingTargets, TailTargets),
     mut paths: ResMut<RingPaths>,
 ) {
@@ -264,10 +264,12 @@ fn trace_arcs(ring: &Ring, arcs: &[(f32, f32)], view: &ViewNow) -> Vec<(Vec2, Ve
 fn pick_rings(
     tunables: Res<Tunables>,
     pointers: Query<(&PointerId, &PointerLocation)>,
-    camera_q: Query<(Entity, &Camera)>,
+    camera_q: Query<(Entity, &Camera), With<IsDefaultUiCamera>>,
     paths: Res<RingPaths>,
     mut output: MessageWriter<PointerHits>,
 ) {
+    // Hits are reported against the overlay's camera, as the markers'
+    // are, so the two orderings compare.
     let Ok((camera_entity, camera)) = camera_q.single() else {
         return;
     };

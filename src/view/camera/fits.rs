@@ -10,19 +10,19 @@ use super::state::{MAX_DISTANCE, MIN_DISTANCE, OrbitCamera, camera_fov};
 use super::stops::{ZoomStops, distance_for_radius};
 use crate::sim::body::PhysicalRadius;
 use crate::view::scale::km_to_render;
-use crate::view::screen::MapArea;
+use crate::view::screen::{MapArea, MapView};
 use crate::view::true_size::distance_for_screen_fraction;
 use crate::view::tunables::Tunables;
 
 /// Used when no window exists yet (a headless start-up frame).
-const FALLBACK_VIEWPORT: Vec2 = Vec2::new(1600.0, 900.0);
+pub const FALLBACK_VIEWPORT: Vec2 = Vec2::new(1600.0, 900.0);
 
 #[derive(SystemParam)]
 pub struct Fits<'w, 's> {
     tunables: Res<'w, Tunables>,
     stops: Res<'w, ZoomStops>,
     projections: Query<'w, 's, &'static Projection, With<OrbitCamera>>,
-    windows: Query<'w, 's, &'static Window>,
+    map: MapView<'w, 's>,
     radii: Query<'w, 's, &'static PhysicalRadius>,
     parents: Query<'w, 's, &'static ChildOf>,
 }
@@ -34,10 +34,9 @@ impl Fits<'_, '_> {
             .map_or(std::f32::consts::FRAC_PI_4, camera_fov)
     }
 
+    /// INS-07: the camera's viewport, the window less the sidebar.
     pub fn viewport(&self) -> Vec2 {
-        self.windows.single().map_or(FALLBACK_VIEWPORT, |window| {
-            Vec2::new(window.width(), window.height())
-        })
+        self.map.viewport().unwrap_or(FALLBACK_VIEWPORT)
     }
 
     /// The camera distance at which a circle of `radius` round the pivot

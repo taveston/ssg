@@ -75,6 +75,7 @@ impl Plugin for CameraPlugin {
                     release::release_ring_mode_frame,
                     rig::advance_move,
                     rig::follow_frame,
+                    rig::fit_camera_to_map,
                     rig::place_camera,
                     requests::context_menu_hook,
                     requests::planetary_view_hook,

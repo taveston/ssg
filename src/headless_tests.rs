@@ -416,6 +416,8 @@ fn every_gate_has_an_arrow_when_zoomed_in() {
     app.add_plugins((ContentPlugin, SimPlugin))
         .add_plugins((TunablesPlugin, ProjectionPlugin, StopsPlugin))
         .add_plugins((ScreenPlugin, EdgePlugin))
+        .init_resource::<Selection>()
+        .add_plugins(crate::view::sidebar::SidebarPlugin)
         .insert_resource(placeholder_fonts());
     app.world_mut().spawn(Window {
         resolution: WindowResolution::new(VIEWPORT.x, VIEWPORT.y),
@@ -493,7 +495,13 @@ fn compute_camera_headless(app: &mut App) {
         .world_mut()
         .query_filtered::<(&mut Camera, &mut Projection), With<OrbitCamera>>();
     for (mut camera, mut projection) in cameras.iter_mut(app.world_mut()) {
-        projection.update(VIEWPORT.x as f32, VIEWPORT.y as f32);
+        // INS-07: the camera draws in its viewport, the window less the
+        // sidebar, when it has one.
+        let size = camera
+            .viewport
+            .as_ref()
+            .map_or(VIEWPORT, |viewport| viewport.physical_size);
+        projection.update(size.x as f32, size.y as f32);
         camera.computed.target_info = Some(RenderTargetInfo {
             physical_size: VIEWPORT,
             scale_factor: 1.0,
@@ -539,7 +547,7 @@ fn the_frame_body_keeps_its_place_on_screen() {
         ))
         .add_plugins(ScreenPlugin)
         .init_resource::<Selection>()
-        .add_plugins(FramePlugin)
+        .add_plugins((FramePlugin, crate::view::sidebar::SidebarPlugin))
         .init_resource::<PressStart>();
     app.world_mut().spawn(Window {
         resolution: WindowResolution::new(VIEWPORT.x, VIEWPORT.y),
@@ -649,7 +657,7 @@ fn camera_app_with(extra: impl FnOnce(&mut App)) -> App {
         ))
         .add_plugins(ScreenPlugin)
         .init_resource::<Selection>()
-        .add_plugins(FramePlugin)
+        .add_plugins((FramePlugin, crate::view::sidebar::SidebarPlugin))
         .init_resource::<PressStart>();
     app.world_mut().spawn(Window {
         resolution: WindowResolution::new(VIEWPORT.x, VIEWPORT.y),
@@ -2391,66 +2399,154 @@ fn an_exposure_ring_carries_an_identity_mark() {
     assert_eq!(centre, centre.round(), "centred on a whole pixel");
 }
 
-/// HOV-05 / INS-05: a selection made through a shared orbit opens the
-/// inset's "In orbit" list with that orbit's row expanded, its members
-/// listed under "Halden IV · High"; the row collapses on a toggle and
-/// stays as left.
+/// The outline's rows, as the body or orbit each stands for, in order.
+fn outline_rows(app: &mut App) -> Vec<Entity> {
+    use crate::view::outline::OutlineRow;
+    let mut rows = app.world_mut().query::<(Entity, &OutlineRow)>();
+    let mut listed: Vec<(Entity, Entity)> = rows.iter(app.world()).map(|(e, r)| (e, r.0)).collect();
+    listed.sort_by_key(|(e, _)| e.index_u32());
+    listed.into_iter().map(|(_, body)| body).collect()
+}
+
+/// A primary click with `count` presses on a UI node.
+fn click_node(app: &mut App, node: Entity, count: u8) {
+    let camera = app.world_mut().spawn_empty().id();
+    app.world_mut().trigger(PointerClick {
+        entity: node,
+        pointer: bevy::picking::events::Pointer::new(
+            bevy::picking::pointer::PointerId::Mouse,
+            bevy::picking::pointer::Location {
+                target: bevy::camera::NormalizedRenderTarget::None {
+                    width: VIEWPORT.x,
+                    height: VIEWPORT.y,
+                },
+                position: Vec2::ZERO,
+            },
+        ),
+        button: PointerButton::Primary,
+        hit: bevy::picking::backend::HitData::new(camera, 0.0, None, None),
+        duration: Duration::from_millis(80),
+        count,
+    });
+}
+
+/// INS-05 / HOV-05 / ZOOM-16: the outline is the system from the star
+/// down. Selecting Halden IV opens the path to it and its satellites,
+/// inside out, with the parked ships under one "Halden IV · High · N" row
+/// that a ring click opens; the selected row is highlighted. A click on an
+/// entry selects it at once, a double-click asks for a frame jump, and
+/// the toggle folds an entry's satellites away while the rest stays.
 #[test]
-fn a_shared_orbit_click_reveals_its_row_in_the_list() {
-    use crate::view::in_orbit::{ExpandedOrbits, InOrbitList, InOrbitPlugin, toggle};
+fn the_outline_shows_the_system_tree_and_opens_the_selections_path() {
+    use crate::view::camera::requests::PlanetaryViewRequest;
+    use crate::view::outline::{Expanded, OutlinePlugin, OutlineRoot, OutlineRow};
 
     let mut app = headless_app(FRAME);
-    app.add_plugins((ContentPlugin, SimPlugin, TunablesPlugin, InOrbitPlugin))
+    app.add_plugins((ContentPlugin, SimPlugin, TunablesPlugin, OutlinePlugin))
         .init_resource::<Selection>()
         .init_resource::<Frame>()
+        .init_resource::<FrameRequest>()
+        .init_resource::<PlanetaryViewRequest>()
         .insert_resource(placeholder_fonts());
     run(&mut app, 1);
+    let star = body(&mut app, "Corvane");
     let halden = body(&mut app, "Halden IV");
+    let iver = body(&mut app, "Iver");
+    let morrow = body(&mut app, "Morrow");
+    let iva = body(&mut app, "Halden IVa");
+    let ivd = body(&mut app, "Halden IVd");
+    let highport = body(&mut app, "Arden Highport");
     let orison = body(&mut app, "Orison");
+    let morrow_ix = body(&mut app, "Morrow IX");
     let high = app.world().get::<InNamedOrbit>(orison).unwrap().0;
-    let list = app.world_mut().spawn(InOrbitList(halden)).id();
-
-    let texts = |app: &mut App| -> Vec<String> {
-        descendants(app, list)
-            .into_iter()
-            .filter_map(|e| app.world().get::<Text>(e).map(|t| t.0.clone()))
-            .collect()
-    };
+    app.world_mut().spawn((OutlineRoot, Node::default()));
 
     run(&mut app, 2);
-    let listed = texts(&mut app);
-    assert!(listed.contains(&"Halden IV · High".to_string()));
+    assert_eq!(outline_rows(&mut app), [star], "collapsed to the star");
+
+    app.world_mut().resource_mut::<Selection>().select(halden);
+    run(&mut app, 2);
+    let rows = outline_rows(&mut app);
+    assert_eq!(rows[0], star);
+    let at = |rows: &[Entity], e: Entity| rows.iter().position(|&r| r == e);
     assert!(
-        !listed.contains(&"Orison".to_string()),
-        "collapsed to start"
+        at(&rows, iver) < at(&rows, halden) && at(&rows, halden) < at(&rows, morrow),
+        "inside out"
     );
-    assert!(listed.contains(&"Halden IVa".to_string()));
+    assert!(
+        at(&rows, highport) < at(&rows, iva),
+        "the highport is the innermost"
+    );
+    assert!(
+        at(&rows, iva) < at(&rows, high),
+        "IVa orbits inside the High band"
+    );
+    assert!(at(&rows, high) < at(&rows, ivd));
+    assert!(!rows.contains(&orison), "the shared orbit is collapsed");
+    assert!(!rows.contains(&morrow_ix), "Morrow is not on the path");
+    let row_of = |app: &mut App, body: Entity| {
+        let mut rows = app.world_mut().query::<(Entity, &OutlineRow)>();
+        rows.iter(app.world())
+            .find(|(_, r)| r.0 == body)
+            .map(|(e, _)| e)
+            .unwrap()
+    };
+    let halden_row = row_of(&mut app, halden);
+    assert_ne!(
+        app.world().get::<BackgroundColor>(halden_row).unwrap().0,
+        Color::NONE
+    );
+    let iver_row = row_of(&mut app, iver);
+    assert_eq!(
+        app.world().get::<BackgroundColor>(iver_row).unwrap().0,
+        Color::NONE
+    );
+    let high_row = row_of(&mut app, high);
+    let title = descendants(&mut app, high_row)
+        .into_iter()
+        .filter_map(|e| app.world().get::<Text>(e).map(|t| t.0.clone()))
+        .find(|t| t.starts_with("Halden IV"))
+        .unwrap();
+    assert!(title.starts_with("Halden IV · High · 1"), "{title}");
 
     app.world_mut()
         .resource_mut::<Selection>()
         .select_through_orbit(halden, high);
     run(&mut app, 2);
-    let listed = texts(&mut app);
-    assert!(listed.contains(&"Orison".to_string()));
-    assert!(listed.contains(&"Ardent".to_string()));
+    assert!(outline_rows(&mut app).contains(&orison));
 
-    toggle(
-        &mut app.world_mut().resource_mut::<ExpandedOrbits>().0,
-        high,
-    );
+    // A single click on IVa's label selects it at once.
+    let iva_row = row_of(&mut app, iva);
+    let label = app.world().get::<Children>(iva_row).unwrap()[1];
+    click_node(&mut app, label, 1);
+    run(&mut app, 1);
+    assert_eq!(app.world().resource::<Selection>().selected, Some(iva));
+    assert!(app.world().resource::<FrameRequest>().0.is_none());
+    let iva_row = row_of(&mut app, iva);
+    let label = app.world().get::<Children>(iva_row).unwrap()[1];
+    click_node(&mut app, label, 2);
+    run(&mut app, 1);
+    assert_eq!(app.world().resource::<FrameRequest>().0, Some(iva));
+
+    // Halden IV's toggle folds its satellites away; the star stays open.
+    let halden_row = row_of(&mut app, halden);
+    let toggle = app.world().get::<Children>(halden_row).unwrap()[0];
+    click_node(&mut app, toggle, 1);
     run(&mut app, 2);
-    assert!(!texts(&mut app).contains(&"Orison".to_string()));
+    assert!(!app.world().resource::<Expanded>().entries.contains(&halden));
+    let rows = outline_rows(&mut app);
+    assert!(rows.contains(&halden) && !rows.contains(&iva));
 }
 
-/// HOV-05 / INS-05: a click on a shared orbit's ring changes the selection
-/// and reveals the orbit in one frame. The inset is rebuilt for the new
-/// selection and its fresh "In orbit" list filled with the row open, with
-/// no command left aimed at the list the rebuild threw away.
+/// INS-05 / INS-07: the sidebar keeps its outline across selections -
+/// only the details are rebuilt - and a ring click on a shared orbit
+/// opens its row in that same outline.
 #[test]
-fn a_ring_click_refills_the_rebuilt_inset_with_the_orbit_open() {
+fn the_sidebar_keeps_its_outline_across_selections() {
     use crate::view::fidelity::FidelityImages;
-    use crate::view::in_orbit::{InOrbitList, InOrbitPlugin};
-    use crate::view::inspect::InspectPlugin;
+    use crate::view::inspect::{InsetPanel, InspectPlugin};
+    use crate::view::outline::{OutlinePlugin, OutlineRoot};
+    use crate::view::sidebar::SidebarPlugin;
 
     let mut app = headless_app(FRAME);
     app.add_plugins((
@@ -2458,12 +2554,14 @@ fn a_ring_click_refills_the_rebuilt_inset_with_the_orbit_open() {
         SimPlugin,
         TunablesPlugin,
         BindingsPlugin,
-        InOrbitPlugin,
+        SidebarPlugin,
+        OutlinePlugin,
         InspectPlugin,
     ))
     .init_resource::<Selection>()
     .init_resource::<Frame>()
     .init_resource::<FrameRequest>()
+    .init_resource::<crate::view::camera::requests::PlanetaryViewRequest>()
     .init_resource::<ButtonInput<KeyCode>>()
     .init_resource::<bevy::input::mouse::AccumulatedMouseScroll>()
     .insert_resource(FidelityImages {
@@ -2473,35 +2571,136 @@ fn a_ring_click_refills_the_rebuilt_inset_with_the_orbit_open() {
     .insert_resource(placeholder_fonts());
     run(&mut app, 1);
     let halden = body(&mut app, "Halden IV");
+    let iver = body(&mut app, "Iver");
     let orison = body(&mut app, "Orison");
     let high = app.world().get::<InNamedOrbit>(orison).unwrap().0;
-
-    let list_texts = |app: &mut App| -> Vec<String> {
-        let lists: Vec<Entity> = app
+    let root = {
+        let mut roots = app
             .world_mut()
-            .query_filtered::<Entity, With<InOrbitList>>()
-            .iter(app.world())
-            .collect();
-        assert_eq!(lists.len(), 1, "one list in the inset");
-        descendants(app, lists[0])
-            .into_iter()
-            .filter_map(|e| app.world().get::<Text>(e).map(|t| t.0.clone()))
-            .collect()
+            .query_filtered::<Entity, With<OutlineRoot>>();
+        roots.single(app.world()).unwrap()
     };
+    let panel = {
+        let mut panels = app.world_mut().query_filtered::<Entity, With<InsetPanel>>();
+        panels.single(app.world()).unwrap()
+    };
+    assert!(
+        descendants(&mut app, panel).contains(&root),
+        "the outline is in the sidebar"
+    );
 
-    // Halden IV is inspected, its list filled and "High" collapsed.
     app.world_mut().resource_mut::<Selection>().select(halden);
     run(&mut app, 3);
-    let listed = list_texts(&mut app);
-    assert!(listed.contains(&"Halden IV · High".to_string()));
-    assert!(!listed.contains(&"Orison".to_string()));
+    assert!(outline_rows(&mut app).contains(&halden));
+    assert!(!outline_rows(&mut app).contains(&orison));
+    let halden_texts: Vec<String> = descendants(&mut app, panel)
+        .into_iter()
+        .filter_map(|e| app.world().get::<Text>(e).map(|t| t.0.clone()))
+        .collect();
+    assert!(halden_texts.contains(&"Halden IV".to_string()));
 
-    // The ring click: the same selection again, through the orbit.
+    app.world_mut().resource_mut::<Selection>().select(iver);
+    run(&mut app, 3);
+    let mut roots = app
+        .world_mut()
+        .query_filtered::<Entity, With<OutlineRoot>>();
+    assert_eq!(roots.single(app.world()).unwrap(), root, "the same outline");
+    assert!(
+        outline_rows(&mut app).contains(&halden),
+        "Halden IV stays open as left"
+    );
+
     app.world_mut()
         .resource_mut::<Selection>()
         .select_through_orbit(halden, high);
     run(&mut app, 3);
-    assert!(list_texts(&mut app).contains(&"Orison".to_string()));
+    assert!(outline_rows(&mut app).contains(&orison));
+}
+
+/// INS-07 / CAM-05 / ZOOM-15: opening the sidebar narrows the camera's
+/// viewport, the map area and the fits to the window less its width, and
+/// the frame body stays centred in the visible map at the same scale
+/// throughout the slide; closing it gives the whole window back.
+#[test]
+fn the_sidebar_narrows_the_map_and_keeps_the_frame_body_centred() {
+    use crate::view::camera::fits::Fits;
+    use crate::view::sidebar::SidebarState;
+    use bevy::ecs::system::RunSystemOnce;
+
+    let mut app = camera_app();
+    let halden = body(&mut app, "Halden IV");
+    set_frame(&mut app, halden, Vec3::ZERO);
+    run(&mut app, 2);
+    let distance = app.world().resource::<CameraRig>().distance;
+    fn screen(app: &App) -> &ScreenPositions {
+        app.world().resource::<ScreenPositions>()
+    }
+    assert_eq!(screen(&app).viewport, VIEWPORT.as_vec2());
+    let centred = |app: &App| {
+        let s = screen(app);
+        let x = s.get(halden).unwrap().x;
+        assert!(
+            (x - s.viewport.x / 2.0).abs() <= 1.0,
+            "{x} in {}",
+            s.viewport.x
+        );
+    };
+    centred(&app);
+
+    app.world_mut().resource_mut::<Selection>().select(halden);
+    let mut seen_mid_slide = false;
+    for _ in 0..30 {
+        app.update();
+        compute_camera_headless(&mut app);
+        app.update();
+        compute_camera_headless(&mut app);
+        let slide = app.world().resource::<SidebarState>().slide;
+        if slide > 0.0 && slide < 1.0 {
+            seen_mid_slide = true;
+            let width = screen(&app).viewport.x;
+            assert!(width < VIEWPORT.x as f32 && width > VIEWPORT.x as f32 - 320.0);
+            centred(&app);
+        }
+    }
+    assert!(seen_mid_slide, "the slide takes several frames");
+    assert_eq!(app.world().resource::<SidebarState>().slide, 1.0);
+    assert_eq!(
+        screen(&app).viewport,
+        Vec2::new(VIEWPORT.x as f32 - 320.0, VIEWPORT.y as f32)
+    );
+    centred(&app);
+    assert_eq!(
+        app.world().resource::<CameraRig>().distance,
+        distance,
+        "same scale"
+    );
+    let fits_viewport = app
+        .world_mut()
+        .run_system_once(|fits: Fits| fits.viewport())
+        .unwrap();
+    assert_eq!(fits_viewport.x, VIEWPORT.x as f32 - 320.0);
+    let mut cameras = app
+        .world_mut()
+        .query_filtered::<&Camera, With<OrbitCamera>>();
+    let viewport = cameras
+        .single(app.world())
+        .unwrap()
+        .viewport
+        .as_ref()
+        .unwrap();
+    assert_eq!(
+        viewport.physical_size,
+        UVec2::new(VIEWPORT.x - 320, VIEWPORT.y)
+    );
+
+    app.world_mut().resource_mut::<Selection>().clear();
+    for _ in 0..30 {
+        app.update();
+        compute_camera_headless(&mut app);
+    }
+    assert_eq!(screen(&app).viewport, VIEWPORT.as_vec2());
+    assert!(cameras.single(app.world()).unwrap().viewport.is_none());
+    centred(&app);
 }
 
 // --- Transfers (docs/spec/transfers.md) ---

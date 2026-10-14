@@ -1,11 +1,14 @@
-//! The inspection inset (INS-01 to INS-04, INS-07, MOT-07): one panel for
-//! the one selection (INS-03), docked at the right of the map area below
-//! the top bar (INS-07). Its contents are rebuilt in place whenever the
-//! selection changes; content taller than the map scrolls inside it, and
-//! the wheel over it scrolls it instead of zooming the map.
+//! The inspection sidebar (INS-01 to INS-04, INS-07, MOT-07): one panel
+//! for the one selection (INS-03), at the right of the window from the
+//! top bar to the bottom (INS-07). It slides in and out with the selection
+//! (`sidebar.rs` holds the slide; the map area follows it). The details
+//! are rebuilt in place whenever the selection changes; the "In orbit"
+//! outline below them (`outline.rs`) is built once and refilled. Content
+//! taller than the sidebar scrolls inside it, and the wheel over it scrolls
+//! it instead of zooming the map.
 //!
-//! The panel is built from an `InsetContent` - plain values gathered from
-//! the body - by one helper per section, so what an inset says can be
+//! The details are built from an `InsetContent` - plain values gathered
+//! from the body - by one helper per section, so what an inset says can be
 //! tested apart from how it is laid out.
 
 use bevy::input::mouse::{AccumulatedMouseScroll, MouseScrollUnit};
@@ -19,10 +22,11 @@ use super::camera::requests::FrameRequest;
 use super::colors;
 use super::fidelity::FidelityImages;
 use super::fonts::Fonts;
-use super::in_orbit::InOrbitList;
 use super::motion_mode::MotionModeState;
+use super::outline::OutlineRoot;
 use super::readout::{format_distance, format_duration};
 use super::selection::Selection;
+use super::sidebar::SidebarState;
 use super::symbols::ownership_text;
 use super::targets::{MapInputBlocker, PointerTargets};
 use super::topbar::TOP_BAR_HEIGHT_PX;
@@ -36,13 +40,13 @@ use crate::sim::track::ShipRecord;
 use crate::sim::units::SOLAR_MASS_KG;
 use crate::{Boot, Stage};
 
-/// The dock the inset sits in: the right-hand strip of the map area. It
-/// takes no clicks itself, so the map under its empty part stays live.
+/// The sidebar panel, which slides and scrolls (INS-07).
 #[derive(Component)]
-struct InsetDock;
-/// The inset panel, which scrolls (INS-07).
+pub struct InsetPanel;
+/// The part of the panel rebuilt for each selection: header, image,
+/// description and facts.
 #[derive(Component)]
-struct InsetPanel;
+struct InsetDetails;
 /// The inset's Focus button, for the body it would make the frame
 /// (CAM-24).
 #[derive(Component)]
@@ -56,6 +60,8 @@ const POSITION_SHOWN_WHEN_PAUSED: &str = "Position: shown when paused";
 
 const PANEL_PADDING_PX: f32 = 10.0;
 const PANEL_ROW_GAP_PX: f32 = 5.0;
+/// The hairline along the sidebar's left edge.
+const PANEL_EDGE_PX: f32 = 1.0;
 /// How far one wheel line scrolls the inset.
 const SCROLL_LINE_PX: f32 = 24.0;
 const IMAGE_HEIGHT_PX: f32 = 64.0;
@@ -183,11 +189,12 @@ fn dim_focus_buttons(
 
 impl Plugin for InspectPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_dock.in_set(Boot::Overlay))
+        app.add_systems(Startup, spawn_sidebar.in_set(Boot::Overlay))
             .add_systems(
                 Update,
                 (
                     handle_escape,
+                    slide_panel,
                     rebuild_inset.in_set(InsetRebuilt),
                     update_position_notes,
                     dim_focus_buttons,
@@ -199,48 +206,79 @@ impl Plugin for InspectPlugin {
     }
 }
 
-/// INS-07: the dock at the right edge of the map area,
-/// `inset_dock_margin_px` below the top bar and from the right edge,
-/// `inset_width_px` wide and as tall as the map area allows. The panel in
-/// it never moves; content taller than the dock scrolls.
-fn spawn_dock(mut commands: Commands, tunables: Res<Tunables>) {
-    let margin = tunables.inset_dock_margin_px;
+/// INS-07: the sidebar: `inset_width_px` wide, from the top bar to the
+/// bottom of the window, off the right edge until it slides in. Its
+/// details and the outline sit in one scrolling column.
+fn spawn_sidebar(mut commands: Commands, tunables: Res<Tunables>) {
     commands
         .spawn((
-            InsetDock,
+            InsetPanel,
             GlobalZIndex(layers::PANELS),
+            // CAM-10: a press on the sidebar doesn't start a map drag.
+            MapInputBlocker,
             Node {
                 position_type: PositionType::Absolute,
-                top: px(TOP_BAR_HEIGHT_PX + margin),
-                right: px(margin),
-                bottom: px(margin),
+                top: px(TOP_BAR_HEIGHT_PX),
+                right: px(-tunables.inset_width_px),
+                bottom: px(0),
                 width: px(tunables.inset_width_px),
+                padding: UiRect::all(px(PANEL_PADDING_PX)),
                 flex_direction: FlexDirection::Column,
-                align_items: AlignItems::Stretch,
+                row_gap: px(PANEL_ROW_GAP_PX),
+                border: UiRect::left(px(PANEL_EDGE_PX)),
+                overflow: Overflow::scroll_y(),
                 display: Display::None,
                 ..default()
             },
-            Pickable::IGNORE,
+            ScrollPosition::default(),
+            BackgroundColor(colors::PANEL),
+            BorderColor::all(colors::PANEL_BORDER),
         ))
-        .with_children(|dock| {
-            dock.spawn((
-                InsetPanel,
-                // CAM-10: a press on the inset doesn't start a map drag.
-                MapInputBlocker,
+        .with_children(|panel| {
+            panel.spawn((
+                InsetDetails,
                 Node {
-                    max_height: percent(100),
-                    padding: UiRect::all(px(PANEL_PADDING_PX)),
                     flex_direction: FlexDirection::Column,
                     row_gap: px(PANEL_ROW_GAP_PX),
-                    border: UiRect::all(px(1)),
-                    overflow: Overflow::scroll_y(),
                     ..default()
                 },
-                ScrollPosition::default(),
-                BackgroundColor(colors::PANEL),
-                BorderColor::all(colors::PANEL_BORDER),
+            ));
+            // INS-05: the outline fills itself (`outline.rs`).
+            panel.spawn((
+                OutlineRoot,
+                Node {
+                    flex_direction: FlexDirection::Column,
+                    ..default()
+                },
             ));
         });
+}
+
+/// INS-07: where the sidebar's right edge sits for a slide: flush with
+/// the window once open, its whole width off the edge when hidden.
+pub fn sidebar_right_px(slide: f32, width_px: f32) -> f32 {
+    -(1.0 - slide.clamp(0.0, 1.0)) * width_px
+}
+
+/// INS-07: the panel follows the slide, and is not drawn at all while
+/// fully hidden.
+fn slide_panel(
+    sidebar: Res<SidebarState>,
+    tunables: Res<Tunables>,
+    mut panels: Query<&mut Node, With<InsetPanel>>,
+) {
+    for mut node in &mut panels {
+        let right = px(sidebar_right_px(sidebar.slide, tunables.inset_width_px));
+        let display = if sidebar.visible() {
+            Display::Flex
+        } else {
+            Display::None
+        };
+        if node.right != right || node.display != display {
+            node.right = right;
+            node.display = display;
+        }
+    }
 }
 
 /// INS-03: Esc closes the inset.
@@ -254,16 +292,9 @@ fn handle_escape(
     }
 }
 
-/// The inset's nodes.
-type InsetNodes<'w, 's> = (
-    Query<'w, 's, &'static mut Node, With<InsetDock>>,
-    Query<'w, 's, (Entity, &'static mut ScrollPosition), With<InsetPanel>>,
-);
-
-/// INS-01 / INS-03: whenever the selection changes, the inset's contents
-/// are replaced in place, scrolled back to the top; with nothing selected
-/// the dock is hidden.
-#[allow(clippy::too_many_arguments)]
+/// INS-01 / INS-03: whenever the selection changes, the details are
+/// replaced in place; the outline below them stays (INS-05). With nothing
+/// selected the details are emptied and the sidebar slides out.
 fn rebuild_inset(
     selection: Res<Selection>,
     mut commands: Commands,
@@ -271,7 +302,7 @@ fn rebuild_inset(
     fidelity: Res<FidelityImages>,
     bodies: InsetBodies,
     tunables: Res<Tunables>,
-    (mut docks, mut panels): InsetNodes,
+    details: Query<Entity, With<InsetDetails>>,
 ) {
     if !selection.is_changed() {
         return;
@@ -279,21 +310,13 @@ fn rebuild_inset(
     let content = selection
         .selected
         .and_then(|body| gather_content(body, &bodies, &tunables));
-    for mut dock in &mut docks {
-        dock.display = if content.is_some() {
-            Display::Flex
-        } else {
-            Display::None
-        };
-    }
-    let Ok((panel, mut scroll)) = panels.single_mut() else {
+    let Ok(details) = details.single() else {
         return;
     };
-    *scroll = ScrollPosition::default();
-    let mut panel = commands.entity(panel);
-    panel.despawn_related::<Children>();
+    let mut details = commands.entity(details);
+    details.despawn_related::<Children>();
     if let Some(content) = content {
-        panel.with_children(|panel| fill_panel(panel, &fidelity, &fonts, &content));
+        details.with_children(|panel| fill_panel(panel, &fidelity, &fonts, &content));
     }
 }
 
@@ -351,8 +374,7 @@ fn gather_content(body: Entity, bodies: &InsetBodies, tunables: &Tunables) -> Op
 }
 
 /// INS-02: header, class line, image, description and facts, the
-/// position note (MOT-07), the satellite list (INS-05), and the disabled
-/// planetary-view button.
+/// position note (MOT-07) and the disabled planetary-view button.
 fn fill_panel(
     panel: &mut ChildSpawnerCommands,
     fidelity: &FidelityImages,
@@ -378,16 +400,6 @@ fn fill_panel(
         spawn_text(panel, &line, fonts.data(BODY_FONT_PX), colors::NEUTRAL);
     }
     spawn_position_note(panel, fonts, content.body);
-    // INS-05: the list fills itself (`in_orbit.rs`), and refills as its
-    // orbit rows expand.
-    panel.spawn((
-        InOrbitList(content.body),
-        Node {
-            flex_direction: FlexDirection::Column,
-            row_gap: px(PANEL_ROW_GAP_PX),
-            ..default()
-        },
-    ));
     spawn_planetary_view_button(panel, fonts);
 }
 
@@ -563,24 +575,34 @@ fn spawn_planetary_view_button(panel: &mut ChildSpawnerCommands, fonts: &Fonts) 
 mod tests {
     use super::*;
 
-    /// INS-07: the inset is docked at the right of the map area, the
-    /// margin below the top bar and from the edge, `inset_width_px` wide;
-    /// it is placed once and nothing moves it afterwards.
+    /// INS-07: the sidebar runs from the top bar to the bottom of the
+    /// window, `inset_width_px` wide, scrolls, and slides in from off the
+    /// right edge as the slide runs.
     #[test]
-    fn the_inset_is_docked_at_the_right() {
+    fn the_sidebar_spans_the_right_edge_and_slides_in() {
         use bevy::ecs::system::RunSystemOnce;
         let mut world = World::new();
         world.init_resource::<Tunables>();
-        world.run_system_once(spawn_dock).unwrap();
-        let mut docks = world.query_filtered::<&Node, With<InsetDock>>();
-        let dock = docks.single(&world).unwrap();
-        assert_eq!(dock.top, px(TOP_BAR_HEIGHT_PX + 12.0));
-        assert_eq!((dock.right, dock.bottom), (px(12.0), px(12.0)));
-        assert_eq!(dock.width, px(320.0));
-        assert_eq!(dock.position_type, PositionType::Absolute);
+        world.init_resource::<SidebarState>();
+        world.run_system_once(spawn_sidebar).unwrap();
+        world.run_system_once(slide_panel).unwrap();
         let mut panels = world.query_filtered::<&Node, With<InsetPanel>>();
         let panel = panels.single(&world).unwrap();
+        assert_eq!(panel.top, px(TOP_BAR_HEIGHT_PX));
+        assert_eq!(panel.bottom, px(0));
+        assert_eq!(panel.width, px(320.0));
+        assert_eq!(panel.position_type, PositionType::Absolute);
         assert_eq!(panel.overflow, Overflow::scroll_y(), "long content scrolls");
+        assert_eq!((panel.right, panel.display), (px(-320.0), Display::None));
+
+        world.resource_mut::<SidebarState>().slide = 0.25;
+        world.run_system_once(slide_panel).unwrap();
+        let panel = panels.single(&world).unwrap();
+        assert_eq!((panel.right, panel.display), (px(-240.0), Display::Flex));
+        world.resource_mut::<SidebarState>().slide = 1.0;
+        world.run_system_once(slide_panel).unwrap();
+        assert_eq!(panels.single(&world).unwrap().right, px(0.0));
+        assert_eq!(sidebar_right_px(2.0, 320.0), 0.0);
     }
 
     /// INS-07: scrolling stops at the top and at the end of the content,

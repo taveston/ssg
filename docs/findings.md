@@ -2,7 +2,7 @@
 
 Open observations from building and playing the prototype. Each one is waiting for a decision. Once it's settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings take the next free number from F-148.
+Format and types are in `docs/README.md`. New findings take the next free number from F-150.
 
 ---
 
@@ -45,3 +45,13 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Observation:** The build had to settle these: (a) the end state of a band of the crossing's primary (band-to-band trips, a station at the primary as the start) is the band's circle aimed half a turn ahead of the start, so a Hohmann travel time gives the Hohmann burns; (b) XFER-06's spiral spans the whole crossing, whose length includes the departure and capture costs, so the spiral winds at `|v0 − v1| ÷ travel_days` and lands at the end's angle on the last day; (c) a place whose body is the crossing's primary charges nothing (XFER-01's band-to-band rule, extended to a station or a gate round the primary), and a station, gate or site is aimed at by its own orbit's state, not its parent's; (d) a parked ship as a destination is aimed at as its orbit's body (BAND-05), and the closing speed of a Pass at a ship is relative to that body's velocity; (e) Hold on an InFlight plan leaves that plan on the ship as **Holding** with its rail cut, rather than replacing it with a Done Hold plan, so PLAN-12's origin and destination survive; (f) a ship's position in a named orbit is its orbit's at its own phase, and a captured ship's phase is set so its angle at the arrival day is its arrival direction (BAND-06).
 - **Affects:** XFER-01, XFER-06, XFER-09, XFER-10, PLAN-13, BAND-06 · **Type:** spec gap
 - **Disposition:** open. Copy the choices that are fine into the spec.
+
+### F-148 · `double_click_window_ms` has no reader
+- **Observation:** The tunable existed so a single click on the flat "In orbit" list could wait out the double-click window before the inset was rebuilt under the pointer. The outline (INS-05) stays in place, so a click selects at once and double-clicks come from the picking backend's click count. Nothing reads the tunable now; it is kept in `Tunables` only because the spec's table lists it.
+- **Affects:** INS-05, tunables table · **Type:** spec gap
+- **Disposition:** open. Drop the tunable from the table, and the field with it.
+
+### F-149 · How a shared orbit's row is named in the outline
+- **Observation:** INS-05 names the row "by the parent and the orbit (for example "Halden IV · orbit · 3")". The build reads the example as parent, orbit name, member count: "Halden IV · High · 14". The star's root row has no toggle text other than its glyph, and gates and salvage sites, which orbit the star, are listed under it after the planets by orbit radius.
+- **Affects:** INS-05 · **Type:** spec gap
+- **Disposition:** open. Confirm the format, or say what the example meant.

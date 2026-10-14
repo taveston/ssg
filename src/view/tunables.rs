@@ -87,9 +87,10 @@ pub struct Tunables {
     /// The inner zoom limit with a body focused: its true diameter spans
     /// this fraction of the map area's height (ZOOM-14).
     pub body_max_screen_fraction: f32,
-    /// The double-click window. Double-clicks themselves use the picking
-    /// backend's click count; a single click on an inset's "In orbit" entry
-    /// waits this long for a second one before it selects (INS-05, F5-07).
+    /// The double-click window. Double-clicks use the picking backend's
+    /// click count, and since the outline selects on a single click at
+    /// once (INS-05) nothing reads this any more (F-148).
+    #[allow(dead_code)]
     pub double_click_window_ms: f32,
 
     // --- Camera (section 5a). Tilt is measured from straight down. ---
@@ -142,11 +143,10 @@ pub struct Tunables {
     /// The selected object's orbit ring is drawn white at this alpha
     /// (HOV-03).
     pub orbit_selected_alpha: f32,
-    /// The docked inset's width (INS-07).
+    /// The inspection sidebar's width (INS-07).
     pub inset_width_px: f32,
-    /// The docked inset's gap below the top bar and from the right edge
-    /// (INS-07).
-    pub inset_dock_margin_px: f32,
+    /// How long the sidebar takes to slide open or closed (INS-07).
+    pub sidebar_slide_ms: f32,
     /// The gap between the map area's edges and the scale bar and north
     /// dial (MRK-16, MRK-17).
     pub plot_margin_px: f32,
@@ -254,7 +254,7 @@ impl Default for Tunables {
             orbit_hover_alpha: 0.6,
             orbit_selected_alpha: 0.85,
             inset_width_px: 320.0,
-            inset_dock_margin_px: 12.0,
+            sidebar_slide_ms: 200.0,
             plot_margin_px: 24.0,
             scale_bar_max_px: 160.0,
             north_dial_px: 34.0,

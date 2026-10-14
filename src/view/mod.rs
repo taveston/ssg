@@ -6,7 +6,8 @@
 //! The view reads the simulation and changes it only through its API
 //! (ARCH-14). State that several view modules share lives in its own small
 //! module - `selection`, `fold`, `motion_mode`, `targets`, `screen`,
-//! `shared_orbit` - so no two feature modules import each other (ARCH-03).
+//! `shared_orbit`, `sidebar` - so no two feature modules import each other
+//! (ARCH-03).
 
 use bevy::prelude::*;
 
@@ -30,7 +31,6 @@ pub mod gesture;
 pub mod grouping;
 pub mod hover;
 pub mod hovered;
-pub mod in_orbit;
 pub mod inspect;
 pub mod layers;
 pub mod marker_picking;
@@ -38,6 +38,7 @@ pub mod markers;
 pub mod motion;
 pub mod motion_mode;
 pub mod near_arcs;
+pub mod outline;
 pub mod parent_tab;
 pub mod pills;
 pub mod plot_marks;
@@ -50,6 +51,7 @@ pub mod scale;
 pub mod screen;
 pub mod selection;
 pub mod shared_orbit;
+pub mod sidebar;
 pub mod symbol_draw;
 pub mod symbol_shape;
 pub mod symbols;
@@ -71,6 +73,7 @@ impl Plugin for ViewPlugin {
             .add_plugins((
                 frame::FramePlugin,
                 hovered::HoveredPlugin,
+                sidebar::SidebarPlugin,
                 tunables::TunablesPlugin,
                 bindings::BindingsPlugin,
                 fonts::FontsPlugin,
@@ -103,7 +106,7 @@ impl Plugin for ViewPlugin {
                 pills::PillsPlugin,
                 hover::HoverPlugin,
                 inspect::InspectPlugin,
-                in_orbit::InOrbitPlugin,
+                outline::OutlinePlugin,
                 topbar::TopBarPlugin,
             ));
     }

@@ -23,7 +23,7 @@ use super::layers;
 use super::markers::{BodyLook, TintedParts, fade_parts, marker_half_size, spawn_icon};
 use super::motion_mode::MotionModeState;
 use super::pills::{PILL_HALF_HEIGHT_PX, PillFace, pill_bundle, pill_node, selection_outline};
-use super::screen::{in_viewport, snap_to_pixel};
+use super::screen::{MapView, in_viewport, snap_to_pixel};
 use super::selection::Selection;
 use super::shared_orbit::{OrbitRings, Ring, ring_screen_point};
 use super::symbol_draw::{Tint, TintSlot};
@@ -260,16 +260,15 @@ fn ring_identity_pills(
 /// so its left edge sits half a pill-height before the ring point.
 fn place_ring_marks(
     (view, time, tunables): (ViewNow, Res<Time>, Res<Tunables>),
-    windows: Query<&Window>,
+    map: MapView,
     rings: OrbitRings,
     mut marks: Query<(Entity, &mut RingMarkFor, &mut Node)>,
     (children, mut parts): (Query<&Children>, TintedParts),
 ) {
-    let Ok(window) = windows.single() else {
+    let Some(viewport) = map.viewport() else {
         return;
     };
-    let viewport = Vec2::new(window.width(), window.height());
-    let scale = window.scale_factor();
+    let scale = map.scale_factor();
     let step = step_per_frame(time.delta_secs(), tunables.identity_mark_fade_ms);
     for (entity, mut mark, mut node) in &mut marks {
         let wanted = rings
