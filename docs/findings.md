@@ -20,8 +20,3 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Observation:** HOV-01 says there is no hover tooltip, but GRP-07 still has hovering a "+N" pill list the folded satellites. The build dropped the marker tooltip and kept the pill's list, which is the only way to see what a pill holds without clicking.
 - **Affects:** HOV-01, GRP-07 · **Type:** spec gap
 - **Disposition:** open. Keep the pill's list, or drop it and rely on the inset's outline.
-
-### F-131 · You can't tell what a fast-moving object is
-- **Observation:** an object in exposure-ring mode (MOT-02) has no dot or symbol, and its ring is drawn in the neutral colour like every other ring. So a fast ship, a station and a moon look the same on the map: only the label on the ring tells them apart.
-- **Affects:** MOT-02, MRK-09, SYM-02 · **Type:** spec gap
-- **Disposition:** open. Options: colour ship and station exposure rings by affiliation (SYM-02), mark the ring with the object's symbol at its label spot, or keep it and rely on the label.

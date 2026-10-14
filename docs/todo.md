@@ -12,6 +12,8 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
+- [ ] **Shared orbits and exposure-ring identity** · HOV-02, HOV-04, HOV-05, MOT-02, MOT-14, INS-05, TEST-10
+  - Was F-131 (fast objects look alike) plus the gap that every object got its own ring. Group rings per parent by on-screen radius in a view module; draw a shared exposure ring once. The identity mark reuses the fold pill and the list symbol. Build the INS-05 orbit row with the "In orbit" outline item below if that is still open.
 - [ ] **Inset as a sidebar; "In orbit" outline** · INS-05, INS-07
   - `inset_dock_margin_px` is withdrawn; `sidebar_slide_ms` is new.
 - [ ] **Inset panel anatomy** · INS-09
