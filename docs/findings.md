@@ -2,7 +2,7 @@
 
 Open observations from building and playing the prototype. Each one is waiting for a decision. Once it's settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings take the next free number from F-153.
+Format and types are in `docs/README.md`. New findings take the next free number from F-154.
 
 ---
 
@@ -70,3 +70,8 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Observation:** The outline shows a named orbit's row only when it holds two or more members; a lone member is listed as a plain entry, and an empty band (Halden IV's Low, every other body's bands) is not shown at all, so no "Low" row appears anywhere. In play the rows should be there with a single member too, and it is worth deciding whether an empty band shows as a row (which would list two bands under every star, planet and moon).
 - **Affects:** INS-05, HOV-04 · **Type:** spec wrong
 - **Disposition:** open. Decided in play: empty bands never show; a named orbit with one member should still get its row. (Arden Highport is not in Low: stations keep orbits of their own, TEST-10.)
+
+### F-153 · Should stations sit in a body's bands?
+- **Observation:** Stations keep orbits of their own (SCL-07, TEST-10: Arden Highport at 0.1 d, Iver Yard, Tern Relay), and a station is its own place with its own docking orbit (BAND-02). In play the expectation was that stations sit in the body's Low or High band like ships. If they did, "at Arden Highport" and "in Low orbit of Halden IV" would be the same ring, a ship docked at a station would be co-located with every ship in that band (BAND-05), and the outline would list the station under the band's row; the station's own named orbit and the Station place would then be redundant, or mean the band it sits in.
+- **Affects:** SCL-07, BAND-02, TEST-02, TEST-09, TEST-10, INS-05 · **Type:** idea
+- **Disposition:** open question for design. Keep stations on orbits of their own, or place them in a band.
