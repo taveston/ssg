@@ -96,18 +96,24 @@ body{font-family:"Plex Cond",sans-serif;font-size:14px;width:1440px;height:900px
 
   <!-- R-2's salvo, inbound on TF-1 -->
   <path d="M1140 366 L472 416" stroke="#EE6A5F" stroke-width="1" stroke-opacity=".35" fill="none"/>
-  <g transform="translate(474,416) rotate(184)">
-    <path d="M0,0 L12,0" stroke="#EE6A5F" stroke-width="1.6" marker-end="url(#ah)"/>
+  <!-- salvo: small solid affiliation shape (hostile = diamond), velocity leader, count -->
+  <g>
+    <line x1="468.0" y1="415.6" x2="450.1" y2="414.3" stroke="#EE6A5F" stroke-width="1.4"/>
+    <path d="M474,410.5 L479.5,416 L474,421.5 L468.5,416 Z" fill="#EE6A5F" stroke="#070A0E" stroke-width="1"/>
+    <text x="481" y="410" font-family="Plex Mono, monospace" font-size="10" fill="#EE6A5F">8</text>
   </g>
-  <text x="480" y="440" font-size="12" fill="#EE6A5F">Missile ×8</text>
+  <text x="480" y="440" font-size="12" fill="#EE6A5F">Missile</text>
   <text x="480" y="454" font-family="Plex Mono, monospace" font-size="10.5" fill="#EE6A5F" fill-opacity=".85">17 km/s · 810 km</text>
 
   <!-- TF-1's salvo, outbound on R-2 -->
   <path d="M426 414 Q600 360 978 326" stroke="#5AA9E6" stroke-width="1" stroke-opacity=".35" fill="none"/>
-  <g transform="translate(978,326) rotate(-5)">
-    <path d="M-12,0 L0,0" stroke="#5AA9E6" stroke-width="1.6" marker-end="url(#ah)"/>
+  <!-- salvo: small solid affiliation shape (own = circle), velocity leader, count -->
+  <g>
+    <line x1="983.5" y1="325.5" x2="1001.4" y2="323.9" stroke="#5AA9E6" stroke-width="1.4"/>
+    <circle cx="978" cy="326" r="4.5" fill="#5AA9E6" stroke="#070A0E" stroke-width="1"/>
+    <text x="972" y="318" text-anchor="end" font-family="Plex Mono, monospace" font-size="10" fill="#5AA9E6">12</text>
   </g>
-  <text x="850" y="300" font-size="12" fill="#5AA9E6">Dart ×12</text>
+  <text x="850" y="300" font-size="12" fill="#5AA9E6">Dart</text>
   <text x="850" y="286" font-family="Plex Mono, monospace" font-size="10.5" fill="#5AA9E6" fill-opacity=".85">17 km/s · 810 km</text>
 
   <!-- point-defence rings -->

@@ -20,6 +20,7 @@ Boards 1 to 6 are from the design canvas "Inspect & Planetary Transition"; 7 onw
 | `14-engagement-on-map.png` | An engagement on the system map while it runs, and the Watch / Skip prompt when it ends (2026-10-15). Source: `14-engagement-on-map.html`; `../combat-view.md` 2 |
 | `15-force-orders.png` | A force's orders, standing orders and the pre-fight estimate (2026-10-15). Source: `15-force-orders.html`; `../combat-view.md` 5 |
 | `16-after-action-report.png` | The after-action report and the commander's file (2026-10-15). Source: `16-after-action-report.html`; `../combat-view.md` 6 |
+| `17-missile-symbols.png` | Missiles in flight: arrow against small affiliation shapes in colour and greyscale, and a salvo from launch to the end (2026-10-15). Source: `17-missile-symbols.html`; `../combat-view.md` 3 |
 
 How to use them:
 

@@ -7,7 +7,7 @@ This doc proposes how combat is shown: the engagement on the map while it runs, 
 - **The replay shows what the state saw.** By default it shows the player's picture as it was, with weak tracks and unknown figures. A second mode adds what was learned afterwards. The true state is never shown.
 - **The fight is decided before contact, so show it before contact.** The orders panel carries an estimate of the central contest: their salvo against our point defence.
 
-All **Candidate**. Mock-ups: `mockups/13-combat-replay.png` to `16-after-action-report.png`, all from the worked example in *Combat, Raiders & Diplomacy* 1.7. Builds on *Presentation & Visual Style* (2), *Symbology*, *Interface Style* and *Combat Simulation*.
+All **Candidate**. Mock-ups: `mockups/13-combat-replay.png` to `17-missile-symbols.png`, all from the worked example in *Combat, Raiders & Diplomacy* 1.7. Builds on *Presentation & Visual Style* (2), *Symbology*, *Interface Style* and *Combat Simulation*.
 
 ---
 
@@ -42,8 +42,9 @@ All **Candidate**. Mock-ups: `mockups/13-combat-replay.png` to `16-after-action-
 
 - Ships and forces as their symbols (SYM), with velocity leaders along the relative motion.
 - Each ship's path: solid behind, dashed ahead (as *Orbital Transfers* 3.3), in the relative frame.
-- Missiles as **salvos**: one arrowhead per salvo, in the side's colour, labelled with what the state knows and the count: the design name when it is known ("Dart ×12" for our own), otherwise "Missile ×8" until the design is identified and, when selected or close, speed and range to target. A salvo splits into separate arrowheads only inside point-defence range, where each missile's fate is shown.
-- Point-defence fire as short ticks from the mount towards each missile, and a kill as the arrowhead ending in a small burst. Decoys as faint dots.
+- Missiles as **salvos** (board 17): one small solid affiliation shape per salvo (own circle, hostile diamond, unknown quatrefoil, about 8 px, no frame or icon), so affiliation reads without colour and a missile never reads as a ship. A velocity leader shows direction and grows with speed (SYM-11). The count sits beside it, and the label says what the state knows: the design name when known ("Dart" for our own), otherwise "Missile". Speed and range to target show when selected or close.
+- **A salvo never splits.** Its missiles are within a few km of each other, the same pixel at any zoom that shows point-defence range. The count drops as missiles are shot down (a small burst at the mark per kill) or decoyed. A decoyed missile gets its own mark only if its path visibly diverges. If all remaining missiles miss, the mark flies on out of view.
+- Point-defence fire as short ticks from the mount towards the salvo mark. Decoys as faint dots.
 - A hit as a flash on the target's frame; damage as the condition bar dropping; disabled as the stale-style dimming plus a "disabled" label; destroyed as the salvage X.
 - Missed missiles and rounds fly on and off the edge of the view. A missile that is shot down ends in a small burst.
 - A force that splits (stragglers left behind, non-combatants detached) shows as two symbols from that moment.
@@ -103,7 +104,7 @@ Board 16. It follows the report layout in *Interface Style* 7.
 
 - Whether the replay can be entered while the fight still runs (a "live" view), or only after. Proposed: after only, because the result is already computed and a live view would invite orders that can't be given.
 - Whether Auto rate should be the only rate.
-- How to show many salvos at once in a large fight without clutter, and when salvos split.
+- How to show many salvos at once in a large fight without clutter.
 - Whether point-defence ticks are worth drawing, or a counter on the defending force reads better.
 - Whether the estimate card should appear in the transfer planner when the destination is a contact.
 - How a long blockade (many phases) is shown: one engagement with phases, or one per phase.

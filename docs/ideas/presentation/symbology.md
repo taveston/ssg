@@ -106,6 +106,7 @@ Steps can come in other orders (a ship's transponder may give the owner before t
 - **Label:** name in the label face to the right of the symbol, then one line in the data face summarising group make-up, embarked troops, civilian or requisitioned status, and track age.
 - **Candidate:** a fuller data block (ETA, propellant) for own task forces and the hovered or selected object, hidden elsewhere at low zoom to limit clutter.
 - **Paths:** planned paths dashed in the affiliation colour; flown arcs solid (already the convention in the sketches).
+- **Missiles in flight (candidate, 2026-10-15):** a launched missile is an uncrewed ship in the combat simulation, but drawn far smaller: a solid affiliation shape (circle, diamond, quatrefoil) of about 8 px with no frame or icon, a velocity leader and a salvo count. Affiliation still reads in monochrome, and a missile never reads as a ship. A salvo is one mark. See *Combat View* 3 and mock-up 17.
 - **Simpler fallback (candidate):** if full frames prove too busy, drop to the older NTDS naval radar style (the same affiliation shapes, small, with no icon inside) at low zoom, and show icons from mid zoom.
 - Panels, windows and reports: see *Interface Style* (`ui-style.md`).
 
