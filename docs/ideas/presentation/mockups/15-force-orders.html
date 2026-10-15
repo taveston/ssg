@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Force orders</title>
+<!--
+  Orphan Worlds: a force's orders, standing orders and the pre-fight estimate.
+  Candidate (docs/ideas/presentation/combat-view.md 5; combat-simulation.md 8). Render at 1440 wide.
+-->
+<style>
+@font-face{font-family:"Plex Cond";src:url("../../../../assets/fonts/IBMPlexSansCondensed-Regular.ttf")}
+@font-face{font-family:"Plex Cond";font-weight:600;src:url("../../../../assets/fonts/IBMPlexSansCondensed-SemiBold.ttf")}
+@font-face{font-family:"Plex Sans";src:url("../../../../assets/fonts/IBMPlexSans-Regular.ttf")}
+@font-face{font-family:"Plex Mono";src:url("../../../../assets/fonts/IBMPlexMono-Regular.ttf")}
+:root{--ground:#070A0E;--panel:#0B1016;--line:rgba(159,182,196,.20);--line2:rgba(159,182,196,.10);--text:#DCE6EC;--muted:#9FB6C4;--dim:#6F8696;--own:#5AA9E6;--hostile:#EE6A5F;--warn:#F0A040}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--ground);color:var(--text)}
+body{font-family:"Plex Cond",sans-serif;font-size:14px;width:1440px;padding:24px 32px 28px}
+h1{font-size:14px;font-weight:600;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin:0 0 14px}
+.cols{display:grid;grid-template-columns:420px 470px 1fr;gap:20px;align-items:start}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:4px}
+.sec{padding:12px 16px;border-top:1px solid var(--line2)} .sec:first-child{border-top:0}
+.h{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 9px}
+.title{font-size:18px;font-weight:600;margin:0;display:flex;gap:8px;align-items:center}
+.line{color:var(--muted);font-size:13px}
+.chip{display:inline-block;border:1px solid var(--line);border-radius:3px;padding:1px 7px;font-size:12px;margin:6px 4px 0 0}
+.chip.unk{border-style:dashed;color:var(--muted)}
+.f{display:grid;grid-template-columns:92px 1fr;gap:6px 10px;align-items:center;margin-bottom:10px}
+.f .k{color:var(--muted);font-size:13px}
+.seg{display:flex;border:1px solid var(--line);border-radius:3px;overflow:hidden}
+.seg span{flex:1;text-align:center;padding:5px 2px;font-size:12.5px;color:var(--muted);border-left:1px solid var(--line2);white-space:nowrap}
+.seg span:first-child{border-left:0}
+.seg span.on{background:rgba(220,230,236,.13);color:var(--text)}
+.seg span.off{color:#3E4E5C}
+.v{font:13px "Plex Mono",monospace}
+.slider{position:relative;height:8px;border-radius:4px;background:#1E2A35;margin:4px 0}
+.slider i{position:absolute;top:-4px;width:8px;height:16px;border-radius:2px;background:var(--text)}
+.hint{font-size:12px;color:var(--dim)}
+.btn{font:600 13px "Plex Cond",sans-serif;color:var(--text);background:transparent;border:1px solid var(--line);border-radius:3px;padding:6px 12px}
+.btn.primary{background:var(--text);color:#0A0E13;border-color:var(--text)}
+.btn.quiet{border-color:transparent;color:var(--muted)}
+.so{display:grid;grid-template-columns:22px 1fr auto;gap:2px 10px;padding:10px 0;border-top:1px solid var(--line2);align-items:baseline}
+.so:first-of-type{border-top:0}
+.so .n{font:12px "Plex Mono",monospace;color:var(--muted)}
+.so .when{font-size:13.5px}
+.so .then{grid-column:2;font-size:13px;color:var(--muted)}
+.so .then b{color:var(--text);font-weight:600}
+.so .x{font:12px "Plex Mono",monospace;color:var(--muted)}
+.est{display:grid;grid-template-columns:1fr auto;gap:6px 12px;font-size:13px}
+.est .k{color:var(--muted)}
+.est .v{text-align:right}
+.bar{position:relative;height:12px;background:#1E2A35;border-radius:3px;margin:8px 0 4px}
+.bar .a{position:absolute;top:0;height:12px;background:#EE6A5F;opacity:.75;border-radius:3px 0 0 3px}
+.bar .r{position:absolute;top:0;height:12px;border:1px dashed #EE6A5F;border-left:0;border-radius:0 3px 3px 0}
+.bar .pd{position:absolute;top:-4px;width:2px;height:20px;background:#5AA9E6}
+.legend{display:flex;justify-content:space-between;font:11.5px "Plex Mono",monospace;color:var(--muted)}
+p.note{font-size:12.5px;color:var(--muted);line-height:1.5;margin:14px 0 0;max-width:1300px}
+</style>
+</head>
+<body>
+<h1>15 · Orders for a force</h1>
+<div class="cols">
+
+<!-- Orders -->
+<div class="panel">
+  <div class="sec">
+    <p class="title"><svg width="26" height="30" viewBox="-13 -17 26 30"><g stroke="#5AA9E6" stroke-width="1.5"><circle r="10" fill="#1D3A52"/><path d="M0,-5.5 L5.5,4 L-5.5,4 Z" fill="#5AA9E6" stroke="none"/><path d="M-9,-12 L-9,-16 L9,-16 L9,-12" fill="none"/></g></svg>TF-1 · orders</p>
+    <p class="line" style="margin:2px 0 0">4 warships · High orbit, Halden IV</p>
+    <div><span class="chip">Cdr Ilse Marr</span><span class="chip">Command 6–8</span><span class="chip">Cautious</span><span class="chip unk">? other traits</span></div>
+  </div>
+  <div class="sec">
+    <div class="f"><span class="k">Objective</span><div class="seg"><span class="on">Destroy</span><span>Defend</span><span>Hold</span><span>Escort</span><span class="off">Capture</span></div></div>
+    <div class="f"><span class="k">Approach</span><div class="seg"><span class="on">Pass</span><span>Stop</span></div></div>
+    <div class="f"><span class="k">Standoff</span><div><div style="display:flex;justify-content:space-between"><span class="hint">default 1,000 km</span><span class="v">1,500 km</span></div><div class="slider"><i style="left:36%"></i></div></div></div>
+    <div class="f"><span class="k">Weapons</span><div class="seg"><span>Hostile + unknown</span><span class="on">Hostile only</span><span>Tight</span></div></div>
+    <div class="f"><span class="k">Target first</span><div class="seg"><span class="on">Armed</span><span>Transports</span><span>Any</span></div></div>
+    <div class="f"><span class="k">Emissions</span><div class="seg"><span>Active</span><span class="on">On contact</span><span>Silent</span></div></div>
+  </div>
+  <div class="sec">
+    <p class="h">Keep in reserve</p>
+    <div class="f"><span class="k">Return Δv</span><div style="display:flex;justify-content:space-between"><span class="hint">to Arden Highport</span><span class="v">3.5 km/s</span></div></div>
+    <div class="f"><span class="k">Magazines</span><div><div style="display:flex;justify-content:space-between"><span class="hint">held back at least</span><span class="v">25%</span></div><div class="slider"><i style="left:25%"></i></div></div></div>
+  </div>
+  <div class="sec">
+    <p class="line" style="margin:0 0 10px">How boldly to carry this out is Marr's call. Orders say whether and where to fight.</p>
+    <div style="display:flex;gap:8px"><button class="btn primary">Apply</button><button class="btn quiet">Revert</button></div>
+  </div>
+</div>
+
+<!-- Standing orders -->
+<div class="panel">
+  <div class="sec">
+    <p class="h">Standing orders · TF-1</p>
+    <p class="line" style="margin:0 0 6px">Checked in order. The first that matches sets the response.</p>
+    <div class="so"><span class="n">1</span><span class="when">Armed hostile or unknown inside <u>Halden IV</u> High reach</span><span class="x">edit</span>
+      <span class="then">→ <b>Intercept</b> · Pass · 1,500 km · with the orders on the left</span></div>
+    <div class="so"><span class="n">2</span><span class="when"><u>Arden Highport</u> or <u>Port Arden</u> attacked</span><span class="x">edit</span>
+      <span class="then">→ <b>Intercept</b> · Stop · even one-way</span></div>
+    <div class="so"><span class="n">3</span><span class="when">Hostile force of 3 or more warships seen in Corvane</span><span class="x">edit</span>
+      <span class="then">→ <b>Hold</b> at Arden Highport · alert me</span></div>
+    <div class="so"><span class="n">4</span><span class="when">Anything else hostile</span><span class="x">edit</span>
+      <span class="then">→ <b>Alert me</b> · no move</span></div>
+  </div>
+  <div class="sec" style="display:flex;justify-content:space-between;align-items:center">
+    <button class="btn">+ Add standing order</button><span class="hint">Applies from the next engagement</span>
+  </div>
+  <div class="sec">
+    <p class="h">Last triggered</p>
+    <p class="line" style="margin:0">Order 1 · 13 MAR · R-2 → intercept scheduled, depart 14 MAR</p>
+  </div>
+</div>
+
+<!-- Estimate -->
+<div class="panel">
+  <div class="sec">
+    <p class="h">Expected fight · TF-1 against R-2</p>
+    <p class="line" style="margin:0">From what we know now. Figures follow the certainty notation.</p>
+  </div>
+  <div class="sec">
+    <p class="h">Their salvo against our point defence</p>
+    <div class="bar"><div class="a" style="left:0;width:9.5%"></div><div class="r" style="left:9.5%;width:9.5%"></div><div class="pd" style="left:84%"></div></div>
+    <div class="legend"><span style="color:var(--hostile)">4–8 Darts</span><span style="color:var(--own)">stops ~42 from one side</span></div>
+    <p class="line" style="margin:8px 0 0">Saturation needs about five times their likely load.</p>
+  </div>
+  <div class="sec est">
+    <span class="k">Closing speed</span><span class="v">9.0 km/s</span>
+    <span class="k">In radar range</span><span class="v">~74 min</span>
+    <span class="k">Missile time in PD range</span><span class="v">~18 s</span>
+    <span class="k">Kinetic shot at 1,500 km</span><span class="v">none</span>
+    <span class="k">Their Δv left</span><span class="v">3–7 km/s</span>
+    <span class="k">Their PD mounts</span><span class="v">~1</span>
+    <span class="k">Our Δv after the pass</span><span class="v">6.9 · return 3.5</span>
+  </div>
+</div>
+
+</div>
+<p class="note">Left: one set of orders per force, set before a fight and read when it forms. They bound the commander's choices; the trait and skill act inside them. Middle: standing orders as trigger and response, checked in order, so a fleet reacts to a week of warning in seven seconds of play. Right: the estimate the state can make before contact, with the central contest shown as one bar (their salvo, solid for what we're sure of and dashed for the range, against what our point defence can stop). It is the "decided before the shooting" idea made visible. Described in <code>combat-view.md</code> 5 and <code>combat-simulation.md</code> 8.</p>
+</body>
+</html>

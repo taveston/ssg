@@ -56,8 +56,8 @@ One line per system and the doc that holds it. All paths are under `docs/ideas/`
 | Orbital transfers | Ships on rails along precomputed patched-conic arcs; two-slider transfer planning; scheduled and re-taskable orders. | `mechanics/transfers.md` |
 | Gates | Paired wormhole mouths, slowly failing; most links already collapsed. How gates work stays unexplained on screen. | `mechanics/gates.md` |
 | World generation | A flat 3D cluster at realistic star density, gates where the old network had reason to go, and a historical layer. | `mechanics/world-generator.md` |
-| Combat, raiders and diplomacy | Combat simulated in full when it starts and revealed as a replay on its own clock; raiders from simulated conditions. | `mechanics/conflict.md` |
-| Presentation | Cluster, system and planet layers as a vector display at true scale, semi-photoreal inspection, a separate administration view. | `presentation/presentation.md`, `presentation/symbology.md`, `presentation/ui-style.md` |
+| Combat, raiders and diplomacy | Combat simulated in full when it starts and revealed as a replay on its own clock; raiders from simulated conditions. | `mechanics/conflict.md`, `mechanics/combat-simulation.md` |
+| Presentation | Cluster, system and planet layers as a vector display at true scale, semi-photoreal inspection, a separate administration view. | `presentation/presentation.md`, `presentation/symbology.md`, `presentation/ui-style.md`, `presentation/combat-view.md` |
 
 ## 5. Not yet started
 

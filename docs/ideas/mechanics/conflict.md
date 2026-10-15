@@ -2,7 +2,7 @@
 
 **In short:** combat is a small part of play, simulated in full by the game and never flown by the player. A fight is mostly decided before the shooting: by who sees whom, the geometry, delta-v reserves and magazines. It is simulated at once when it forms, shows on the map as a collapsed engagement while it runs, and is revealed with a watchable replay when it ends. Defence is mainly interception by a concentrated fleet, set up with standing orders. The senior officer present commands, through Command skill and one trait, Bold/Cautious. Raiders arise from simulated conditions, not random spawns. Rival leaders change through elections, coups and death, so relations shift over a long game.
 
-*Status:* early. Status tags as in the overview (**Decided**, **Direction**, **Candidate**). Companion documents: *Overview*, *Presentation & Visual Style* (2, the display; 3, ground combat), *Symbology*, *Economy* (armed haulers, tolls), *Characters, Organisations & Events* (1, skills and traits), *Orbital Transfers* (7, tactical manoeuvring), *Component Stats & Ship Assembly* (signatures, weapons).
+*Status:* early. Status tags as in the overview (**Decided**, **Direction**, **Candidate**). Companion documents: *Overview*, *Presentation & Visual Style* (2, the display; 3, ground combat), *Symbology*, *Economy* (armed haulers, tolls), *Characters, Organisations & Events* (1, skills and traits), *Orbital Transfers* (7, tactical manoeuvring), *Component Stats & Ship Assembly* (signatures, weapons), *Combat Simulation* (`combat-simulation.md`, how a fight is computed), *Combat View* (`../presentation/combat-view.md`, how the replay looks).
 
 ---
 
@@ -89,6 +89,7 @@ The fight was decided at CA−60 h. The shooting took about 20 minutes, with abo
 - Inputs freeze at t0. Orders given afterwards to ships in the engagement wait until it ends. This holds because no uninvolved ship can reach a fight within hours.
 - A window is capped at a few hours. A longer fight splits into phases: survivors return to the main simulation with their damage and magazines, and a new phase forms if they are still in range.
 - The main clock keeps running. While the fight runs, its ships appear on the map as one engagement: both sides shown and joined by a link (reusing the folding rules), and not commandable.
+- The detail of forming, stepping, sensing, weapons, decisions and orders is in *Combat Simulation*. It proposes that t0 is the first moment opposed ships come within sensor reach, so the window is the few hours around contact, and the decisive order was given long before.
 
 **Revealing it**
 
@@ -164,24 +165,24 @@ AI leaders change through elections, coups and death, so relations shift over a 
 
 ## 4. Open questions
 
-- Pre-battle orders: which standing orders exist and how the player sets them.
+- Pre-battle orders: which standing orders exist and how the player sets them. A proposal is in *Combat Simulation* 8 and *Combat View* 5.
 - Information limits: how scouting and intelligence narrow a delta-v range.
-- After-action reports: what the summary and timeline contain.
+- After-action reports: what the summary and timeline contain (proposed in *Combat View* 6).
 - Ground combat and invasion.
 - Making losses matter.
 - Suppressing raiders.
 - Privateer licences and prize shares.
-- The point-defence shot rate. The catalogue gives a chance per shot but no rate.
-- Missile range and magazine as ship figures, and the effect of decoys and emission control.
-- Dwell time as the simulation's central number, and how each weapon type responds to it.
-- The standoff on an intercept order: its default and how the simulation reads it (finding F-145).
-- A phasing transfer within a band, replacing co-location for combat (finding F-144; `transfers.md` 4.3 and 7).
-- How a raider's reachable envelope is drawn.
-- The engagement window cap and the length of a phase.
-- Whether the pause at the end of a fight covers every visible fight or only the player's own.
+- The point-defence shot rate. The catalogue gives a chance per shot but no rate. *Combat Simulation* 5.3 assumes one a second.
+- Missile range and magazine as ship figures. (*Combat Simulation* 4 and 5.1 propose the effect of decoys and emission control.)
+- Dwell time as the simulation's central number: how each weapon type responds is proposed in *Combat Simulation* 6.
+- The standoff on an intercept order: its default and how the simulation reads it (finding F-145). *Combat Simulation* 1 and 8 propose that the simulation reads rails only, and give a default.
+- A phasing transfer within a band, replacing co-location for combat (finding F-144; `transfers.md` 4.3 and 7). *Combat Simulation* 1 proposes that combat reads true rail positions.
+- How a raider's reachable envelope is drawn (a candidate overlay in *Combat View* 4).
+- The engagement window cap and the length of a phase (placeholder in *Combat Simulation* 11).
+- Whether the pause at the end of a fight covers every visible fight or only the player's own (*Combat View* 2 proposes own fights only by default).
 - The replay window and the cap on stored recordings.
-- The engagement's map symbol.
-- Commander decision tags, and the tactical AI that reads the Bold/Cautious dial.
+- The engagement's map symbol (*Combat View* 2 proposes both sides joined by a link).
+- Commander decision tags, and the tactical AI that reads the Bold/Cautious dial (proposed in *Combat Simulation* 7).
 - Kill-to-loss drift: count or ship value, the smoothing constant, the decay and the thresholds.
 - The delay before command passes after a flagship is lost.
 - Whether combat experience can leave a grievance against the player.

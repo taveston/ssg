@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Combat replay</title>
+<!--
+  Orphan Worlds: the combat replay view, candidate (docs/ideas/presentation/combat-view.md).
+  The worked example in conflict.md 1.7 at CA -17:30, drawn in TF-1's relative frame.
+  Symbols follow the rules of 7-symbology.html. Render at 1440 x 900.
+-->
+<style>
+@font-face{font-family:"Plex Cond";src:url("../../../../assets/fonts/IBMPlexSansCondensed-Regular.ttf")}
+@font-face{font-family:"Plex Cond";font-weight:600;src:url("../../../../assets/fonts/IBMPlexSansCondensed-SemiBold.ttf")}
+@font-face{font-family:"Plex Sans";src:url("../../../../assets/fonts/IBMPlexSans-Regular.ttf")}
+@font-face{font-family:"Plex Mono";src:url("../../../../assets/fonts/IBMPlexMono-Regular.ttf")}
+:root{--ground:#070A0E;--panel:#0B1016;--line:rgba(159,182,196,.20);--line2:rgba(159,182,196,.10);--text:#DCE6EC;--muted:#9FB6C4;--dim:#6F8696;--own:#5AA9E6;--hostile:#EE6A5F;--warn:#F0A040}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--ground);color:var(--text)}
+body{font-family:"Plex Cond",sans-serif;font-size:14px;width:1440px;height:900px;position:relative;overflow:hidden}
+.mono{font-family:"Plex Mono",monospace}
+.top{position:absolute;left:0;top:0;right:0;height:48px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;padding:0 20px;white-space:nowrap}
+.crumb{color:var(--muted)} .crumb b{color:var(--text);font-weight:600}
+.chip{font:11px "Plex Mono",monospace;letter-spacing:.08em;border:1px solid var(--line);border-radius:3px;padding:2px 7px;color:var(--muted)}
+.chip.rep{color:var(--text);border-color:var(--muted)}
+.btn{font:600 13px "Plex Cond",sans-serif;color:var(--text);background:transparent;border:1px solid var(--line);border-radius:3px;padding:5px 11px}
+.btn.on{border-color:var(--text)}
+.btn.quiet{border-color:transparent;color:var(--muted)}
+.btn.primary{background:var(--text);color:#0A0E13;border-color:var(--text)}
+.clock{display:flex;align-items:baseline;gap:10px;margin:0 14px 0 24px}
+.clock .big{font:20px "Plex Mono",monospace}
+.clock .small{font:12px "Plex Mono",monospace;color:var(--muted)}
+.sp{flex:1}
+.map{position:absolute;left:0;top:49px;width:1140px;height:731px}
+.side{position:absolute;right:0;top:49px;width:300px;bottom:0;background:var(--panel);border-left:1px solid var(--line);overflow:hidden}
+.sec{padding:12px 16px;border-top:1px solid var(--line2)} .sec:first-child{border-top:0}
+.h{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+.title{font-size:18px;font-weight:600;margin:0}
+.line{color:var(--muted);font-size:13px}
+.seg{display:flex;border:1px solid var(--line);border-radius:3px;overflow:hidden;margin-top:10px}
+.seg span{flex:1;text-align:center;padding:5px 0;font-size:12.5px;color:var(--muted)}
+.seg span.on{background:rgba(220,230,236,.12);color:var(--text)}
+.force{display:grid;grid-template-columns:30px 1fr;gap:2px 8px;margin-bottom:10px;align-items:center}
+.force .n{font-weight:600} .force .d{grid-column:2;font:12px "Plex Mono",monospace;color:var(--muted)}
+.log{font-size:12.5px}
+.log .e{display:grid;grid-template-columns:62px 1fr;gap:6px;padding:4px 0;border-top:1px solid var(--line2)}
+.log .e .t{font:11.5px "Plex Mono",monospace;color:var(--muted)}
+.log .e.now{color:var(--text)} .log .e.now .t{color:var(--text)}
+.tag{display:inline-block;font:11px "Plex Mono",monospace;border:1px solid var(--line);border-radius:3px;padding:0 5px;color:var(--muted);margin-top:3px}
+.unk{border:1px dashed var(--line);border-radius:3px;padding:0 4px;color:var(--muted)}
+.tl{position:absolute;left:0;top:780px;width:1140px;height:120px;border-top:1px solid var(--line);background:var(--ground)}
+.note{position:absolute;left:20px;bottom:8px;font-size:12px;color:var(--dim)}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <span class="crumb">Corvane / Halden IV / <b>Engagement E-7</b></span>
+  <span class="chip rep">REPLAY</span>
+  <div class="clock"><span class="big">CA −17:30</span><span class="small">16 MAR 2341 03:41:12</span></div>
+  <button class="btn quiet">Pause</button>
+  <button class="btn on">Auto</button><button class="btn">×1</button><button class="btn">×10</button><button class="btn">×60</button>
+  <span class="sp"></span>
+  <span class="mono" style="font-size:12px;color:var(--muted);margin-right:6px">main clock paused</span>
+  <button class="btn">Skip to result</button>
+  <button class="btn quiet">Close · Esc</button>
+</div>
+
+<svg class="map" viewBox="0 0 1140 731" font-family="Plex Cond, sans-serif">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10" fill="none" stroke="context-stroke" stroke-width="1.6"/></marker>
+  </defs>
+  <!-- caption -->
+  <g>
+    <rect x="320" y="18" width="500" height="30" rx="3" fill="#0B1016" stroke="rgba(159,182,196,.2)"/>
+    <text x="570" y="38" text-anchor="middle" font-size="13.5" fill="#DCE6EC">R-2's salvo reaches TF-1's point-defence range in 30 s</text>
+  </g>
+
+  <!-- relative-frame grid: faint bearing lines and range rings round TF-1 -->
+  <g stroke="#9FB6C4" stroke-opacity=".10" fill="none">
+    <circle cx="420" cy="420" r="200" stroke-dasharray="3 5"/>
+    <circle cx="420" cy="420" r="400" stroke-dasharray="3 5"/>
+    <circle cx="420" cy="420" r="600" stroke-dasharray="3 5"/>
+  </g>
+  <g font-family="Plex Mono, monospace" font-size="10.5" fill="#6F8696">
+    <text x="424" y="216">3,000 km</text><text x="424" y="16" opacity="0">.</text>
+    <text x="424" y="616">6,000 km</text>
+  </g>
+
+  <!-- R-2's relative track: solid behind, dashed ahead, closest approach marked -->
+  <line x1="1140" y1="314" x2="1032" y2="320" stroke="#EE6A5F" stroke-width="1.4" opacity=".9"/>
+  <line x1="1032" y1="320" x2="0" y2="377" stroke="#EE6A5F" stroke-width="1.3" stroke-dasharray="6 5" opacity=".8"/>
+  <line x1="420" y1="420" x2="414" y2="354" stroke="#9FB6C4" stroke-width="1" stroke-dasharray="2 3"/>
+  <circle cx="414" cy="354" r="3" fill="none" stroke="#DCE6EC"/>
+  <text x="346" y="344" font-size="12" fill="#DCE6EC">closest approach</text>
+  <text x="346" y="330" font-family="Plex Mono, monospace" font-size="11" fill="#9FB6C4">+17:30 · 1,500 km</text>
+
+  <!-- R-2's salvo, inbound on TF-1 -->
+  <path d="M1140 366 L472 416" stroke="#EE6A5F" stroke-width="1" stroke-opacity=".35" fill="none"/>
+  <g transform="translate(474,416) rotate(184)">
+    <path d="M0,0 L12,0" stroke="#EE6A5F" stroke-width="1.6" marker-end="url(#ah)"/>
+  </g>
+  <text x="480" y="440" font-size="12" fill="#EE6A5F">Dart ×8</text>
+  <text x="480" y="454" font-family="Plex Mono, monospace" font-size="10.5" fill="#EE6A5F" fill-opacity=".85">17 km/s · 810 km</text>
+
+  <!-- TF-1's salvo, outbound on R-2 -->
+  <path d="M426 414 Q600 360 978 326" stroke="#5AA9E6" stroke-width="1" stroke-opacity=".35" fill="none"/>
+  <g transform="translate(978,326) rotate(-5)">
+    <path d="M-12,0 L0,0" stroke="#5AA9E6" stroke-width="1.6" marker-end="url(#ah)"/>
+  </g>
+  <text x="850" y="300" font-size="12" fill="#5AA9E6">Dart ×12</text>
+  <text x="850" y="286" font-family="Plex Mono, monospace" font-size="10.5" fill="#5AA9E6" fill-opacity=".85">17 km/s · 810 km</text>
+
+  <!-- point-defence rings -->
+  <circle cx="420" cy="420" r="20" fill="none" stroke="#5AA9E6" stroke-opacity=".55" stroke-dasharray="2 3"/>
+  <circle cx="1032" cy="320" r="20" fill="none" stroke="#EE6A5F" stroke-opacity=".55" stroke-dasharray="2 3"/>
+  <text x="396" y="460" font-family="Plex Mono, monospace" font-size="10" fill="#5AA9E6" fill-opacity=".7">PD 300 km</text>
+
+  <!-- TF-1: own task force, 4, condition -->
+  <g transform="translate(420,420)" stroke="#5AA9E6" stroke-width="1.6" stroke-linejoin="round">
+    <circle r="13" fill="#1D3A52"/>
+    <path d="M0,-7 L7,5 L-7,5 Z" fill="#5AA9E6" stroke="none"/>
+    <path d="M-12,-16 L-12,-21 L12,-21 L12,-16" fill="none" stroke-width="1.4"/>
+    <text x="16" y="-8" font-family="Plex Mono, monospace" font-size="10" fill="#5AA9E6" stroke="none">4</text>
+    <rect x="-11" y="17" width="22" height="3" fill="none" stroke-width=".8" opacity=".6"/>
+    <rect x="-11" y="17" width="22" height="3" fill="#5AA9E6" stroke="none"/>
+  </g>
+  <text x="352" y="408" text-anchor="end" font-size="13" font-weight="600" fill="#5AA9E6">TF-1</text>
+  <text x="352" y="423" text-anchor="end" font-family="Plex Mono, monospace" font-size="10.5" fill="#5AA9E6">Dart 36 held</text>
+
+  <!-- R-2: hostile, armed (re-assessed), velocity leader along relative motion -->
+  <g transform="translate(1032,320)" stroke="#EE6A5F" stroke-width="1.6" stroke-linejoin="round">
+    <line x1="-17" y1="1" x2="-40" y2="2.3" stroke-width="1.4"/>
+    <path d="M0,-16 L16,0 L0,16 L-16,0 Z" fill="#2A1617"/>
+    <path d="M0,-7 L7,5 L-7,5 Z" fill="#EE6A5F" stroke="none"/>
+  </g>
+  <text x="1032" y="262" text-anchor="middle" font-size="13" font-weight="600" fill="#EE6A5F">R-2</text>
+  <text x="1032" y="276" text-anchor="middle" font-family="Plex Mono, monospace" font-size="10.5" fill="#EE6A5F">armed hauler</text>
+  <text x="1032" y="290" text-anchor="middle" font-family="Plex Mono, monospace" font-size="10.5" fill="#EE6A5F" fill-opacity=".8">9.0 km/s closing</text>
+
+  <!-- edge tab: Halden IV, the frame's parent -->
+  <g transform="translate(470,700)">
+    <rect x="-64" y="-14" width="128" height="26" rx="3" fill="#070A0E" stroke="#DCE6EC" stroke-opacity=".6"/>
+    <path d="M-50,-4 L-44,3 L-38,-4" fill="none" stroke="#DCE6EC" stroke-width="1.4"/>
+    <circle cx="-24" cy="-1" r="5" fill="#070A0E" stroke="#DCE6EC"/><circle cx="-24" cy="-1" r="1.4" fill="#DCE6EC"/>
+    <text x="-12" y="4" font-size="12.5" fill="#DCE6EC">Halden IV</text>
+  </g>
+
+  <!-- frame label, scale bar, north dial -->
+  <text x="20" y="28" font-family="Plex Mono, monospace" font-size="11" fill="#9FB6C4">FRAME · TF-1 (relative)</text>
+  <g transform="translate(20,700)" font-family="Plex Mono, monospace" font-size="10.5" fill="#9FB6C4">
+    <line x1="0" y1="0" x2="133" y2="0" stroke="#DCE6EC"/>
+    <line x1="0" y1="-4" x2="0" y2="4" stroke="#DCE6EC"/><line x1="66.5" y1="-3" x2="66.5" y2="3" stroke="#DCE6EC"/><line x1="133" y1="-4" x2="133" y2="4" stroke="#DCE6EC"/>
+    <text x="0" y="-9">0</text><text x="133" y="-9" text-anchor="end">2,000 km</text>
+  </g>
+  <g transform="translate(1100,40)">
+    <circle r="13" fill="none" stroke="#9FB6C4"/>
+    <path d="M0,-13 L4,-3 L-4,-3 Z" fill="#DCE6EC"/>
+    <text x="0" y="-18" text-anchor="middle" font-family="Plex Mono, monospace" font-size="10" fill="#DCE6EC">N</text>
+  </g>
+</svg>
+
+<div class="side">
+  <div class="sec">
+    <p class="h">Engagement</p>
+    <p class="title">E-7 · TF-1 against R-2</p>
+    <p class="line" style="margin:2px 0 0">Halden IV, High · phase 1 of 1</p>
+    <div class="seg"><span class="on">As seen then</span><span>As known now</span></div>
+  </div>
+  <div class="sec">
+    <p class="h">Forces</p>
+    <div class="force">
+      <svg width="30" height="30" viewBox="-15 -15 30 30"><g stroke="#5AA9E6" stroke-width="1.6"><circle r="11" fill="#1D3A52"/><path d="M0,-6 L6,4 L-6,4 Z" fill="#5AA9E6" stroke="none"/></g></svg>
+      <span class="n" style="color:var(--own)">TF-1 · 4 warships</span>
+      <span class="d">Cdr Ilse Marr · Command 6–8</span>
+      <span class="d">Dart 36 of 48 · PD 8 mounts</span>
+      <span class="d">Δv 6.9 of 9.9 km/s</span>
+    </div>
+    <div class="force">
+      <svg width="30" height="30" viewBox="-15 -15 30 30"><g stroke="#EE6A5F" stroke-width="1.6"><path d="M0,-13 L13,0 L0,13 L-13,0 Z" fill="#2A1617"/><path d="M0,-6 L6,4 L-6,4 Z" fill="#EE6A5F" stroke="none"/></g></svg>
+      <span class="n" style="color:var(--hostile)">R-2 · armed hauler</span>
+      <span class="d">commander <span class="unk">?</span></span>
+      <span class="d">Dart 8 launched · more <span class="unk">?</span></span>
+      <span class="d">PD ~1 mount · Δv 3–7 km/s</span>
+    </div>
+  </div>
+  <div class="sec log">
+    <p class="h">Log</p>
+    <div class="e"><span class="t">CA−93:00</span><span>Lidar track on R-2, firm</span></div>
+    <div class="e"><span class="t">CA−93:00</span><span>TF-1 stays passive</span></div>
+    <div class="e"><span class="t">CA−37:10</span><span>R-2 launches 8 Darts at TF-1</span></div>
+    <div class="e"><span class="t">CA−37:05</span><span>TF-1 launches 12 Darts at R-2<br><span class="tag">Marr held 75% of magazines</span></span></div>
+    <div class="e"><span class="t">CA−36:50</span><span>R-2 identified: armed hauler</span></div>
+    <div class="e now"><span class="t">CA−17:30</span><span>Salvos 30 s from point-defence range</span></div>
+  </div>
+</div>
+
+<svg class="tl" viewBox="0 0 1140 120" font-family="Plex Cond, sans-serif">
+  <!-- window: t0 = CA-93 min to CA+93 min, 186 min across 1060 px -->
+  <text x="20" y="22" font-size="11" font-weight="600" letter-spacing="1.3" fill="#9FB6C4">TIMELINE</text>
+  <text x="1120" y="22" text-anchor="end" font-family="Plex Mono, monospace" font-size="11" fill="#9FB6C4">window 3 h 06 min · ends CA+93:00</text>
+  <rect x="40" y="52" width="1060" height="6" rx="3" fill="#1E2A35"/>
+  <rect x="40" y="52" width="433" height="6" rx="3" fill="#3B6C96"/>
+  <!-- fine-step band where anything is inside point-defence range -->
+  <rect x="473" y="50" width="6" height="10" fill="#9FB6C4" opacity=".35"/>
+  <!-- closest approach -->
+  <line x1="570" y1="44" x2="570" y2="66" stroke="#DCE6EC"/>
+  <text x="570" y="40" text-anchor="middle" font-family="Plex Mono, monospace" font-size="10.5" fill="#DCE6EC">CA</text>
+  <!-- past events, labelled -->
+  <g stroke="#DCE6EC" stroke-width="1.2">
+    <line x1="40" y1="64" x2="40" y2="72"/><line x1="359" y1="64" x2="359" y2="72"/><line x1="361" y1="64" x2="361" y2="72"/>
+  </g>
+  <g font-family="Plex Mono, monospace" font-size="10.5" fill="#9FB6C4">
+    <text x="40" y="86">t0 · track</text>
+    <text x="330" y="86">launches</text>
+  </g>
+  <!-- future events: ticks without labels, so scrubbing gives no spoilers -->
+  <g stroke="#6F8696" stroke-width="1.2"><line x1="476" y1="64" x2="476" y2="72"/><line x1="478" y1="64" x2="478" y2="72"/><line x1="575" y1="64" x2="575" y2="72"/></g>
+  <!-- playhead -->
+  <rect x="468" y="46" width="10" height="18" rx="2" fill="#DCE6EC"/>
+  <text x="40" y="108" font-size="12" fill="#6F8696">Ticks mark events. Past ones are labelled; later ones are not, so scrubbing ahead gives nothing away. [ and ] jump to the previous or next event.</text>
+</svg>
+
+</body>
+</html>

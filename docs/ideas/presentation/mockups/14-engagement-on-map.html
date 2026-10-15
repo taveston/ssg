@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Engagement on the map</title>
+<!--
+  Orphan Worlds: an engagement on the system map while it runs, and the Watch / Skip prompt when it ends.
+  Candidate (docs/ideas/presentation/combat-view.md 2). Symbols follow 7-symbology.html. Render at 1440 wide.
+-->
+<style>
+@font-face{font-family:"Plex Cond";src:url("../../../../assets/fonts/IBMPlexSansCondensed-Regular.ttf")}
+@font-face{font-family:"Plex Cond";font-weight:600;src:url("../../../../assets/fonts/IBMPlexSansCondensed-SemiBold.ttf")}
+@font-face{font-family:"Plex Sans";src:url("../../../../assets/fonts/IBMPlexSans-Regular.ttf")}
+@font-face{font-family:"Plex Mono";src:url("../../../../assets/fonts/IBMPlexMono-Regular.ttf")}
+:root{--ground:#070A0E;--panel:#0B1016;--line:rgba(159,182,196,.20);--line2:rgba(159,182,196,.10);--text:#DCE6EC;--muted:#9FB6C4;--dim:#6F8696;--own:#5AA9E6;--hostile:#EE6A5F;--warn:#F0A040}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--ground);color:var(--text)}
+body{font-family:"Plex Cond",sans-serif;font-size:14px;width:1440px;padding:24px 32px 28px}
+h1{font-size:14px;font-weight:600;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin:0 0 14px}
+.boards{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.board h2{font-size:12px;font-weight:600;color:var(--muted);margin:0 0 8px;letter-spacing:.06em}
+.frame{position:relative;height:540px;border:1px solid #1E2A35;border-radius:4px;overflow:hidden}
+.top{position:absolute;left:0;right:0;top:0;height:40px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;padding:0 14px;white-space:nowrap;font-size:13px;background:var(--ground);z-index:2}
+.top .crumb{color:var(--muted)} .top .crumb b{color:var(--text);font-weight:600}
+.top .date{font:13px "Plex Mono",monospace;margin-left:14px}
+.btn{font:600 12.5px "Plex Cond",sans-serif;color:var(--text);background:transparent;border:1px solid var(--line);border-radius:3px;padding:4px 10px}
+.btn.on{border-color:var(--text)} .btn.primary{background:var(--text);color:#0A0E13;border-color:var(--text)} .btn.quiet{border-color:transparent;color:var(--muted)}
+.btn[disabled]{color:var(--dim);border-color:var(--line2)}
+.paused{font:11px "Plex Mono",monospace;color:#0A0E13;background:var(--warn);border-radius:2px;padding:1px 6px;letter-spacing:.06em}
+svg.map{position:absolute;left:0;top:41px}
+.inset{position:absolute;right:0;top:41px;bottom:0;width:250px;background:var(--panel);border-left:1px solid var(--line);font-size:13px}
+.sec{padding:11px 14px;border-top:1px solid var(--line2)} .sec:first-child{border-top:0}
+.h{font-size:10.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+.title{font-size:17px;font-weight:600;margin:0;display:flex;gap:7px;align-items:center}
+.line{color:var(--muted);font-size:12.5px}
+.figs{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px}
+.fig .k{color:var(--muted);font-size:11.5px} .fig .v{font:13px "Plex Mono",monospace}
+.state{border:1px solid var(--line);border-radius:3px;padding:8px 10px;font-size:12.5px;line-height:1.4}
+.btns{display:flex;flex-wrap:wrap;gap:6px}
+.tray{position:absolute;right:14px;bottom:14px;width:330px;background:rgba(12,17,23,.97);border:1px solid var(--line);border-radius:4px;font-size:13px}
+.tray .hd{display:flex;justify-content:space-between;padding:8px 12px;font-size:10.5px;font-weight:600;letter-spacing:.12em;color:var(--muted);border-bottom:1px solid var(--line2)}
+.item{padding:9px 12px;border-top:1px solid var(--line2)}
+.item:first-of-type{border-top:0}
+.row{display:flex;align-items:baseline;gap:8px}
+.prec{font:10.5px "Plex Mono",monospace;letter-spacing:.06em}
+.prec.flash{color:#0A0E13;background:var(--warn);border-radius:2px;padding:1px 6px}
+.prec.rtn{color:var(--dim)}
+.subj{font-weight:600}
+.dtg{margin-left:auto;font:11px "Plex Mono",monospace;color:var(--muted)}
+.from{color:var(--muted);font-size:12px;margin-top:2px}
+.body{font-family:"Plex Sans",sans-serif;font-size:12.5px;margin:7px 0 9px;color:var(--text)}
+.queue{font-size:12px;color:var(--muted);padding:8px 12px;border-top:1px solid var(--line2)}
+p.note{font-size:12.5px;color:var(--muted);line-height:1.5;margin:10px 0 0;max-width:660px}
+</style>
+</head>
+<body>
+<h1>14 · An engagement on the map</h1>
+<div class="boards">
+
+<!-- A: while it runs -->
+<div class="board">
+<h2>A · While it runs: one engagement, not commandable</h2>
+<div class="frame">
+  <div class="top"><span class="crumb">Corvane / <b>Halden IV</b></span><span class="date">16 MAR 2341</span><button class="btn">II</button><button class="btn on">1 d/s</button><button class="btn">5 d/s</button></div>
+  <svg class="map" width="430" height="498" viewBox="0 0 430 498" font-family="Plex Cond, sans-serif">
+    <!-- Halden IV, its High band, a moon orbit -->
+    <circle cx="190" cy="300" r="150" fill="none" stroke="#9FB6C4" stroke-opacity=".25"/>
+    <circle cx="190" cy="300" r="70" fill="none" stroke="#9FB6C4" stroke-opacity=".25"/>
+    <text x="190" y="466" text-anchor="middle" font-size="11" fill="#9FB6C4">High</text>
+    <circle cx="190" cy="300" r="7" fill="#070A0E" stroke="#DCE6EC"/><circle cx="190" cy="300" r="1.8" fill="#DCE6EC"/>
+    <text x="202" y="318" font-size="13" font-weight="600" fill="#DCE6EC">Halden IV</text>
+    <g transform="translate(150,206)"><path d="M-6,-6 H-2 M-6,-6 V-2 M6,-6 H2 M6,-6 V-2 M-6,6 H-2 M-6,6 V2 M6,6 H2 M6,6 V2" stroke="#DCE6EC" fill="none" opacity="0"/></g>
+    <!-- R-2's rail coming in, solid behind -->
+    <path d="M430 60 Q330 100 262 166" fill="none" stroke="#EE6A5F" stroke-width="1.2" stroke-opacity=".8"/>
+    <!-- the engagement: both sides, linked -->
+    <line x1="220" y1="178" x2="274" y2="164" stroke="#DCE6EC" stroke-width="1.2"/>
+    <path d="M236 168 L243 172 L237 177 M258 161 L251 166 L258 170" fill="none" stroke="#DCE6EC" stroke-width="1.1"/>
+    <g transform="translate(206,182)" stroke="#5AA9E6" stroke-width="1.6" stroke-linejoin="round">
+      <circle r="11" fill="#1D3A52"/><path d="M0,-6 L6,4 L-6,4 Z" fill="#5AA9E6" stroke="none"/>
+      <path d="M-10,-14 L-10,-18 L10,-18 L10,-14" fill="none" stroke-width="1.3"/>
+      <text x="13" y="-7" font-family="Plex Mono, monospace" font-size="9.5" fill="#5AA9E6" stroke="none">4</text>
+    </g>
+    <g transform="translate(288,160)" stroke="#EE6A5F" stroke-width="1.6" stroke-linejoin="round">
+      <path d="M0,-13 L13,0 L0,13 L-13,0 Z" fill="#2A1617"/><path d="M0,-6 L6,4 L-6,4 Z" fill="#EE6A5F" stroke="none"/>
+    </g>
+    <!-- selection ring on the engagement -->
+    <rect x="186" y="138" width="122" height="62" rx="31" fill="none" stroke="#FFFFFF" stroke-width="1.4"/>
+    <text x="186" y="218" font-size="13" font-weight="600" fill="#DCE6EC">Engagement E-7</text>
+    <text x="186" y="232" font-family="Plex Mono, monospace" font-size="10.5" fill="#9FB6C4">TF-1 · R-2 · ends 05:14</text>
+    <!-- other traffic carries on -->
+    <g transform="translate(110,410)" stroke="#5AA9E6" stroke-width="1.6"><circle r="11" fill="#1D3A52"/><path d="M0,-6 C2.5,-3 5,-1 5,2 A5,5 0 0 1 -5,2 C-5,-1 -2.5,-3 0,-6 Z" fill="none"/></g>
+    <text x="126" y="414" font-size="12" fill="#5AA9E6">RFA Tolland</text>
+  </svg>
+  <div class="inset">
+    <div class="sec">
+      <p class="title"><svg width="22" height="22" viewBox="-11 -11 22 22"><circle r="9" fill="#1D3A52" stroke="#5AA9E6" stroke-width="1.5"/><path d="M0,-5 L5,3.5 L-5,3.5 Z" fill="#5AA9E6"/></svg>Engagement E-7</p>
+      <p class="line" style="margin:3px 0 0">Halden IV, High · phase 1</p>
+    </div>
+    <div class="sec">
+      <div class="figs">
+        <div class="fig"><div class="k">Began</div><div class="v">16 MAR 01:41</div></div>
+        <div class="fig"><div class="k">Ends</div><div class="v">16 MAR 05:14</div></div>
+        <div class="fig"><div class="k">Own</div><div class="v" style="color:var(--own)">TF-1 · 4</div></div>
+        <div class="fig"><div class="k">Hostile</div><div class="v" style="color:var(--hostile)">R-2 · 1</div></div>
+      </div>
+    </div>
+    <div class="sec">
+      <p class="h">Status</p>
+      <div class="state">In action. The result shows when it ends.<br><span style="color:var(--muted)">Orders to TF-1 wait until then.</span></div>
+    </div>
+    <div class="sec">
+      <p class="h">Ships</p>
+      <div class="line" style="color:var(--text)">TF-1 · Cdr Ilse Marr</div>
+      <div class="line">R-2 · armed hauler</div>
+    </div>
+    <div class="sec btns"><button class="btn">Focus</button><button class="btn" disabled>Orders (queued)</button></div>
+  </div>
+</div>
+</div>
+
+<!-- B: when it ends -->
+<div class="board">
+<h2>B · When it ends: the clock pauses and the tray offers Watch or Skip</h2>
+<div class="frame">
+  <div class="top"><span class="crumb">Corvane / <b>Halden IV</b></span><span class="date">16 MAR 2341</span><span class="paused">PAUSED</span><button class="btn on">II</button><button class="btn">1 d/s</button><button class="btn">5 d/s</button></div>
+  <svg class="map" width="680" height="498" viewBox="0 0 680 498" font-family="Plex Cond, sans-serif">
+    <circle cx="190" cy="300" r="150" fill="none" stroke="#9FB6C4" stroke-opacity=".25"/>
+    <circle cx="190" cy="300" r="70" fill="none" stroke="#9FB6C4" stroke-opacity=".25"/>
+    <text x="190" y="466" text-anchor="middle" font-size="11" fill="#9FB6C4">High</text>
+    <circle cx="190" cy="300" r="7" fill="#070A0E" stroke="#DCE6EC"/><circle cx="190" cy="300" r="1.8" fill="#DCE6EC"/>
+    <text x="202" y="318" font-size="13" font-weight="600" fill="#DCE6EC">Halden IV</text>
+    <!-- still drawn as the engagement: the outcome is held back -->
+    <line x1="220" y1="178" x2="274" y2="164" stroke="#DCE6EC" stroke-width="1.2"/>
+    <path d="M236 168 L243 172 L237 177 M258 161 L251 166 L258 170" fill="none" stroke="#DCE6EC" stroke-width="1.1"/>
+    <g transform="translate(206,182)" stroke="#5AA9E6" stroke-width="1.6" stroke-linejoin="round">
+      <circle r="11" fill="#1D3A52"/><path d="M0,-6 L6,4 L-6,4 Z" fill="#5AA9E6" stroke="none"/>
+      <path d="M-10,-14 L-10,-18 L10,-18 L10,-14" fill="none" stroke-width="1.3"/>
+      <text x="13" y="-7" font-family="Plex Mono, monospace" font-size="9.5" fill="#5AA9E6" stroke="none">4</text>
+    </g>
+    <g transform="translate(288,160)" stroke="#EE6A5F" stroke-width="1.6" stroke-linejoin="round">
+      <path d="M0,-13 L13,0 L0,13 L-13,0 Z" fill="#2A1617"/><path d="M0,-6 L6,4 L-6,4 Z" fill="#EE6A5F" stroke="none"/>
+    </g>
+    <text x="312" y="190" font-size="13" font-weight="600" fill="#DCE6EC">Engagement E-7</text>
+    <text x="312" y="204" font-family="Plex Mono, monospace" font-size="10.5" fill="#F0A040">ended · result held</text>
+    <g transform="translate(110,410)" stroke="#5AA9E6" stroke-width="1.6"><circle r="11" fill="#1D3A52"/><path d="M0,-6 C2.5,-3 5,-1 5,2 A5,5 0 0 1 -5,2 C-5,-1 -2.5,-3 0,-6 Z" fill="none"/></g>
+    <text x="126" y="414" font-size="12" fill="#5AA9E6">RFA Tolland</text>
+  </svg>
+  <div class="tray">
+    <div class="hd"><span>TRAFFIC</span><span>2 NEW</span></div>
+    <div class="item">
+      <div class="row"><span class="prec flash">FLASH</span><span class="subj">Engagement ended: E-7</span><span class="dtg">16 MAR 0514</span></div>
+      <div class="from">Cdr Ilse Marr · TF-1 · near Halden IV</div>
+      <div class="body">TF-1 against R-2. A recording is ready. The result shows on the map once you watch or skip.</div>
+      <div class="btns"><button class="btn primary">Watch</button><button class="btn">Skip to result</button><span class="dtg" style="align-self:center">kept to 23 MAR</span></div>
+    </div>
+    <div class="queue">Next in queue: <span style="color:var(--text)">E-8 near Morrow</span> · seen by our sensors</div>
+    <div class="item"><div class="row"><span class="prec rtn">ROUTINE</span><span class="subj" style="font-weight:400;color:var(--muted)">Convoy C-12 arrived at Halden IV</span><span class="dtg">15 MAR</span></div></div>
+  </div>
+</div>
+</div>
+
+</div>
+<p class="note" style="max-width:1300px">Left: while a fight runs the main clock keeps going. Its ships are drawn as one engagement, the two sides joined by a link with inward chevrons, selected and inspected as one object. Orders to its ships wait for the end. Right: at the end the clock pauses (FLASH) and the tray item offers Watch or Skip. Nothing about the outcome shows until then: not on the map, the tray item or the inset. A fight the player could watch but which isn't theirs joins the queue. Described in <code>combat-view.md</code> 2.</p>
+</body>
+</html>

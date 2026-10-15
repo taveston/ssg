@@ -16,10 +16,14 @@ Boards 1 to 6 are from the design canvas "Inspect & Planetary Transition"; 7 onw
 | `10-trajectory-states.png` | How trajectories are drawn: scheduled, in flight, pass, intercept (2026-10-14). Source: `10-trajectory-states.html`; `transfers.md` 3.3 and 3.4 |
 | `11-return-reserve.png` | The return reserve in the delta-v bar, and the one-way state (2026-10-14). Source: `11-return-reserve.html`; `transfers.md` 3.6 |
 | `12-refuel-plan.png` | A two-leg plan with a refuel stop: leg stack and stacked bar (2026-10-14). Source: `12-refuel-plan.html`; `transfers.md` 3.7 |
+| `13-combat-replay.png` | The combat replay view: relative plot, salvos, timeline, forces and log (2026-10-15). Source: `13-combat-replay.html`; `../combat-view.md` 3 |
+| `14-engagement-on-map.png` | An engagement on the system map while it runs, and the Watch / Skip prompt when it ends (2026-10-15). Source: `14-engagement-on-map.html`; `../combat-view.md` 2 |
+| `15-force-orders.png` | A force's orders, standing orders and the pre-fight estimate (2026-10-15). Source: `15-force-orders.html`; `../combat-view.md` 5 |
+| `16-after-action-report.png` | The after-action report and the commander's file (2026-10-15). Source: `16-after-action-report.html`; `../combat-view.md` 6 |
 
 How to use them:
 
 - They are sketches, not pixel specs. Everything in them is a candidate unless the spec (`docs/spec/`) says otherwise.
 - Where a mock-up and the spec (`docs/spec/system-view.md`) disagree, the spec wins. In particular, the bubble around Halden IV in board 2 and the magnifier in board 6 are rejected. Satellites are reached by focus and the inset's "In orbit" list.
-- Fonts and colours in the images are the real ones (Barlow, JetBrains Mono, the palette in `../presentation-sketches.md`, specced as MRK-01 in `docs/spec/system-view.md`).
+- Colours in the images are the real ones (the palette in `../presentation-sketches.md`, specced as MRK-01 in `docs/spec/system-view.md`). Boards up to 8 use the first build's fonts (Barlow, JetBrains Mono); 13 onwards load IBM Plex from `assets/fonts/`, so they render with the real fonts when opened from the repo.
 - Planet images are CSS placeholder gradients, not art direction for renders.
