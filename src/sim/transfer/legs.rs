@@ -534,7 +534,7 @@ impl Setup<'_> {
     /// mean radii of the primary, while on the crossing, is infeasible. A
     /// crossing that starts or ends in an orbit of the primary itself is
     /// exempt: a Low band lies inside that limit by construction, and the
-    /// band is the place, not a near miss (F-146).
+    /// band is the place, not a near miss (F-148).
     fn check_periapsis(&self, crossing: &Crossing) -> Result<(), Infeasible> {
         let SegmentKind::Conic { conic, .. } = crossing.segment else {
             return Ok(());

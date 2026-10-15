@@ -89,7 +89,7 @@ pub struct Tunables {
     pub body_max_screen_fraction: f32,
     /// The double-click window. Double-clicks use the picking backend's
     /// click count, and since the outline selects on a single click at
-    /// once (INS-05) nothing reads this any more (F-148).
+    /// once (INS-05) nothing reads this any more (F-150).
     #[allow(dead_code)]
     pub double_click_window_ms: f32,
 

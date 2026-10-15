@@ -829,7 +829,7 @@ mod tests {
     /// TEST-20: every star, planet and moon has a Low band; each has a
     /// High band where BAND-01 allows one, which with rocky masses is
     /// every moon but Morrow's two innermost (whose Hill spheres are too
-    /// small at any plausible density, F-144).
+    /// small at any plausible density, F-146).
     #[test]
     fn every_natural_body_carries_its_bands() {
         let system = hand_made_system();
@@ -985,7 +985,7 @@ mod tests {
 
     /// TEST-05: one of each kind of ship the symbols tell apart, and own
     /// stations. (Their orbit, Halden IV's High band, is no longer slow
-    /// at 1 d/s: F-145.)
+    /// at 1 d/s: F-147.)
     #[test]
     fn corvane_has_one_of_each_kind_of_ship() {
         let check = |name: &str, want: &dyn Fn(Affiliation, &ShipRecord) -> bool| {

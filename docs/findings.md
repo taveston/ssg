@@ -2,7 +2,7 @@
 
 Open observations from building and playing the prototype. Each one is waiting for a decision. Once it's settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings take the next free number from F-154.
+Format and types are in `docs/README.md`. New findings take the next free number from F-156.
 
 ---
 
@@ -26,47 +26,57 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Affects:** MRK-15, EDGE-03 · **Type:** spec wrong
 - **Disposition:** open. Choose the chevron outside the tab or merged with the marker; the gate tabs (EDGE-03) should follow the same choice.
 
-### F-144 · Morrow's two innermost moons can't have a High band
+### F-144 · Ships in one band are not in range of each other
+- **Observation:** Raised in a combat design session. BAND-05 treats ships in one named orbit as co-located. They share a speed but not a place: a High band can be hundreds of thousands of km round, and the catalogue's longest sensor range is 50,000 km. Ships at different phases are mostly out of range of each other, so "same band, so engaged" is wrong for combat. Closing the gap is a phasing transfer: cheap in delta-v, slow in days. The spec has none. XFER-10 reaches a ship in the same band only as an ordinary arc, and XFER-03 allows zero revolutions, which a phasing arc round a ring can exceed. `transfers.md` sections 4.3 and 7 assume no such transfer is ever needed.
+- **Affects:** BAND-05, BAND-06, XFER-01, XFER-03, XFER-10 · **Type:** spec gap
+- **Disposition:** open. Decide before the "Transfer simulation" to-do item is built. Options: (a) narrow BAND-05 to selection, departure and grouping, let combat read phase, and add a phasing transfer to a ship or phase in the same band (multi-revolution arcs in XFER-03, or a simpler cost and days from the phase gap); (b) drop BAND-05 and make phase real for every rule. Lean: (a). How combat uses phase is for the conflict doc to settle. (The item was built before this was decided, to BAND-05 as specced: a ship sent to a ship in its own band is aimed at the band, not the ship's phase, F-149.)
+
+### F-145 · An intercept needs a standoff distance
+- **Observation:** Raised in a combat design session. XFER-10 ends a ship-as-destination crossing at the target's position on the crossing end day, so a Pass intercept is a collision course with zero miss distance. A real engagement has a chosen miss distance, and it sets how long each side is in weapon range and which weapons can act. The order has no way to carry one.
+- **Affects:** XFER-08, XFER-09, XFER-10 · **Type:** spec gap
+- **Disposition:** open. Option: a `standoff_km` on a Pass whose destination is a ship, so the crossing ends offset from the target's rail rather than on it. A Stop (rendezvous) keeps zero. What the standoff should default to, and how the resolver reads it, are for the conflict doc to settle.
+
+### F-146 · Morrow's two innermost moons can't have a High band
 - **Observation:** TEST-20 says every star, planet and moon in Corvane carries its two bands. BAND-01 caps High at `high_band_hill_fraction` of the Hill radius, and for a moon the Hill radius scales with its own radius: at 143,000 km from a Jupiter-mass giant, a rocky moon's Hill radius is about 1.9 times its radius, so half of it never clears Low (radius + 500 km). Morrow I and II have a Low band only, whatever plausible mass they are given. The moons now carry masses from their radii at rock density (3,000 kg/m³); every other moon gets both bands.
 - **Affects:** TEST-20, BAND-01 · **Type:** spec wrong
 - **Disposition:** open. Accept that some small moons have no High band (the build does this), or move Morrow I and II out.
 
-### F-145 · Halden IV's High band makes every parked ship an exposure ring at 1 d/s
+### F-147 · Halden IV's High band makes every parked ship an exposure ring at 1 d/s
 - **Observation:** TEST-20 makes Corvane's "High" orbit the BAND-01 band: 10 radii = 67,000 km, a period of about 1.9 d (it was 12 d). TEST-05 and TEST-10 put every parked ship there, and TEST-05 says they sit in "slow orbits (dot mode at 1 d/s)". At 1 d/s the band is now an exposure ring with a "+14" pill (MOT-14), and the symbols only show when paused or below 0.24 d/s. The build follows TEST-20; the headless identity-mark test now runs at 0.2 d/s.
 - **Affects:** TEST-05, TEST-10, TEST-20, BAND-01 · **Type:** conflict
 - **Disposition:** open. Raise `high_band_radii` (about 34 radii gives 12 d at Halden IV), accept the ring, or state that the parked ships sit elsewhere.
 
-### F-146 · XFER-07 would forbid every trip to a Low band
+### F-148 · XFER-07 would forbid every trip to a Low band
 - **Observation:** XFER-07 makes a crossing infeasible if its periapsis is inside `min_periapsis_radii` (2) × the primary's radius and is reached during the crossing. A Low band is at radius + 500 km, inside that limit for any body over 500 km, and a transfer between two bands has the body as its primary (XFER-01) and reaches periapsis at one end: High → Low arrives at periapsis, Low → High leaves from it. So no band-to-band trip touching Low could be flown. The build exempts a crossing that starts or ends in an orbit of the primary itself, and applies the rule to every other crossing (a fall towards the star from a planet, say).
 - **Affects:** XFER-07, BAND-01 · **Type:** spec wrong
 - **Disposition:** open. Accept the exemption, or lower the limit below the Low altitude.
 
-### F-147 · Choices the transfer spec leaves open
+### F-149 · Choices the transfer spec leaves open
 - **Observation:** The build had to settle these: (a) the end state of a band of the crossing's primary (band-to-band trips, a station at the primary as the start) is the band's circle aimed half a turn ahead of the start, so a Hohmann travel time gives the Hohmann burns; (b) XFER-06's spiral spans the whole crossing, whose length includes the departure and capture costs, so the spiral winds at `|v0 − v1| ÷ travel_days` and lands at the end's angle on the last day; (c) a place whose body is the crossing's primary charges nothing (XFER-01's band-to-band rule, extended to a station or a gate round the primary), and a station, gate or site is aimed at by its own orbit's state, not its parent's; (d) a parked ship as a destination is aimed at as its orbit's body (BAND-05), and the closing speed of a Pass at a ship is relative to that body's velocity; (e) Hold on an InFlight plan leaves that plan on the ship as **Holding** with its rail cut, rather than replacing it with a Done Hold plan, so PLAN-12's origin and destination survive; (f) a ship's position in a named orbit is its orbit's at its own phase, and a captured ship's phase is set so its angle at the arrival day is its arrival direction (BAND-06).
 - **Affects:** XFER-01, XFER-06, XFER-09, XFER-10, PLAN-13, BAND-06 · **Type:** spec gap
 - **Disposition:** open. Copy the choices that are fine into the spec.
 
-### F-148 · `double_click_window_ms` has no reader
+### F-150 · `double_click_window_ms` has no reader
 - **Observation:** The tunable existed so a single click on the flat "In orbit" list could wait out the double-click window before the inset was rebuilt under the pointer. The outline (INS-05) stays in place, so a click selects at once and double-clicks come from the picking backend's click count. Nothing reads the tunable now; it is kept in `Tunables` only because the spec's table lists it.
 - **Affects:** INS-05, tunables table · **Type:** spec gap
 - **Disposition:** open. Drop the tunable from the table, and the field with it.
 
-### F-149 · How a shared orbit's row is named in the outline
+### F-151 · How a shared orbit's row is named in the outline
 - **Observation:** INS-05 names the row "by the parent and the orbit (for example "Halden IV · orbit · 3")". The build reads the example as parent, orbit name, member count: "Halden IV · High · 14". The star's root row has no toggle text other than its glyph, and gates and salvage sites, which orbit the star, are listed under it after the planets by orbit radius.
 - **Affects:** INS-05 · **Type:** spec gap
 - **Disposition:** open. Confirm the format, or say what the example meant.
 
-### F-151 · The shared-orbit row's name should be the orbit alone
-- **Observation:** The outline names a shared orbit's row "Halden IV · High · 14" (F-149's reading of INS-05). In play the body name is redundant under the body's own entry, and "High" on its own doesn't say what it refers to. The row should read "High orbit" or "Low orbit" (perhaps with the count).
+### F-153 · The shared-orbit row's name should be the orbit alone
+- **Observation:** The outline names a shared orbit's row "Halden IV · High · 14" (F-151's reading of INS-05). In play the body name is redundant under the body's own entry, and "High" on its own doesn't say what it refers to. The row should read "High orbit" or "Low orbit" (perhaps with the count).
 - **Affects:** INS-05 · **Type:** spec wrong
-- **Disposition:** open. Decide the row's text; F-149 can be closed with it.
+- **Disposition:** open. Decide the row's text; F-151 can be closed with it.
 
-### F-152 · Orbit rows should appear even with one member, and perhaps when empty
+### F-154 · Orbit rows should appear even with one member, and perhaps when empty
 - **Observation:** The outline shows a named orbit's row only when it holds two or more members; a lone member is listed as a plain entry, and an empty band (Halden IV's Low, every other body's bands) is not shown at all, so no "Low" row appears anywhere. In play the rows should be there with a single member too, and it is worth deciding whether an empty band shows as a row (which would list two bands under every star, planet and moon).
 - **Affects:** INS-05, HOV-04 · **Type:** spec wrong
 - **Disposition:** open. Decided in play: empty bands never show; a named orbit with one member should still get its row. (Arden Highport is not in Low: stations keep orbits of their own, TEST-10.)
 
-### F-153 · Should stations sit in a body's bands?
+### F-155 · Should stations sit in a body's bands?
 - **Observation:** Stations keep orbits of their own (SCL-07, TEST-10: Arden Highport at 0.1 d, Iver Yard, Tern Relay), and a station is its own place with its own docking orbit (BAND-02). In play the expectation was that stations sit in the body's Low or High band like ships. If they did, "at Arden Highport" and "in Low orbit of Halden IV" would be the same ring, a ship docked at a station would be co-located with every ship in that band (BAND-05), and the outline would list the station under the band's row; the station's own named orbit and the Station place would then be redundant, or mean the band it sits in.
 - **Affects:** SCL-07, BAND-02, TEST-02, TEST-09, TEST-10, INS-05 · **Type:** idea
 - **Disposition:** open question for design. Keep stations on orbits of their own, or place them in a band.
