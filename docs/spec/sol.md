@@ -1,12 +1,12 @@
 # Spec: Sol test system
 
-**In short:** a second test system made from the real solar system, so scale, spacing and speed can be judged against figures people know. It holds the Sun, Mercury to Mars, Ceres, Jupiter, Saturn, Uranus and Neptune with their main moons, the main asteroid belt and the Kuiper belt, with no stations, ships, gates or salvage sites. Orbits stay circular, coplanar and prograde, as the simulation requires, so each body sits at its mean distance. System data holds a list of belts so Sol can have two. The game starts on Corvane; `--system sol` starts it on Sol.
+**In short:** a second test system made from the real solar system, so scale, spacing and speed can be judged against figures people know. It holds the Sun, Mercury to Mars, Ceres, Jupiter, Saturn, Uranus and Neptune with their main moons, and the main asteroid belt, with no stations, ships, gates or salvage sites. Orbits stay circular, coplanar and prograde, as the simulation requires, so each body sits at its mean distance. The game starts on Corvane; `--system sol` starts it on Sol.
 
-*Scope:* Sol's content, the belt list in system data, and the choice of system at start-up. *Source ideas:* `docs/ideas/mechanics/world-generator.md` (section 5.2). **Built** is ✓ once a requirement is in the code.
+*Scope:* Sol's content and the choice of system at start-up. *Source ideas:* `docs/ideas/mechanics/world-generator.md` (section 5.2). **Built** is ✓ once a requirement is in the code.
 
 *Sources of the figures:* NASA's planetary and satellite fact sheets (masses, radii, periods, moon orbits); JPL's approximate positions of the major planets (planet orbit radii and mean longitudes at J2000.0); JPL's planetary satellite tables (radii and masses of the small moons, and the orbits of Mars's moons); the Dawn results for Ceres.
 
-*Retired IDs* (never reuse): none.
+*Retired IDs* (never reuse): SOL-20, SOL-21.
 
 ---
 
@@ -20,18 +20,16 @@
 | SOL-04 | The moons are the twenty-one bodies of table 2, each a child of its parent with the orbit radius, mean radius and mass the table gives and the key fact "Class: Moon". Triton also has the key fact "Real orbit: retrograde, drawn prograde", and each moon of Uranus "Real orbit: round Uranus's tilted equator, drawn in the system plane". | |
 | SOL-05 | Each body's period, from Kepler's third law with its parent's mass (SCL-04), is within 1% of the real period in the tables. | |
 | SOL-06 | At day 0 each planet is at its phase in table 1: its mean longitude at J2000.0, which Sol takes as day 0 (the calendar keeps its own epoch, CLK-02). Ceres starts at 0°. The *i*th moon of a parent, counting outwards from 0, starts at 1.3 × *i* rad. | |
-| SOL-07 | Sol has two belts: the **Main belt** from 2.2 to 3.2 AU and the **Kuiper belt** from 30 to 50 AU. Neither has salvage sites. | |
+| SOL-07 | Sol has one belt, the main asteroid belt, from 2.2 to 3.2 AU, with no salvage sites. | |
 | SOL-08 | Sol has no stations, ships, gates or salvage sites. Every body in it is neutral and surveyed. | |
 | SOL-09 | With the default tunables, every star, planet and moon in Sol has a Low band, and a High band except Phobos, Deimos, Amalthea, Mimas, Enceladus and Proteus: half their Hill radius does not exceed their Low radius (BAND-01). Tethys keeps its High band by about 19 km (High 1,050 km, Low 1,031 km). | |
-| SOL-10 | The system fit (ZOOM-15) is Neptune's orbit, 30.07 AU. Belts are not part of the fit, so the Kuiper belt reaches past it. | |
-| SOL-11 | Sol spawns in a headless app (ARCH-13) as one star, nine planets (Ceres included), twenty-one moons and two belts, with no gates, and every named orbit resolves. | |
+| SOL-10 | The system fit (ZOOM-15) is Neptune's orbit, 30.07 AU. | |
+| SOL-11 | Sol spawns in a headless app (ARCH-13) as one star, nine planets (Ceres included), twenty-one moons and one belt, with no gates, and every named orbit resolves. | |
 
-## 2. Data and start-up
+## 2. Start-up
 
 | ID | Requirement | Built |
 |---|---|---|
-| SOL-20 | System data holds a list of belts, in place of the single belt, so a system has none, one or several. A belt has a name, an inner and an outer radius in km, and its salvage sites. Corvane's belt becomes a list of one with its sites unchanged. | |
-| SOL-21 | Each belt spawns as its own record, named after the belt, and is drawn as a translucent band (MRK-05). | |
 | SOL-22 | The system to load is chosen at start-up by the argument `--system <name>`: `corvane` (the default, with no argument) or `sol`. An unknown name stops the program with a message listing the known names. The choice is a plain function of the arguments (ARCH-20). | |
 | SOL-23 | The arguments are read in `content/`; `main.rs` only adds the plugin (ARCH-01). *Checked in review.* | |
 
