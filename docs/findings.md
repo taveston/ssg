@@ -2,7 +2,7 @@
 
 Open observations from building and playing the prototype. Each one is waiting for a decision. Once it's settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings take the next free number from F-150.
+Format and types are in `docs/README.md`. New findings take the next free number from F-153.
 
 ---
 
@@ -55,3 +55,18 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Observation:** INS-05 names the row "by the parent and the orbit (for example "Halden IV · orbit · 3")". The build reads the example as parent, orbit name, member count: "Halden IV · High · 14". The star's root row has no toggle text other than its glyph, and gates and salvage sites, which orbit the star, are listed under it after the planets by orbit radius.
 - **Affects:** INS-05 · **Type:** spec gap
 - **Disposition:** open. Confirm the format, or say what the example meant.
+
+### F-150 · Sidebar text is too small to read comfortably
+- **Observation:** In play, most of the sidebar's text is a little too small to be fully legible, the outline tree most of all. The build uses 11 px for outline entries and body text, 9 px for the spaced capitals, 15 px for the header; the spec sets no sizes.
+- **Affects:** INS-05, INS-09, MRK-02 · **Type:** spec gap
+- **Disposition:** open. Set the sidebar's type sizes (perhaps as tunables, or in the type roles table) and raise them.
+
+### F-151 · The shared-orbit row's name should be the orbit alone
+- **Observation:** The outline names a shared orbit's row "Halden IV · High · 14" (F-149's reading of INS-05). In play the body name is redundant under the body's own entry, and "High" on its own doesn't say what it refers to. The row should read "High orbit" or "Low orbit" (perhaps with the count).
+- **Affects:** INS-05 · **Type:** spec wrong
+- **Disposition:** open. Decide the row's text; F-149 can be closed with it.
+
+### F-152 · Orbit rows should appear even with one member, and perhaps when empty
+- **Observation:** The outline shows a named orbit's row only when it holds two or more members; a lone member is listed as a plain entry, and an empty band (Halden IV's Low, every other body's bands) is not shown at all, so no "Low" row appears anywhere. In play the rows should be there with a single member too, and it is worth deciding whether an empty band shows as a row (which would list two bands under every star, planet and moon).
+- **Affects:** INS-05, HOV-04 · **Type:** spec wrong
+- **Disposition:** open. Show a row for every named orbit with at least one member, or for every band regardless.
