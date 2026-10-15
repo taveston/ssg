@@ -19,7 +19,7 @@
 - **The window** runs until no opposed pair is within reach and none will be, capped at `window_cap_h`. At the cap a new phase forms at once from the survivors if any pair is still in reach. Missiles in flight carry over. Orders given during a phase take effect at the next.
 - **Long shots** beyond `max_flight_s` are strategic launches, deferred: a salvo on a rail in the main simulation, like a fleet on an intercept, that forms its own engagement on arrival. Only the missiles and their targets would then be on the tactical map.
 - **Bystanders.** A neutral ship within reach at t0 is in the simulation but never a target. It can be detected, can dodge, and breaks off by the civilian rule (section 8).
-- **Shared bands.** The simulation reads true rail positions, so position round a band counts (finding F-144). The order's standoff shapes the rail; the simulation never reads it (finding F-145).
+- **Shared bands.** The simulation reads true rail positions, so position round a band counts (*Orbital Transfers* 4.4). The order's standoff shapes the rail; the simulation never reads it (finding F-145).
 - **Fixed assets** (stations, gates) are ships with no drive.
 
 ## 2. The step loop

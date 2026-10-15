@@ -36,7 +36,7 @@ A long, quiet approach, then a short exchange.
 - **The objective picks the speed.** Destroying favours a fast Pass: no capture burn and little exposure. Holding (blockade, bombardment, boarding, capture, salvage, escort) needs a Stop. A fast pass commits the ship to its path, and stopping spends the return reserve.
 - **Defenders influence speed.** A deep gravity well raises pass speeds.
 - **Miss distance is a choice.** An intercept carries a standoff, not a collision course.
-- **Ships in one band are not engaged by default.** They share a speed, not a place. A band can be hundreds of thousands of km round, and the longest sensor range in the catalogue is 50,000 km. Closing within a band takes a phasing transfer. This replaces the co-location rule for combat.
+- **Ships in one band are not engaged by default.** They share a speed, not a place. A band can be hundreds of thousands of km round, and the longest sensor range in the catalogue is 50,000 km. Closing within a band takes a phasing leg, which trades delta-v for time (*Orbital Transfers* 4.4).
 - **Evasion is a spend.** Jinking costs delta-v and shows as a burn. A ship thrusting at 0.1 g for 20 minutes spends about 1.2 km/s, so a warship that dodges gives up the reserve it needs to retreat or pursue. A slow hauler gains almost nothing from it.
 - **Evasion only pays** against unguided rounds and against missiles that have lost their launcher's updates. So the defence against a salvo is to kill or blind the ship guiding it, then dodge (*Combat Simulation* 5.3).
 
@@ -185,7 +185,7 @@ AI leaders change through elections, coups and death, so relations shift over a 
 - Missile range and magazine as ship figures, and the other figures *Combat Simulation* 3 needs from a design.
 - Dwell time: how each weapon family responds is in *Combat Simulation* 7.
 - The standoff on an intercept order: its default (finding F-145). *Combat Simulation* 1 settles that the simulation reads rails only.
-- A phasing transfer within a band, replacing co-location for combat (finding F-144; `transfers.md` 4.3 and 7). *Combat Simulation* 1 settles that combat reads true rail positions.
+- What a Pass meets in the band it passes: the transfer spec records the closest-approach point and speed, and combat builds the encounter from them (`transfers.md` 4.4). Whether a flyby against the band's motion is an option.
 - How a raider's reachable envelope is drawn (a candidate overlay in *Combat View* 4).
 - The engagement window cap and the length of a phase (placeholder in *Combat Simulation* 14).
 - Whether the pause at the end of a fight covers every visible fight or only the player's own (*Combat View* 2 proposes own fights only by default).
