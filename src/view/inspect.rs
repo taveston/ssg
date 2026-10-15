@@ -84,11 +84,11 @@ const IMAGE_HEIGHT_PX: f32 = 64.0;
 /// The orange corner brackets that frame a telescope image (INS-04).
 const BRACKET_PX: f32 = 10.0;
 const BRACKET_LINE_PX: f32 = 2.0;
-const HEADER_FONT_PX: f32 = 15.0;
-const BODY_FONT_PX: f32 = 11.0;
+const HEADER_FONT_PX: f32 = 17.0;
+const BODY_FONT_PX: f32 = 13.0;
 /// Small spaced capitals: the size, the gap between letters and the gap
 /// between words (INS-09).
-const CAPS_FONT_PX: f32 = 9.0;
+const CAPS_FONT_PX: f32 = 11.0;
 const CAPS_LETTER_GAP_PX: f32 = 1.5;
 const CAPS_WORD_GAP_PX: f32 = 5.0;
 /// Key facts wrap in rows: each takes at least this much of the row, so

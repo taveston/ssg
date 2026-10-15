@@ -57,9 +57,9 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Disposition:** open. Confirm the format, or say what the example meant.
 
 ### F-150 · Sidebar text is too small to read comfortably
-- **Observation:** In play, most of the sidebar's text is a little too small to be fully legible, the outline tree most of all. The build uses 11 px for outline entries and body text, 9 px for the spaced capitals, 15 px for the header; the spec sets no sizes.
+- **Observation:** In play, most of the sidebar's text was a little too small to be fully legible, the outline tree most of all. The build used 11 px for outline entries and body text, 9 px for the spaced capitals, 15 px for the header; the spec sets no sizes. Raised to 13 px for entries and body text, 11 px for the spaced capitals and 17 px for the header, with the outline's body markers at 10 px.
 - **Affects:** INS-05, INS-09, MRK-02 · **Type:** spec gap
-- **Disposition:** open. Set the sidebar's type sizes (perhaps as tunables, or in the type roles table) and raise them.
+- **Disposition:** open. Accept the new sizes, or set the sidebar's type sizes in the spec (as tunables, or in the type roles table).
 
 ### F-151 · The shared-orbit row's name should be the orbit alone
 - **Observation:** The outline names a shared orbit's row "Halden IV · High · 14" (F-149's reading of INS-05). In play the body name is redundant under the body's own entry, and "High" on its own doesn't say what it refers to. The row should read "High orbit" or "Low orbit" (perhaps with the count).

@@ -33,15 +33,15 @@ use crate::sim::named_orbit::{InNamedOrbit, NamedOrbit};
 use crate::sim::orbit::Orbit;
 use crate::sim::track::ShipRecord;
 
-const ENTRY_FONT_PX: f32 = 11.0;
+const ENTRY_FONT_PX: f32 = 13.0;
 /// Half the size of an entry's class marker.
-const ICON_HALF_PX: f32 = 4.0;
+const ICON_HALF_PX: f32 = 5.0;
 const ENTRY_GAP_PX: f32 = 6.0;
 /// One generation's indent.
 const INDENT_PX: f32 = 14.0;
 /// The width of the toggle's slot, so names line up whether or not an
 /// entry has one.
-const TOGGLE_PX: f32 = 12.0;
+const TOGGLE_PX: f32 = 14.0;
 const ROW_PADDING_Y_PX: f32 = 2.0;
 /// The toggle glyphs: collapsed and expanded.
 const COLLAPSED_GLYPH: &str = ">";
