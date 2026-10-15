@@ -5,7 +5,7 @@
 <title>Combat replay</title>
 <!--
   Orphan Worlds: the combat replay view, candidate (docs/ideas/presentation/combat-view.md).
-  The worked example in conflict.md 1.7 at CA -17:30, drawn in TF-1's relative frame.
+  The worked example in conflict.md 1.7, 75 min 30 s after the engagement formed (17 min 30 s before the predicted closest approach), drawn in TF-1's relative frame.
   Symbols follow the rules of 7-symbology.html. Render at 1440 x 900.
 -->
 <style>
@@ -42,7 +42,7 @@ body{font-family:"Plex Cond",sans-serif;font-size:14px;width:1440px;height:900px
 .force{display:grid;grid-template-columns:30px 1fr;gap:2px 8px;margin-bottom:10px;align-items:center}
 .force .n{font-weight:600} .force .d{grid-column:2;font:12px "Plex Mono",monospace;color:var(--muted)}
 .log{font-size:12.5px}
-.log .e{display:grid;grid-template-columns:62px 1fr;gap:6px;padding:4px 0;border-top:1px solid var(--line2)}
+.log .e{display:grid;grid-template-columns:76px 1fr;gap:6px;padding:4px 0;border-top:1px solid var(--line2)}
 .log .e .t{font:11.5px "Plex Mono",monospace;color:var(--muted)}
 .log .e.now{color:var(--text)} .log .e.now .t{color:var(--text)}
 .tag{display:inline-block;font:11px "Plex Mono",monospace;border:1px solid var(--line);border-radius:3px;padding:0 5px;color:var(--muted);margin-top:3px}
@@ -56,7 +56,7 @@ body{font-family:"Plex Cond",sans-serif;font-size:14px;width:1440px;height:900px
 <div class="top">
   <span class="crumb">Corvane / Halden IV / <b>Engagement E-7</b></span>
   <span class="chip rep">REPLAY</span>
-  <div class="clock"><span class="big">CA −17:30</span><span class="small">16 MAR 2341 03:41:12</span></div>
+  <div class="clock"><span class="big">T+75m 30s</span><span class="small">16 MAR 2341 03:41:12</span></div>
   <button class="btn quiet">Pause</button>
   <button class="btn on">Auto</button><button class="btn">×1</button><button class="btn">×10</button><button class="btn">×60</button>
   <span class="sp"></span>
@@ -91,15 +91,15 @@ body{font-family:"Plex Cond",sans-serif;font-size:14px;width:1440px;height:900px
   <line x1="1032" y1="320" x2="0" y2="377" stroke="#EE6A5F" stroke-width="1.3" stroke-dasharray="6 5" opacity=".8"/>
   <line x1="420" y1="420" x2="414" y2="354" stroke="#9FB6C4" stroke-width="1" stroke-dasharray="2 3"/>
   <circle cx="414" cy="354" r="3" fill="none" stroke="#DCE6EC"/>
-  <text x="346" y="344" font-size="12" fill="#DCE6EC">closest approach</text>
-  <text x="346" y="330" font-family="Plex Mono, monospace" font-size="11" fill="#9FB6C4">+17:30 · 1,500 km</text>
+  <text x="346" y="344" font-size="12" fill="#DCE6EC">closest approach (predicted)</text>
+  <text x="346" y="330" font-family="Plex Mono, monospace" font-size="11" fill="#9FB6C4">in 17m 30s · 1,500 km</text>
 
   <!-- R-2's salvo, inbound on TF-1 -->
   <path d="M1140 366 L472 416" stroke="#EE6A5F" stroke-width="1" stroke-opacity=".35" fill="none"/>
   <g transform="translate(474,416) rotate(184)">
     <path d="M0,0 L12,0" stroke="#EE6A5F" stroke-width="1.6" marker-end="url(#ah)"/>
   </g>
-  <text x="480" y="440" font-size="12" fill="#EE6A5F">Dart ×8</text>
+  <text x="480" y="440" font-size="12" fill="#EE6A5F">Missile ×8</text>
   <text x="480" y="454" font-family="Plex Mono, monospace" font-size="10.5" fill="#EE6A5F" fill-opacity=".85">17 km/s · 810 km</text>
 
   <!-- TF-1's salvo, outbound on R-2 -->
@@ -179,38 +179,38 @@ body{font-family:"Plex Cond",sans-serif;font-size:14px;width:1440px;height:900px
       <svg width="30" height="30" viewBox="-15 -15 30 30"><g stroke="#EE6A5F" stroke-width="1.6"><path d="M0,-13 L13,0 L0,13 L-13,0 Z" fill="#2A1617"/><path d="M0,-6 L6,4 L-6,4 Z" fill="#EE6A5F" stroke="none"/></g></svg>
       <span class="n" style="color:var(--hostile)">R-2 · armed hauler</span>
       <span class="d">commander <span class="unk">?</span></span>
-      <span class="d">Dart 8 launched · more <span class="unk">?</span></span>
+      <span class="d">8 missiles launched · more <span class="unk">?</span></span>
       <span class="d">PD ~1 mount · Δv 3–7 km/s</span>
     </div>
   </div>
   <div class="sec log">
     <p class="h">Log</p>
-    <div class="e"><span class="t">CA−93:00</span><span>Lidar track on R-2, firm</span></div>
-    <div class="e"><span class="t">CA−93:00</span><span>TF-1 stays passive</span></div>
-    <div class="e"><span class="t">CA−37:10</span><span>R-2 launches 8 Darts at TF-1</span></div>
-    <div class="e"><span class="t">CA−37:05</span><span>TF-1 launches 12 Darts at R-2<br><span class="tag">Marr held 75% of magazines</span></span></div>
-    <div class="e"><span class="t">CA−36:50</span><span>R-2 identified: armed hauler</span></div>
-    <div class="e now"><span class="t">CA−17:30</span><span>Salvos 30 s from point-defence range</span></div>
+    <div class="e"><span class="t">T+0m 00s</span><span>Lidar track on R-2, firm</span></div>
+    <div class="e"><span class="t">T+0m 00s</span><span>TF-1 stays passive</span></div>
+    <div class="e"><span class="t">T+55m 50s</span><span>R-2 launches 8 missiles at TF-1</span></div>
+    <div class="e"><span class="t">T+55m 55s</span><span>TF-1 launches 12 Darts at R-2<br><span class="tag">Marr held 75% of magazines</span></span></div>
+    <div class="e"><span class="t">T+56m 10s</span><span>R-2 identified: armed hauler</span></div>
+    <div class="e now"><span class="t">T+75m 30s</span><span>Salvos 30 s from point-defence range</span></div>
   </div>
 </div>
 
 <svg class="tl" viewBox="0 0 1140 120" font-family="Plex Cond, sans-serif">
-  <!-- window: t0 = CA-93 min to CA+93 min, 186 min across 1060 px -->
+  <!-- window: T+0 to the predicted end at T+186 min, across 1060 px -->
   <text x="20" y="22" font-size="11" font-weight="600" letter-spacing="1.3" fill="#9FB6C4">TIMELINE</text>
-  <text x="1120" y="22" text-anchor="end" font-family="Plex Mono, monospace" font-size="11" fill="#9FB6C4">window 3 h 06 min · ends CA+93:00</text>
+  <text x="1120" y="22" text-anchor="end" font-family="Plex Mono, monospace" font-size="11" fill="#9FB6C4">predicted window 3h 06m</text>
   <rect x="40" y="52" width="1060" height="6" rx="3" fill="#1E2A35"/>
   <rect x="40" y="52" width="433" height="6" rx="3" fill="#3B6C96"/>
   <!-- fine-step band where anything is inside point-defence range -->
   <rect x="473" y="50" width="6" height="10" fill="#9FB6C4" opacity=".35"/>
   <!-- closest approach -->
   <line x1="570" y1="44" x2="570" y2="66" stroke="#DCE6EC"/>
-  <text x="570" y="40" text-anchor="middle" font-family="Plex Mono, monospace" font-size="10.5" fill="#DCE6EC">CA</text>
+  <text x="570" y="40" text-anchor="middle" font-family="Plex Mono, monospace" font-size="10.5" fill="#DCE6EC">closest approach (pred.)</text>
   <!-- past events, labelled -->
   <g stroke="#DCE6EC" stroke-width="1.2">
     <line x1="40" y1="64" x2="40" y2="72"/><line x1="359" y1="64" x2="359" y2="72"/><line x1="361" y1="64" x2="361" y2="72"/>
   </g>
   <g font-family="Plex Mono, monospace" font-size="10.5" fill="#9FB6C4">
-    <text x="40" y="86">t0 · track</text>
+    <text x="40" y="86">T+0 · track</text>
     <text x="330" y="86">launches</text>
   </g>
   <!-- future events: ticks without labels, so scrubbing gives no spoilers -->

@@ -42,7 +42,7 @@ All **Candidate**. Mock-ups: `mockups/13-combat-replay.png` to `16-after-action-
 
 - Ships and forces as their symbols (SYM), with velocity leaders along the relative motion.
 - Each ship's path: solid behind, dashed ahead (as *Orbital Transfers* 3.3), in the relative frame.
-- Missiles as **salvos**: one arrowhead per salvo, in the side's colour, labelled with the type and count ("Dart ×8") and, when selected or close, speed and range to target. A salvo splits into separate arrowheads only inside point-defence range, where each missile's fate is shown.
+- Missiles as **salvos**: one arrowhead per salvo, in the side's colour, labelled with what the state knows and the count: the design name when it is known ("Dart ×12" for our own), otherwise "Missile ×8" until the design is identified and, when selected or close, speed and range to target. A salvo splits into separate arrowheads only inside point-defence range, where each missile's fate is shown.
 - Point-defence fire as short ticks from the mount towards each missile, and a kill as the arrowhead ending in a small burst. Decoys as faint dots.
 - A hit as a flash on the target's frame; damage as the condition bar dropping; disabled as the stale-style dimming plus a "disabled" label; destroyed as the salvage X.
 - Missed missiles and rounds fly on and off the edge of the view. A missile that is shot down ends in a small burst.
@@ -51,16 +51,17 @@ All **Candidate**. Mock-ups: `mockups/13-combat-replay.png` to `16-after-action-
 
 **The clock.**
 
-- Time is shown relative to closest approach: "CA −17:30", with the date and time beside it. Closest approach is the moment every pass is built round.
+- Time counts from the moment the engagement formed: "T+75m 30s", in minutes and seconds (hours once past 60 min: "T+1h 15m 30s"), with the date and time beside it.
+- Closest approach is information, not the clock's origin. It is a prediction from the current rails and moves when anyone burns, a fight between several forces has one per pair, and a Stop fight has none. Counting towards the true closest approach would also give away the result. So it shows as a timeline marker and a caption: "Closest approach in 17m 30s (predicted) · 1,500 km".
 - **Auto** rate is the default: about ×60 while everything coasts, easing to ×1 near events and slower inside point-defence range, where a missile crosses in 18 s. Fixed rates (×1, ×10, ×60) are there too. Pause is Space.
 - A short caption above the map names the next thing: "R-2's salvo reaches TF-1's point-defence range in 30 s". Captions come from the event log (*Combat Simulation* 11).
 - Skip to result ends the replay and shows the report.
 
-**The timeline.** The window's span, with closest approach marked and the fine-step stretch shaded. Events are ticks. Past events are labelled; later ones are unlabelled, so scrubbing ahead tells the player only that something happens, not what. [ and ] jump to the previous or next event.
+**The timeline.** The window as predicted at its start, with the predicted closest approach marked (moving if a burn changes it) and the fine-step stretch shaded. Events are ticks. Past events are labelled; later ones are unlabelled, so scrubbing ahead tells the player only that something happens, not what. [ and ] jump to the previous or next event.
 
 **The sidebar.**
 
-- **Forces:** each side's symbol, name, commander, and the figures the state knew at that moment, in the certainty notation: "Dart 8 launched · more ?", "PD ~1 mount", "Δv 3–7 km/s".
+- **Forces:** each side's symbol, name, commander, and the figures the state knew at that moment, in the certainty notation: "8 missiles launched · more ?", "PD ~1 mount", "Δv 3–7 km/s".
 - **Log:** events up to the playhead only, with decision tags attached to the events they caused ("Marr held 75% of magazines").
 - **Picture:** As seen then (default) or As known now. The second adds what the state learned from the fight and since: the confirmed class, the observed loadout, a later inspection of the wreck. Neither mode shows the truth: an enemy figure nobody observed stays "?". This keeps the fog consistent with *Combat Simulation* 4, and lets a replay improve as intelligence arrives.
 
