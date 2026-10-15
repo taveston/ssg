@@ -14,6 +14,9 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 - [ ] **Ship groups and condition** · SYM-09, SYM-10, SYM-12, GRP-09, TEST-06
   - The symbols are built; groups add to them (`view/symbols.rs`, `symbol_draw.rs`).
+- [ ] **Stations in bands** · SCL-07, BAND-02, TEST-02, TEST-09, TEST-10
+  - A station takes a place in a body's Low or High band, as a ship does; the Station place becomes the band it occupies. Move Arden Highport and Tern Relay into Low bands (`content/corvane.rs`) and drop the station's own-orbit placement.
+  - A ship docked at a station is in the station's band for now (BAND-05). F-144 decides whether the station's phase matters.
 - [ ] **Velocity leaders** · SYM-11
   - Blocked: ships in transit are simulated (`src/sim/transfer/`) but drawing them is not specced.
 - [ ] **Ideology profile** · IDEO-01 to IDEO-31
