@@ -45,13 +45,15 @@ All **Candidate**. Mock-ups: `mockups/13-combat-replay.png` to `16-after-action-
 - Missiles as **salvos**: one arrowhead per salvo, in the side's colour, labelled with the type and count ("Dart ×8") and, when selected or close, speed and range to target. A salvo splits into separate arrowheads only inside point-defence range, where each missile's fate is shown.
 - Point-defence fire as short ticks from the mount towards each missile, and a kill as the arrowhead ending in a small burst. Decoys as faint dots.
 - A hit as a flash on the target's frame; damage as the condition bar dropping; disabled as the stale-style dimming plus a "disabled" label; destroyed as the salvage X.
+- Missed missiles and rounds fly on and off the edge of the view. A missile that is shot down ends in a small burst.
+- A force that splits (stragglers left behind, non-combatants detached) shows as two symbols from that moment.
 - Track quality as the symbology already shows it: a weak track has a dashed frame and its uncertainty region.
 
 **The clock.**
 
 - Time is shown relative to closest approach: "CA −17:30", with the date and time beside it. Closest approach is the moment every pass is built round.
 - **Auto** rate is the default: about ×60 while everything coasts, easing to ×1 near events and slower inside point-defence range, where a missile crosses in 18 s. Fixed rates (×1, ×10, ×60) are there too. Pause is Space.
-- A short caption above the map names the next thing: "R-2's salvo reaches TF-1's point-defence range in 30 s". Captions come from the event log (*Combat Simulation* 9).
+- A short caption above the map names the next thing: "R-2's salvo reaches TF-1's point-defence range in 30 s". Captions come from the event log (*Combat Simulation* 11).
 - Skip to result ends the replay and shows the report.
 
 **The timeline.** The window's span, with closest approach marked and the fine-step stretch shaded. Events are ticks. Past events are labelled; later ones are unlabelled, so scrubbing ahead tells the player only that something happens, not what. [ and ] jump to the previous or next event.
@@ -72,7 +74,7 @@ All **Candidate**. Mock-ups: `mockups/13-combat-replay.png` to `16-after-action-
 
 ## 5. Orders and standing orders
 
-Board 15 shows the proposal from *Combat Simulation* 8.
+Board 15 shows the orders from *Combat Simulation* 10.
 
 - **Orders** are a section of the force's inset: objective, approach and standoff, weapons, target priority, emissions, and the reserves (return delta-v and magazines held back). Controls are segmented buttons; one choice is always set. Choices the simulation can't yet do (Capture) are shown and disabled.
 - **The commander** heads the panel with what the state knows: name, Command as a range, observed traits as chips and unobserved ones as a dashed chip. A line under the orders says how boldly to carry them out is the commander's call.
@@ -86,10 +88,10 @@ Board 15 shows the proposal from *Combat Simulation* 8.
 
 Board 16. It follows the report layout in *Interface Style* 7.
 
-- **Signal header,** then a **one-sentence conclusion** ("R-2 disabled on a pass at Halden IV High, with no loss to TF-1"), then a short account in the commander's voice.
+- **Signal header,** then a **one-sentence conclusion** ("R-2 destroyed on a pass at Halden IV High, with no loss to TF-1"), then a short account in the commander's voice.
 - **Ships:** status, condition, missiles used and delta-v spent, per ship or per force. Enemy figures in the certainty notation.
 - **Timeline:** six to ten lines from the event log, the decisive ones only.
-- **Decisions:** the commander's decision tags, written as behaviour ("held 75% of magazines"), never as the trait.
+- **Decisions:** the commander's decision tags, written as behaviour ("held 75% of magazines", "left *Wren* behind"), never as the trait.
 - **Track plot:** a small relative plot with the tracks, the closest approach and where ships were hit. Coarse; the replay is the detail.
 - **What we learned:** knowledge updates, new salvage sites, and our own state.
 - **Actions:** the decisions the report asks for (divert the wreck, refit, resupply), then Show on map and Watch replay while the recording is kept.

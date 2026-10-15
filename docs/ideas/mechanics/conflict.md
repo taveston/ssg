@@ -1,6 +1,6 @@
 # Orphan Worlds: Combat, Raiders & Diplomacy
 
-**In short:** combat is a small part of play, simulated in full by the game and never flown by the player. A fight is mostly decided before the shooting: by who sees whom, the geometry, delta-v reserves and magazines. It is simulated at once when it forms, shows on the map as a collapsed engagement while it runs, and is revealed with a watchable replay when it ends. Defence is mainly interception by a concentrated fleet, set up with standing orders. The senior officer present commands, through Command skill and one trait, Bold/Cautious. Raiders arise from simulated conditions, not random spawns. Rival leaders change through elections, coups and death, so relations shift over a long game.
+**In short:** combat is a small part of play, simulated in full by the game and never flown by the player. A fight is mostly decided before the shooting: by who sees whom, the geometry, delta-v reserves and magazines. It is simulated at once when it forms, shows on the map as a collapsed engagement while it runs, and is revealed with a watchable replay when it ends. Defence is mainly interception by a concentrated fleet, set up with standing orders. The senior officer present commands, through Command skill and two traits: Bold/Cautious sets how hard they press, Ruthless/Humane whether they leave stragglers behind. Raiders arise from simulated conditions, not random spawns. Rival leaders change through elections, coups and death, so relations shift over a long game.
 
 *Status:* early. Status tags as in the overview (**Decided**, **Direction**, **Candidate**). Companion documents: *Overview*, *Presentation & Visual Style* (2, the display; 3, ground combat), *Symbology*, *Economy* (armed haulers, tolls), *Characters, Organisations & Events* (1, skills and traits), *Orbital Transfers* (7, tactical manoeuvring), *Component Stats & Ship Assembly* (signatures, weapons), *Combat Simulation* (`combat-simulation.md`, how a fight is computed), *Combat View* (`../presentation/combat-view.md`, how the replay looks).
 
@@ -23,11 +23,12 @@ A long, quiet approach, then a short exchange.
 
 ### 1.2 Weapons: no single winner
 
-- **Missiles** do most of the killing. They chase, work at the longest ranges and can saturate defences. Their limits are magazine and cost. A missile out-manoeuvres any ship, so only point defence and decoys stop it.
+- **Missiles** do most of the killing. They chase, work at the longest ranges and can saturate defences. Their limits are magazine and cost. A missile out-manoeuvres any ship, so only point defence and decoys stop it. A whole missile hitting at km/s carries tens of GJ, so one that gets through kills any small ship; armour can't stop it.
 - **Kinetic launchers** are cheap. A projectile that flies for minutes can be dodged by a small burn, so they suit close range and area denial. The catalogue's launcher fires once a minute, a trickle in a short pass.
-- **Lasers** are the best point defence and a heat-limited weapon. One turns about two-thirds of its draw into heat while firing, which loads the radiators. They are tier 3, so mid-future.
+- **Lasers** are the best point defence and a heat-limited weapon. One turns about two-thirds of its draw into heat while firing, which loads the radiators. They are tier 3, so mid-future. How heat limits them in a fight is open until heat sinking is checked for plausibility (*Combat Simulation* 13).
 - **Near future:** missiles, kinetic launchers and point defence. **Mid future:** lasers become real offence, and a fight between laser ships is a duel of radiator margin.
 - Each side needs a mix. The central contest is salvo size against point-defence capacity.
+- **Point defence is not a weapon type.** Any mount that can track and reach a missile in time fills the role, counter-missiles included (*Combat Simulation* 5.2).
 
 ### 1.3 Engagement geometry
 
@@ -37,6 +38,7 @@ A long, quiet approach, then a short exchange.
 - **Miss distance is a choice.** An intercept carries a standoff, not a collision course.
 - **Ships in one band are not engaged by default.** They share a speed, not a place. A band can be hundreds of thousands of km round, and the longest sensor range in the catalogue is 50,000 km. Closing within a band takes a phasing transfer. This replaces the co-location rule for combat.
 - **Evasion is a spend.** Jinking costs delta-v and shows as a burn. A ship thrusting at 0.1 g for 20 minutes spends about 1.2 km/s, so a warship that dodges gives up the reserve it needs to retreat or pursue. A slow hauler gains almost nothing from it.
+- **Evasion only pays** against unguided rounds and against missiles that have lost their launcher's updates. So the defence against a salvo is to kill or blind the ship guiding it, then dodge (*Combat Simulation* 5.3).
 
 ### 1.4 Defence is interception
 
@@ -49,7 +51,7 @@ A long, quiet approach, then a short exchange.
 ### 1.5 Detection and stealth
 
 - A burning drive is visible across the system. At the catalogue's figures an NTR burn (about 900 MW) is seen at about 15 AU. A launch is public. Light delay is minutes and is not modelled.
-- Drive choice sets visibility. NTR coasting is about 1.9 MW (seen at about 0.7 AU). A NEP hauler is about 23 MW all the time (about 2.4 AU). An NTR burn is about 900 MW. NEP ships are the visible ones. Emission control adds bounded dimness, limited by how much heat the ship can store.
+- Drive choice sets visibility. NTR coasting is about 1.9 MW (seen at about 0.7 AU). A NEP hauler is about 23 MW all the time (about 2.4 AU). An NTR burn is about 900 MW. NEP ships are the visible ones. Emission control adds bounded dimness, limited by how much heat the ship can store. That depends on whether heat sinking is physically plausible, which is still to be checked.
 - A burn gives a bearing, not a fix. A track tightens over days with time and separated sensors. Planets and the sun block lines of sight.
 - The current conic of a ship that burned in view is well known. What is uncertain is its **future conic**: a small early burn moves a ship a long way later (100 m/s for an hour is about 360 km), which can ruin an intercept.
 - The uncertainty to show is a **reachable envelope** from remaining delta-v, not a measurement ellipse. A weak track is needed only for hidden departures and sensor gaps.
@@ -75,7 +77,7 @@ Raider R-2 is an armed hauler with 8 Dart missiles, one point-defence mount and 
 | CA−60 h | A standing order sends TF-1 out (3 km/s of its 9.9). Both ships are now committed. |
 | CA−93 min, 50,000 km | Lidar tracks. Nobody fires. |
 | CA−37 min, 20,000 km | Radar range. R-2 fires 8 Darts. TF-1 fires 12 and holds 36 back. |
-| CA−17 min, about 9,400 km | The missiles reach point-defence range (300 km), about 18 s before impact. At an assumed 1 shot a second and 0.3 per shot, R-2's one mount expects about 5 kills against 12 missiles and is mission-killed. TF-1's mounts stop all 8. |
+| CA−17 min, about 9,400 km | The missiles reach point-defence range (300 km), about 18 s before impact. At an assumed 1 shot a second and 0.3 per shot, R-2's one mount expects about 5 kills against 12 missiles; its decoys take a few more, and the rest get through. The first Dart to hit carries about 58 GJ and destroys R-2. TF-1's mounts stop all 8. |
 | CA, standoff 1,500 km | TF-1 passes the wreck, which keeps its conic and must be diverted, then salvaged. |
 
 The fight was decided at CA−60 h. The shooting took about 20 minutes, with about 18 seconds of point defence.
@@ -89,7 +91,7 @@ The fight was decided at CA−60 h. The shooting took about 20 minutes, with abo
 - Inputs freeze at t0. Orders given afterwards to ships in the engagement wait until it ends. This holds because no uninvolved ship can reach a fight within hours.
 - A window is capped at a few hours. A longer fight splits into phases: survivors return to the main simulation with their damage and magazines, and a new phase forms if they are still in range.
 - The main clock keeps running. While the fight runs, its ships appear on the map as one engagement: both sides shown and joined by a link (reusing the folding rules), and not commandable.
-- The detail of forming, stepping, sensing, weapons, decisions and orders is in *Combat Simulation*. It proposes that t0 is the first moment opposed ships come within sensor reach, so the window is the few hours around contact, and the decisive order was given long before.
+- The detail of forming, stepping, sensing, weapons, damage, decisions and orders is in *Combat Simulation*. t0 is the first moment opposed ships come within sensor or weapon reach, so the window is the few hours around contact, and the decisive order was given long before.
 
 **Revealing it**
 
@@ -116,8 +118,8 @@ The senior officer present commands the force. A lone ship's captain commands th
 **Autonomy**
 
 - Commanders have no strategic autonomy. Standing orders decide whether and where to fight. Skill and traits act only on how an order is carried out.
-- Only traits that move a decision the simulation makes have a combat role. Today that is one: Bold/Cautious. The other pairs in *Characters, Organisations & Events* have no combat role.
-- Ruthless/Humane waits for surrender and disabled-ship states, which the simulation doesn't have yet.
+- Only traits that move a decision the simulation makes have a combat role. Today that is two: Bold/Cautious and Ruthless/Humane. The other pairs in *Characters, Organisations & Events* have no combat role.
+- The tactical AI is a short list of rules whose thresholds come from these traits (*Combat Simulation* 9). A smarter AI can replace any rule later.
 
 **Command skill (direction)**
 
@@ -129,11 +131,18 @@ The senior officer present commands the force. A lone ship's captain commands th
 
 **Bold/Cautious (direction)**
 
-- One dial between the objective and survival. The simulation derives every commander decision from it.
+- One dial between the objective and survival. It sets the thresholds in the tactical AI's rule table: when to fire, salvo size, magazines held back, when to break off, how much delta-v to spend dodging.
 - Bold commanders press the objective: large salvos, early fire, losses accepted before breaking off.
 - Cautious commanders preserve the ship and its reserve: magazines held back, return delta-v kept, early break-off.
-- Average sits between. The tactical AI reads this dial and nothing else about temperament.
+- Average sits between.
 - The report's decision tags show it, for example "broke off at 40% losses" or "held 60% of magazines". The player learns a commander's trait from these, as *Characters, Organisations & Events* describes.
+
+**Ruthless/Humane (direction)**
+
+- It decides whether a force breaking off leaves its stragglers: slow or damaged ships holding the rest back.
+- Ruthless commanders leave any straggler. Average commanders leave one only if staying together means the break-off fails. Humane commanders never leave a ship that can still manoeuvre.
+- Tags show it: "left *Wren* behind", "stayed with *Wren*".
+- Surrender and boarding may give it more to decide later.
 
 **Experience (direction)**
 
@@ -148,7 +157,7 @@ The senior officer present commands the force. A lone ship's captain commands th
 
 - A captain affects a fight only by being its commander. In a large fight no single captain steers the outcome.
 - Captains also serve as flavour and as the pool that fleet commanders are drawn from.
-- If the flagship is lost, command passes to the next senior captain after a delay, with that captain's skill and trait (candidate).
+- If the commander dies or the flagship is lost, command passes to the next senior captain after a delay, with that captain's skill and traits (direction).
 
 ---
 
@@ -165,26 +174,27 @@ AI leaders change through elections, coups and death, so relations shift over a 
 
 ## 4. Open questions
 
-- Pre-battle orders: which standing orders exist and how the player sets them. A proposal is in *Combat Simulation* 8 and *Combat View* 5.
+- Pre-battle orders: which standing orders exist and how the player sets them. A proposal is in *Combat Simulation* 10 and *Combat View* 5.
 - Information limits: how scouting and intelligence narrow a delta-v range.
 - After-action reports: what the summary and timeline contain (proposed in *Combat View* 6).
 - Ground combat and invasion.
 - Making losses matter.
 - Suppressing raiders.
 - Privateer licences and prize shares.
-- The point-defence shot rate. The catalogue gives a chance per shot but no rate. *Combat Simulation* 5.3 assumes one a second.
-- Missile range and magazine as ship figures. (*Combat Simulation* 4 and 5.1 propose the effect of decoys and emission control.)
-- Dwell time as the simulation's central number: how each weapon type responds is proposed in *Combat Simulation* 6.
-- The standoff on an intercept order: its default and how the simulation reads it (finding F-145). *Combat Simulation* 1 and 8 propose that the simulation reads rails only, and give a default.
-- A phasing transfer within a band, replacing co-location for combat (finding F-144; `transfers.md` 4.3 and 7). *Combat Simulation* 1 proposes that combat reads true rail positions.
+- The point-defence shot rate. The catalogue gives a chance per shot but no rate. *Combat Simulation* 5.5 assumes one a second.
+- Missile range and magazine as ship figures, and the other figures *Combat Simulation* 3 needs from a design.
+- Dwell time: how each weapon family responds is in *Combat Simulation* 7.
+- The standoff on an intercept order: its default (finding F-145). *Combat Simulation* 1 settles that the simulation reads rails only.
+- A phasing transfer within a band, replacing co-location for combat (finding F-144; `transfers.md` 4.3 and 7). *Combat Simulation* 1 settles that combat reads true rail positions.
 - How a raider's reachable envelope is drawn (a candidate overlay in *Combat View* 4).
-- The engagement window cap and the length of a phase (placeholder in *Combat Simulation* 11).
+- The engagement window cap and the length of a phase (placeholder in *Combat Simulation* 14).
 - Whether the pause at the end of a fight covers every visible fight or only the player's own (*Combat View* 2 proposes own fights only by default).
 - The replay window and the cap on stored recordings.
 - The engagement's map symbol (*Combat View* 2 proposes both sides joined by a link).
-- Commander decision tags, and the tactical AI that reads the Bold/Cautious dial (proposed in *Combat Simulation* 7).
+- The values in the tactical AI's rule tables (*Combat Simulation* 9).
 - Kill-to-loss drift: count or ship value, the smoothing constant, the decay and the thresholds.
 - The delay before command passes after a flagship is lost.
 - Whether combat experience can leave a grievance against the player.
-- A combat role for Ruthless/Humane, once the simulation has surrender and disabled ships.
+- Whether surrender and boarding give Ruthless/Humane more to decide.
+- The loadout in 1.7: "3 Darts each" for 4 ships doesn't match 12 fired and 36 held (48 in all).
 - A cheaper model for unobserved fights, if profiling shows a need.

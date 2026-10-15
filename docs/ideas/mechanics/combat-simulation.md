@@ -1,213 +1,312 @@
 # Orphan Worlds: Combat Simulation
 
-**In short:** one engagement is one pure function. It takes the frozen state of a cluster of ships and their orders, and returns outcomes and, if someone could watch, a recording. It forms when the rails of opposed ships will come within reach, runs for a window of a few hours, and steps coarsely until something comes within point-defence range. Everything a commander sees comes from tracks, not from the true state. The fight is decided by four things the model computes: detection and track quality, dwell time, missile guidance against evasion, and point-defence capacity against salvo size. Damage is per component unit, using the `min_working` counts ship designs already carry. Every commander decision comes from one number, the weight on own losses against the objective, set by Bold/Cautious. The player's only input is the orders given beforehand.
+**In short:** one engagement is one pure function. It takes the frozen state of the ships in reach of each other, with their orders, and returns the outcome and, if someone could watch, a recording. It works for any physically plausible design: weapons come in three delivery families, and every mount, sensor and part is read from its figures, never from a catalogue type. Tracks carry a continuous error that feeds every hit chance. Point defence is any mount that can engage a missile, and a launched missile is an uncrewed ship. A hit is a forced fault on a part, picked by presented area, with leftover energy spilling along the ship's spine through its frame. Breaking the frame is a kill, and only energy a part actually stores is ever released. Commanders follow a short list of rules whose thresholds come from their traits.
 
-*Status:* all **Candidate**, a worked-out proposal for the points *Combat, Raiders & Diplomacy* leaves open. Section 1.8 there stays the summary of how a fight is run and shown; this doc holds the detail. Companion documents: *Combat, Raiders & Diplomacy* (1.1 to 1.9), *Component Stats & Ship Assembly* (sensors, weapons, signatures), *Orbital Transfers* (rails, reserve, standoff), *Characters, Organisations & Events* (skill, traits), *Combat View* (how it is shown). Figures are the catalogue's; the unmarked tunables in section 11 are placeholders.
+*Status:* **Direction** for the decisions in this doc (settled in a design session on 2026-10-15); every figure is a placeholder. *Combat, Raiders & Diplomacy* 1.8 is the summary of how a fight is run and shown; this doc holds the detail. The component tables in *Component Stats & Ship Assembly* are illustrative: nothing here depends on a particular design. Companion documents: *Combat, Raiders & Diplomacy*, *Component Stats & Ship Assembly*, *Orbital Transfers*, *Characters, Organisations & Events*, *Combat View*.
+
+**Principle:** where a choice is open, take the simplest rule that the physics allows, so the model can be refined later without being rebuilt. Section 13 lists what was deliberately left out.
 
 ---
 
 ## 1. Forming an engagement
 
-- **Opposed ships.** Two ships are opposed if their factions are at war, or if one side's orders say to engage and the other qualifies as a target (unknown contacts, with weapons free). Neutral ships passing do not form one.
-- **Reach.** For a pair, reach is the range at which either could get a firm track on the other: the best active sensor range, scaled to the other ship's cross-section (section 4). With a lidar it is 50,000 km. Passive thermal detection reaches much further, but it gives only a weak track and cannot support fire, so it does not form an engagement.
-- **Forming.** The main simulation tests the committed rails. If two opposed ships will come within reach inside the next `window_cap_h`, an engagement forms. Overlapping clusters merge. A ship is in one engagement at a time.
-- **t0** is the first moment any opposed pair is within reach. The state is frozen then: positions, velocities, delta-v, magazines, condition, orders, commanders. Ships whose rails enter the cluster's reach later join at that time, with their rails as frozen.
-- **The window** runs from t0 until no opposed pair is within reach and none will be again, capped at `window_cap_h`. In the worked example (1.7) the window opens at CA−93 min, when the lidars reach 50,000 km at 9 km/s closing, and closes 93 minutes after closest approach, about three hours in all. The decisive choice, the intercept order at CA−60 h, was made long before t0 and shows up only as the rails.
-- **Phases.** At the cap, survivors go back to the main simulation with damage, magazines and delta-v, and a new phase forms if they are still in reach. Orders given while a phase ran take effect at the next one. Each phase has its own result and its own Watch or Skip.
-- **Long standoffs.** A blockade or siege is one engagement phase after another. Fixed assets (stations, gates) take part as ships that cannot move. They add sensors, magazines, radiators and point defence.
-- **Shared bands.** The simulation reads true rail positions, so phase round a band counts. Two fleets in one band at a separation inside reach are engaged for as long as the separation holds. Beyond reach they are not, and closing takes a phasing transfer (*Orbital Transfers*, finding F-144).
-- **Standoff.** The simulation never reads an order's standoff. It shapes the rail, which ends offset from the target's rail, and the simulation reads positions. That answers how the resolver reads the standoff (finding F-145).
+- **Opposed ships.** Two ships are opposed if their factions are at war, or if one side's orders allow firing on the other (an unknown contact under "hostile + unknown").
+- **Reach** between two ships is the larger of:
+  - **sensor reach:** any active sensor's range against the other's presented area (section 4);
+  - **weapon reach:** how far any of its weapons' projectiles travels in `max_flight_s` at the closing speed plus the projectile's own delta-v. A Dart on a 9 km/s pass: 17 km/s × 3,600 s, about 61,000 km.
+- **t0** is the first moment any opposed pair is within reach. Passive detection never forms an engagement: it happens days out and belongs to the main simulation and standing orders.
+- **The frozen state.** At t0 the inputs are frozen: rails, delta-v, magazines, working parts, crew, orders, commanders. Ships whose rails enter reach later join at that time.
+- **The window** runs until no opposed pair is within reach and none will be, capped at `window_cap_h`. At the cap a new phase forms at once from the survivors if any pair is still in reach. Missiles in flight carry over. Orders given during a phase take effect at the next.
+- **Long shots** beyond `max_flight_s` are strategic launches, deferred: a salvo on a rail in the main simulation, like a fleet on an intercept, that forms its own engagement on arrival. Only the missiles and their targets would then be on the tactical map.
+- **Bystanders.** A neutral ship within reach at t0 is in the simulation but never a target. It can be detected, can dodge, and breaks off by the civilian rule (section 8).
+- **Shared bands.** The simulation reads true rail positions, so position round a band counts (finding F-144). The order's standoff shapes the rail; the simulation never reads it (finding F-145).
+- **Fixed assets** (stations, gates) are ships with no drive.
 
 ## 2. The step loop
 
-- **Pure function.** Inputs: the frozen state, a seed, the tunables. Outputs: the outcome (1.8), and a recording if requested. No clock, no thread timing, no global state.
-- **Random numbers** are counter-based: keyed by the engagement id, the entity ids and an event counter, never by iteration order. The same inputs give the same fight on any machine, with or without recording.
-- **Adaptive step.** `step_coarse_s` while nothing is inside `fine_factor` times the longest point-defence range of a defended ship. `step_fine_s` once anything is. Coasting ships and missiles follow their rails exactly between steps, so the step only sets how often sensors, decisions and point defence run.
+- **A pure function:** frozen state, seed and tunables in; outcome and optional recording out. No clock, threads or global state.
+- **Random numbers** are keyed by engagement id, entity ids and an event counter, never by loop order, so a fight is the same on any machine, with or without recording.
+- **Adaptive step:** `step_coarse_s` while nothing is within `fine_factor` × the longest point-defence reach of any ship, `step_fine_s` once anything is. Coasting objects follow their rails exactly between steps; the step only sets how often sensing, decisions and point defence run.
 - **Each step, in order:**
   1. Sensors update tracks (section 4).
-  2. Commanders whose decision time has come choose actions (section 7).
-  3. Launches, jinks, decoys and sensor changes take effect.
-  4. Missiles and projectiles fly (section 5).
-  5. Point defence fires (section 5.3).
-  6. Hits are resolved and damage applied (section 3).
+  2. Commanders whose decision is due apply their rules (section 9).
+  3. Launches, dodges and sensor changes take effect.
+  4. Missiles follow their guidance rule (section 5.3); rounds fly on.
+  5. Point defence engages (section 5.4).
+  6. Hits are resolved (section 6).
   7. Ships move: rails, plus any burn.
-- **Rails.** Ships coast on their conics. A burn is a piecewise change of velocity that spends delta-v. The simulation uses the same rail code as the main simulation, so survivors hand back a valid rail.
-- **Cost.** At two hours with a 10 s step the coarse loop is a few hundred steps. The fine steps cover tens of seconds per missile. Cost is not a concern at the fight sizes in the design; revisit only if fights reach about a hundred ships.
 
-## 3. Ships in the simulation
+## 3. What the simulation reads from a design
 
-- **State per ship:** rail, mass, delta-v left, working units of each part group, magazines by weapon, decoys, stored heat, emission state, track picture, commander.
-- **Parts.** A design lists parts with `count` and `min_working` (*Component Stats*). The simulation keeps the working count per part group. Below `min_working` the group is degraded: a drive group derates thrust, a radiator group derates the reactor through the heat balance, a point-defence group loses mounts. A sensor group below minimum loses range or tracking.
-- **A hit** removes a working unit from a part group picked by weight (share of ship volume, exposed area weighting later). Whether a hit also destroys a neighbouring unit, and how armour changes it, is open (section 12).
-- **Armour.** The catalogue's Whipple armour stops 50 MJ per hit. A Dart hit at 17 km/s carries far more, so armour does not stop a missile; it matters against debris and small projectiles. If missiles should be survivable, the warhead or the hit model has to change (section 12).
-- **Catastrophic loss.** Some groups can destroy the ship when lost: reactor, propellant tank, magazine. Each has a chance `p_cat` per unit lost.
-- **Status, derived:**
-  - **Operational:** every group at or above `min_working`.
-  - **Degraded:** a group below `min_working`.
-  - **Disabled:** cannot manoeuvre, or cannot fight, or no command. This is the mission kill in 1.7.
-  - **Destroyed:** catastrophic loss.
-  Captured needs boarding and is a later subject (*Combat* 1.9, Ruthless/Humane).
-- **Heat.** Ships store a bounded amount of heat. Lasers, active radar and thrusting add heat; radiators remove it. A ship that is full has to stop firing. This is the "duel of radiator margin" in 1.2, and it makes emission control cost something.
+Any design the assembly model accepts can fight. The simulation reads these figures, all derived from the design's parts.
+
+| Figure | Where it comes from |
+|---|---|
+| Parts | Each part line: design, `count`, `min_working`, mass; a section from its category (section 6.2) |
+| Presented area per part | Radiators: tonnes ÷ areal mass. Tanks and cargo: the surface of their volume. Other parts: volume from a typical density for the category, area ∝ volume^⅔ |
+| Shielding | One per-hit stopping energy for the ship (0 if none) |
+| Stored energy per part | Chemical warheads, chemical motors with their oxidiser aboard; 0 for anything else |
+| Mounts | Kind (trained, with a slew rate; or fixed), reaction time, shots or launches per second, magazine |
+| Projectiles | Family and figures (section 5.1) |
+| Sensors | Active range against a reference area; passive range against a reference signature |
+| Crew | The assembly model's crew need, and the crew carried |
+| Mass, thrust, delta-v, signature | The assembly model |
+
+Category densities, the shielding figure, stored energy, mount figures and sensor reference values need adding to the component model before this is specced.
 
 ## 4. Sensing and tracks
 
-A track is what one side believes about one contact: position, velocity, and an uncertainty radius u.
+- **One picture per side,** shared over the datalink while comms work.
+- **A track** is a position, a velocity and one error radius *u*. Nothing is binary: *u* feeds every hit chance directly. The map's "firm" and "weak" tracks are bands of *u*, for display only.
+- **What sets *u*:**
+  - Passive thermal sensing gives a bearing with poor range, so *u* is large. It shrinks as more sensors, or more time, separate the bearings. A burning drive or missile motor is bright; a coasting missile is not.
+  - Radar and lidar give a small *u*. Their range against a target scales with its presented area^¼, so a missile of a few m² is seen at a fraction of the range of a ship.
+  - Between fixes, *u* grows by ½·a·t², where *a* is the most the contact could be accelerating, judged from what is known of its drive and delta-v.
+- **Going active** reveals the ship at a range set by its emitted power. It follows the emissions order (section 10).
+- **Line of sight:** bodies block it. Expected to matter rarely inside a window.
+- **No electronic warfare** beyond decoys. Jamming would later raise the enemy's *u* or block updates within a range.
 
-| Source | Gives | Range | Cost |
-|---|---|---|---|
-| Passive thermal | Bearing only, weak track | `detect_range` × √signature (MW) | None |
-| Radar | Range and bearing, firm track | 20,000 km at 100 m²; scales as cross-section^¼ | The ship radiates and is seen at a range scaling with √(radar signature) |
-| Lidar | Firm track, finer | 50,000 km at 100 m²; same scaling | Narrow beam, little tell-tale |
-| Datalink | Shares tracks inside a side | Working comms | Lost if the comms or the sharing ship is |
+## 5. Weapons
 
-- **Firm track:** u is a small fraction of range, refreshed each step. **Weak track:** u grows with the contact's reachable envelope, ½·a_max·t², between fixes, where a_max comes from the drive family and remaining delta-v (1.6).
-- **Cross-section** comes from the hull. It is not in the catalogue yet (section 12). A bigger ship is seen further.
-- **Fusion.** Own ships share one picture over datalink. The picture is per side; each commander reads it with their own skill (section 7).
-- **Line of sight.** Bodies are spheres that block it. Expected to matter little inside a window; the test is cheap.
-- **Going active is a decision.** A firm track costs concealment. The commander goes active when the value of a firm track exceeds the cost of being seen, with the same weight as every other decision (section 7), unless orders set emissions (section 8).
-- **Decoys and clutter** do not change tracks. They act on seekers (section 5.1).
+### 5.1 Three delivery families
 
-## 5. Weapons and defences
-
-### 5.1 Missiles: guidance against evasion
-
-A Dart has 8.0 km/s of delta-v and 20 g of acceleration, so about 40 s of burn in all. The burn is split: **boost** gives closing speed, and a **terminal reserve** corrects the aim. Closing speed is the ships' closing speed plus the boost. Full boost on the 9 km/s pass in 1.7 gives 17 km/s.
-
-The aim error e is how far the missile's predicted intercept point is from where the target will be. It resets to the track's u at each track update and then grows with the target's unseen manoeuvre:
-
-- e = u + ½·a_target·(time since update)², where a_target is what the target is actually doing.
-- A missile can null an error if e / time-to-go ≤ its remaining delta-v. It misses by whatever is left over.
-- **Midcourse updates.** While the launcher or any ship on the datalink holds a firm track, the missile is updated every `datalink_interval_s`. With 10 s between updates and a 0.1 g jink, e is about 50 m. Dodging does nothing.
-- **Without updates** (the track is lost, the launcher is disabled, the target is stealthy) the missile flies on its own seeker, which acquires at `seeker_acquire_km`. At 17 km/s that leaves about 120 s, and a 2 km/s reserve can null about 235 km. A target that has jinked at 0.1 g for about 12 minutes has moved further than that, at a cost of about 0.7 km/s. Then the missile misses.
-- **So:** evasion only pays against missiles that lost their updates, and breaking the launcher's track is how a ship defends against a salvo. A missile launched after closest approach cannot catch a target separating at 9 km/s, because the missile has only 8 km/s of delta-v. The launch window closes at closest approach.
-- **Boost split** is set by the guidance rule: reserve the delta-v needed to null the largest error the target's remaining delta-v could produce, up to half the total; boost the rest. With working updates the reserve is small and the missile goes fast.
-- **Decoys.** A chaff pack gives 8 decoys. When a seeker acquires, it takes a decoy with probability n/(n+1) × (1 − `seeker_discrimination`), where n is the number of live decoys. Decoys last `decoy_life_s`.
-- **Salvo timing.** Missiles in a salvo are timed to arrive together by coasting at different speeds. The spread grows as coordination falls (section 7).
-
-### 5.2 Kinetic launchers
-
-- A Lance round leaves at 6 km/s, 5 kg. It is unguided. The chance to hit is the chance the miss distance is inside the target's radius r: p = 1 − exp(−r² / 2σ²), where σ combines the track's u, the target's dodge and the weapon's dispersion.
-- For a 10 m radius: at 5,000 km, σ is about 500 m and p is about 2 in 10,000. At 100 km, σ is about 10 m and p is about 0.4. A launcher fires 60 rounds an hour.
-- On a fast pass at 1,500 km standoff, a Lance never gets a useful shot. At a slow pass or a stop, it does. That is the "close range and area denial" role in 1.2, and it falls out of the numbers.
-- Impact energy is ½·5·(15 km/s)² = 560 MJ at the 9 km/s pass, so a hit always penetrates.
-
-### 5.3 Point defence
-
-- A mount has range 300 km and a 0.3 chance per shot. The catalogue gives no rate: `pd_rate_per_s` is assumed to be 1.
-- A mount engages one missile at a time, nearest first, inside its range, and spends the shot whether or not it hits. Each shot is a seeded draw.
-- Time in range is range / closing speed: 300 km at 17 km/s is about 18 s. One mount expects 18 × 1 × 0.3 = 5.3 kills in that time. That is the figure in 1.7.
-- **Saturation.** A defence stops about (working mounts) × 5.3 missiles from one direction before it runs out of time. Beyond that, missiles get through. Salvo size against mount count is the central contest (1.2).
-- **Boost split changes it.** Slower missiles give point defence more time. Cutting boost from 8 to 6 km/s (15 km/s closing) raises the window to 20 s and the kills per mount to about 6.
-- Point defence is automation. A commander does not retarget it. Skill reaches it only through coordination: how well the force's mounts cover each other (section 7).
-
-### 5.4 Lasers (tier 3)
-
-- A 20 MW beam draws 60 MWe and adds 40 MWt of heat. Energy on target is power × time on target × coupling, and coupling falls with range as the beam spreads. A ship is disabled when absorbed energy passes its hardness.
-- The weapon stops when stored heat is full, so heat sets the shot length, and dwell time sets how much of it can be used (section 6).
-- Mostly deferred until lasers are in the catalogue as offence (*Combat* 1.2).
-
-## 6. Dwell time
-
-Dwell time is time inside a weapon's useful range, about range over relative speed. It is computed per pair of ships and per weapon. Each weapon turns it into effect differently.
-
-| Weapon | What dwell sets | On a 9 km/s pass at 1,500 km standoff |
+| Family | Figures | Examples |
 |---|---|---|
-| Missile | Launch window, which ends at closest approach (5.1). Salvos are limited by launcher cycle, magazine and the window. | Up to 93 minutes of launch window. Several salvos are possible. |
-| Point defence | Time per missile in range: range / closing speed. Kills per mount = rate × time × 0.3. | About 18 s per missile, about 5 kills per mount. |
-| Kinetic | Rounds fired inside effective range (100 to 200 km). | Zero: the standoff is outside effective range. |
-| Laser | Energy on target, capped by stored heat. | Seconds of dwell at best. |
+| Guided projectile | Delta-v, acceleration, seeker range, mass, warhead (stored energy, or none for kinetic), presented area | Any missile, counter-missiles |
+| Unguided projectile | Muzzle velocity, mass, dispersion | Any gun or launcher |
+| Beam | Power, spot size at range | Lasers (deferred, section 13) |
 
-- A **Stop** makes dwell open-ended. Kinetic and laser weapons then matter, and the fight turns into a heat and magazine contest.
-- A **Pass** makes dwell short. Missiles and point defence decide it, and the choice made at the order (speed, standoff) sets the numbers before the window opens.
-- **Defenders influence speed.** A deep gravity well raises pass speeds, which shrinks dwell for everyone (1.3).
+Nothing else branches on weapon type. Flak, fragmenting warheads and mines would be new families or warhead options.
 
-## 7. Commanders in the simulation
+### 5.2 Mounts and the engagement test
 
-The senior officer present chooses actions for the whole force (1.9). Orders bound the choices; the commander picks within them.
+- A **trained mount** turns at its slew rate; a **fixed mount** (a VLS, a spinal gun) doesn't aim. A guided projectile from a fixed mount turns itself, spending some delta-v off the launch axis. An unguided round from a fixed mount needs the whole ship to point, which the first model doesn't do.
+- **A mount can engage any target, ship or missile, if:**
+  1. its side holds a track on the target;
+  2. a trained mount can slew onto it within its reaction time;
+  3. its projectile can reach where the target will be before the target arrives;
+  4. the hit chance in the time available is above zero.
+- Point defence is not a role. It's any mount passing this test against an inbound missile.
 
-- **Decision times.** Every `decision_interval_s`, and on new information (a track firms up, a launch is detected, a ship is lost). A decision takes effect after the commander's latency.
-- **Actions:** go active or stay passive; launch a salvo of n at a target; hold; jink (a burn of given strength and length); deploy decoys; break off. Point defence is not an action.
-- **Break off** means stop initiating fire and spend the return reserve to open the range. It works only where geometry and delta-v allow. A ship on a fast pass is already leaving. A ship that stopped to hold has to burn out.
-- **One dial.** Each action is scored as V = ΔP(objective) × V_objective − λ × E[own loss] × V_own, using the commander's beliefs. The commander takes the best. λ is the weight on own losses, set by Bold/Cautious: `lambda_bold` below `lambda_avg` below `lambda_cautious`. The same function runs for every commander; only λ and the skill channels differ.
-- **What the dial moves, without further rules:** how early to fire (bold accepts a weaker track), how large a salvo (bold launches more of the magazine), when to break off (bold at heavier losses), whether to spend reserve on jinking, and whether to go active. These are the behaviours listed in 1.9.
-- **Skill.** With d = (10 − skill) / 10:
-  - *Belief error:* the commander's figures for enemy magazines, mounts and delta-v are off by up to ±`belief_err_max` × d, applied once per engagement. The sensors' tracks are not affected.
-  - *Decision latency:* `latency_max_s` × d.
-  - *Coordination:* the share of the force's capacity that works together is 1 − `coord_loss_max` × d. It widens the salvo arrival spread and reduces the cover point-defence mounts give each other.
-- **Experience.** After the fight the outcome updates kills, losses and survival per commander (1.9).
-- **Tags.** The simulation records each decision with the action the baseline commander would have chosen: the same state, same skill, average λ. A decision tag is emitted when the choice differs by more than `tag_threshold`, for example "held 60% of magazines" or "broke off at 40% losses". The direction of the deviation is the evidence for the trait, and the tag never names the trait.
-- **Flagship lost.** Command passes to the next senior captain after `succession_delay_s`, with that captain's skill and trait. During the delay the force acts on its last orders (candidate, 1.9).
+### 5.3 Guided projectiles: missiles are uncrewed ships
 
-## 8. Orders the player gives
+- **A launched missile is a ship** with no crew and no commander: a rail, delta-v, acceleration, presented area, signature, seeker and warhead. It is detected, tracked, engaged and hit by the same rules as any ship. With almost no mass and a tiny frame, any hit that gets through kills it.
+- **Guidance rule,** in place of a commander:
+  - **Boost** for closing speed; keep a **terminal reserve** to correct the aim. The reserve is what's needed to cancel the largest error the target's remaining delta-v could produce, up to half the total.
+  - **Midcourse:** while its side holds a track on the target and comms reach the missile, it is updated every `datalink_interval_s`. Aim error resets to the track's *u*.
+  - **Orphaned:** with no updates, the error grows by ½·a·t² of the target's unseen manoeuvre until the seeker acquires at its seeker range.
+  - **Terminal:** the missile hits if error ÷ time to go is within its remaining delta-v, and misses by the shortfall otherwise.
+- **Consequences:**
+  - Under live updates, dodging is pointless: with 10 s updates, a 0.1 g dodge is a 50 m error.
+  - An orphaned missile can be dodged. A Dart's seeker at 2,000 km leaves about 2 minutes at 17 km/s, in which a 2 km/s reserve corrects about 235 km. A target that dodged at 0.1 g for 12 minutes has moved 254 km, at a cost of 0.7 km/s.
+  - A missile can't catch a target separating faster than its own delta-v, so the launch window usually ends at closest approach.
+- **Decoys:** when a seeker acquires, it takes one of *n* live decoys with probability n/(n+1) × (1 − `seeker_discrimination`). Decoys last `decoy_life_s`. Seekers never take anything but a decoy or their target.
+- **Salvos** are timed to arrive together; the spread grows as the commander's coordination falls. Salvos are stored and drawn as groups.
 
-The player sets orders beforehand and has no control during the fight. A force carries one set, set on its inset and read at t0.
+### 5.4 Unguided projectiles
 
-| Field | Choices | Notes |
+- Hit chance is 1 − exp(−r² / 2σ²), with *r* the target's size and σ combining track error, the target's dodging and dispersion.
+- For a 10 m target: at 5,000 km, σ is about 500 m and p about 2 in 10,000; at 100 km, σ is about 10 m and p about 0.4.
+- So guns matter only at close range or against slow targets, and against missiles only if their rounds can get there in time.
+
+### 5.5 Point defence
+
+- Each mount passing the engagement test fires at the inbound missile it has the best chance against.
+- **Saturation** follows from time in range. One mount with 1 shot a second at 0.3 per shot, against missiles crossing 300 km at 17 km/s, kills about 5.3 per salvo direction. A force stops about that many per mount from one direction; beyond that, missiles get through. Salvo size against point-defence capacity is the central contest (*Combat, Raiders & Diplomacy* 1.2).
+- A counter-missile is a guided projectile aimed at a missile, under the same rule.
+
+## 6. Damage
+
+### 6.1 A hit
+
+- A hit carries energy E: its kinetic energy at the relative speed, plus any warhead's stored energy. A 0.4 t Dart at 17 km/s carries about 58 GJ, about 14 t of TNT.
+- **Shielding** stops a hit whose energy is at most the ship's per-hit stopping energy. It matters against small rounds, fragments and debris; nothing a ship can carry stops a whole missile.
+- A hit that gets through is a **forced fault**: the same fault the reliability model already uses, repaired later from spares.
+
+### 6.2 Where it lands and how it spreads
+
+- **The pick:** the part hit is a random choice weighted by presented area. Radiators, with large area for little mass, are hit often. Big hydrogen tanks too.
+- **Sections** along a spine, assigned from part category: drive · power · tankage · core (cargo and gear) · habitat and command · weapons and sensors. The **frame** is the spine itself.
+- **Absorption:** the struck part absorbs up to its mass × `disable_kj_per_kg`; a counted part (one drive, one reactor) then faults. A parametric part (a tank, a radiator) loses the share of its tonnes the energy covers: a tank loses that share of its propellant, a radiator that share of its rejection.
+- **Spill:** energy left over crosses the frame, which absorbs `frame_share` of it, then moves to another part in the same section (picked by area), then to the neighbouring sections, nearest first, until it is used up.
+- **Radiators sit outboard,** off the spine. A hit there wrecks that share of panel and the rest of the energy passes on into space: no spill and no frame damage.
+- **Hit direction** is ignored: every hit uses the whole ship's area.
+
+### 6.3 What it does
+
+- **Re-assembly.** After each hit, the ship's figures are recomputed from its working parts by the assembly model: thrust, delta-v, power, heat balance, sensors, mounts. Losing radiators derates the reactor; losing a drive cuts thrust.
+- **Kill:** the frame's toughness is its mass × `disable_kj_per_kg`. The ship is destroyed when frame damage passes `frame_kill_share` of that. A whole missile kills any ship up to a few thousand tonnes in one hit.
+- **Stored energy** is released only by parts that store it, immediately, as part of the same spill, and only for the part destroyed (all of a counted part, the destroyed share of a parametric one). A magazine of kinetic Darts is inert; one of chemical-motor missiles can cook off. Choosing a chemical missile is a risk to your own ship.
+- **Reactors don't explode.** A reactor hit means loss of power and a **contamination** flag on the ship: harder repair, riskier salvage, crew casualties.
+- **Crew** live in the habitat section. Destroying a share of the habitat kills that share of crew; contamination kills more. A ship with less crew than its parts need is disabled. Named characters aboard die with their ship, or at the same chance as any crew member.
+- **Status:**
+  - *Operational:* every group at or above `min_working`.
+  - *Degraded:* a group below `min_working`.
+  - *Disabled:* can't manoeuvre, can't fight (no working sensor that can track, or no mount), or too few crew.
+  - *Destroyed:* the frame is broken.
+
+## 7. Dwell time
+
+Dwell time, the time inside a weapon's useful range, isn't a separate rule. It's what the geometry gives each family:
+
+| Family | What dwell sets | On a 9 km/s pass at 1,500 km standoff |
 |---|---|---|
-| Objective | Destroy, Defend, Hold, Escort, Capture, Salvage | Sets speed (Pass or Stop) and the value of the objective (1.3) |
-| Approach | Pass or Stop, standoff km | The standoff shapes the rail. Default: the larger of 1,000 km and 3× the longest known enemy point-defence range. |
-| Weapons | Free on hostile and unknown, free on hostile only, tight (fire only if fired on) | Unknown contacts need a rule |
-| Reserves | Minimum return delta-v; minimum share of magazines held | The return reserve is the one in *Orbital Transfers* 3.6 |
-| Priority | Warships, armed ships, any, transports first | Sets target choice in the salvo |
-| Emissions | Active, on contact, silent | Silent keeps passive sensors only |
+| Guided | The launch window, ending near closest approach | Up to 93 minutes; several salvos |
+| Unguided | Rounds fired inside useful range | None at that standoff |
+| Point defence | Time per missile in range | About 18 s, about 5 kills per mount |
+| Beam | Energy on target | Deferred |
 
-- **Standing orders** are a trigger and a response: a hostile detected in a named zone, a threat level above a threshold, an own asset attacked. The response is Intercept (with the fields above), Hold or Evade.
-- **Threat level** is what the state knows about the contact, so it is as uncertain as the contact is: unknown or unarmed, armed, warship, force. How it is derived is open.
-- The commander's trait and skill act inside these. Orders say whether and where to fight; they do not say how bold to be.
-- Orders given during a phase wait for the next one (section 1).
+A Stop makes dwell open-ended, so guns matter. A Pass makes it short, so missiles and point defence decide.
 
-## 9. What comes out
+## 8. Forces and command
 
-- **Result,** as in 1.8: per ship, status, condition, magazines and delta-v spent, and the new rail; wrecks as salvage sites; knowledge updates; the report; per-commander kills, losses and survival.
-- **Event log.** One list of timed events is the source for the replay captions and the report: *detected, tracked, went active, launched, track lost, decoyed, intercepted, hit, disabled, destroyed, jinked, broke off, command passed*. Each has a time, the actors, a position and a payload. A decision tag attaches to the decision that caused an event.
-- **Recording.** Rails for coasting, keyframes at `recording_hz` for powered phases. A missile is stored as its launch event plus keyframes through the boost and any terminal burn, then its coast as a rail.
-- **Fog.** The recording holds the true state. What the replay shows by default is the player's picture, as it was (*Combat View* 3).
+- **Who commands:** the senior officer present commands every state-commanded ship on that side, merging forces for the fight. "Senior" is highest known Command skill, then longest in post, until rank is designed.
+- **Orders stay with their force:** each force's own orders still bind its ships. A convoy ordered to evade never fires, even under an escort's commander.
+- **Own-flag civilian ships** (not commanded) follow the civilian rule: point defence if fitted, dodge, and open range at once. Requisitioned ships count as commanded.
+- **Allies** fight under their own commander with their own picture.
+- **A force is one point:** it shares one rail, so point defence is pooled. Every mount can engage a missile aimed at any member, scaled by coordination. Hits land on the ship a missile was aimed at. Formation spacing waits for area-effect weapons.
+- **Non-combatants:** intercept and attack orders detach unarmed ships (tankers, transports) in the main simulation before any fight. They wait in place or at a rendezvous and rejoin after. Defend, Hold and Escort keep the force together. One switch on the orders overrides either way. A force caught together in transit fights together.
+- **Command passes** after `succession_delay_s` if the commander's ship is destroyed or the commander dies. The force acts on its last decisions meanwhile.
 
-## 10. Testing the simulation
+## 9. The tactical AI
 
-The simulation is a pure function, so most of it can be tested without a window.
+### 9.1 Rules
 
-- **Determinism:** the same inputs and seed give identical results, with or without recording.
-- **Conservation:** delta-v, magazines and counts never go up or below zero. Rails handed back are valid.
-- **Analytic checks:** one mount against N missiles kills about rate × time × 0.3; a lone missile on a firm track against a jinking ship hits; the same missile with no updates misses once the displacement passes the reserve's reach; missiles launched after closest approach never arrive.
-- **Dial monotonicity:** raising λ never makes a commander fire earlier, launch a larger salvo or break off later.
-- **Scenario tests:** the worked example in 1.7 as a fixture, with its expected timeline.
-- **Calibration** (if a cheaper model is ever used for unobserved fights): its outcomes must match the full simulation on a set of fixtures, so results never depend on whether the player is looking.
+A fixed list of rules, checked in order at each decision (every `decision_interval_s`, and at once on new information). Orders remove actions before the rules run: weapons tight means no Fire until fired on; reserves are floors.
 
-## 11. Tunables (placeholders)
+**Force level (the commander):**
+
+| Rule | What it does | Bold | Average | Cautious |
+|---|---|---|---|---|
+| Break off | Stop firing and open range (9.2) at force losses of … | 60% | 40% | 20% |
+| Target the shooter | With missiles inbound, put the ship guiding them first | no | yes | yes |
+| Fire | Launch at a target when the expected hit chance per round is at least … | 0.2 | 0.4 | 0.6 |
+| Salvo size | Enough to beat their estimated point defence × … | 1.5 | 1.2 | 1.0 |
+| Hold back | Keep at least this share of the magazine, or the order's floor if higher | 0% | 25% | 50% |
+
+The salvo is split across ships by who has missiles in reach above their hold-back share. Emissions follow orders.
+
+**Ship level (crew and automation, using the commander's thresholds):**
+
+| Rule | Trigger | Bold | Average | Cautious |
+|---|---|---|---|---|
+| Point defence | Always: the inbound missile with the best chance | — | — | — |
+| Dodge gunfire | Unguided rounds inbound with flight time over `dodge_min_s` | yes | yes | yes |
+| Dodge orphans | Missiles inbound whose launcher and its datalink partners have lost us, as far as the commander can tell | delta-v above reserve + 1 km/s | above reserve + 0.5 | above reserve |
+
+### 9.2 Breaking off
+
+- Stop initiating fire; point defence and dodging carry on.
+- **Burn** at the force's real thrust (its slowest ship), down to the reserve floor and no further:
+  - before closest approach, perpendicular to the relative velocity, widening the miss distance;
+  - after it, along the relative velocity, away;
+  - at low relative speed this is simply "burn away".
+- It can fail. A low-thrust ship barely moves inside a fight, and a force with no delta-v above its reserve can't burn. The report says how it went.
+- The enemy may pursue only by its own rules: firing while in reach, burning to chase only if its orders and reserve allow.
+- After the window, the main simulation re-plans the route home from the new rail.
+
+### 9.3 Stragglers
+
+- A ship is a straggler if dropping it raises the force's acceleration by more than `straggler_gain`. Disabled ships are always left.
+- **Ruthless/Humane** decides:
+  - *Ruthless* abandons any straggler;
+  - *Average* abandons only if staying together means the break-off fails, as far as the commander can tell;
+  - *Humane* never abandons a ship that can still manoeuvre.
+- An abandoned ship becomes a one-ship force under its captain.
+
+### 9.4 Skill and tags
+
+- **Skill**, with d = (10 − Command) / 10:
+  - *belief error:* the commander's figures for enemy magazines, mounts and delta-v are off by up to ±`belief_err_max` × d, once per fight. This moves salvo size and break-off judgments, not the sensors.
+  - *latency:* decisions take effect `latency_max_s` × d late.
+  - *coordination:* salvo arrival spread and point-defence pooling worsen by up to `coord_loss_max` × d.
+- **Decision tags:** each decision is compared with what the Average column would have done. A difference beyond `tag_threshold` is tagged as behaviour: "held 75% of magazines", "broke off at 20% losses", "left *Wren* behind". Tags never name a trait.
+
+## 10. Orders
+
+| Field | Choices |
+|---|---|
+| Objective | Destroy, Defend, Hold, Escort (Capture and Salvage later) |
+| Approach | Pass or Stop; standoff in km (shapes the rail) |
+| Weapons | Hostile + unknown, hostile only, tight |
+| Target first | Armed, transports, any |
+| Emissions | Active, on contact, silent |
+| Reserves | Return delta-v; share of magazines held back |
+| Non-combatants | Detach (default for Destroy) or keep together (default otherwise) |
+
+Standing orders are a trigger and a response (Intercept, Hold, Evade, Alert), checked in order. The commander's traits act within the orders; orders say whether and where to fight.
+
+## 11. What comes out
+
+- **Per ship:** status, condition (working parts), crew, magazines and delta-v spent, contamination, new rail.
+- **Wrecks:** a destroyed ship becomes a salvage site on its last rail. Its contents are the parts that survived. A wreck on a collision course is a main-simulation alert; diverting it is an order.
+- **Disabled ships** drift on their rails with their surviving crew. Rescue, capture and recovery are later.
+- **Missed missiles and rounds** never leave the engagement: they are drawn flying on in the replay and dropped when the window closes. No debris clouds.
+- **What each side learns,** only from its own sensors and the event log:
+  - seen behaviour: launches by count and type, point-defence mounts seen firing, decoys, burns (thrust, current mass and delta-v left, as in *Combat, Raiders & Diplomacy* 1.6);
+  - confirmed armament and class (the identification ladder);
+  - damage it could see: a ship that stops manoeuvring or firing reads as "disabled (est.)".
+  Magazines beyond what was fired, design details, crew losses and traits are never learned from a fight.
+- **Misidentification:** an unknown fired on that proves neutral is a diplomatic incident in the main simulation.
+- **Per commander:** kills, losses, survival, tags.
+- **Event log:** one list of timed events (detected, launched, track lost, decoyed, intercepted, hit, disabled, destroyed, dodged, broke off, abandoned, command passed). It drives the replay captions, the report and the tags.
+- **Recording,** if someone could watch: rails for coasting, keyframes at `recording_hz` for powered flight.
+
+## 12. Testing
+
+- **Determinism:** same inputs and seed, same result, with or without recording.
+- **Conservation:** delta-v, magazines, crew and working parts never rise, and never go below zero.
+- **Analytic checks:** one mount against N missiles kills about rate × time × chance; a missile under updates hits a dodging ship; an orphaned one misses once the dodge exceeds its reserve's reach; a missile can't catch a target separating faster than its delta-v.
+- **Damage checks:** a hit below the shielding does nothing; a radiator hit never reaches the frame; a hit that breaks the frame destroys the ship; an inert magazine never adds energy.
+- **AI checks:** each rule fires at its threshold and not before; Bold never holds back more than Cautious; a Humane commander never leaves a manoeuvring ship.
+- **Scenario:** the worked example in *Combat, Raiders & Diplomacy* 1.7 as a fixture.
+
+## 13. Left out, for later
+
+- **Hit direction:** ship attitude, presenting the narrowest face, radiators edge-on.
+- **Formation spacing:** waits for area-effect warheads (nuclear missiles are tier 3).
+- **Heat during a fight:** not presumed. Whether heat sinking is physically plausible needs evaluating first, before choosing a mechanism. Lasers wait for this. Emission control's dimming (*Combat, Raiders & Diplomacy* 1.5) depends on it too.
+- **Lasers:** the beam family's hit and damage rules.
+- **Electronic warfare:** jamming, spoofing, cutting datalinks.
+- **Strategic missile launches** beyond `max_flight_s`.
+- **Insensitive munitions:** a release fraction on stored energy.
+- **Debris hazards,** stray missiles hitting bystanders, damage control during a fight.
+- **Surrender, boarding, capture, rescue.**
+- **A designer's own layout** in place of the automatic sections.
+
+## 14. Tunables (placeholders)
 
 | Name | Value | Meaning |
 |---|---|---|
+| `max_flight_s` | 3,600 | Longest flight counted in weapon reach |
 | `window_cap_h` | 4 | Longest window before a new phase |
-| `step_coarse_s`, `step_fine_s` | 10, 0.5 | Step outside and inside point-defence range |
-| `fine_factor` | 3 | Fine step inside this multiple of point-defence range |
-| `pd_rate_per_s` | 1 | Shots per mount per second |
+| `step_coarse_s`, `step_fine_s` | 10, 0.5 | Step outside and inside point-defence reach |
+| `fine_factor` | 3 | Fine step inside this multiple of point-defence reach |
 | `datalink_interval_s` | 10 | Midcourse update spacing |
-| `seeker_acquire_km` | 2,000 | Seeker acquisition range |
 | `seeker_discrimination` | 0.5 | Chance a seeker ignores a decoy |
 | `decoy_life_s` | 120 | How long a decoy works |
+| `disable_kj_per_kg` | 20 | Energy per kg to disable a part or the frame |
+| `frame_share` | 0.3 | Share of each spill the frame absorbs |
+| `frame_kill_share` | 0.5 | Frame damage that breaks the ship |
 | `decision_interval_s` | 60 | Decision spacing |
-| `lambda_bold`, `lambda_avg`, `lambda_cautious` | 0.5, 1, 2 | Weight on own losses |
-| `belief_err_max` | 0.4 | Belief error at skill 0 |
-| `latency_max_s` | 180 | Decision latency at skill 0 |
-| `coord_loss_max` | 0.4 | Coordination loss at skill 0 |
-| `tag_threshold` | 25% | Deviation that earns a decision tag |
+| `dodge_min_s` | 30 | Shortest flight time worth dodging |
+| `straggler_gain` | 25% | Acceleration gain that makes a ship a straggler |
+| `belief_err_max` | 0.4 | Belief error at Command 0 |
+| `latency_max_s` | 180 | Decision latency at Command 0 |
+| `coord_loss_max` | 0.4 | Coordination loss at Command 0 |
+| `tag_threshold` | 25% | Difference from Average that earns a tag |
 | `succession_delay_s` | 600 | Time before command passes |
-| `recording_hz` | 1 | Keyframe rate for powered phases |
-| `p_cat` | per part | Chance a lost part destroys the ship |
+| `recording_hz` | 1 | Keyframe rate for powered flight |
 
-## 12. Open questions
+The rule tables in 9.1 are tunables too.
 
-- How much damage a hit does: one unit, or more by energy. Whether armour should matter against missiles.
-- Ship cross-section for radar and lidar, and the radar signature that gives an active ship away.
-- The point-defence rate, and whether a mount can engage more than one missile at a time.
-- Whether the missile guidance rule is the right level, or the boost split should be a design choice.
-- How threat level is derived, and how standing orders are set and shown (*Combat View* 5).
-- Whether the replay shows the player's picture or the truth, and when it flips (*Combat View* 3).
-- The window cap, phase length and how a pause at the end of every phase feels in a long standoff.
-- Whether weapons-free on unknown should be the default, and how a mistaken engagement is reported.
-- Crew and casualties: whether they exist, and whether a disabled ship can still be boarded.
-- How a decoy or sensor loss is shown to the player who was not looking.
-- Lasers: coupling with range, hardness, and heat as a real constraint.
-- Whether fixed assets have their own hit model.
-- The default standoff.
+## 15. Open questions
+
+- The figures the component model must add: category densities for presented area, shielding, stored energy, mount kind and figures, sensor reference values.
+- Calibrating `disable_kj_per_kg`, `frame_share` and `frame_kill_share` so a kinetic round damages a warship without killing it, and a missile kills.
+- The point-defence shot rate and chance as design figures.
+- How threat level is derived for standing orders.
+- Decoy discrimination and how decoys are counted in a design.
+- Whether line of sight round bodies is worth the cost.
+- Whether fixed assets need anything beyond "a ship with no drive".
+- Skill channel values once played.

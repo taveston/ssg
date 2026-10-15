@@ -85,7 +85,7 @@ A fault takes the unit out until the crew repair it with spares. Repair time and
 
 ## 4. Rated reference values **(Candidate)**
 
-One representative pre-collapse design per tier 1–2 type, rated. Crew = `crew` + `maintenance.crew`. Parametric rows are shown at a reference size. Drive values are for specific pre-collapse designs; typical values per family are in *Drives & Transit*.
+One representative pre-collapse design per tier 1–2 type, rated. These are illustrative examples: other systems, combat included, must work for any physically plausible design, not just these. Crew = `crew` + `maintenance.crew`. Parametric rows are shown at a reference size. Drive values are for specific pre-collapse designs; typical values per family are in *Drives & Transit*.
 
 **4a. Power, thermal, drives, propellant**
 
@@ -366,3 +366,5 @@ The prototype sketch in `scripts/components/` has three files: `components.json`
 - **Learning:** rates untested; decay without practice and spillover between related types need numbers.
 - **Yards:** team counts, reactivation of dormant yards, leasing terms (bids and economy).
 - **Crew health:** spin gravity, medical and long-trip rules.
+- **Combat figures:** the combat simulation needs fields the blocks don't carry yet: a typical density per category (for presented area), a per-hit shielding energy, stored energy (chemical warheads and motors), mount kind with slew rate and reaction time, and sensor reference values (*Combat Simulation* 3). Battle damage uses the fault model: a hit is a forced fault, repaired from spares.
+- **Surplus crew:** extra crew beyond the need could speed repairs and act as a buffer against casualties (candidate, for the operations model).
