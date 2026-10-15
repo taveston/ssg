@@ -1,6 +1,6 @@
 # Orphan Worlds: Combat, Raiders & Diplomacy
 
-**In short:** combat is a small, lightly simulated and essentially auto-resolved part of play, watched on the ordinary system view with the clock slowed, for Defcon-style tension. A fight is mostly decided before the shooting: by who sees whom, the geometry, delta-v reserves and magazines. Defence is mainly interception by a concentrated fleet, set up with standing orders. Raiders arise from simulated conditions, not random spawns. Rival leaders change through elections, coups and death, so relations shift over a long game.
+**In short:** combat is a small part of play, simulated in full by the game and never flown by the player. A fight is mostly decided before the shooting: by who sees whom, the geometry, delta-v reserves and magazines. It is simulated at once when it forms, shows on the map as a collapsed engagement while it runs, and is revealed with a watchable replay when it ends. Defence is mainly interception by a concentrated fleet, set up with standing orders. Raiders arise from simulated conditions, not random spawns. Rival leaders change through elections, coups and death, so relations shift over a long game.
 
 *Status:* early. Status tags as in the overview (**Decided**, **Direction**, **Candidate**). Companion documents: *Overview*, *Presentation & Visual Style* (2, the display; 3, ground combat), *Symbology*, *Economy* (armed haulers, tolls), *Orbital Transfers* (7, tactical manoeuvring), *Component Stats & Ship Assembly* (signatures, weapons).
 
@@ -9,8 +9,8 @@
 ## 1. Combat (direction)
 
 - Engagements happen at extreme velocity and range.
-- The player sets a posture, has few levers during the fight, and watches blips merge on a radar-like display.
-- The display is the ordinary system view with the clock slowed (*Presentation & Visual Style*).
+- The player sets a posture and standing orders beforehand and has no direct control during the fight.
+- The player watches a replay in a zoomed combat view. It uses the same visual language as the system view, on its own clock (1.8).
 
 ### 1.1 What realistic combat looks like
 
@@ -31,11 +31,12 @@ A long, quiet approach, then a short exchange.
 
 ### 1.3 Engagement geometry
 
-- **Dwell time** is the time inside weapon range, roughly range divided by relative speed. It is the central derived number for the resolver. Weapon types respond to it differently: missiles act mostly from launch, point defence and lasers need time on target (capped by heat), and kinetic fire needs it for volume.
+- **Dwell time** is the time inside weapon range, roughly range divided by relative speed. It is the central derived number for the simulation. Weapon types respond to it differently: missiles act mostly from launch, point defence and lasers need time on target (capped by heat), and kinetic fire needs it for volume.
 - **The objective picks the speed.** Destroying favours a fast Pass: no capture burn and little exposure. Holding (blockade, bombardment, boarding, capture, salvage, escort) needs a Stop. A fast pass commits the ship to its path, and stopping spends the return reserve.
 - **Defenders influence speed.** A deep gravity well raises pass speeds.
 - **Miss distance is a choice.** An intercept carries a standoff, not a collision course.
 - **Ships in one band are not engaged by default.** They share a speed, not a place. A band can be hundreds of thousands of km round, and the longest sensor range in the catalogue is 50,000 km. Closing within a band takes a phasing transfer. This replaces the co-location rule for combat.
+- **Evasion is a spend.** Jinking costs delta-v and shows as a burn. A ship thrusting at 0.1 g for 20 minutes spends about 1.2 km/s, so a warship that dodges gives up the reserve it needs to retreat or pursue. A slow hauler gains almost nothing from it.
 
 ### 1.4 Defence is interception
 
@@ -79,6 +80,33 @@ Raider R-2 is an armed hauler with 8 Dart missiles, one point-defence mount and 
 
 The fight was decided at CA−60 h. The shooting took about 20 minutes, with about 18 seconds of point defence.
 
+### 1.8 How a fight is run and shown
+
+**Running it**
+
+- An engagement is the cluster of ships whose rails will come within weapon range of each other. Ships already inbound join at their arrival time.
+- It is simulated in full, at once, when it forms (t0). The simulation is a point-mass model with sensors, missiles, point defence and commander decisions. It is a pure function of the starting states and standing orders, and the same simulator runs every fight.
+- Inputs freeze at t0. Orders given afterwards to ships in the engagement wait until it ends. This holds because no uninvolved ship can reach a fight within hours.
+- A window is capped at a few hours. A longer fight splits into phases: survivors return to the main simulation with their damage and magazines, and a new phase forms if they are still in range.
+- The main clock keeps running. While the fight runs, its ships appear on the map as one engagement: both sides shown and joined by a link (reusing the folding rules), and not commandable.
+
+**Revealing it**
+
+- At the end (t1) the results are already known. If the fight involved the player's forces, or lay inside the player's sensor coverage, the main clock pauses and offers Watch or Skip. Whether the pause covers every visible fight or only the player's own is a tunable.
+- The replay runs on its own tactical clock in a zoomed combat view. Overlapping fights queue in t1 order. Results appear on the map once the player has watched or skipped.
+- A fight outside the player's knowledge produces no recording and no report. The player finds out through fog: a convoy that doesn't arrive, a wreck found later.
+
+**What is stored**
+
+- A fight is recorded only if a player could watch it, decided at t0. Coasting is stored as rail segments. Powered phases (jinking, homing) are sampled keyframes, interpolated on playback. The simulation, not the interpolation, supplies the states handed back to the map. Powered time is bounded by delta-v: a Dart has about 40 s of burn.
+- Replays are ephemeral. A recording is available until it is watched or skipped, or for a short window after. Unwatched recordings are kept in saves, up to a cap. The window and the cap are tunables.
+- What persists is the outcome:
+  - per ship: status (destroyed, disabled, escaped, captured), condition, magazines and delta-v spent, and its new rail;
+  - wrecks, as salvage sites;
+  - faction knowledge updates: designs better observed, and burns seen;
+  - an event-log report: a summary, a short timeline, the commanders' decision tags and a coarse track plot.
+- One simulator serves all fights, with recording as an optional output. A cheaper model for unobserved fights is deferred until profiling shows a need. If one is used, it must be calibrated against the full simulation, so outcomes don't depend on whether the player is looking.
+
 ---
 
 ## 2. Raiders (direction)
@@ -96,14 +124,20 @@ AI leaders change through elections, coups and death, so relations shift over a 
 
 - Pre-battle orders: which standing orders exist and how the player sets them.
 - Information limits: how scouting and intelligence narrow a delta-v range.
-- After-action reports.
+- After-action reports: what the summary and timeline contain.
 - Ground combat and invasion.
 - Making losses matter.
 - Suppressing raiders.
 - Privateer licences and prize shares.
 - The point-defence shot rate. The catalogue gives a chance per shot but no rate.
 - Missile range and magazine as ship figures, and the effect of decoys and emission control.
-- Dwell time as the resolver's central number, and how each weapon type responds to it.
-- The standoff on an intercept order: its default and how the resolver reads it (finding F-145).
+- Dwell time as the simulation's central number, and how each weapon type responds to it.
+- The standoff on an intercept order: its default and how the simulation reads it (finding F-145).
 - A phasing transfer within a band, replacing co-location for combat (finding F-144; `transfers.md` 4.3 and 7).
 - How a raider's reachable envelope is drawn.
+- The engagement window cap and the length of a phase.
+- Whether the pause at the end of a fight covers every visible fight or only the player's own.
+- The replay window and the cap on stored recordings.
+- The engagement's map symbol.
+- Commander decision tags, and the tactical AI that reads commander traits.
+- A cheaper model for unobserved fights, if profiling shows a need.
