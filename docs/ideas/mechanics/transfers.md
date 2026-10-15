@@ -2,7 +2,7 @@
 
 **In short:** ships fly on rails along trajectories computed once, when an order is given. The model is patched conics with the planet-centred legs collapsed to a cost and a short delay, so the only geometry is the arc round the primary. High-thrust drives get a two-burn arc (a Lambert solution); low-thrust drives get an estimated spiral. The player plans a transfer with two sliders, depart and travel time, and sees the path, the dates and the delta-v change as they move. A destination is always a place (a body, station, gate, site or ship), never a bare orbit; round a body there are two bands, low and high, plus the orbits of its satellites. Ships sharing a band are one marker on the map and a list in the inset, but they are not at one place: phase round a band is real, and meeting a ship in your own band is a phasing manoeuvre that trades delta-v for time. A scheduled transfer is a visible, cancellable order on the ship. A ship in flight can be re-tasked at any moment, because the planner only ever needs where the ship is, how fast it's going and what it has left. Tactical positioning reduces to which place, which band, and whether the ship stops or passes.
 
-*Status:* draft. **Direction** unless marked otherwise. The simulation of sections 2, 4 and 8 is specced in `docs/spec/transfers.md`; the planner and everything the player sees are not. Mock-ups 9 to 12 in `docs/ideas/presentation/mockups/` show the planner, trajectory states, the return reserve and a refuel plan.
+*Status:* draft. **Direction** unless marked otherwise. The simulation of sections 2, 4 and 8 is specced in `docs/spec/transfers.md`. The single-ship planner (3.1 to 3.3, 3.5 and what the player sees in 4.4) is specced in `docs/spec/planner.md`; the return reserve, multi-leg plans, other people's ships, groups, re-tasking and gravity assists are not. Mock-ups 9 to 12 in `docs/ideas/presentation/mockups/` show the planner, trajectory states, the return reserve and a refuel plan.
 
 *Companion documents:* *Drives & Transit* (drive performance, transit times, gate placement, entry tolerance), *Gates*, *Combat, Raiders & Diplomacy* (what tactical positioning feeds), *Component Stats & Ship Assembly* (delta-v and acceleration per design), *Presentation & Visual Style* (how paths are drawn).
 
@@ -114,6 +114,16 @@ The state knows a track, not an order. A foreign ship in flight is drawn with a 
 - On the departure day the order is re-validated against the ship's actual state (it may have been refuelled, damaged or moved). If it still holds, the ship departs; if not, it doesn't, and an alert says why.
 - Delta-v is *reserved* when scheduled and *spent* at each burn, so the inset can show "9.9 available, 7.5 reserved".
 - Alerts on departure, on arrival, and when a window the player was shown is about to close without an order. **The planner never pauses the game (decided 2026-10-14).** Whether an alert pauses is the alerts system's setting, not the planner's. Keeping the planner live while the clock runs is cheap: the coloured slider tracks are about a thousand two-burn solves, microseconds each, refreshed once a game day; the preview arc is one solve per slider move.
+- **Specced** (2026-10-15) as PLNR-01 to PLNR-88 and PLNR-90 to PLNR-93 in `docs/spec/planner.md`: 3.1 to 3.3 and 3.5 apart from alerts, for one ship. Choices the spec makes that this section left open:
+  - The Travel time slider runs from `travel_min_factor` to `travel_max_factor` times the trip that needs least fuel, not from "the fastest the budget allows", so the track doesn't move when fuel changes. The colours and the Fastest preset show what is affordable.
+  - A scheduled order draws its path only while its ship is selected, and the ship's label always carries the countdown. This settles the two readings of 3.3 and 3.5.
+  - The Depart readout is the day the ship leaves its orbit, wait included (4.4).
+  - Fastest is the earliest arrival that is affordable; Cheapest is the least delta-v; Next window is the first day whose best trip is within `window_margin_kms` of the best of the whole range.
+  - Ghost labels rank below every other label.
+  - The "In orbit" outline stays in the panel, so a folded moon or a ship in a band can be picked as a destination.
+  - Only the state's own ships draw paths. Other people's ships (3.4) wait.
+  - The planner opens for a ship parked in an orbit. A ship in flight or coasting can't be ordered until re-tasking (6) is specced.
+  - The Delta-v tooltip shows on hover; showing it once on first use waits for remembered player settings.
 
 ### 3.6 The return reserve **(Direction)**
 
@@ -190,6 +200,7 @@ Ships in one band are not at one place. Each has a phase, its angle round the bo
 - **Combat.** It reads true positions, so reach between ships in a band follows from the gap (*Combat Simulation* 1).
 - **What the player sees (candidate).** In exposure-ring mode phase is invisible, and a High band turns about every two days, so at a day a second its ships blur into the ring. Departs shows the day the ship leaves the band, wait included. The inset should say where a ship is relative to the selection ("12,000 km ahead of K-3", "in sensor reach") instead of relying on dots. The planner for a ship in its own band has no Depart slider, since any day will do, and a Travel time slider that snaps to laps.
 - **Specced** (2026-10-15) as BAND-05, BAND-06, XFER-02, XFER-05, XFER-10, PLAN-11 and PHAS-01 to PHAS-14. The spec keeps three limits: captures and passes are prograde, a phasing leg is for impulsive drives only, and a Pass in the ship's own band is not an order.
+- **Specced** (2026-10-15), what the player sees, as PLNR-21 and PLNR-40 to PLNR-42: Departs shows the day the ship leaves its orbit, wait included; a ship's own orbit has no Depart slider and Travel time snaps to meetings, with the laps shown; the gap to the target is a line in the panel. The general "relative to the selection" line and "in sensor reach" wait for the combat view.
 
 ## 5. Groups and gates **(Candidate)**
 
