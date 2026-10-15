@@ -69,4 +69,4 @@ Format and types are in `docs/README.md`. New findings take the next free number
 ### F-152 · Orbit rows should appear even with one member, and perhaps when empty
 - **Observation:** The outline shows a named orbit's row only when it holds two or more members; a lone member is listed as a plain entry, and an empty band (Halden IV's Low, every other body's bands) is not shown at all, so no "Low" row appears anywhere. In play the rows should be there with a single member too, and it is worth deciding whether an empty band shows as a row (which would list two bands under every star, planet and moon).
 - **Affects:** INS-05, HOV-04 · **Type:** spec wrong
-- **Disposition:** open. Show a row for every named orbit with at least one member, or for every band regardless.
+- **Disposition:** open. Decided in play: empty bands never show; a named orbit with one member should still get its row. (Arden Highport is not in Low: stations keep orbits of their own, TEST-10.)
