@@ -41,11 +41,6 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Affects:** TEST-05, TEST-10, TEST-20, BAND-01 · **Type:** conflict
 - **Disposition:** open. Raise `high_band_radii` (about 34 radii gives 12 d at Halden IV), accept the ring, or state that the parked ships sit elsewhere.
 
-### F-148 · XFER-07 would forbid every trip to a Low band
-- **Observation:** XFER-07 makes a crossing infeasible if its periapsis is inside `min_periapsis_radii` (2) × the primary's radius and is reached during the crossing. A Low band is at radius + 500 km, inside that limit for any body over 500 km, and a transfer between two bands has the body as its primary (XFER-01) and reaches periapsis at one end: High → Low arrives at periapsis, Low → High leaves from it. So no band-to-band trip touching Low could be flown. The build exempts a crossing that starts or ends in an orbit of the primary itself, and applies the rule to every other crossing (a fall towards the star from a planet, say).
-- **Affects:** XFER-07, BAND-01 · **Type:** spec wrong
-- **Disposition:** open. Accept the exemption, or lower the limit below the Low altitude.
-
 ### F-149 · Choices the transfer spec leaves open
 - **Observation:** The build had to settle these: (a) the end state of a band of the crossing's primary (band-to-band trips, a station at the primary as the start) is the band's circle aimed half a turn ahead of the start, so a Hohmann travel time gives the Hohmann burns; (b) XFER-06's spiral spans the whole crossing, whose length includes the departure and capture costs, so the spiral winds at `|v0 − v1| ÷ travel_days` and lands at the end's angle on the last day; (c) a place whose body is the crossing's primary charges nothing (XFER-01's band-to-band rule, extended to a station or a gate round the primary), and a gate or site is aimed at by its own orbit's state, not its parent's; (e) Hold on an InFlight plan leaves that plan on the ship as **Holding** with its rail cut, rather than replacing it with a Done Hold plan, so PLAN-12's origin and destination survive.
 - **Affects:** XFER-01, XFER-06, PLAN-13 · **Type:** spec gap
