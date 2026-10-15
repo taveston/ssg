@@ -116,7 +116,8 @@ The state knows a track, not an order. A foreign ship in flight is drawn with a 
 - On the departure day the order is re-validated against the ship's actual state (it may have been refuelled, damaged or moved). If it still holds, the ship departs; if not, it doesn't, and an alert says why.
 - Delta-v is *reserved* when scheduled and *spent* at each burn, so the inset can show "9.9 available, 7.5 reserved".
 - Alerts on departure, on arrival, and when a window the player was shown is about to close without an order. **The planner never pauses the game (decided 2026-10-14).** Whether an alert pauses is the alerts system's setting, not the planner's. Keeping the planner live while the clock runs is cheap: the coloured slider tracks are about a thousand two-burn solves, microseconds each, refreshed once a game day; the preview arc is one solve per slider move.
-- **Specced** (2026-10-15) as PLNR-01 to PLNR-88 and PLNR-90 to PLNR-93 in `docs/spec/planner.md`: 3.1 to 3.3 and 3.5 apart from alerts, for one ship. Choices the spec makes that this section left open:
+- **Specced** (2026-10-15) as PLNR-01 to PLNR-88 and PLNR-90 to PLNR-94 in `docs/spec/planner.md`: 3.1 to 3.3 and 3.5 apart from alerts, for one ship. Choices the spec makes that this section left open:
+  - The player's words for Stop and Pass are Rendezvous and Intercept, each with a tooltip. The simulation keeps Stop and Pass; this document's older sections still use them.
   - The Travel time slider runs from `travel_min_factor` to `travel_max_factor` times the trip that needs least fuel, not from "the fastest the budget allows", so the track doesn't move when fuel changes. The colours and the Fastest preset show what is affordable.
   - A scheduled order draws its path only while its ship is selected, and the ship's label always carries the countdown. This settles the two readings of 3.3 and 3.5.
   - The Depart readout is the day the ship leaves its orbit, wait included (4.4).

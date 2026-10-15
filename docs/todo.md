@@ -28,14 +28,15 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - Changes XFER-08 (its ✓ is cleared): a Pass may take a Low band. In `src/sim/transfer/legs.rs` a Pass through Low ends the crossing on the crossing end day and starts a new Conic round the primary with the turned velocity (XFER-13).
   - The turn angle and the closing speed go in the `orbits` crate (XFER-15). The closing speed at a station (XFER-14) is read only once **Phase in transfers** gives stations phases.
   - The planner's PLNR-30 no longer disables Pass for a Low band, so build this before **Transfer planner**.
-- [ ] **Transfer planner** · PLNR-01 to PLNR-05, PLNR-10 to PLNR-14, PLNR-20 to PLNR-32, PLNR-40 to PLNR-42, PLNR-50 to PLNR-54, PLNR-60 to PLNR-69, PLNR-80 to PLNR-88, PLNR-90 to PLNR-93, UNIT-04, TEST-30
+- [ ] **Transfer planner** · PLNR-01 to PLNR-05, PLNR-10 to PLNR-14, PLNR-20 to PLNR-32, PLNR-40 to PLNR-42, PLNR-50 to PLNR-54, PLNR-60 to PLNR-69, PLNR-80 to PLNR-88, PLNR-90 to PLNR-94, UNIT-04, TEST-30
   - Changes INS-01, INS-02, INS-03 and SYM-13 (their ✓ is cleared). The Transfer button, the planner panel and its destination picking, and the order countdown in a ship's label come from them.
   - The simulation is built. New in `src/sim/transfer/`: the search rules of PLNR-80 to PLNR-88 (ranges, grid, presets, coast consequence) as pure functions. A drive also needs a display name (`sim/ship.rs`, `content/corvane.rs`, TEST-30).
-  - Pass is offered for stations (PLNR-30) and shows its trim (PLNR-32), which needs **Phase in transfers** (PHAS-15). A raid on today's stations, which are in Low bands, needs **Pass through Low**.
+  - Intercept (the simulation's Pass) is offered for stations (PLNR-30) and shows its trim (PLNR-32), which needs **Phase in transfers** (PHAS-15). A raid on today's stations, which are in Low bands, needs **Pass through Low**.
   - PLNR-68 draws ships in flight for the first time, so GRP-08 and MOT-08 now have real ships to test against.
   - Build after **Pass through Low**, because Pass is offered for a Low band (PLNR-30).
   - PLNR-40 to PLNR-42 need **Phase in transfers**. Build them after it, and build the rest first if the planner is wanted sooner.
-  - The mock-ups (9 to 12) show a blue Schedule button; BTN-01 and BTN-02 decide, so it is the neutral primary button.
+  - The player's words are Rendezvous and Intercept (PLNR-30); the code keeps `Stop` and `Pass` for the simulation.
+  - The mock-ups (9 to 12) show a blue Schedule button and a Stop / Pass choice; BTN-01, BTN-02 and PLNR-30 decide, so it is the neutral primary button and Rendezvous / Intercept.
 - [ ] **Velocity leaders** · SYM-11
   - Build after **Transfer planner**, which draws ships in flight (PLNR-68).
 - [ ] **Ideology profile** · IDEO-01 to IDEO-31
