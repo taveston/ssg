@@ -54,7 +54,7 @@ All **Candidate**. Mock-ups: `mockups/13-combat-replay.png` to `17-missile-symbo
 **The clock.**
 
 - Time counts from the moment the engagement formed: "T+75m 30s", in minutes and seconds (hours once past 60 min: "T+1h 15m 30s"), with the date and time beside it.
-- Closest approach is information, not the clock's origin. It is a prediction from the current rails and moves when anyone burns, a fight between several forces has one per pair, and a Stop fight has none. Counting towards the true closest approach would also give away the result. So it shows as a timeline marker and a caption: "Closest approach in 17m 30s (predicted) · 1,500 km".
+- Closest approach is information, not the clock's origin. It is a prediction from the current rails and moves when anyone burns, a fight between several forces has one per pair, and a Rendezvous fight has none. Counting towards the true closest approach would also give away the result. So it shows as a timeline marker and a caption: "Closest approach in 17m 30s (predicted) · 1,500 km".
 - **Auto** rate is the default: about ×60 while everything coasts, easing to ×1 near events and slower inside point-defence range, where a missile crosses in 18 s. Fixed rates (×1, ×10, ×60) are there too. Pause is Space.
 - A short caption above the map names the next thing: "R-2's salvo reaches TF-1's point-defence range in 30 s". Captions come from the event log (*Combat Simulation* 11).
 - Skip to result ends the replay and shows the report.
@@ -91,7 +91,7 @@ Board 15 shows the orders from *Combat Simulation* 10.
 
 Board 16. It follows the report layout in *Interface Style* 7.
 
-- **Signal header,** then a **one-sentence conclusion** ("R-2 destroyed on a pass at Halden IV High, with no loss to TF-1"), then a short account in the commander's voice.
+- **Signal header,** then a **one-sentence conclusion** ("R-2 destroyed on an intercept at Halden IV High, with no loss to TF-1"), then a short account in the commander's voice.
 - **Ships:** status, condition, missiles used and delta-v spent, per ship or per force. Enemy figures in the certainty notation.
 - **Timeline:** six to ten lines from the event log, the decisive ones only.
 - **Decisions:** the commander's decision tags, written as behaviour ("held 75% of magazines", "left *Wren* behind"), never as the trait.

@@ -33,7 +33,7 @@ A long, quiet approach, then a short exchange.
 ### 1.3 Engagement geometry
 
 - **Dwell time** is the time inside weapon range, roughly range divided by relative speed. It is the central derived number for the simulation. Weapon types respond to it differently: missiles act mostly from launch, point defence and lasers need time on target (capped by heat), and kinetic fire needs it for volume.
-- **The objective picks the speed.** Destroying favours a fast Pass: no capture burn and little exposure. Holding (blockade, bombardment, boarding, capture, salvage, escort) needs a Stop. A fast pass commits the ship to its path, and stopping spends the return reserve.
+- **The objective picks the speed.** Destroying favours a fast Intercept: no capture burn and little exposure. Holding (blockade, bombardment, boarding, capture, salvage, escort) needs a Rendezvous. A fast intercept commits the ship to its path, and stopping spends the return reserve.
 - **Defenders influence speed.** A deep gravity well raises pass speeds.
 - **Miss distance is a choice.** An intercept carries a standoff, not a collision course.
 - **Ships in one band are not engaged by default.** They share a speed, not a place. A band can be hundreds of thousands of km round, and the longest sensor range in the catalogue is 50,000 km. Closing within a band takes a phasing leg, which trades delta-v for time (*Orbital Transfers* 4.4).
@@ -69,7 +69,7 @@ A raider can deceive with extra tankage, a throttled drive or a disguised class.
 
 ### 1.7 Worked example: an interception (illustrative)
 
-Raider R-2 is an armed hauler with 8 Dart missiles, one point-defence mount and decoys. It is on a Pass course for Halden IV's High band. TF-1 is 4 warships (assumed 3 Darts and 2 point-defence mounts each) at High. Closing speed is 9 km/s.
+Raider R-2 is an armed hauler with 8 Dart missiles, one point-defence mount and decoys. It is on an Intercept course for Halden IV's High band. TF-1 is 4 warships (assumed 3 Darts and 2 point-defence mounts each) at High. Closing speed is 9 km/s.
 
 | When | What |
 |---|---|
@@ -185,7 +185,7 @@ AI leaders change through elections, coups and death, so relations shift over a 
 - Missile range and magazine as ship figures, and the other figures *Combat Simulation* 3 needs from a design.
 - Dwell time: how each weapon family responds is in *Combat Simulation* 7.
 - The standoff on an intercept order: its default (finding F-145). *Combat Simulation* 1 settles that the simulation reads rails only.
-- What a Pass meets in the band it passes: the transfer spec records the closest-approach point and speed, and combat builds the encounter from them (`transfers.md` 4.4). Whether a flyby against the band's motion is an option.
+- What an Intercept meets in the band it passes: the transfer spec records the closest-approach point and speed, and combat builds the encounter from them (`transfers.md` 4.4). Whether a flyby against the band's motion is an option.
 - How a raider's reachable envelope is drawn (a candidate overlay in *Combat View* 4).
 - The engagement window cap and the length of a phase (placeholder in *Combat Simulation* 14).
 - Whether the pause at the end of a fight covers every visible fight or only the player's own (*Combat View* 2 proposes own fights only by default).

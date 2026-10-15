@@ -12,7 +12,7 @@ Boards 1 to 6 are from the design canvas "Inspect & Planetary Transition"; 7 onw
 | `6-satellite-grouping-and-motion.png` | 6 · Satellite grouping by zoom, and the motion rule |
 | `7-symbology.png` | Ship symbology sheet (2026-10-11). Source: `7-symbology.html`; described in `../symbology.md` |
 | `8-ui-style.png` | Interface style: panels, message traffic, reports, requests, dossiers, Administration view (2026-10-11). Source: `8-ui-style.html`; described in `../ui-style.md` |
-| `9-transfer-planner.png` | Transfer planner: two sliders with delta-v-coloured tracks, readouts, presets, Stop/Pass, one preview arc with ghosts (2026-10-14). Source: `9-transfer-planner.html`, interactive; described in `../../mechanics/transfers.md` 3 |
+| `9-transfer-planner.png` | Transfer planner: two sliders with delta-v-coloured tracks, readouts, presets, Stop/Pass (now Rendezvous / Intercept), one preview arc with ghosts (2026-10-14). Source: `9-transfer-planner.html`, interactive; described in `../../mechanics/transfers.md` 3 |
 | `10-trajectory-states.png` | How trajectories are drawn: scheduled, in flight, pass, intercept (2026-10-14). Source: `10-trajectory-states.html`; `transfers.md` 3.3 and 3.4 |
 | `11-return-reserve.png` | The return reserve in the delta-v bar, and the one-way state (2026-10-14). Source: `11-return-reserve.html`; `transfers.md` 3.6 |
 | `12-refuel-plan.png` | A two-leg plan with a refuel stop: leg stack and stacked bar (2026-10-14). Source: `12-refuel-plan.html`; `transfers.md` 3.7 |

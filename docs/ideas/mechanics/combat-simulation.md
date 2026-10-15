@@ -156,7 +156,7 @@ Dwell time, the time inside a weapon's useful range, isn't a separate rule. It's
 | Point defence | Time per missile in range | About 18 s, about 5 kills per mount |
 | Beam | Energy on target | Deferred |
 
-A Stop makes dwell open-ended, so guns matter. A Pass makes it short, so missiles and point defence decide.
+A Rendezvous makes dwell open-ended, so guns matter. An Intercept makes it short, so missiles and point defence decide.
 
 ## 8. Forces and command
 
@@ -227,7 +227,7 @@ The salvo is split across ships by who has missiles in reach above their hold-ba
 | Field | Choices |
 |---|---|
 | Objective | Destroy, Defend, Hold, Escort (Capture and Salvage later) |
-| Approach | Pass or Stop; standoff in km (shapes the rail) |
+| Approach | Intercept or Rendezvous; standoff in km (shapes the rail) |
 | Weapons | Hostile + unknown, hostile only, tight |
 | Target first | Armed, transports, any |
 | Emissions | Active, on contact, silent |

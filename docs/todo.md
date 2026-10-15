@@ -22,21 +22,20 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - Ships in one band are at real places. A same-band target is a phasing leg; a station or ship in another body's band is met by timing the arrival; leaving an impulsive drive's band waits for the exit point. Ships in a group share one phase.
   - The maths goes in the `orbits` crate (PHAS-12): the phasing orbit, the capture angle and the exit angle. Lambert can't do the same-band case, because the path returns to its start point.
   - In `src/sim/transfer/`: the capture phase is now the closest point of the approach path, not the angle of the arrival velocity (`legs.rs`, BAND-06). A target ship or station is read at its own phase, not as its band. A leg that targets a ship stores the orbit and phase it was solved against (PLAN-11). Add `together_km`, `max_phasing_laps` and `trim_max_iterations` to `SimTunables`.
-  - A Pass at a station or a parked ship in another body's band is trimmed to meet it (PHAS-15): the solver lengthens `travel_days` by under one period of the band and repeats until the target is at the Pass's point.
+  - An Intercept at a station or a parked ship in another body's band is trimmed to meet it (PHAS-15): the solver lengthens `travel_days` by under one period of the band and repeats until the target is at the Intercept's point.
   - Build after **Stations in bands**, so stations have phases to meet.
-- [ ] **Pass through Low** · XFER-08, XFER-13, XFER-14, XFER-15
-  - Changes XFER-08 (its ✓ is cleared): a Pass may take a Low band. In `src/sim/transfer/legs.rs` a Pass through Low ends the crossing on the crossing end day and starts a new Conic round the primary with the turned velocity (XFER-13).
+- [ ] **Intercept through Low** · XFER-08, XFER-13, XFER-14, XFER-15
+  - Changes XFER-08 (its ✓ is cleared): an Intercept may take a Low band. In `src/sim/transfer/legs.rs` an Intercept through Low ends the crossing on the crossing end day and starts a new Conic round the primary with the turned velocity (XFER-13).
   - The turn angle and the closing speed go in the `orbits` crate (XFER-15). The closing speed at a station (XFER-14) is read only once **Phase in transfers** gives stations phases.
-  - The planner's PLNR-30 no longer disables Pass for a Low band, so build this before **Transfer planner**.
+  - The planner's PLNR-30 no longer disables Intercept for a Low band, so build this before **Transfer planner**.
 - [ ] **Transfer planner** · PLNR-01 to PLNR-05, PLNR-10 to PLNR-14, PLNR-20 to PLNR-32, PLNR-40 to PLNR-42, PLNR-50 to PLNR-54, PLNR-60 to PLNR-69, PLNR-80 to PLNR-88, PLNR-90 to PLNR-94, UNIT-04, TEST-30
   - Changes INS-01, INS-02, INS-03 and SYM-13 (their ✓ is cleared). The Transfer button, the planner panel and its destination picking, and the order countdown in a ship's label come from them.
   - The simulation is built. New in `src/sim/transfer/`: the search rules of PLNR-80 to PLNR-88 (ranges, grid, presets, coast consequence) as pure functions. A drive also needs a display name (`sim/ship.rs`, `content/corvane.rs`, TEST-30).
-  - Intercept (the simulation's Pass) is offered for stations (PLNR-30) and shows its trim (PLNR-32), which needs **Phase in transfers** (PHAS-15). A raid on today's stations, which are in Low bands, needs **Pass through Low**.
+  - Intercept is offered for stations (PLNR-30) and shows its trim (PLNR-32), which needs **Phase in transfers** (PHAS-15). A raid on today's stations, which are in Low bands, needs **Intercept through Low**.
   - PLNR-68 draws ships in flight for the first time, so GRP-08 and MOT-08 now have real ships to test against.
-  - Build after **Pass through Low**, because Pass is offered for a Low band (PLNR-30).
+  - Build after **Intercept through Low**, because Intercept is offered for a Low band (PLNR-30).
   - PLNR-40 to PLNR-42 need **Phase in transfers**. Build them after it, and build the rest first if the planner is wanted sooner.
-  - The player's words are Rendezvous and Intercept (PLNR-30); the code keeps `Stop` and `Pass` for the simulation.
-  - The mock-ups (9 to 12) show a blue Schedule button and a Stop / Pass choice; BTN-01, BTN-02 and PLNR-30 decide, so it is the neutral primary button and Rendezvous / Intercept.
+  - The mock-ups (9 to 12) show a blue Schedule button and a choice labelled Stop / Pass; BTN-01, BTN-02 and PLNR-30 decide, so it is the neutral primary button and Rendezvous / Intercept.
 - [ ] **Velocity leaders** · SYM-11
   - Build after **Transfer planner**, which draws ships in flight (PLNR-68).
 - [ ] **Ideology profile** · IDEO-01 to IDEO-31
@@ -46,11 +45,14 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 - [ ] **Keep arcs out of the planet** · XFER-07
   - The build exempts every crossing that starts or ends in an orbit of the primary (`check_periapsis` in `src/sim/transfer/legs.rs`), so a High → Low arc to a station on the far side of the planet can pass through it. Replace the exemption with the Low band limit of the new XFER-07, and drop the F-148 comment.
-  - The check also covers the coast after a Pass: the conic the ship is left on (the turned one after a Pass through Low, XFER-13) must not have its periapsis ahead inside the limit.
-  - Tests: a far-side arc to a Low band is infeasible with "Path passes too close to *primary*" (PLNR-92); a near-side arc to a Low band, and a departure from one, are feasible. A Pass in a planet's frame whose coast would dip below the Low band is infeasible. Arriving exactly at the Low radius must pass, so allow for rounding.
+  - The check also covers the coast after an Intercept: the conic the ship is left on (the turned one after an Intercept through Low, XFER-13) must not have its periapsis ahead inside the limit.
+  - Tests: a far-side arc to a Low band is infeasible with "Path passes too close to *primary*" (PLNR-92); a near-side arc to a Low band, and a departure from one, are feasible. An Intercept in a planet's frame whose coast would dip below the Low band is infeasible. Arriving exactly at the Low radius must pass, so allow for rounding.
 
 ## Other
 
+- [ ] **Rename Stop and Pass to Rendezvous and Intercept in the code**
+  - The specs and idea docs use the new names (2026-10-16). Rename `Arrival::Stop` and `Arrival::Pass`, the other uses in `src/sim/transfer/` and `src/headless_tests.rs`, and the comments, test names and messages that say "Stop" or "Pass" for an arrival mode (about 40 uses). No behaviour changes.
+  - Do it before **Intercept through Low** and **Transfer planner**, so the new code starts with the new names.
 - [ ] **Bring older docs up to the writing style**
   - The rules are in `docs/README.md` (Writing). Do it one doc at a time, with no change of meaning.
   - The longest are the likeliest to need it: `ideas/mechanics/requirements-and-bids.md`, `ideas/mechanics/component-stats.md` and `ideas/mechanics/transfers.md`.
