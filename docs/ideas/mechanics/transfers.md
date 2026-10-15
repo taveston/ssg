@@ -125,6 +125,7 @@ The state knows a track, not an order. A foreign ship in flight is drawn with a 
   - A ship in flight can't be picked as a destination, unless it is the state's own and coasting with no order. This keeps the planner from aiming at a path the player can't know, or one an order could change.
   - The planner opens for a ship parked in an orbit. A ship in flight or coasting can't be ordered until re-tasking (6) is specced.
   - The Delta-v tooltip shows on hover; showing it once on first use waits for remembered player settings.
+  - Pass is offered for a station, because a drive-by raid that doesn't spend delta-v matching the station's orbit is what a Pass is for (section 7). The planner shows how near the pass gets to the station (the closest approach), and leaves who engages whom to Conflict. A raid on a station in a Low band needs a Pass through Low (2.6), which is not yet specced, and a way to line the pass up with the station is open.
 
 ### 3.6 The return reserve **(Direction)**
 
