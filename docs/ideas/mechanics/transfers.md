@@ -122,6 +122,7 @@ The state knows a track, not an order. A foreign ship in flight is drawn with a 
   - Ghost labels rank below every other label.
   - The "In orbit" outline stays in the panel, so a folded moon or a ship in a band can be picked as a destination.
   - Only the state's own ships draw paths. Other people's ships (3.4) wait.
+  - A ship in flight can't be picked as a destination, unless it is the state's own and coasting with no order. This keeps the planner from aiming at a path the player can't know, or one an order could change.
   - The planner opens for a ship parked in an orbit. A ship in flight or coasting can't be ordered until re-tasking (6) is specced.
   - The Delta-v tooltip shows on hover; showing it once on first use waits for remembered player settings.
 
