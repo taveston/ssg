@@ -1,4 +1,4 @@
-//! The inspection sidebar (INS-01 to INS-04, INS-07, MOT-07): one panel
+//! The inspection sidebar (INS-01 to INS-04, INS-07, INS-09, MOT-07): one panel
 //! for the one selection (INS-03), at the right of the window from the
 //! top bar to the bottom (INS-07). It slides in and out with the selection
 //! (`sidebar.rs` holds the slide; the map area follows it). The details
@@ -9,7 +9,10 @@
 //!
 //! The details are built from an `InsetContent` - plain values gathered
 //! from the body - by one helper per section, so what an inset says can be
-//! tested apart from how it is laid out.
+//! tested apart from how it is laid out. Key facts are label-over-value
+//! pairs in wrapping rows, and each section below them has a heading in
+//! small spaced capitals over a hairline (INS-09). Bevy's text has no
+//! letter spacing, so spaced capitals are spawned a letter at a time.
 
 use bevy::input::mouse::{AccumulatedMouseScroll, MouseScrollUnit};
 use bevy::prelude::*;
@@ -47,6 +50,19 @@ pub struct InsetPanel;
 /// description and facts.
 #[derive(Component)]
 struct InsetDetails;
+/// A key fact's label, in small spaced capitals (INS-09); holds the plain
+/// text the letters spell.
+#[derive(Component, Debug, Clone, PartialEq, Eq)]
+pub struct FactLabel(pub String);
+/// A key fact's value (INS-09).
+#[derive(Component, Debug, Clone, PartialEq, Eq)]
+pub struct FactValue(pub String);
+/// A section's heading, in small spaced capitals (INS-09).
+#[derive(Component, Debug, Clone, PartialEq, Eq)]
+pub struct SectionHeading(pub String);
+/// The hairline above a section (INS-09).
+#[derive(Component)]
+pub struct Hairline;
 /// The inset's Focus button, for the body it would make the frame
 /// (CAM-24).
 #[derive(Component)]
@@ -70,6 +86,19 @@ const BRACKET_PX: f32 = 10.0;
 const BRACKET_LINE_PX: f32 = 2.0;
 const HEADER_FONT_PX: f32 = 15.0;
 const BODY_FONT_PX: f32 = 11.0;
+/// Small spaced capitals: the size, the gap between letters and the gap
+/// between words (INS-09).
+const CAPS_FONT_PX: f32 = 9.0;
+const CAPS_LETTER_GAP_PX: f32 = 1.5;
+const CAPS_WORD_GAP_PX: f32 = 5.0;
+/// Key facts wrap in rows: each takes at least this much of the row, so
+/// two short ones share it and a long one has it alone (INS-09).
+const FACT_MIN_WIDTH_PERCENT: f32 = 45.0;
+const FACT_COLUMN_GAP_PX: f32 = 10.0;
+const FACT_ROW_GAP_PX: f32 = 6.0;
+/// The hairline between sections, and the space round it (INS-09).
+const HAIRLINE_PX: f32 = 1.0;
+const SECTION_GAP_PX: f32 = 8.0;
 
 /// INS-02: the class line's readable class name.
 pub fn class_label(class: BodyClass) -> &'static str {
@@ -209,7 +238,7 @@ impl Plugin for InspectPlugin {
 /// INS-07: the sidebar: `inset_width_px` wide, from the top bar to the
 /// bottom of the window, off the right edge until it slides in. Its
 /// details and the outline sit in one scrolling column.
-fn spawn_sidebar(mut commands: Commands, tunables: Res<Tunables>) {
+fn spawn_sidebar(mut commands: Commands, tunables: Res<Tunables>, fonts: Res<Fonts>) {
     commands
         .spawn((
             InsetPanel,
@@ -243,7 +272,9 @@ fn spawn_sidebar(mut commands: Commands, tunables: Res<Tunables>) {
                     ..default()
                 },
             ));
-            // INS-05: the outline fills itself (`outline.rs`).
+            // INS-05 / INS-09: the "In orbit" section; the outline fills
+            // itself (`outline.rs`).
+            spawn_section_heading(panel, &fonts, "In orbit");
             panel.spawn((
                 OutlineRoot,
                 Node {
@@ -251,6 +282,102 @@ fn spawn_sidebar(mut commands: Commands, tunables: Res<Tunables>) {
                     ..default()
                 },
             ));
+        });
+}
+
+/// INS-09: text as small spaced capitals: upper case, one piece per
+/// letter so each can be spaced, with a wider gap at each space.
+pub fn spaced_capitals(text: &str) -> Vec<Option<char>> {
+    text.to_uppercase()
+        .chars()
+        .map(|c| (!c.is_whitespace()).then_some(c))
+        .collect()
+}
+
+/// INS-09: a line of small spaced capitals in the secondary colour.
+fn spawn_spaced_capitals(
+    parent: &mut ChildSpawnerCommands,
+    fonts: &Fonts,
+    text: &str,
+    marker: impl Bundle,
+) {
+    parent
+        .spawn((
+            marker,
+            Node {
+                flex_direction: FlexDirection::Row,
+                align_items: AlignItems::Baseline,
+                column_gap: px(CAPS_LETTER_GAP_PX),
+                ..default()
+            },
+        ))
+        .with_children(|line| {
+            for letter in spaced_capitals(text) {
+                match letter {
+                    Some(letter) => {
+                        line.spawn((
+                            Text::new(letter.to_string()),
+                            fonts.label(CAPS_FONT_PX),
+                            TextColor(colors::SECONDARY),
+                        ));
+                    }
+                    None => {
+                        line.spawn(Node {
+                            width: px(CAPS_WORD_GAP_PX),
+                            ..default()
+                        });
+                    }
+                }
+            }
+        });
+}
+
+/// INS-09: a section below the key facts: a hairline, then its heading in
+/// small spaced capitals.
+fn spawn_section_heading(panel: &mut ChildSpawnerCommands, fonts: &Fonts, title: &str) {
+    panel.spawn((
+        Hairline,
+        Node {
+            width: percent(100),
+            height: px(HAIRLINE_PX),
+            margin: UiRect::vertical(px(SECTION_GAP_PX)),
+            ..default()
+        },
+        BackgroundColor(colors::PANEL_BORDER),
+    ));
+    spawn_spaced_capitals(panel, fonts, title, SectionHeading(title.to_string()));
+}
+
+/// INS-09: the key facts as label-over-value pairs in wrapping rows: the
+/// label in small spaced capitals in the secondary colour, the value in
+/// the data face in the neutral colour.
+fn spawn_facts(panel: &mut ChildSpawnerCommands, fonts: &Fonts, facts: &[(String, String)]) {
+    panel
+        .spawn(Node {
+            flex_direction: FlexDirection::Row,
+            flex_wrap: FlexWrap::Wrap,
+            column_gap: px(FACT_COLUMN_GAP_PX),
+            row_gap: px(FACT_ROW_GAP_PX),
+            ..default()
+        })
+        .with_children(|rows| {
+            for (label, value) in facts {
+                rows.spawn(Node {
+                    flex_direction: FlexDirection::Column,
+                    min_width: percent(FACT_MIN_WIDTH_PERCENT),
+                    flex_grow: 1.0,
+                    ..default()
+                })
+                .with_children(|fact| {
+                    spawn_spaced_capitals(fact, fonts, label, FactLabel(label.clone()));
+                    fact.spawn((
+                        FactValue(value.clone()),
+                        Text::new(value.clone()),
+                        fonts.data(BODY_FONT_PX),
+                        TextColor(colors::NEUTRAL),
+                    ));
+                });
+            }
         });
 }
 
@@ -395,10 +522,7 @@ fn fill_panel(
         fonts.label(BODY_FONT_PX),
         colors::NEUTRAL,
     );
-    for (key, value) in &content.facts {
-        let line = format!("{key}: {value}");
-        spawn_text(panel, &line, fonts.data(BODY_FONT_PX), colors::NEUTRAL);
-    }
+    spawn_facts(panel, fonts, &content.facts);
     spawn_position_note(panel, fonts, content.body);
     spawn_planetary_view_button(panel, fonts);
 }
@@ -584,6 +708,13 @@ mod tests {
         let mut world = World::new();
         world.init_resource::<Tunables>();
         world.init_resource::<SidebarState>();
+        world.insert_resource(Fonts {
+            label: Handle::default(),
+            label_semibold: Handle::default(),
+            text: Handle::default(),
+            text_semibold: Handle::default(),
+            data: Handle::default(),
+        });
         world.run_system_once(spawn_sidebar).unwrap();
         world.run_system_once(slide_panel).unwrap();
         let mut panels = world.query_filtered::<&Node, With<InsetPanel>>();
@@ -665,6 +796,29 @@ mod tests {
         update.run((), &mut world).unwrap();
         assert_eq!(world.get::<Node>(note).unwrap().display, Display::None);
         assert_eq!(POSITION_SHOWN_WHEN_PAUSED, "Position: shown when paused");
+    }
+
+    /// INS-09: spaced capitals are upper case, one letter at a time, with
+    /// a gap in place of each space.
+    #[test]
+    fn spaced_capitals_are_upper_case_letters_with_gaps() {
+        assert_eq!(
+            spaced_capitals("Mean radius"),
+            [
+                Some('M'),
+                Some('E'),
+                Some('A'),
+                Some('N'),
+                None,
+                Some('R'),
+                Some('A'),
+                Some('D'),
+                Some('I'),
+                Some('U'),
+                Some('S')
+            ]
+        );
+        assert!(spaced_capitals("").is_empty());
     }
 
     /// INS-02: classes read as words, not enum names.

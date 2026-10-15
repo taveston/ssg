@@ -2617,6 +2617,126 @@ fn the_sidebar_keeps_its_outline_across_selections() {
     assert!(outline_rows(&mut app).contains(&orison));
 }
 
+/// INS-09: the key facts are label-over-value pairs, the label as small
+/// spaced capitals in the secondary colour and the value in the data face
+/// in the neutral colour; the "In orbit" section below them has a heading
+/// in spaced capitals over a hairline.
+#[test]
+fn key_facts_are_label_over_value_pairs_under_headed_sections() {
+    use crate::view::colors;
+    use crate::view::fidelity::FidelityImages;
+    use crate::view::inspect::{
+        FactLabel, FactValue, Hairline, InsetPanel, InspectPlugin, SectionHeading,
+    };
+    use crate::view::outline::OutlinePlugin;
+    use crate::view::sidebar::SidebarPlugin;
+
+    let mut app = headless_app(FRAME);
+    app.add_plugins((
+        ContentPlugin,
+        SimPlugin,
+        TunablesPlugin,
+        BindingsPlugin,
+        SidebarPlugin,
+        OutlinePlugin,
+        InspectPlugin,
+    ))
+    .init_resource::<Selection>()
+    .init_resource::<Frame>()
+    .init_resource::<FrameRequest>()
+    .init_resource::<crate::view::camera::requests::PlanetaryViewRequest>()
+    .init_resource::<ButtonInput<KeyCode>>()
+    .init_resource::<bevy::input::mouse::AccumulatedMouseScroll>()
+    .insert_resource(FidelityImages {
+        surveyed: Handle::default(),
+        unsurveyed: Handle::default(),
+    })
+    .insert_resource(placeholder_fonts());
+    run(&mut app, 1);
+    let fonts = placeholder_fonts();
+    let halden = body(&mut app, "Halden IV");
+    app.world_mut().resource_mut::<Selection>().select(halden);
+    run(&mut app, 3);
+
+    let panel = {
+        let mut panels = app.world_mut().query_filtered::<Entity, With<InsetPanel>>();
+        panels.single(app.world()).unwrap()
+    };
+    let parts = descendants(&mut app, panel);
+    let labels: Vec<(Entity, String)> = parts
+        .iter()
+        .filter_map(|&e| app.world().get::<FactLabel>(e).map(|l| (e, l.0.clone())))
+        .collect();
+    let names: Vec<&str> = labels.iter().map(|(_, l)| l.as_str()).collect();
+    assert!(
+        names.contains(&"Population") && names.contains(&"Mean radius"),
+        "{names:?}"
+    );
+    let (label, _) = labels.iter().find(|(_, l)| l == "Mean radius").unwrap();
+    let letters: Vec<String> = descendants(&mut app, *label)
+        .into_iter()
+        .filter_map(|e| app.world().get::<Text>(e).map(|t| t.0.clone()))
+        .collect();
+    assert_eq!(
+        letters.concat(),
+        "MEANRADIUS",
+        "one letter per text, upper case"
+    );
+    let first = descendants(&mut app, *label)
+        .into_iter()
+        .find(|&e| app.world().get::<Text>(e).is_some())
+        .unwrap();
+    assert_eq!(
+        app.world().get::<TextColor>(first).unwrap().0,
+        colors::SECONDARY
+    );
+    assert_eq!(
+        app.world().get::<TextFont>(first).unwrap().font,
+        fonts.label(1.0).font
+    );
+    // The value follows its label in the same fact, in the data face.
+    let fact = app.world().get::<ChildOf>(*label).unwrap().parent();
+    let value = app
+        .world()
+        .get::<Children>(fact)
+        .unwrap()
+        .iter()
+        .find(|&e| app.world().get::<FactValue>(e).is_some())
+        .unwrap();
+    assert_eq!(app.world().get::<FactValue>(value).unwrap().0, "6,700 km");
+    assert_eq!(
+        app.world().get::<TextColor>(value).unwrap().0,
+        colors::NEUTRAL
+    );
+    assert_eq!(
+        app.world().get::<TextFont>(value).unwrap().font,
+        fonts.data(1.0).font
+    );
+    let row = app.world().get::<ChildOf>(fact).unwrap().parent();
+    assert_eq!(
+        app.world().get::<Node>(row).unwrap().flex_wrap,
+        FlexWrap::Wrap
+    );
+
+    let heading = parts
+        .iter()
+        .find(|&&e| {
+            app.world()
+                .get::<SectionHeading>(e)
+                .is_some_and(|h| h.0 == "In orbit")
+        })
+        .expect("the outline's heading");
+    let hairline = parts
+        .iter()
+        .find(|&&e| app.world().get::<Hairline>(e).is_some())
+        .expect("a hairline above the section");
+    assert!(
+        hairline.index_u32() < heading.index_u32(),
+        "the hairline comes first"
+    );
+    assert_eq!(app.world().get::<Node>(*hairline).unwrap().height, px(1.0));
+}
+
 /// INS-07 / CAM-05 / ZOOM-15: opening the sidebar narrows the camera's
 /// viewport, the map area and the fits to the window less its width, and
 /// the frame body stays centred in the visible map at the same scale
