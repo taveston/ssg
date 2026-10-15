@@ -2,7 +2,7 @@
 
 Open observations from building and playing the prototype. Each one is waiting for a decision. Once it's settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings take the next free number from F-144.
+Format and types are in `docs/README.md`. New findings take the next free number from F-145.
 
 ---
 
@@ -25,3 +25,8 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Observation:** MRK-15 puts the chevron inside the tab, beside the parent's marker. On screen it reads poorly. It should either sit outside the box, on its edge-facing side, or be merged with the marker (for example, the marker with a pointer on its rim towards the parent).
 - **Affects:** MRK-15, EDGE-03 · **Type:** spec wrong
 - **Disposition:** open. Choose the chevron outside the tab or merged with the marker; the gate tabs (EDGE-03) should follow the same choice.
+
+### F-144 · Ships in one band are not in range of each other
+- **Observation:** Raised in a combat design session. BAND-05 treats ships in one named orbit as co-located. They share a speed but not a place: a High band can be hundreds of thousands of km round, and the catalogue's longest sensor range is 50,000 km. Ships at different phases are mostly out of range of each other, so "same band, so engaged" is wrong for combat. Closing the gap is a phasing transfer: cheap in delta-v, slow in days. The spec has none. XFER-10 reaches a ship in the same band only as an ordinary arc, and XFER-03 allows zero revolutions, which a phasing arc round a ring can exceed. `transfers.md` sections 4.3 and 7 assume no such transfer is ever needed.
+- **Affects:** BAND-05, BAND-06, XFER-01, XFER-03, XFER-10 · **Type:** spec gap
+- **Disposition:** open. Decide before the "Transfer simulation" to-do item is built. Options: (a) narrow BAND-05 to selection, departure and grouping, let combat read phase, and add a phasing transfer to a ship or phase in the same band (multi-revolution arcs in XFER-03, or a simpler cost and days from the phase gap); (b) drop BAND-05 and make phase real for every rule. Lean: (a). How combat uses phase is for the conflict doc to settle.
