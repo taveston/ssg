@@ -2,7 +2,7 @@
 
 Open observations from building and playing the prototype. Each one is waiting for a decision. Once it's settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings take the next free number from F-145.
+Format and types are in `docs/README.md`. New findings take the next free number from F-146.
 
 ---
 
@@ -30,3 +30,8 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Observation:** Raised in a combat design session. BAND-05 treats ships in one named orbit as co-located. They share a speed but not a place: a High band can be hundreds of thousands of km round, and the catalogue's longest sensor range is 50,000 km. Ships at different phases are mostly out of range of each other, so "same band, so engaged" is wrong for combat. Closing the gap is a phasing transfer: cheap in delta-v, slow in days. The spec has none. XFER-10 reaches a ship in the same band only as an ordinary arc, and XFER-03 allows zero revolutions, which a phasing arc round a ring can exceed. `transfers.md` sections 4.3 and 7 assume no such transfer is ever needed.
 - **Affects:** BAND-05, BAND-06, XFER-01, XFER-03, XFER-10 · **Type:** spec gap
 - **Disposition:** open. Decide before the "Transfer simulation" to-do item is built. Options: (a) narrow BAND-05 to selection, departure and grouping, let combat read phase, and add a phasing transfer to a ship or phase in the same band (multi-revolution arcs in XFER-03, or a simpler cost and days from the phase gap); (b) drop BAND-05 and make phase real for every rule. Lean: (a). How combat uses phase is for the conflict doc to settle.
+
+### F-145 · An intercept needs a standoff distance
+- **Observation:** Raised in a combat design session. XFER-10 ends a ship-as-destination crossing at the target's position on the crossing end day, so a Pass intercept is a collision course with zero miss distance. A real engagement has a chosen miss distance, and it sets how long each side is in weapon range and which weapons can act. The order has no way to carry one.
+- **Affects:** XFER-08, XFER-09, XFER-10 · **Type:** spec gap
+- **Disposition:** open. Option: a `standoff_km` on a Pass whose destination is a ship, so the crossing ends offset from the target's rail rather than on it. A Stop (rendezvous) keeps zero. What the standoff should default to, and how the resolver reads it, are for the conflict doc to settle.
