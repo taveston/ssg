@@ -81,14 +81,14 @@ const PANEL_EDGE_PX: f32 = 1.0;
 /// How far one wheel line scrolls the inset.
 const SCROLL_LINE_PX: f32 = 24.0;
 const IMAGE_HEIGHT_PX: f32 = 64.0;
+/// The fonts and tunables the panel is built from.
+type PanelAssets<'a> = (&'a Fonts, &'a Tunables);
+
 /// The orange corner brackets that frame a telescope image (INS-04).
 const BRACKET_PX: f32 = 10.0;
 const BRACKET_LINE_PX: f32 = 2.0;
-const HEADER_FONT_PX: f32 = 17.0;
-const BODY_FONT_PX: f32 = 13.0;
 /// Small spaced capitals: the size, the gap between letters and the gap
 /// between words (INS-09).
-const CAPS_FONT_PX: f32 = 11.0;
 const CAPS_LETTER_GAP_PX: f32 = 1.5;
 const CAPS_WORD_GAP_PX: f32 = 5.0;
 /// Key facts wrap in rows: each takes at least this much of the row, so
@@ -274,7 +274,7 @@ fn spawn_sidebar(mut commands: Commands, tunables: Res<Tunables>, fonts: Res<Fon
             ));
             // INS-05 / INS-09: the "In orbit" section; the outline fills
             // itself (`outline.rs`).
-            spawn_section_heading(panel, &fonts, "In orbit");
+            spawn_section_heading(panel, (&fonts, &tunables), "In orbit");
             panel.spawn((
                 OutlineRoot,
                 Node {
@@ -297,7 +297,7 @@ pub fn spaced_capitals(text: &str) -> Vec<Option<char>> {
 /// INS-09: a line of small spaced capitals in the secondary colour.
 fn spawn_spaced_capitals(
     parent: &mut ChildSpawnerCommands,
-    fonts: &Fonts,
+    (fonts, tunables): PanelAssets,
     text: &str,
     marker: impl Bundle,
 ) {
@@ -317,7 +317,7 @@ fn spawn_spaced_capitals(
                     Some(letter) => {
                         line.spawn((
                             Text::new(letter.to_string()),
-                            fonts.label(CAPS_FONT_PX),
+                            fonts.label(tunables.sidebar_caps_px),
                             TextColor(colors::SECONDARY),
                         ));
                     }
@@ -334,7 +334,7 @@ fn spawn_spaced_capitals(
 
 /// INS-09: a section below the key facts: a hairline, then its heading in
 /// small spaced capitals.
-fn spawn_section_heading(panel: &mut ChildSpawnerCommands, fonts: &Fonts, title: &str) {
+fn spawn_section_heading(panel: &mut ChildSpawnerCommands, assets: PanelAssets, title: &str) {
     panel.spawn((
         Hairline,
         Node {
@@ -345,13 +345,14 @@ fn spawn_section_heading(panel: &mut ChildSpawnerCommands, fonts: &Fonts, title:
         },
         BackgroundColor(colors::PANEL_BORDER),
     ));
-    spawn_spaced_capitals(panel, fonts, title, SectionHeading(title.to_string()));
+    spawn_spaced_capitals(panel, assets, title, SectionHeading(title.to_string()));
 }
 
 /// INS-09: the key facts as label-over-value pairs in wrapping rows: the
 /// label in small spaced capitals in the secondary colour, the value in
 /// the data face in the neutral colour.
-fn spawn_facts(panel: &mut ChildSpawnerCommands, fonts: &Fonts, facts: &[(String, String)]) {
+fn spawn_facts(panel: &mut ChildSpawnerCommands, assets: PanelAssets, facts: &[(String, String)]) {
+    let (fonts, tunables) = assets;
     panel
         .spawn(Node {
             flex_direction: FlexDirection::Row,
@@ -369,11 +370,11 @@ fn spawn_facts(panel: &mut ChildSpawnerCommands, fonts: &Fonts, facts: &[(String
                     ..default()
                 })
                 .with_children(|fact| {
-                    spawn_spaced_capitals(fact, fonts, label, FactLabel(label.clone()));
+                    spawn_spaced_capitals(fact, assets, label, FactLabel(label.clone()));
                     fact.spawn((
                         FactValue(value.clone()),
                         Text::new(value.clone()),
-                        fonts.data(BODY_FONT_PX),
+                        fonts.data(tunables.sidebar_text_px),
                         TextColor(colors::NEUTRAL),
                     ));
                 });
@@ -443,7 +444,7 @@ fn rebuild_inset(
     let mut details = commands.entity(details);
     details.despawn_related::<Children>();
     if let Some(content) = content {
-        details.with_children(|panel| fill_panel(panel, &fidelity, &fonts, &content));
+        details.with_children(|panel| fill_panel(panel, &fidelity, (&fonts, &tunables), &content));
     }
 }
 
@@ -505,31 +506,36 @@ fn gather_content(body: Entity, bodies: &InsetBodies, tunables: &Tunables) -> Op
 fn fill_panel(
     panel: &mut ChildSpawnerCommands,
     fidelity: &FidelityImages,
-    fonts: &Fonts,
+    assets: PanelAssets,
     content: &InsetContent,
 ) {
-    spawn_header(panel, fonts, content);
+    let (fonts, tunables) = assets;
+    spawn_header(panel, assets, content);
     spawn_text(
         panel,
         &content.class_line,
-        fonts.label(BODY_FONT_PX),
+        fonts.label(tunables.sidebar_text_px),
         colors::PANEL_BORDER,
     );
     spawn_image(panel, fidelity, content.image);
     spawn_text(
         panel,
         &content.description,
-        fonts.label(BODY_FONT_PX),
+        fonts.label(tunables.sidebar_text_px),
         colors::NEUTRAL,
     );
-    spawn_facts(panel, fonts, &content.facts);
-    spawn_position_note(panel, fonts, content.body);
-    spawn_planetary_view_button(panel, fonts);
+    spawn_facts(panel, assets, &content.facts);
+    spawn_position_note(panel, assets, content.body);
+    spawn_planetary_view_button(panel, assets);
 }
 
 /// MOT-07: the line that stands in for a position while the body is an
 /// exposure ring. Shown and hidden by `update_position_notes`.
-fn spawn_position_note(panel: &mut ChildSpawnerCommands, fonts: &Fonts, body: Entity) {
+fn spawn_position_note(
+    panel: &mut ChildSpawnerCommands,
+    (fonts, tunables): PanelAssets,
+    body: Entity,
+) {
     panel.spawn((
         PositionNote(body),
         Node {
@@ -537,7 +543,7 @@ fn spawn_position_note(panel: &mut ChildSpawnerCommands, fonts: &Fonts, body: En
             ..default()
         },
         Text::new(POSITION_SHOWN_WHEN_PAUSED),
-        fonts.data(BODY_FONT_PX),
+        fonts.data(tunables.sidebar_text_px),
         TextColor(colors::NEUTRAL),
     ));
 }
@@ -559,7 +565,8 @@ fn spawn_text(parent: &mut ChildSpawnerCommands, text: &str, font: TextFont, col
 }
 
 /// INS-02: the name, and the Focus and Close buttons.
-fn spawn_header(panel: &mut ChildSpawnerCommands, fonts: &Fonts, content: &InsetContent) {
+fn spawn_header(panel: &mut ChildSpawnerCommands, assets: PanelAssets, content: &InsetContent) {
+    let (fonts, tunables) = assets;
     panel
         .spawn(Node {
             flex_direction: FlexDirection::Row,
@@ -570,7 +577,7 @@ fn spawn_header(panel: &mut ChildSpawnerCommands, fonts: &Fonts, content: &Inset
         .with_children(|header| {
             header.spawn((
                 Text::new(content.name.clone()),
-                fonts.label_semibold(HEADER_FONT_PX),
+                fonts.label_semibold(tunables.sidebar_header_px),
                 TextColor(colors::NEUTRAL),
             ));
             header
@@ -579,16 +586,16 @@ fn spawn_header(panel: &mut ChildSpawnerCommands, fonts: &Fonts, content: &Inset
                     column_gap: px(8),
                     ..default()
                 })
-                .with_children(|actions| spawn_actions(actions, fonts, content.body));
+                .with_children(|actions| spawn_actions(actions, assets, content.body));
         });
 }
 
-fn spawn_actions(actions: &mut ChildSpawnerCommands, fonts: &Fonts, body: Entity) {
+fn spawn_actions(actions: &mut ChildSpawnerCommands, (fonts, tunables): PanelAssets, body: Entity) {
     spawn_button(
         actions,
         fonts,
         "Focus",
-        BODY_FONT_PX,
+        tunables.sidebar_text_px,
         ConsoleButton::new(ButtonStyle::Secondary),
     )
     .insert(FocusButton(body))
@@ -612,7 +619,7 @@ fn spawn_actions(actions: &mut ChildSpawnerCommands, fonts: &Fonts, body: Entity
         actions,
         fonts,
         "Close",
-        BODY_FONT_PX,
+        tunables.sidebar_text_px,
         ConsoleButton::new(ButtonStyle::Quiet),
     )
     .observe(
@@ -678,7 +685,7 @@ fn spawn_corner_bracket(frame: &mut ChildSpawnerCommands, top: bool, right: bool
 
 /// INS-02: "Open planetary view", a secondary button disabled until that
 /// view exists.
-fn spawn_planetary_view_button(panel: &mut ChildSpawnerCommands, fonts: &Fonts) {
+fn spawn_planetary_view_button(panel: &mut ChildSpawnerCommands, (fonts, tunables): PanelAssets) {
     panel
         .spawn(Node {
             flex_direction: FlexDirection::Row,
@@ -689,7 +696,7 @@ fn spawn_planetary_view_button(panel: &mut ChildSpawnerCommands, fonts: &Fonts) 
                 row,
                 fonts,
                 "Open planetary view",
-                BODY_FONT_PX,
+                tunables.sidebar_text_px,
                 ConsoleButton::new(ButtonStyle::Secondary).disabled(),
             );
         });

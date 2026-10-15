@@ -205,6 +205,18 @@ pub struct Tunables {
     /// A stale track's symbol is drawn at this opacity (SYM-08).
     pub stale_symbol_alpha: f32,
 
+    // --- The sidebar ---
+    /// The sidebar's running text, facts' values and outline entries
+    /// (INS-05, INS-09).
+    pub sidebar_text_px: f32,
+    /// The sidebar's small spaced capitals: fact labels and section
+    /// headings (INS-09).
+    pub sidebar_caps_px: f32,
+    /// The sidebar's header, the selection's name (INS-02).
+    pub sidebar_header_px: f32,
+    /// A natural body's marker in the outline, in pixels across (INS-05).
+    pub list_marker_px: f32,
+
     // --- Labels ---
     /// A label sits this far from its marker's edge (LBL-01).
     pub label_gap_px: f32,
@@ -284,6 +296,11 @@ impl Default for Tunables {
             symbol_fill_state: 0.30,
             symbol_fill_other: 0.16,
             stale_symbol_alpha: 0.55,
+
+            sidebar_text_px: 13.0,
+            sidebar_caps_px: 11.0,
+            sidebar_header_px: 17.0,
+            list_marker_px: 10.0,
 
             label_gap_px: 6.0,
             label_fade_ms: 150.0,

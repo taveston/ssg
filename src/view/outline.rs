@@ -33,9 +33,6 @@ use crate::sim::named_orbit::{InNamedOrbit, NamedOrbit};
 use crate::sim::orbit::Orbit;
 use crate::sim::track::ShipRecord;
 
-const ENTRY_FONT_PX: f32 = 13.0;
-/// Half the size of an entry's class marker.
-const ICON_HALF_PX: f32 = 5.0;
 const ENTRY_GAP_PX: f32 = 6.0;
 /// One generation's indent.
 const INDENT_PX: f32 = 14.0;
@@ -415,7 +412,11 @@ fn row_node(depth: usize, selected: bool) -> (Node, BackgroundColor) {
 }
 
 /// The toggle glyph of a row with children, or an empty slot.
-fn spawn_toggle(row: &mut ChildSpawnerCommands, fonts: &Fonts, state: Option<bool>) -> Entity {
+fn spawn_toggle(
+    row: &mut ChildSpawnerCommands,
+    (fonts, tunables): MarkerAssets,
+    state: Option<bool>,
+) -> Entity {
     let glyph = match state {
         Some(true) => EXPANDED_GLYPH,
         Some(false) => COLLAPSED_GLYPH,
@@ -427,7 +428,7 @@ fn spawn_toggle(row: &mut ChildSpawnerCommands, fonts: &Fonts, state: Option<boo
             ..default()
         },
         Text::new(glyph),
-        fonts.data(ENTRY_FONT_PX),
+        fonts.data(tunables.sidebar_text_px),
         TextColor(colors::PANEL_BORDER),
     ))
     .id()
@@ -461,7 +462,7 @@ fn spawn_row(
             ref title,
             depth,
             expanded,
-        } => spawn_orbit_row(list, assets.0, orbit, title, depth, expanded),
+        } => spawn_orbit_row(list, assets, orbit, title, depth, expanded),
     }
 }
 
@@ -484,7 +485,7 @@ fn spawn_entry(
     let (row_node, background) = row_node(depth, selected);
     list.spawn((OutlineRow(body), row_node, background))
         .with_children(|row| {
-            let toggle_id = spawn_toggle(row, fonts, toggle_state);
+            let toggle_id = spawn_toggle(row, assets, toggle_state);
             if toggle_state.is_some() {
                 row.commands().entity(toggle_id).observe(
                     move |click: On<PointerClick>, mut expanded: ResMut<Expanded>| {
@@ -501,10 +502,10 @@ fn spawn_entry(
                 ..default()
             })
             .with_children(|label| {
-                spawn_list_icon(label, assets, look, ICON_HALF_PX);
+                spawn_list_icon(label, assets, look, tunables.list_marker_px / 2.0);
                 label.spawn((
                     Text::new(node.name.clone()),
-                    fonts.label(ENTRY_FONT_PX),
+                    fonts.label(tunables.sidebar_text_px),
                     TextColor(look.color(tunables)),
                 ));
             })
@@ -518,19 +519,20 @@ fn spawn_entry(
 /// toggle; clicking it expands or collapses the members under it.
 fn spawn_orbit_row(
     list: &mut ChildSpawnerCommands,
-    fonts: &Fonts,
+    assets: MarkerAssets,
     orbit: Entity,
     title: &str,
     depth: usize,
     expanded: bool,
 ) {
+    let (fonts, tunables) = assets;
     let (row_node, background) = row_node(depth, false);
     list.spawn((OutlineRow(orbit), row_node, background))
         .with_children(|row| {
-            spawn_toggle(row, fonts, Some(expanded));
+            spawn_toggle(row, assets, Some(expanded));
             row.spawn((
                 Text::new(title),
-                fonts.label(ENTRY_FONT_PX),
+                fonts.label(tunables.sidebar_text_px),
                 TextColor(colors::NEUTRAL),
             ));
         })
