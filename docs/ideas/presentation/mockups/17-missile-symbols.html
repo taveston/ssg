@@ -36,7 +36,7 @@ p.note{font-size:12.5px;color:#9FB6C4;line-height:1.5;margin:14px 0 0;max-width:
     <svg width="1340" height="200" viewBox="0 0 1340 200" font-family="Plex Mono, monospace" id="life"></svg>
   </div>
 </div>
-<p class="note">A: own and hostile arrows differ only by colour, so in greyscale (or for some colour-blind players) they are the same mark. B: the shape carries affiliation as the ship frames do (own circle, hostile diamond, unknown quatrefoil), small, solid and without an icon, so a missile never reads as a ship. Direction comes from the velocity leader, which grows with speed (SYM-11). A salvo stays one mark: its missiles are within a few km of each other, the same pixel at any useful zoom. Its count drops as missiles are shot down (a burst per kill) or decoyed; a decoyed missile gets its own mark only if its path visibly diverges. Described in <code>combat-view.md</code> 3.</p>
+<p class="note">A: own and hostile arrows differ only by colour, so in greyscale (or for some colour-blind players) they are the same mark. B: the shape carries affiliation as the ship frames do (own circle, hostile diamond, unknown quatrefoil), small, solid and without an icon, so a missile never reads as a ship. Direction comes from the velocity leader, which grows with speed (SYM-11). A salvo stays one mark: its missiles are within a few km of each other, the same pixel at any useful zoom. Its count drops as missiles are shot down (a burst per kill) or decoyed; a decoyed missile gets its own mark only if its path visibly diverges. Once a salvo is visibly no longer a threat (receding from every target, burnt out on a missing path, or seen to take a decoy), it turns hollow and faint, with no leader or count. Described in <code>combat-view.md</code> 3.</p>
 <script>
 const C={own:'#5AA9E6',hostile:'#EE6A5F',unknown:'#F0A040',ground:'#070A0E',muted:'#9FB6C4'};
 function shape(aff,x,y,s=1){
@@ -44,6 +44,12 @@ function shape(aff,x,y,s=1){
   if(aff==='own') return `<circle cx="${x}" cy="${y}" r="${4.5*s}" fill="${c}" stroke="${C.ground}" stroke-width="1"/>`;
   if(aff==='hostile'){const r=5.5*s;return `<path d="M${x},${y-r} L${x+r},${y} L${x},${y+r} L${x-r},${y} Z" fill="${c}" stroke="${C.ground}" stroke-width="1"/>`;}
   const r=3*s;return `<g fill="${c}" stroke="${C.ground}" stroke-width=".8"><circle cx="${x}" cy="${y-r}" r="${r}"/><circle cx="${x+r}" cy="${y}" r="${r}"/><circle cx="${x}" cy="${y+r}" r="${r}"/><circle cx="${x-r}" cy="${y}" r="${r}"/></g>`;
+}
+function spent(aff,x,y){
+  const c=C[aff];
+  if(aff==='own') return `<circle cx="${x}" cy="${y}" r="4" fill="${C.ground}" stroke="${c}" stroke-width="1.2" opacity=".45"/>`;
+  if(aff==='hostile') return `<path d="M${x},${y-5} L${x+5},${y} L${x},${y+5} L${x-5},${y} Z" fill="${C.ground}" stroke="${c}" stroke-width="1.2" opacity=".45"/>`;
+  return `<circle cx="${x}" cy="${y}" r="4" fill="${C.ground}" stroke="${c}" stroke-width="1.2" stroke-dasharray="2 1.5" opacity=".45"/>`;
 }
 function missile(aff,x,y,deg,len,count){
   const a=deg*Math.PI/180, c=C[aff], r0=7;
@@ -67,7 +73,8 @@ function pair(fn){
   return s;
 }
 document.getElementById('arrow').innerHTML=pair((aff,x,y,d)=>arrow(aff,x,y,d));
-document.getElementById('shape').innerHTML=pair((aff,x,y,d)=>missile(aff,x,y,d,16,''));
+document.getElementById('shape').innerHTML=pair((aff,x,y,d)=>missile(aff,x,y,d,16,''))+
+  ['own','hostile'].map((a,i)=>spent(a,262+i*28,45)).join('')+`<text x="258" y="85" font-size="10" fill="${C.muted}">spent</text>`;
 // lifecycle
 let L='';
 const steps=[
@@ -75,7 +82,7 @@ const steps=[
  ['coasting',330,'fast: long leader; salvo of 8 is one mark'],
  ['entering PD range',600,'still one mark: they share a point'],
  ['point defence',870,'count drops; a burst per kill'],
- ['end',1140,'all missed: it flies on, out of view'],
+ ['end',1140,'missed and receding: spent, drawn hollow'],
 ];
 steps.forEach(([t,x,n])=>{L+=`<text x="${x-60}" y="20" font-size="11" fill="${C.text||'#DCE6EC'}">${t}</text><text x="${x-60}" y="185" font-size="10" fill="${C.muted}">${n}</text>`;});
 // launcher and target
@@ -94,7 +101,7 @@ L+=missile('hostile',912,98,0,16,'3');
 L+=`<text x="890" y="140" font-size="10" fill="${C.hostile}">8 → 3</text>`;
 // end: missed missiles fly on off the view
 L+=ship(1130,98);
-L+=missile('hostile',1200,98,0,24,'3');
+L+=spent('hostile',1200,98);
 L+=`<line x1="1240" y1="40" x2="1240" y2="160" stroke="${C.muted}" stroke-opacity=".3" stroke-dasharray="3 4"/><text x="1248" y="60" font-size="10" fill="${C.muted}">edge of view</text>`;
 document.getElementById('life').innerHTML=L;
 </script>
