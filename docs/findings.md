@@ -2,7 +2,7 @@
 
 Open observations from building and playing the prototype. Each one is waiting for a decision. Once it's settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings take the next free number from F-156.
+Format and types are in `docs/README.md`. New findings take the next free number from F-157.
 
 ---
 
@@ -80,3 +80,8 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Observation:** Stations keep orbits of their own (SCL-07, TEST-10: Arden Highport at 0.1 d, Iver Yard, Tern Relay), and a station is its own place with its own docking orbit (BAND-02). In play the expectation was that stations sit in the body's Low or High band like ships. If they did, "at Arden Highport" and "in Low orbit of Halden IV" would be the same ring, a ship docked at a station would be co-located with every ship in that band (BAND-05), and the outline would list the station under the band's row; the station's own named orbit and the Station place would then be redundant, or mean the band it sits in.
 - **Affects:** SCL-07, BAND-02, TEST-02, TEST-09, TEST-10, INS-05 · **Type:** idea
 - **Disposition:** open question for design. Keep stations on orbits of their own, or place them in a band.
+
+### F-156 · BAND-04 does not say what happens when a band lies outside the Hill sphere
+- **Observation:** BAND-04 gives (Hill radius − *r*) ÷ escape speed, which goes negative when the orbit lies outside the Hill sphere. The build's `approach_days` returns 0 there, and also when the body has no Hill sphere or no gravity. The spec covers only "no massive body". In Corvane it matters: Morrow I's Low band (850 km) lies outside its Hill sphere (about 652 km at rock density 3,000 kg/m³).
+- **Affects:** BAND-04, BAND-01 · **Type:** spec gap
+- **Disposition:** open. Copy the clamp into BAND-04, or decide that a Low band outside the Hill sphere should not exist (which bears on F-146).

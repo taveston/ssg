@@ -223,7 +223,7 @@ Deviations           none declared
 
 ### 6.4 Comparison view and clarification **(Candidate)**
 
-- It lives in the administration view (2D). Bids are columns (up to five) and figures are rows, sorted by the requirement's weights. Figures are in JetBrains Mono, labels in Barlow.
+- It lives in the administration view (2D). Bids are columns (up to five) and figures are rows, sorted by the requirement's weights. Figures are in the data face, labels in the label face (MRK-02).
 - Each figure row is a range bar: the requirement as a vertical line, the office range as a blue bar, the claim as an off-white tick. It's orange where the range crosses a hard requirement or a deviation is declared, and pale grey-blue dashed for unknowns.
 - Silhouettes sit side by side at one scale above the columns. Portraits link to dossiers; dependencies link to the organisations involved.
 - **Clarification actions** (each 10 days unless stated):
