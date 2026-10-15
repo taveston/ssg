@@ -45,7 +45,8 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 - [ ] **Keep arcs out of the planet** · XFER-07
   - The build exempts every crossing that starts or ends in an orbit of the primary (`check_periapsis` in `src/sim/transfer/legs.rs`), so a High → Low arc to a station on the far side of the planet can pass through it. Replace the exemption with the Low band limit of the new XFER-07, and drop the F-148 comment.
-  - Tests: a far-side arc to a Low band is infeasible with "Path passes too close to *primary*" (PLNR-92); a near-side arc to a Low band, and a departure from one, are feasible. Arriving exactly at the Low radius must pass, so allow for rounding.
+  - The check also covers the coast after a Pass: the conic the ship is left on (the turned one after a Pass through Low, XFER-13) must not have its periapsis ahead inside the limit.
+  - Tests: a far-side arc to a Low band is infeasible with "Path passes too close to *primary*" (PLNR-92); a near-side arc to a Low band, and a departure from one, are feasible. A Pass in a planet's frame whose coast would dip below the Low band is infeasible. Arriving exactly at the Low radius must pass, so allow for rounding.
 
 ## Other
 
