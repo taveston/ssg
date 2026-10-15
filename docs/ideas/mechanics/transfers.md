@@ -187,7 +187,7 @@ A ship in flight can be given a new transfer at any time. The planner starts fro
 
 ## 7. Tactical manoeuvring **(Candidate)**
 
-Combat is auto-resolved on the system view with the clock slowed (*Conflict*), so there is no moment-to-moment flying. What the player positions is decided before the engagement, and it should all be expressible with the same planner and the same places:
+Combat is simulated automatically and replayed on its own clock (*Conflict*), so there is no moment-to-moment flying. What the player positions is decided before the engagement, and it should all be expressible with the same planner and the same places:
 
 - **Where to be.** A band at a body (low orbit to blockade or bombard, high orbit to defend the yard), at a station, or at a gate. Picket duty is a transfer with a *Hold* at the end.
 - **Stop or pass.** An arrival has two modes. **Stop** captures into the destination's orbit and pays the capture burn. **Pass** skips it: the ship flies through at speed, saving delta-v and time, and keeps going on its conic. Pass is how a raid, a reconnaissance sweep, a fast gate run (*Drives & Transit* 6.2) or a hit on a convoy works; it also means a fast arrival that can't afford to stop is a legal order, not an error. The planner shows arrival speed for both, and the mode is a toggle next to the sliders.
@@ -197,7 +197,7 @@ Combat is auto-resolved on the system view with the clock slowed (*Conflict*), s
 - **Intercept.** A ship or group in flight as the destination. The target's rail gives its position at any arrival day, so the two-slider planner works unchanged; the preview arc ends where the two paths meet, and a *Pass* intercept is a closing engagement at that speed while *Stop* is a rendezvous (matching course, for escort, boarding or capture). Against a contact with a weak track (SYM-01), the intercept carries the track's uncertainty and may miss.
 - **Engagement speed matters, position in orbit doesn't.** Relative speed at the meeting point is the tactical number this model produces for free, and *Conflict* notes engagements happen at extreme velocity and range. Phase round a band (4.3) is deliberately not a factor: two fleets in the same band are engaged, full stop.
 - **Retreat** is a re-task (6). A fleet that has spent its budget can't retreat, which the delta-v bar shows before the fight.
-- **Out of scope:** formations, ranges within an engagement, evasive burns. These belong to the auto-resolver, if anywhere.
+- **Out of scope:** formations, ranges within an engagement, evasive burns. These belong to the combat simulation (*Conflict* 1.8), if anywhere.
 
 
 ## 8. Data shape **(Candidate)**
