@@ -14,6 +14,7 @@ People within the state (governors, commanders, company heads, scientists), not 
 - **Traits (decided for now):** what a character chooses to do. Opposing pairs: Ambitious/Content, Bold/Cautious, Principled/Opportunistic, Innovative/Traditionalist, possibly Ruthless/Humane.
   - At most one of each pair (none means average); usually two or three in all; mostly fixed.
   - More pairs can be added if a system needs them: Idealist/Pragmatist, Secretive/Forthcoming, Frugal/Extravagant, Territorial/Cooperative.
+  - **Combat role (direction):** Bold/Cautious is the one trait the combat simulation reads. It sets a dial between the objective and survival and drifts with combat experience. The other pairs have no combat role, because commanders have no strategic autonomy. See *Conflict* 1.9.
 - **Ideology (candidate):** characters hold a position in the same ideology triangle as factions, with the same pool of 12 and the same labels ("a paternalist governor"). Differences between a character, the population and government policy create friction. See *Factions & Ideology*.
 - **Relationships (candidate):** opinion, grievances, debts. Separate from personality: the memory of how the player treated someone.
 - **Uncertainty (candidate):** skills are known roughly and traits are revealed through behaviour. The UI must tell "average" apart from "unknown".

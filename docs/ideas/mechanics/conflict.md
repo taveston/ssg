@@ -1,8 +1,8 @@
 # Orphan Worlds: Combat, Raiders & Diplomacy
 
-**In short:** combat is a small part of play, simulated in full by the game and never flown by the player. A fight is mostly decided before the shooting: by who sees whom, the geometry, delta-v reserves and magazines. It is simulated at once when it forms, shows on the map as a collapsed engagement while it runs, and is revealed with a watchable replay when it ends. Defence is mainly interception by a concentrated fleet, set up with standing orders. Raiders arise from simulated conditions, not random spawns. Rival leaders change through elections, coups and death, so relations shift over a long game.
+**In short:** combat is a small part of play, simulated in full by the game and never flown by the player. A fight is mostly decided before the shooting: by who sees whom, the geometry, delta-v reserves and magazines. It is simulated at once when it forms, shows on the map as a collapsed engagement while it runs, and is revealed with a watchable replay when it ends. Defence is mainly interception by a concentrated fleet, set up with standing orders. The senior officer present commands, through Command skill and one trait, Bold/Cautious. Raiders arise from simulated conditions, not random spawns. Rival leaders change through elections, coups and death, so relations shift over a long game.
 
-*Status:* early. Status tags as in the overview (**Decided**, **Direction**, **Candidate**). Companion documents: *Overview*, *Presentation & Visual Style* (2, the display; 3, ground combat), *Symbology*, *Economy* (armed haulers, tolls), *Orbital Transfers* (7, tactical manoeuvring), *Component Stats & Ship Assembly* (signatures, weapons).
+*Status:* early. Status tags as in the overview (**Decided**, **Direction**, **Candidate**). Companion documents: *Overview*, *Presentation & Visual Style* (2, the display; 3, ground combat), *Symbology*, *Economy* (armed haulers, tolls), *Characters, Organisations & Events* (1, skills and traits), *Orbital Transfers* (7, tactical manoeuvring), *Component Stats & Ship Assembly* (signatures, weapons).
 
 ---
 
@@ -104,8 +104,50 @@ The fight was decided at CA−60 h. The shooting took about 20 minutes, with abo
   - per ship: status (destroyed, disabled, escaped, captured), condition, magazines and delta-v spent, and its new rail;
   - wrecks, as salvage sites;
   - faction knowledge updates: designs better observed, and burns seen;
-  - an event-log report: a summary, a short timeline, the commanders' decision tags and a coarse track plot.
+  - an event-log report: a summary, a short timeline, the commanders' decision tags and a coarse track plot;
+  - per commander present: kills, own losses and whether they survived, which feed their experience (1.9).
 - One simulator serves all fights, with recording as an optional output. A cheaper model for unobserved fights is deferred until profiling shows a need. If one is used, it must be calibrated against the full simulation, so outcomes don't depend on whether the player is looking.
+
+### 1.9 Commanders
+
+The senior officer present commands the force. A lone ship's captain commands that one-ship force. The same model runs at every scale.
+
+**Autonomy**
+
+- Commanders have no strategic autonomy. Standing orders decide whether and where to fight. Skill and traits act only on how an order is carried out.
+- Only traits that move a decision the simulation makes have a combat role. Today that is one: Bold/Cautious. The other pairs in *Characters, Organisations & Events* have no combat role.
+- Ruthless/Humane waits for surrender and disabled-ship states, which the simulation doesn't have yet.
+
+**Command skill (direction)**
+
+- Skill sets how well the commander knows the fight and how fast they act. Each channel is linear in the deficit d = (10 - skill) / 10:
+  - belief error: how far the commander's picture of the enemy is off;
+  - decision latency: the delay before they act on new information;
+  - coordination: how much of the force's capacity works together.
+- Skill matters mostly before contact. Terminal point defence is automation, crew and numbers, not command.
+
+**Bold/Cautious (direction)**
+
+- One dial between the objective and survival. The simulation derives every commander decision from it.
+- Bold commanders press the objective: large salvos, early fire, losses accepted before breaking off.
+- Cautious commanders preserve the ship and its reserve: magazines held back, return delta-v kept, early break-off.
+- Average sits between. The tactical AI reads this dial and nothing else about temperament.
+- The report's decision tags show it, for example "broke off at 40% losses" or "held 60% of magazines". The player learns a commander's trait from these, as *Characters, Organisations & Events* describes.
+
+**Experience (direction)**
+
+- A commander has a base disposition, set at creation. Combat experience adds a bounded hidden offset on top, so traits stay mostly fixed.
+- The offset follows a rolling kill-to-loss ratio over the engagements the commander took part in. It is a smoothed log ratio, ln((K + a) / (L + a)), with older fights decayed.
+- Many losses and few kills push toward Cautious, as for a sole survivor of a large fight. A run of easy wins pushes toward Bold.
+- The effective trait steps between Bold, average and Cautious at thresholds. Hysteresis stops it flickering.
+- Command skill grows with experience, with diminishing returns (candidate).
+- An order that ends in disaster could leave a grievance against the player (candidate; relationships in *Characters, Organisations & Events*).
+
+**Captains (direction)**
+
+- A captain affects a fight only by being its commander. In a large fight no single captain steers the outcome.
+- Captains also serve as flavour and as the pool that fleet commanders are drawn from.
+- If the flagship is lost, command passes to the next senior captain after a delay, with that captain's skill and trait (candidate).
 
 ---
 
@@ -139,5 +181,9 @@ AI leaders change through elections, coups and death, so relations shift over a 
 - Whether the pause at the end of a fight covers every visible fight or only the player's own.
 - The replay window and the cap on stored recordings.
 - The engagement's map symbol.
-- Commander decision tags, and the tactical AI that reads commander traits.
+- Commander decision tags, and the tactical AI that reads the Bold/Cautious dial.
+- Kill-to-loss drift: count or ship value, the smoothing constant, the decay and the thresholds.
+- The delay before command passes after a flagship is lost.
+- Whether combat experience can leave a grievance against the player.
+- A combat role for Ruthless/Humane, once the simulation has surrender and disabled ships.
 - A cheaper model for unobserved fights, if profiling shows a need.
