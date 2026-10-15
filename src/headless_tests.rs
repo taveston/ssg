@@ -3390,3 +3390,53 @@ fn hold_drops_the_later_burns() {
     assert!(app.world().get::<InNamedOrbit>(orison).is_none());
     assert_eq!(plan(&app, orison).status, Status::Holding);
 }
+
+/// A headless app with Sol waiting to spawn, as `--system sol` gives.
+fn sol_app() -> App {
+    let mut app = headless_app(FRAME);
+    app.insert_resource(SystemDataResource(Some(crate::content::sol::sol_system())))
+        .add_plugins(SimPlugin);
+    app
+}
+
+/// SOL-11: Sol spawns headless as one star, nine planets, twenty-one moons
+/// and one belt, with no gates, and every named orbit (the bands) belongs
+/// to a spawned body.
+#[test]
+fn sol_spawns_its_star_planets_moons_and_belt() {
+    let mut app = sol_app();
+    run(&mut app, 1);
+
+    let mut classes = app.world_mut().query::<&BodyClass>();
+    let classes: Vec<BodyClass> = classes.iter(app.world()).copied().collect();
+    let count = |class: BodyClass| classes.iter().filter(|c| **c == class).count();
+    assert_eq!(count(BodyClass::Star), 1);
+    assert_eq!(count(BodyClass::Planet), 9);
+    assert_eq!(count(BodyClass::Moon), 21);
+    assert_eq!(count(BodyClass::Gate), 0);
+    assert_eq!(classes.len(), 31, "nothing but the star, planets and moons");
+    let mut belts = app.world_mut().query::<&crate::sim::body::Belt>();
+    assert_eq!(belts.iter(app.world()).count(), 1);
+
+    let mut named = app.world_mut().query::<&NamedOrbit>();
+    let parents: Vec<Entity> = named.iter(app.world()).map(|orbit| orbit.parent).collect();
+    // Two bands each, less the six small moons with no High band (SOL-09).
+    assert_eq!(parents.len(), 2 * 31 - 6);
+    for parent in parents {
+        assert!(app.world().get::<BodyClass>(parent).is_some());
+    }
+    let ceres = body(&mut app, "Ceres");
+    let ceres_km = app.world().get::<Orbit>(ceres).unwrap().radius_km;
+    assert!((ceres_km / KM_PER_AU - 2.768).abs() < 1e-9);
+}
+
+/// SOL-10: Sol's system fit is Neptune's orbit, 30.07 AU.
+#[test]
+fn sols_system_fit_is_neptunes_orbit() {
+    let mut app = sol_app();
+    app.add_plugins(StopsPlugin);
+    run(&mut app, 1);
+    let stops = app.world().resource::<ZoomStops>();
+    let neptune = km_to_render(30.0699 * KM_PER_AU);
+    assert!((stops.system_radius - neptune).abs() < neptune * 1e-5);
+}

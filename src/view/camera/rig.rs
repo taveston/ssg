@@ -20,7 +20,8 @@ use crate::view::tunables::Tunables;
 use crate::view::world::{RenderOrigin, WorldPositions};
 
 /// Render-unit clip planes wide enough for a moon's orbit up close and the
-/// whole system with its gates.
+/// whole system with its gates, from the farthest the camera goes
+/// (`MAX_DISTANCE`) with the pivot at the pan bound (CAM-19).
 const NEAR_CLIP: f32 = 0.001;
 const FAR_CLIP: f32 = 20_000.0;
 /// Where the camera is spawned, in render units, before its first update.
@@ -213,4 +214,40 @@ pub fn place_camera(rig: Res<CameraRig>, mut camera: Query<&mut Transform, With<
         return;
     };
     *transform = camera_transform(rig.pivot, rig.heading, rig.tilt, rig.distance);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::content::sol::sol_system;
+    use crate::sim::system::OrbitPlacement;
+    use crate::view::scale::km_to_render;
+
+    /// ZOOM-15 / CAM-19: Sol, the widest system, fits the view inside the
+    /// distance rail even straight down with the sidebar open, and from
+    /// that distance with the pivot at the pan bound the far side of
+    /// Neptune's orbit is still inside the far clip plane.
+    #[test]
+    fn the_widest_system_fits_inside_the_distance_rail_and_the_far_clip() {
+        let tunables = Tunables::default();
+        let widest = sol_system()
+            .planets
+            .iter()
+            .map(|planet| match planet.orbit {
+                OrbitPlacement::Own { radius_km } => km_to_render(radius_km),
+                OrbitPlacement::Named(_) => 0.0,
+            })
+            .fold(0.0, f32::max);
+        let with_sidebar = Vec2::new(1280.0 - tunables.inset_width_px, 720.0);
+        let fit = distance_for_radius(
+            widest,
+            PerspectiveProjection::default().fov,
+            0.0,
+            tunables.zoom_fit_margin,
+            with_sidebar,
+        );
+        assert!(fit < MAX_DISTANCE, "Sol's fit is {fit}");
+        let farthest = MAX_DISTANCE + (1.0 + tunables.pan_bound_factor) * widest;
+        assert!(farthest < FAR_CLIP, "{farthest} beyond the far clip");
+    }
 }

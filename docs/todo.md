@@ -27,9 +27,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - Blocked: ships in transit are simulated (`src/sim/transfer/`) but drawing them is not specced.
 - [ ] **Ideology profile** · IDEO-01 to IDEO-31
   - Decide the open points in `docs/spec/ideology.md` first.
-- [ ] **Sol test system** · SOL-01 to SOL-11, SOL-22 to SOL-23
-  - New `src/content/sol.rs` beside `corvane.rs`. The `--system` choice goes in `content/mod.rs`.
-  - Sol is about seven times wider than Corvane: Neptune is about 2,700 render units out. Check the far clip (20,000 units, `view/camera/rig.rs`) at the system fit and at the pan limit.
 
 ## Fixes
 

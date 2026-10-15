@@ -2,7 +2,7 @@
 
 Open observations from building and playing the prototype. Each one is waiting for a decision. Once it's settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings take the next free number from F-157.
+Format and types are in `docs/README.md`. New findings take the next free number from F-158.
 
 ---
 
@@ -75,3 +75,8 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Observation:** BAND-04 gives (Hill radius − *r*) ÷ escape speed, which goes negative when the orbit lies outside the Hill sphere. The build's `approach_days` returns 0 there, and also when the body has no Hill sphere or no gravity. The spec covers only "no massive body". In Corvane it matters: Morrow I's Low band (850 km) lies outside its Hill sphere (about 652 km at rock density 3,000 kg/m³).
 - **Affects:** BAND-04, BAND-01 · **Type:** spec gap
 - **Disposition:** open. Copy the clamp into BAND-04, or decide that a Low band outside the Hill sphere should not exist (which bears on F-146).
+
+### F-157 · What `--system` does with other arguments
+- **Observation:** SOL-22 says how `--system <name>` picks the system but not what happens to other arguments. The build ignores them, so `cargo run -- --verbose` still starts on Corvane. Only an unknown or missing name after `--system` stops the program. Names are matched exactly, so `--system Sol` is unknown.
+- **Affects:** SOL-22 · **Type:** spec gap
+- **Disposition:** open. Accept, or say whether unknown arguments and other capitalisations should be errors.

@@ -150,9 +150,12 @@ pub const BOOKMARK_SLOTS: usize = 4;
 #[derive(Resource, Default)]
 pub struct Bookmarks(pub [Option<Bookmark>; BOOKMARK_SLOTS]);
 
-/// Absolute safety rails, independent of the computed stops.
+/// Absolute safety rails, independent of the computed stops. The far rail
+/// leaves room for the system fit of a system as wide as Sol (Neptune at
+/// about 2,700 render units) seen straight down in a window narrowed by the
+/// sidebar.
 pub const MIN_DISTANCE: f32 = 0.002;
-pub const MAX_DISTANCE: f32 = 5_000.0;
+pub const MAX_DISTANCE: f32 = 12_000.0;
 
 #[derive(Component)]
 pub struct OrbitCamera;
