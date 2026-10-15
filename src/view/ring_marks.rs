@@ -20,7 +20,9 @@ use super::fonts::Fonts;
 use super::hover;
 use super::hovered::HoveredBodies;
 use super::layers;
-use super::markers::{BodyLook, TintedParts, fade_parts, marker_half_size, spawn_icon};
+use super::markers::{
+    BodyLook, MarkersPlaced, TintedParts, fade_parts, marker_half_size, spawn_icon,
+};
 use super::motion_mode::MotionModeState;
 use super::pills::{PILL_HALF_HEIGHT_PX, PillFace, pill_bundle, pill_node, selection_outline};
 use super::screen::{MapView, in_viewport, snap_to_pixel};
@@ -70,7 +72,11 @@ impl Plugin for RingMarksPlugin {
         app.add_systems(Startup, spawn_ring_marks.in_set(Boot::Overlay))
             .add_systems(
                 Update,
-                (colour_ring_labels, ring_identity_pills, place_ring_marks)
+                (
+                    colour_ring_labels,
+                    ring_identity_pills,
+                    place_ring_marks.in_set(MarkersPlaced),
+                )
                     .chain()
                     .in_set(Stage::Overlay),
             );

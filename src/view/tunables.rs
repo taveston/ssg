@@ -204,6 +204,12 @@ pub struct Tunables {
     pub symbol_fill_other: f32,
     /// A stale track's symbol is drawn at this opacity (SYM-08).
     pub stale_symbol_alpha: f32,
+
+    // --- Labels ---
+    /// A label sits this far from its marker's edge (LBL-01).
+    pub label_gap_px: f32,
+    /// A label's change of place or visibility fades over this (LBL-04).
+    pub label_fade_ms: f32,
 }
 
 impl Default for Tunables {
@@ -278,6 +284,9 @@ impl Default for Tunables {
             symbol_fill_state: 0.30,
             symbol_fill_other: 0.16,
             stale_symbol_alpha: 0.55,
+
+            label_gap_px: 6.0,
+            label_fade_ms: 150.0,
         }
     }
 }

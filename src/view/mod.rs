@@ -32,6 +32,7 @@ pub mod grouping;
 pub mod hover;
 pub mod hovered;
 pub mod inspect;
+pub mod labels;
 pub mod layers;
 pub mod marker_picking;
 pub mod markers;
@@ -108,6 +109,7 @@ impl Plugin for ViewPlugin {
                 inspect::InspectPlugin,
                 outline::OutlinePlugin,
                 topbar::TopBarPlugin,
-            ));
+            ))
+            .add_plugins(labels::LabelsPlugin);
     }
 }

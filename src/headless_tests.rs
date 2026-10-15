@@ -2823,6 +2823,122 @@ fn the_sidebar_narrows_the_map_and_keeps_the_frame_body_centred() {
     centred(&app);
 }
 
+/// LBL-01 / LBL-03 / LBL-04: in Halden IV's frame with its satellites
+/// unfolded, every shown label sits clear of every other label and of
+/// every marker but its own, the selection's label is never hidden, and
+/// labels fade in over `label_fade_ms` rather than appearing at once.
+#[test]
+fn labels_keep_clear_of_each_other_and_of_markers() {
+    use crate::view::labels::{LabelState, LabelsPlugin, label_rect, overlaps};
+    use crate::view::markers::{MarkerLabel, MarkersPlugin};
+    use crate::view::pills::PillsPlugin;
+
+    let mut app = camera_app_with(|app| {
+        app.insert_resource(placeholder_fonts()).add_plugins((
+            EdgePlugin,
+            GroupingPlugin,
+            MotionPlugin,
+            MarkersPlugin,
+            PillsPlugin,
+            HoveredPlugin,
+            LabelsPlugin,
+        ));
+    });
+    let halden = body(&mut app, "Halden IV");
+    let ivc = body(&mut app, "Halden IVc");
+    app.world_mut().resource_mut::<FrameRequest>().0 = Some(halden);
+    run(&mut app, 60 + move_frames());
+
+    // No layout runs headless: give every marker the size its node asks
+    // for, and every label the size a short name has.
+    const LABEL_SIZE: Vec2 = Vec2::new(80.0, 14.0);
+    fn size_nodes(app: &mut App) {
+        let mut markers = app
+            .world_mut()
+            .query_filtered::<(&Node, &mut ComputedNode), With<MarkerHalfSize>>();
+        for (node, mut computed) in markers.iter_mut(app.world_mut()) {
+            if let (Val::Px(w), Val::Px(h)) = (node.width, node.height) {
+                computed.size = Vec2::new(w, h);
+            }
+        }
+        let mut labels = app
+            .world_mut()
+            .query_filtered::<&mut ComputedNode, With<MarkerLabel>>();
+        for mut computed in labels.iter_mut(app.world_mut()) {
+            computed.size = LABEL_SIZE;
+        }
+    }
+    size_nodes(&mut app);
+    app.world_mut().resource_mut::<Selection>().select(ivc);
+    run(&mut app, 2);
+    size_nodes(&mut app);
+    run(&mut app, 1);
+
+    let mut labels = app
+        .world_mut()
+        .query_filtered::<(&LabelState, &ChildOf, &Node, &MarkerFor), With<MarkerLabel>>();
+    let fading = labels
+        .iter(app.world())
+        .any(|(state, ..)| state.shown.is_some() && state.alpha > 0.0 && state.alpha < 1.0);
+    assert!(fading, "labels fade in over label_fade_ms");
+    run(&mut app, 30);
+
+    let marker_rect = |app: &App, marker: Entity| -> Option<Rect> {
+        let node = app.world().get::<Node>(marker)?;
+        if node.display == Display::None {
+            return None;
+        }
+        let (Val::Px(l), Val::Px(t), Val::Px(w), Val::Px(h)) =
+            (node.left, node.top, node.width, node.height)
+        else {
+            return None;
+        };
+        Some(Rect::from_corners(Vec2::new(l, t), Vec2::new(l + w, t + h)))
+    };
+    let gap = app.world().resource::<Tunables>().label_gap_px;
+    let mut shown: Vec<(Entity, Entity, Rect)> = Vec::new();
+    let listed: Vec<(LabelState, Entity, Entity)> = labels
+        .iter(app.world())
+        .map(|(state, child_of, _, marker_for)| (*state, child_of.parent(), marker_for.0))
+        .collect();
+    for (state, marker, body) in listed {
+        let (Some(placement), Some(rect)) = (state.shown, marker_rect(&app, marker)) else {
+            continue;
+        };
+        if state.alpha <= 0.0 {
+            continue;
+        }
+        shown.push((
+            marker,
+            body,
+            label_rect(rect, LABEL_SIZE, placement.slot, gap),
+        ));
+    }
+    assert!(shown.len() >= 3, "{} labels shown", shown.len());
+    assert!(
+        shown.iter().any(|(_, body, _)| *body == ivc),
+        "the selection's label is never hidden"
+    );
+    let mut markers = app
+        .world_mut()
+        .query_filtered::<Entity, With<MarkerHalfSize>>();
+    let marker_rects: Vec<(Entity, Rect)> = markers
+        .iter(app.world())
+        .filter_map(|m| Some((m, marker_rect(&app, m)?)))
+        .collect();
+    for (i, (own, _, rect)) in shown.iter().enumerate() {
+        for (j, (_, _, other)) in shown.iter().enumerate() {
+            assert!(i == j || !overlaps(*rect, *other), "two labels overprint");
+        }
+        for (marker, marker_box) in &marker_rects {
+            assert!(
+                marker == own || !overlaps(*rect, *marker_box),
+                "a label overprints a marker"
+            );
+        }
+    }
+}
+
 // --- Transfers (docs/spec/transfers.md) ---
 
 /// A headless simulation of Corvane with no view at all.

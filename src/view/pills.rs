@@ -14,7 +14,7 @@ use super::colors;
 use super::fold::{FoldSummary, PillFlags};
 use super::fonts::Fonts;
 use super::hover;
-use super::markers::ring_outer_half;
+use super::markers::{MarkersPlaced, ring_outer_half};
 use super::screen::ScreenPositions;
 use super::selection::Selection;
 use super::symbol_draw::{Tint, TintSlot};
@@ -183,7 +183,10 @@ pub struct PillsPlugin;
 impl Plugin for PillsPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, spawn_pills.in_set(Boot::Overlay))
-            .add_systems(Update, (update_pills, ring_pills).in_set(Stage::Overlay));
+            .add_systems(
+                Update,
+                (update_pills.in_set(MarkersPlaced), ring_pills).in_set(Stage::Overlay),
+            );
     }
 }
 

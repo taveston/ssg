@@ -96,10 +96,10 @@ Applies to every label on the map: body labels and symbol labels (SYM-13).
 
 | ID | Requirement | Built |
 |---|---|---|
-| LBL-01 | Labels never overlap one another, or any marker, symbol or pill other than their own. Each label takes the first of these positions that is free: right of its marker, left, above, below, each `label_gap_px` from the marker's edge. | |
-| LBL-02 | Labels are placed in priority order, higher first: the selection; the hovered object; the frame body; the star and planets; then ships, groups and stations by affiliation (hostile, unknown, own commanded, own-flag civilian, allied and neutral); then moons. Within a rank, the object nearer the camera goes first. | |
-| LBL-03 | A label with no free position loses its second line and tries again; if the name alone has none, the label is hidden. The selection's and the hovered object's labels are never hidden: lower labels give way to them. | |
-| LBL-04 | A label keeps its position for as long as that position stays free. A change of position or visibility fades over `label_fade_ms`. | |
+| LBL-01 | Labels never overlap one another, or any marker, symbol or pill other than their own. Each label takes the first of these positions that is free: right of its marker, left, above, below, each `label_gap_px` from the marker's edge. | ✓ |
+| LBL-02 | Labels are placed in priority order, higher first: the selection; the hovered object; the frame body; the star and planets; then ships, groups and stations by affiliation (hostile, unknown, own commanded, own-flag civilian, allied and neutral); then moons. Within a rank, the object nearer the camera goes first. | ✓ |
+| LBL-03 | A label with no free position loses its second line and tries again; if the name alone has none, the label is hidden. The selection's and the hovered object's labels are never hidden: lower labels give way to them. | ✓ |
+| LBL-04 | A label keeps its position for as long as that position stays free. A change of position or visibility fades over `label_fade_ms`. | ✓ |
 
 ## 4. Hover and inspection
 

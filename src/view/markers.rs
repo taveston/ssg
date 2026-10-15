@@ -1,6 +1,6 @@
 //! The vector-display overlay: one fixed-size UI marker per body, placed on
 //! its projected screen position each frame (MRK-03, MRK-04, MRK-06), with
-//! its label to the right (SYM-13).
+//! its label beside it (SYM-13; where exactly is `labels.rs`, LBL-01).
 //!
 //! Natural bodies are body markers: outlined circles with a ground-colour
 //! inside, ticked for the star and dotted for a planet (MRK-13). Close in
@@ -50,10 +50,15 @@ use crate::{Boot, Stage};
 #[derive(Component)]
 pub struct MarkerHalfSize(pub Vec2);
 
-/// A marker's label, which sits just right of the marker and moves out when
-/// the marker grows to a true-size disc (MRK-07).
+/// A marker's label, a child of the marker placed beside it by
+/// `labels.rs` (LBL-01).
 #[derive(Component)]
 pub struct MarkerLabel;
+
+/// The markers, pills and ring marks have been laid out for this frame;
+/// the labels are placed after (LBL-01).
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct MarkersPlaced;
 
 /// A symbol label's second line, for the body it describes (SYM-13). It
 /// is rewritten as game time passes, so a stale track's age stays true.
@@ -95,8 +100,6 @@ const RING_PX: f32 = 2.0;
 /// Glyph markers are drawn a little larger than their box so the glyph's
 /// own side bearings don't shrink it.
 const GLYPH_SCALE: f32 = 1.8;
-/// Gap between a marker and its label, which sits to its right.
-const LABEL_GAP_PX: f32 = 4.0;
 const LABEL_FONT_PX: f32 = 12.0;
 const SECOND_LINE_FONT_PX: f32 = 10.0;
 
@@ -169,7 +172,7 @@ impl Plugin for MarkersPlugin {
             .add_systems(
                 Update,
                 (
-                    update_markers,
+                    update_markers.in_set(MarkersPlaced),
                     ring_markers,
                     layer_bodies_by_depth,
                     update_second_lines,
@@ -415,7 +418,7 @@ fn spawn_marker(
     look: BodyLook,
     text: MarkerText,
 ) {
-    let (fonts, tunables) = assets;
+    let (_, tunables) = assets;
     let half = marker_half_size(look.class, tunables);
     let shape = look.shape();
     let mut marker = commands.spawn((
@@ -441,16 +444,16 @@ fn spawn_marker(
     ));
     spawn_shape(&mut marker, assets, look, half);
     let color = look.color(tunables);
-    marker.with_children(|parent| spawn_label(parent, fonts, (body, half, color), text));
+    marker.with_children(|parent| spawn_label(parent, assets, (body, half, color), text));
 }
 
-/// SYM-13: the label to the right of the marker, in its colour: the name,
-/// and for a symbol a second line in the secondary text colour. It is a
-/// hover and click target for its body, and wins over an orbit ring
-/// (HOV-02).
+/// SYM-13: the label beside the marker, in its colour: the name, and for
+/// a symbol a second line in the secondary text colour. It starts to the
+/// right; `labels.rs` places it from then on (LBL-01). It is a hover and
+/// click target for its body, and wins over an orbit ring (HOV-02).
 fn spawn_label(
     parent: &mut ChildSpawnerCommands,
-    fonts: &Fonts,
+    (fonts, tunables): MarkerAssets,
     (body, half, color): (Entity, f32, Color),
     text: MarkerText,
 ) {
@@ -462,7 +465,7 @@ fn spawn_label(
             GlobalZIndex(layers::LABELS),
             Node {
                 position_type: PositionType::Absolute,
-                left: px(half * 2.0 + LABEL_GAP_PX),
+                left: px(half * 2.0 + tunables.label_gap_px),
                 top: px(0),
                 flex_direction: FlexDirection::Column,
                 ..default()
@@ -695,9 +698,6 @@ fn show_body_detail(
     }
 }
 
-type LabelNodes<'w, 's> =
-    Query<'w, 's, (&'static ChildOf, &'static mut Node), (With<MarkerLabel>, Without<MarkerShape>)>;
-
 /// Every coloured part of a marker, and where its colour lives.
 pub type TintedParts<'w, 's> = Query<
     'w,
@@ -753,7 +753,6 @@ pub fn update_markers(
     projections: Query<&Projection, With<Camera3d>>,
     bodies: MarkerBodies,
     mut markers: MarkerNodes,
-    mut labels: LabelNodes,
     (children, mut parts, mut details): (Query<&Children>, TintedParts, DetailNodes),
     tunables: Res<Tunables>,
 ) {
@@ -804,11 +803,6 @@ pub fn update_markers(
             show_body_detail(entity, !true_size, &children, &mut details);
         }
         fade_parts(entity, alpha, &children, &mut parts);
-        for (label_of, mut label) in &mut labels {
-            if label_of.parent() == entity {
-                label.left = px(drawn * 2.0 + LABEL_GAP_PX);
-            }
-        }
     }
 }
 
