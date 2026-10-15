@@ -75,6 +75,8 @@ Many players have heard of a gravity assist, so a simple version is worth having
 - **Cost.** A via-transfer is two arcs joined at a moving body with a matching condition between them, so the planner needs one more search dimension (when to arrive at the waypoint) and a constraint. That is a real step up from the two-slider planner, which is why this is a candidate and not part of the first build. The player's view stays the same two sliders, with the waypoint chosen from the destination step ("via" on a body's context menu).
 - **Rejected:** a flat delta-v credit for flying past a body. It is simpler, but a flyby that helps whichever way you're going is the kind of abstraction that teaches the wrong thing.
 
+- **Specced** (2026-10-16) as XFER-13 to XFER-15, for a Pass through Low only: the turn is applied at the end of the Pass, so the ship leaves on a conic bent by 2 arcsin(1/*e*) in the prograde sense, at no cost. Choices the spec makes: the Pass goes round the body prograde, as a capture does, which also gives the closing speed at a station (the speed at the closest point less the band's circular speed); the turn is not an extra search dimension, because a one-leg plan has no later leg to join it to; and the assist as a waypoint in a multi-leg plan ("via") is still a candidate.
+
 ## 3. Planning a transfer **(Direction)**
 
 The flow is: select a ship, pick a destination, tune two sliders while the map shows the result, click Schedule.

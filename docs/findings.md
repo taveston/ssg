@@ -27,8 +27,8 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Disposition:** open. Choose the chevron outside the tab or merged with the marker; the gate tabs (EDGE-03) should follow the same choice.
 
 ### F-145 · An intercept needs a standoff distance
-- **Observation:** Raised in a combat design session. XFER-10 ends a ship-as-destination crossing at the target's position on the crossing end day, so a Pass intercept is a collision course with zero miss distance. A real engagement has a chosen miss distance, and it sets how long each side is in weapon range and which weapons can act. The order has no way to carry one.
-- **Affects:** XFER-08, XFER-09, XFER-10 · **Type:** spec gap
+- **Observation:** Raised in a combat design session. XFER-10 ends a ship-as-destination crossing at the target's position on the crossing end day, so a Pass intercept is a collision course with zero miss distance. A real engagement has a chosen miss distance, and it sets how long each side is in weapon range and which weapons can act. The order has no way to carry one. A Pass at a station is trimmed to meet it (PHAS-15), so it too has zero miss distance.
+- **Affects:** XFER-08, XFER-09, XFER-10, PHAS-15 · **Type:** spec gap
 - **Disposition:** open. Option: a `standoff_km` on a Pass whose destination is a ship, so the crossing ends offset from the target's rail rather than on it. A Stop (rendezvous) keeps zero. What the standoff should default to, and how the resolver reads it, are for the conflict doc to settle.
 
 ### F-146 · Morrow's two innermost moons can't have a High band
