@@ -53,6 +53,7 @@ pub mod scale;
 pub mod screen;
 pub mod selection;
 pub mod shared_orbit;
+pub mod ship_groups;
 pub mod sidebar;
 pub mod symbol_draw;
 pub mod symbol_shape;

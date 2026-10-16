@@ -13,6 +13,7 @@ use crate::{Boot, Stage};
 
 pub mod body;
 pub mod clock;
+pub mod group;
 pub mod named_orbit;
 pub mod orbit;
 pub mod rail;
@@ -42,6 +43,7 @@ impl Plugin for SimPlugin {
                     orbit::update_orbit_positions,
                     transfer::plan::drive_rails,
                     transfer::plan::remove_escaping_ships,
+                    group::derive_group_records,
                 )
                     .chain()
                     .in_set(Stage::Simulation),

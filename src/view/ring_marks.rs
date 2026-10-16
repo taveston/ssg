@@ -28,6 +28,7 @@ use super::pills::{PILL_HALF_HEIGHT_PX, PillFace, pill_bundle, pill_node};
 use super::screen::{MapView, in_viewport, snap_to_pixel};
 use super::selection::Selection;
 use super::shared_orbit::{OrbitRings, Ring, ring_screen_point};
+use super::ship_groups::GroupFaces;
 use super::symbol_draw::{Tint, TintSlot};
 use super::targets::{MarkerFor, OrbitFor};
 use super::tunables::Tunables;
@@ -123,6 +124,7 @@ fn spawn_ring_marks(
     tunables: Res<Tunables>,
     rings: OrbitRings,
     looks: Looks,
+    groups: GroupFaces,
 ) {
     for owner in rings.owners() {
         let Some(ring) = rings.ring(owner) else {
@@ -138,6 +140,7 @@ fn spawn_ring_marks(
                     class: *class,
                     affiliation: *affiliation,
                     record,
+                    group: groups.face(body),
                 };
                 spawn_body_mark(&mut commands, (&fonts, &tunables), &ring, body, look);
             }

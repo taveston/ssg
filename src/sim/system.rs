@@ -45,6 +45,9 @@ pub struct BodyBlueprint {
     /// A ship's drive and delta-v (PLAN-20); `None` for anything that
     /// can't be ordered to move.
     pub propulsion: Option<Propulsion>,
+    /// For a group of ships (SYM-09): its members. A group's `record` is
+    /// `None`: what it is comes from its members.
+    pub group: Option<GroupBlueprint>,
     pub description: &'static str,
     pub key_facts: Vec<(&'static str, &'static str)>,
     pub knowledge: Knowledge,
@@ -59,6 +62,21 @@ pub struct BodyBlueprint {
     /// The named orbits this body offers its ships and stations (SCL-07).
     pub orbits: Vec<NamedOrbitBlueprint>,
     pub children: Vec<BodyBlueprint>,
+}
+
+/// A group of ships (SYM-01, SYM-09): whether it is a task force (members
+/// under one commander), and its members. The members share the group's
+/// affiliation, command, orbit and phase (PHAS-14), so they carry none of
+/// their own.
+pub struct GroupBlueprint {
+    pub task_force: bool,
+    pub members: Vec<MemberBlueprint>,
+}
+
+/// One ship of a group: its name and what the faction knows of it.
+pub struct MemberBlueprint {
+    pub name: &'static str,
+    pub record: ShipRecord,
 }
 
 pub struct BeltBlueprint {

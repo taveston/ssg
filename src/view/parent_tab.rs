@@ -95,6 +95,7 @@ fn fill_parent_tab(
         class: *class,
         affiliation: affiliation.copied().unwrap_or(Affiliation::Neutral),
         record: None,
+        group: None,
     };
     for icon in &icons {
         commands

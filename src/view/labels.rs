@@ -3,7 +3,8 @@
 //!
 //! Each label tries the positions right, left, above and below its
 //! marker, `label_gap_px` from the marker's edge, and takes the first
-//! that is free. Labels are placed in priority order (the selection, the
+//! that is free. A symbol's edge is the outer edge of its frame and its
+//! amplifiers (SYM-13), which also keep other labels off them. Labels are placed in priority order (the selection, the
 //! hovered object, the frame body, the star and planets, ships by
 //! affiliation, moons), nearer the camera first within a rank, so a
 //! label that matters more is placed first and the rest give way. A
@@ -24,6 +25,7 @@ use super::hovered::HoveredBodies;
 use super::markers::{MarkerHalfSize, MarkerLabel, MarkersPlaced, SecondLineFor};
 use super::ring_marks::RingMarkFor;
 use super::selection::Selection;
+use super::symbol_draw::AmplifierReach;
 use super::symbols::own_flag_civilian;
 use super::targets::{GroupPillFor, MarkerFor};
 use super::tunables::Tunables;
@@ -265,7 +267,8 @@ type RankedBodies<'w, 's> = Query<
     ),
 >;
 
-/// The markers, by node and body.
+/// The markers, by node and body, with how far a symbol's amplifiers
+/// reach beyond it.
 type Markers<'w, 's> = Query<
     'w,
     's,
@@ -274,9 +277,22 @@ type Markers<'w, 's> = Query<
         &'static MarkerFor,
         &'static Node,
         &'static ComputedNode,
+        Option<&'static AmplifierReach>,
     ),
     (With<MarkerHalfSize>, Without<MarkerLabel>),
 >;
+
+/// A marker shown this frame: its node, its body, the box it takes with
+/// its amplifiers (SYM-13), and where that box's top-left sits relative
+/// to the node's, which is what a label's offset is measured from.
+type MarkerBox = (Entity, Entity, Rect, Vec2);
+
+/// SYM-13: a marker's box with its amplifiers, and the shift from the
+/// node's top-left to the box's.
+pub fn marker_box(square: Rect, reach: Option<&AmplifierReach>) -> (Rect, Vec2) {
+    let grown = reach.map_or(square, |reach| reach.grow(square));
+    (grown, grown.min - square.min)
+}
 
 /// The label nodes under the markers.
 type Labels<'w, 's> = Query<
@@ -360,11 +376,8 @@ impl Ranking<'_, '_> {
 }
 
 /// LBL-01: the boxes every marker, pill and ring mark takes this frame.
-fn gather_obstacles(
-    markers: &[(Entity, Entity, Rect)],
-    (pills, ring_marks): &Obstacles,
-) -> Vec<Rect> {
-    let mut obstacles: Vec<Rect> = markers.iter().map(|&(_, _, rect)| rect).collect();
+fn gather_obstacles(markers: &[MarkerBox], (pills, ring_marks): &Obstacles) -> Vec<Rect> {
+    let mut obstacles: Vec<Rect> = markers.iter().map(|&(_, _, rect, _)| rect).collect();
     obstacles.extend(
         pills
             .iter()
@@ -396,19 +409,21 @@ fn place_marker_labels(
     obstacles: Obstacles,
     mut colors: Query<(&ChildOf, &mut TextColor)>,
 ) {
-    let marker_rects: Vec<(Entity, Entity, Rect)> = markers
+    let marker_rects: Vec<MarkerBox> = markers
         .iter()
-        .filter_map(|(entity, marker_for, node, computed)| {
-            Some((entity, marker_for.0, node_rect(node, computed)?))
+        .filter_map(|(entity, marker_for, node, computed, reach)| {
+            let (rect, shift) = marker_box(node_rect(node, computed)?, reach);
+            Some((entity, marker_for.0, rect, shift))
         })
         .collect();
     let obstacles = gather_obstacles(&marker_rects, &obstacles);
 
     // Each shown marker's label is a candidate; its sizes are last
     // frame's layout, in logical pixels.
-    let mut entries: Vec<(Entity, Candidate)> = Vec::new();
+    let mut entries: Vec<(Entity, Candidate, Vec2)> = Vec::new();
     for (label, child_of, computed, _, state, _) in &labels {
-        let Some(&(_, body, marker)) = marker_rects.iter().find(|(m, ..)| *m == child_of.parent())
+        let Some(&(_, body, marker, shift)) =
+            marker_rects.iter().find(|(m, ..)| *m == child_of.parent())
         else {
             continue;
         };
@@ -432,13 +447,14 @@ fn place_marker_labels(
                 pinned,
                 previous: state.shown,
             },
+            shift,
         ));
     }
-    let candidates: Vec<Candidate> = entries.iter().map(|(_, c)| *c).collect();
+    let candidates: Vec<Candidate> = entries.iter().map(|(_, c, _)| *c).collect();
     let placements = place_labels(&candidates, &obstacles, tunables.label_gap_px);
     let step = step_per_frame(time.delta_secs(), tunables.label_fade_ms);
 
-    for ((label, candidate), wanted) in entries.into_iter().zip(placements) {
+    for ((label, candidate, shift), wanted) in entries.into_iter().zip(placements) {
         let Ok((_, _, _, mut node, mut state, mut visibility)) = labels.get_mut(label) else {
             continue;
         };
@@ -453,12 +469,13 @@ fn place_marker_labels(
             } else {
                 candidate.name_size
             };
-            let offset = label_offset(
-                candidate.marker.size(),
-                size,
-                placement.slot,
-                tunables.label_gap_px,
-            );
+            let offset = shift
+                + label_offset(
+                    candidate.marker.size(),
+                    size,
+                    placement.slot,
+                    tunables.label_gap_px,
+                );
             node.left = px(offset.x);
             node.top = px(offset.y);
         }

@@ -1,8 +1,9 @@
-//! Ship and station symbols as data (SYM-02 to SYM-08, SYM-12, SYM-13,
-//! SYM-15): from what the faction knows of an object (`ShipRecord`), which
-//! frame, colour, fill, icon and amplifiers (including the condition bar)
-//! its symbol has, what its label's
-//! second line says, and the words used for its ownership. Adapted from
+//! Ship, group and station symbols as data (SYM-02 to SYM-09, SYM-12,
+//! SYM-13, SYM-15): from what the faction knows of an object
+//! (`ShipRecord`), which frame, colour, fill, icon and amplifiers (the
+//! condition bar, and a group's count and task-force bracket) its symbol
+//! has, what its label's second line says, and the words used for its
+//! ownership. Adapted from
 //! NATO APP-6: the frame shape shows affiliation, the icon what it is, and
 //! amplifiers round the frame its state.
 //!
@@ -59,6 +60,19 @@ pub struct SymbolLook {
     pub installation_bar: bool,
     /// The condition bar under the frame of an own ship (SYM-12).
     pub condition: Option<ConditionBar>,
+    /// A group's member count, just outside the frame's upper right
+    /// (SYM-09).
+    pub count: Option<usize>,
+    /// A task force's bracket above the frame, above any echelon (SYM-09).
+    pub task_force: bool,
+}
+
+/// SYM-09: what marks a symbol as a group's: how many members it has and
+/// whether it is a task force.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct GroupFace {
+    pub count: usize,
+    pub task_force: bool,
 }
 
 /// SYM-12: an own ship's or group's condition bar: how full it is and the
@@ -165,18 +179,6 @@ pub fn echelon(record: &ShipRecord) -> Option<&'static str> {
     }
 }
 
-/// SYM-12: a group's condition, the mean of its members' conditions.
-/// Members with no known condition are left out; with none known, the
-/// group has none. Nothing forms groups yet, so only tests call it.
-#[allow(dead_code)]
-pub fn group_condition(members: impl IntoIterator<Item = Option<f64>>) -> Option<f64> {
-    let (sum, count) = members
-        .into_iter()
-        .flatten()
-        .fold((0.0, 0u32), |(sum, count), c| (sum + c, count + 1));
-    (count > 0).then(|| sum / f64::from(count))
-}
-
 /// SYM-12: the condition bar of an own ship or group (commanded or
 /// civilian) with a known condition, filled in the symbol's `color`, or in
 /// the warning orange below the warning fraction. Other affiliations have
@@ -219,7 +221,61 @@ pub fn symbol_look(
         echelon: echelon(record),
         installation_bar: record.class == ShipClass::Station,
         condition: condition_bar(affiliation, record.condition, color, settings),
+        count: None,
+        task_force: false,
     }
+}
+
+/// SYM-09: a group's symbol is its record's look with the member count at
+/// the upper right and, for a task force, the bracket above. A ship's look
+/// (`group` is `None`) is unchanged.
+pub fn with_group(look: SymbolLook, group: Option<GroupFace>) -> SymbolLook {
+    match group {
+        Some(group) => SymbolLook {
+            count: Some(group.count),
+            task_force: group.task_force,
+            ..look
+        },
+        None => look,
+    }
+}
+
+/// SYM-13: a class's name in a group's member count, singular and plural.
+fn class_noun(class: ShipClass) -> (&'static str, &'static str) {
+    match class {
+        ShipClass::Warship => ("warship", "warships"),
+        ShipClass::TroopTransport => ("troop transport", "troop transports"),
+        ShipClass::FleetSupply => ("supply ship", "supply ships"),
+        ShipClass::Cargo => ("cargo ship", "cargo ships"),
+        ShipClass::Station => ("station", "stations"),
+        ShipClass::Unknown => ("unknown ship", "unknown ships"),
+    }
+}
+
+/// The order classes are listed in a member count: the order of their
+/// icons' significance (SYM-09).
+const CLASS_ORDER: [ShipClass; 6] = [
+    ShipClass::Warship,
+    ShipClass::TroopTransport,
+    ShipClass::FleetSupply,
+    ShipClass::Cargo,
+    ShipClass::Unknown,
+    ShipClass::Station,
+];
+
+/// SYM-13: a group's member count by class, most significant class first,
+/// the classes joined by ", ": "4 warships", "2 warships, 1 supply ship".
+/// `None` for no members.
+pub fn member_count_text(classes: &[ShipClass]) -> Option<String> {
+    let parts: Vec<String> = CLASS_ORDER
+        .iter()
+        .filter_map(|&class| {
+            let n = classes.iter().filter(|&&c| c == class).count();
+            let (one, many) = class_noun(class);
+            (n > 0).then(|| format!("{n} {}", if n == 1 { one } else { many }))
+        })
+        .collect();
+    (!parts.is_empty()).then(|| parts.join(", "))
 }
 
 /// SYM-08: a stale track's age, "last seen *N* d ago", in whole days of
@@ -230,14 +286,18 @@ pub fn last_seen_text(last_observed_day: f64, now_day: f64) -> String {
 }
 
 /// SYM-13: the label's second line, in the parts that apply joined by
-/// " · ": embarked formations, "own flag · civilian" or "requisitioned",
-/// and a stale track's age. `None` when nothing applies.
+/// " · ": a group's member count by class (`members` holds its members'
+/// classes, and is empty for a ship), embarked formations, "own flag ·
+/// civilian" or "requisitioned", and a stale track's age. `None` when
+/// nothing applies.
 pub fn label_second_line(
     affiliation: Affiliation,
     record: &ShipRecord,
+    members: &[ShipClass],
     now_day: f64,
 ) -> Option<String> {
     let mut parts: Vec<String> = Vec::new();
+    parts.extend(member_count_text(members));
     if let TroopLoad::Embarked(formations) = &record.load {
         parts.extend(formations.iter().map(|f| f.name.to_string()));
     }
@@ -445,12 +505,12 @@ mod tests {
             echelon: Some(Echelon::Battalion),
         }]));
         assert_eq!(
-            label_second_line(Affiliation::Own, &embarked, 0.0).as_deref(),
+            label_second_line(Affiliation::Own, &embarked, &[], 0.0).as_deref(),
             Some("1st Arden Guard")
         );
         let civilian = ship(ShipClass::Cargo, false);
         assert_eq!(
-            label_second_line(Affiliation::Own, &civilian, 0.0).as_deref(),
+            label_second_line(Affiliation::Own, &civilian, &[], 0.0).as_deref(),
             Some("own flag · civilian")
         );
         let requisitioned = ShipRecord {
@@ -459,7 +519,7 @@ mod tests {
             ..civilian
         };
         assert_eq!(
-            label_second_line(Affiliation::Own, &requisitioned, 0.0).as_deref(),
+            label_second_line(Affiliation::Own, &requisitioned, &[], 0.0).as_deref(),
             Some("requisitioned")
         );
         let stale = ShipRecord {
@@ -469,11 +529,11 @@ mod tests {
             ..ship(ShipClass::Warship, false)
         };
         assert_eq!(
-            label_second_line(Affiliation::Hostile, &stale, 0.0).as_deref(),
+            label_second_line(Affiliation::Hostile, &stale, &[], 0.0).as_deref(),
             Some("last seen 6 d ago")
         );
         let plain = ship(ShipClass::Warship, true);
-        assert_eq!(label_second_line(Affiliation::Own, &plain, 0.0), None);
+        assert_eq!(label_second_line(Affiliation::Own, &plain, &[], 0.0), None);
     }
 
     /// SYM-12: own ships with a condition have a bar filled to it in the
@@ -515,15 +575,58 @@ mod tests {
         assert_eq!(unknown.condition, None);
     }
 
-    /// SYM-12: a group's condition is the mean of its members' known
-    /// conditions, and unknown when none is known.
+    /// SYM-09: a group's look is its record's, with its member count and,
+    /// for a task force, the bracket; a ship's look has neither.
     #[test]
-    fn a_groups_condition_is_its_members_mean() {
-        let mean = group_condition([Some(0.9), Some(0.3), None, Some(0.6)]).unwrap();
-        assert!((mean - 0.6).abs() < 1e-12);
-        assert_eq!(group_condition([Some(0.4)]), Some(0.4));
-        assert_eq!(group_condition([None, None]), None);
-        assert_eq!(group_condition([]), None);
+    fn a_group_adds_its_count_and_bracket() {
+        let ship_look = symbol_look(Affiliation::Own, &ship(ShipClass::Warship, true), SETTINGS);
+        assert_eq!((ship_look.count, ship_look.task_force), (None, false));
+        assert_eq!(with_group(ship_look, None), ship_look);
+        let face = GroupFace {
+            count: 4,
+            task_force: true,
+        };
+        let group = with_group(ship_look, Some(face));
+        assert_eq!((group.count, group.task_force), (Some(4), true));
+        assert_eq!((group.frame, group.icon), (ship_look.frame, ship_look.icon));
+        let loose = with_group(
+            ship_look,
+            Some(GroupFace {
+                count: 2,
+                task_force: false,
+            }),
+        );
+        assert_eq!((loose.count, loose.task_force), (Some(2), false));
+    }
+
+    /// SYM-13: a group's second line starts with its member count by
+    /// class, most significant first, before the other parts.
+    #[test]
+    fn a_groups_second_line_counts_its_members_by_class() {
+        use ShipClass::*;
+        assert_eq!(
+            member_count_text(&[Warship; 4]).as_deref(),
+            Some("4 warships")
+        );
+        assert_eq!(
+            member_count_text(&[Cargo, Warship, FleetSupply, Warship]).as_deref(),
+            Some("2 warships, 1 supply ship, 1 cargo ship")
+        );
+        assert_eq!(member_count_text(&[]), None);
+        let embarked = transport(TroopLoad::Embarked(vec![Formation {
+            name: "1st Arden Guard",
+            echelon: Some(Echelon::Battalion),
+        }]));
+        assert_eq!(
+            label_second_line(
+                Affiliation::Own,
+                &embarked,
+                &[Warship, TroopTransport],
+                0.0
+            )
+            .as_deref(),
+            Some("1 warship, 1 troop transport · 1st Arden Guard")
+        );
     }
 
     /// SYM-15: the ownership words.

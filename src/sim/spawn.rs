@@ -7,7 +7,8 @@
 //! its own (BAND-02), so content never spells those out. A station sits in
 //! one of its parent's bands, as a parked ship does, and offers no orbit
 //! of its own. A ship with propulsion gets its drive and delta-v account
-//! (PLAN-20).
+//! (PLAN-20). A group of ships gets its member ships, which have no orbit
+//! of their own (SYM-09, PHAS-14).
 //!
 //! Only simulation components go on here. A satellite is an `Orbit` with a
 //! `ChildOf` naming what it orbits; nothing else marks it out, so the view
@@ -22,6 +23,7 @@ use super::body::{
     Affiliation, Belt, BodyClass, Description, DisplayName, GateDestination, GateEntryTolerance,
     KeyFacts, Knowledge, Mass, PhysicalRadius, StellarMass,
 };
+use super::group::spawn_members;
 use super::named_orbit::{DockingOrbitOf, InNamedOrbit, NamedOrbit};
 use super::orbit::{Orbit, OrbitPositionKm, kepler_period_days, orbit_position_km};
 use super::ship::{DeltaV, Propulsion};
@@ -310,6 +312,7 @@ fn spawn_body(
         affiliation,
         record,
         propulsion,
+        group,
         description,
         key_facts,
         knowledge,
@@ -360,6 +363,10 @@ fn spawn_body(
         entity_commands.insert(InNamedOrbit(named));
     }
     let entity = entity_commands.id();
+    if let Some(group) = group {
+        // SYM-09: a group's ships, and its record derived from theirs.
+        spawn_members(commands, entity, group);
+    }
 
     let mut spawned = spawn_named_orbits(commands, entity, &orbits, mass_kg);
     match class {

@@ -6,7 +6,9 @@
 //! Every star, planet and moon gets its two bands at spawn (BAND-01,
 //! TEST-20), so Halden IV's named orbits are "Low", empty, and "High",
 //! which holds every ship parked there: one shared orbit with many members
-//! (TEST-10). Moons carry plausible masses so their bands come out.
+//! (TEST-10), the task force TF-1 among them as one group whose four
+//! warships share its phase (TEST-06). Moons carry plausible masses so
+//! their bands come out.
 //!
 //! This is the seam a generator replaces (SCL-03): anything that builds a
 //! `SystemData` the same shape can stand in for `hand_made_system`.
@@ -14,7 +16,8 @@
 use crate::sim::body::{Affiliation, BodyClass, Knowledge};
 use crate::sim::ship::{Drive, Propulsion};
 use crate::sim::system::{
-    BeltBlueprint, BodyBlueprint, GateBlueprint, NamedOrbitBlueprint, OrbitPlacement, SystemData,
+    BeltBlueprint, BodyBlueprint, GateBlueprint, GroupBlueprint, MemberBlueprint, NamedOrbitBlueprint,
+    OrbitPlacement, SystemData,
 };
 use crate::sim::track::{Echelon, Formation, ShipClass, ShipRecord, Track, TroopLoad};
 use crate::sim::units::{
@@ -94,6 +97,7 @@ pub fn hand_made_system() -> SystemData {
                     affiliation: Affiliation::Neutral,
                     record: None,
                     propulsion: None,
+                    group: None,
                     description: "An unsurveyed debris field scattered across the belt.",
                     key_facts: vec![("Contents", "unknown")],
                     knowledge: Knowledge::Unsurveyed,
@@ -110,6 +114,7 @@ pub fn hand_made_system() -> SystemData {
                     affiliation: Affiliation::Neutral,
                     record: None,
                     propulsion: None,
+                    group: None,
                     description: "The wreck of the station Lantern, last imaged years ago.",
                     key_facts: vec![("Recoverable then", "4-6 kt"), ("Since then", "unknown")],
                     knowledge: Knowledge::Unsurveyed,
@@ -159,6 +164,7 @@ fn pell() -> BodyBlueprint {
         affiliation: Affiliation::Own,
         record: None,
         propulsion: None,
+        group: None,
         description: "A scorched inner rock, too hot for anything but automated survey gear.",
         key_facts: vec![("Class", "Hot rocky planet")],
         knowledge: surveyed_today(),
@@ -180,6 +186,7 @@ fn iver() -> BodyBlueprint {
         affiliation: Affiliation::Own,
         record: None,
         propulsion: None,
+        group: None,
         description: "A tidally-locked world whose pre-collapse orbital yard has sat dormant for a generation.",
         key_facts: vec![("Class", "Rocky planet")],
         knowledge: surveyed_today(),
@@ -194,6 +201,7 @@ fn iver() -> BodyBlueprint {
             affiliation: Affiliation::Own,
             record: Some(ShipRecord::new(ShipClass::Station, true)),
             propulsion: None,
+            group: None,
             description: "A dormant pre-collapse shipyard, barely maintained.",
             key_facts: vec![("Status", "Dormant"), ("Owner", "Own")],
             knowledge: surveyed_today(),
@@ -218,6 +226,7 @@ fn halden_iv() -> BodyBlueprint {
             affiliation: Affiliation::Own,
             record: None,
             propulsion: None,
+            group: None,
             description,
             key_facts: vec![("Class", "Moon")],
             knowledge,
@@ -234,6 +243,7 @@ fn halden_iv() -> BodyBlueprint {
         affiliation: Affiliation::Own,
         record: None,
         propulsion: None,
+        group: None,
         description: "Cold terrestrial capital world: three settlements under a thin nitrogen sky.",
         key_facts: vec![
             ("Class", "Cold terrestrial · capital world"),
@@ -297,6 +307,7 @@ fn halden_iv() -> BodyBlueprint {
                 affiliation: Affiliation::Own,
                 record: Some(ShipRecord::new(ShipClass::Station, true)),
                 propulsion: None,
+                group: None,
                 description: "Halden IV's primary orbital station.",
                 key_facts: vec![("Status", "Active"), ("Owner", "Own")],
                 knowledge: surveyed_today(),
@@ -344,6 +355,7 @@ fn parked(
         affiliation,
         record: Some(record),
         propulsion: propulsion_for(name),
+        group: None,
         description,
         key_facts: vec![],
         knowledge: if own {
@@ -372,9 +384,16 @@ fn spread_phase(i: usize, count: usize) -> f64 {
 fn ships_at_halden() -> Vec<BodyBlueprint> {
     let warship = ShipRecord::new(ShipClass::Warship, true);
     let civilian_cargo = ShipRecord::new(ShipClass::Cargo, false);
-    let transport = |load| ShipRecord {
+    // TEST-06: every own ship here is above the condition warning, so
+    // only TF-1's bar shows the warning colour.
+    let transport = |load, condition| ShipRecord {
         load,
+        condition: Some(condition),
         ..ShipRecord::new(ShipClass::TroopTransport, true)
+    };
+    let civilian = |condition| ShipRecord {
+        condition: Some(condition),
+        ..civilian_cargo.clone()
     };
     let in_high: Vec<(&'static str, Affiliation, ShipRecord, &'static str)> = vec![
         (
@@ -407,37 +426,43 @@ fn ships_at_halden() -> Vec<BodyBlueprint> {
         (
             "Transport Cassel",
             Affiliation::Own,
-            transport(TroopLoad::Embarked(vec![Formation {
-                name: "1st Arden Guard",
-                echelon: Some(Echelon::Battalion),
-            }])),
+            transport(
+                TroopLoad::Embarked(vec![Formation {
+                    name: "1st Arden Guard",
+                    echelon: Some(Echelon::Battalion),
+                }]),
+                0.85,
+            ),
             "A troop transport with the 1st Arden Guard embarked.",
         ),
         (
             "Transport Hale",
             Affiliation::Own,
-            transport(TroopLoad::Empty),
+            transport(TroopLoad::Empty, 0.7),
             "A troop transport, empty.",
         ),
         (
             "Transport Brask",
             Affiliation::Own,
-            transport(TroopLoad::Embarked(vec![
-                Formation {
-                    name: "2nd Halden Regiment",
-                    echelon: Some(Echelon::Regiment),
-                },
-                Formation {
-                    name: "Halden Field Brigade",
-                    echelon: Some(Echelon::Brigade),
-                },
-            ])),
+            transport(
+                TroopLoad::Embarked(vec![
+                    Formation {
+                        name: "2nd Halden Regiment",
+                        echelon: Some(Echelon::Regiment),
+                    },
+                    Formation {
+                        name: "Halden Field Brigade",
+                        echelon: Some(Echelon::Brigade),
+                    },
+                ]),
+                0.75,
+            ),
             "A troop transport carrying a regiment and a brigade staff.",
         ),
         (
             "Varga Prospector",
             Affiliation::Own,
-            civilian_cargo.clone(),
+            civilian(0.65),
             "An ore carrier of Varga Mining, under its own orders.",
         ),
         (
@@ -446,7 +471,7 @@ fn ships_at_halden() -> Vec<BodyBlueprint> {
             ShipRecord {
                 commanded: true,
                 requisitioned: true,
-                ..civilian_cargo.clone()
+                ..civilian(0.6)
             },
             "A civilian ore carrier chartered by the faction.",
         ),
@@ -455,7 +480,7 @@ fn ships_at_halden() -> Vec<BodyBlueprint> {
             Affiliation::Own,
             ShipRecord {
                 armed: true,
-                ..civilian_cargo.clone()
+                ..civilian(0.95)
             },
             "A licensed armed hauler under its owner's orders.",
         ),
@@ -508,6 +533,9 @@ fn ships_at_halden() -> Vec<BodyBlueprint> {
                 (OrbitPlacement::Named("High"), spread_phase(i, count)),
             )
         })
+        // TEST-06 / TEST-10: TF-1 takes the gap between the last ship and
+        // the first, so every phase in "High" stays distinct.
+        .chain([task_force_tf1(spread_phase(2 * count - 1, 2 * count))])
         .chain([parked(
             "K-3",
             Affiliation::Unknown,
@@ -519,6 +547,38 @@ fn ships_at_halden() -> Vec<BodyBlueprint> {
             (own(halden_orbit_km(HALDEN_K3_DAYS)), 2.6),
         )])
         .collect()
+}
+
+/// TEST-06: the own task force TF-1, four warships parked as one in
+/// Halden IV's "High" band at `phase0_rad`. Their conditions, 0.9, 0.5,
+/// 0.3 and 0.1, average 0.45, below the condition warning.
+fn task_force_tf1(phase0_rad: f64) -> BodyBlueprint {
+    let warship = |name, condition| MemberBlueprint {
+        name,
+        record: ShipRecord {
+            condition: Some(condition),
+            ..ShipRecord::new(ShipClass::Warship, true)
+        },
+    };
+    BodyBlueprint {
+        record: None,
+        group: Some(GroupBlueprint {
+            task_force: true,
+            members: vec![
+                warship("Vigilant", 0.9),
+                warship("Kestrel", 0.5),
+                warship("Harrow", 0.3),
+                warship("Tamsin", 0.1),
+            ],
+        }),
+        ..parked(
+            "TF-1",
+            Affiliation::Own,
+            ShipRecord::new(ShipClass::Warship, true),
+            "An own task force of four warships under one commander.",
+            (OrbitPlacement::Named("High"), phase0_rad),
+        )
+    }
 }
 
 /// TEST-01: Morrow, the outer giant with many moons.
@@ -552,6 +612,7 @@ fn morrow() -> BodyBlueprint {
                 affiliation: Affiliation::Own,
                 record: None,
                 propulsion: None,
+                group: None,
                 description: "One of Morrow's eleven moons.",
                 key_facts: vec![("Class", "Moon")],
                 knowledge: surveyed_today(),
@@ -574,6 +635,7 @@ fn morrow() -> BodyBlueprint {
         affiliation: Affiliation::Own,
         record: None,
         propulsion: None,
+        group: None,
         description: "An outer giant with a retinue of eleven moons.",
         key_facts: vec![("Class", "Gas giant"), ("Moons", "11")],
         knowledge: surveyed_today(),
@@ -606,6 +668,7 @@ fn morrow_ix_satellites() -> Vec<BodyBlueprint> {
         affiliation,
         record: Some(record),
         propulsion: None,
+        group: None,
         description,
         key_facts: vec![],
         knowledge: Knowledge::Unsurveyed,
@@ -658,6 +721,7 @@ const MORROW_MOON_NAMES: [&str; 11] = [
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::sim::group::group_record;
     use crate::sim::orbit::kepler_period_days;
     use crate::sim::transfer::places::{BandRadii, band_radii, hill_radius_km};
     use crate::sim::tunables::SimTunables;
@@ -796,8 +860,10 @@ mod tests {
     /// TEST-10 / TEST-20: Halden IV lists no orbits of its own, so its
     /// named orbits are exactly its two bands. "Low" holds Arden Highport
     /// alone; "High" holds every parked ship - Orison (TEST-03), a second
-    /// own commanded warship, Ardent, and the TEST-05 ships - at distinct
-    /// phases, while K-3 keeps an orbit of its own.
+    /// own commanded warship, Ardent, the TEST-05 ships and the group TF-1
+    /// (TEST-06) - at distinct phases, while K-3 keeps an orbit of its
+    /// own. TF-1's ships have no phase of their own: they share the
+    /// group's (PHAS-14).
     #[test]
     fn halden_iv_bands_hold_the_station_and_every_parked_ship() {
         let halden = planet("Halden IV");
@@ -806,7 +872,7 @@ mod tests {
         let (in_high, elsewhere): (Vec<&BodyBlueprint>, Vec<&BodyBlueprint>) = halden
             .children
             .iter()
-            .filter(|c| c.record.is_some())
+            .filter(|c| c.record.is_some() || c.group.is_some())
             .partition(|c| c.orbit == OrbitPlacement::Named("High"));
         assert!(in_high.len() >= 13, "{} ships in High", in_high.len());
         let elsewhere: Vec<&str> = elsewhere.iter().map(|c| c.name).collect();
@@ -1055,6 +1121,51 @@ mod tests {
             (iver.children[0].affiliation, yard.class),
             (Affiliation::Own, ShipClass::Station)
         );
+    }
+
+    /// TEST-06: TF-1 is an own task force of four commanded warships in
+    /// Halden IV's "High" band, with conditions 0.9, 0.5, 0.3 and 0.1, so
+    /// its mean is 0.45; it holds no record of its own (SYM-09).
+    #[test]
+    fn tf1_is_a_task_force_of_four_warships() {
+        let halden = planet("Halden IV");
+        let tf1 = child(&halden, "TF-1");
+        assert_eq!(tf1.affiliation, Affiliation::Own);
+        assert_eq!(tf1.orbit, OrbitPlacement::Named("High"));
+        assert!(tf1.record.is_none());
+        let group = tf1.group.as_ref().expect("TF-1 is a group");
+        assert!(group.task_force);
+        let conditions: Vec<f64> = group
+            .members
+            .iter()
+            .map(|m| {
+                assert!(m.record.commanded && m.record.class == ShipClass::Warship);
+                m.record.condition.unwrap()
+            })
+            .collect();
+        assert_eq!(conditions, [0.9, 0.5, 0.3, 0.1]);
+        let records: Vec<&ShipRecord> = group.members.iter().map(|m| &m.record).collect();
+        let mean = group_record(&records).unwrap().condition.unwrap();
+        assert!((mean - 0.45).abs() < 1e-12);
+    }
+
+    /// TEST-06: every own ship of TEST-03 and TEST-05 has a condition,
+    /// and all of them are 0.55 or more: above the warning fraction.
+    #[test]
+    fn own_ships_are_in_good_condition() {
+        for name in [
+            "Orison",
+            "RFA Tolland",
+            "Transport Cassel",
+            "Transport Hale",
+            "Transport Brask",
+            "Varga Prospector",
+            "Delve",
+            "Marten",
+        ] {
+            let (_, record) = known(name);
+            assert!(record.condition.unwrap() >= 0.55, "{name}");
+        }
     }
 
     /// TEST-04: the inspection data covers both knowledge states.

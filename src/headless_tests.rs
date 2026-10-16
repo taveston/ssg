@@ -1078,6 +1078,7 @@ fn blueprint(name: &'static str, class: BodyClass, radius_km: f64) -> BodyBluepr
         affiliation: Affiliation::Neutral,
         record: None,
         propulsion: None,
+        group: None,
         description: "",
         key_facts: vec![],
         knowledge: Knowledge::Unsurveyed,

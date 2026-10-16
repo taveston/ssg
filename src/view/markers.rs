@@ -30,9 +30,12 @@ use super::hover;
 use super::layers;
 use super::motion_mode::MotionModeState;
 use super::screen::ScreenPositions;
-use super::symbol_draw::{Tint, TintSlot, condition_bar_gap, spawn_symbol_parts};
+use super::ship_groups::GroupFaces;
+use super::symbol_draw::{
+    Tint, TintSlot, amplifier_reach, condition_bar_gap, spawn_symbol_parts,
+};
 use super::symbol_shape::SymbolPart;
-use super::symbols::{SymbolSettings, label_second_line, symbol_look};
+use super::symbols::{GroupFace, SymbolSettings, label_second_line, symbol_look, with_group};
 use super::targets::MarkerFor;
 use super::true_size::{DiscRadii, disc_half_px};
 use super::tunables::Tunables;
@@ -209,22 +212,25 @@ type SpawnBodies<'w, 's> = Query<
 
 fn spawn_markers(
     mut commands: Commands,
-    fonts: Res<Fonts>,
-    tunables: Res<Tunables>,
+    (fonts, tunables): (Res<Fonts>, Res<Tunables>),
     clock: Res<GameClock>,
     bodies: SpawnBodies,
+    groups: GroupFaces,
 ) {
     for (body, class, affiliation, name, record) in &bodies {
         let marker = BodyLook {
             class: *class,
             affiliation: *affiliation,
             record,
+            group: groups.face(body),
         };
         let assets = (&*fonts, &*tunables);
+        let members = groups.member_classes(body);
         let label = MarkerText {
             name: &name.0,
-            second_line: record
-                .and_then(|r| label_second_line(*affiliation, r, clock.elapsed_days())),
+            second_line: record.and_then(|r| {
+                label_second_line(*affiliation, r, &members, clock.elapsed_days())
+            }),
         };
         spawn_marker(&mut commands, assets, body, marker, label);
     }
@@ -236,6 +242,8 @@ pub struct BodyLook<'a> {
     pub class: BodyClass,
     pub affiliation: Affiliation,
     pub record: Option<&'a ShipRecord>,
+    /// A group's count and task-force mark (SYM-09); `None` for a ship.
+    pub group: Option<GroupFace>,
 }
 
 impl BodyLook<'_> {
@@ -333,9 +341,14 @@ fn spawn_shape(marker: &mut EntityCommands, assets: MarkerAssets, look: BodyLook
         }
         MarkerShape::Symbol => {
             if let Some(record) = look.record {
-                let symbol = symbol_look(look.affiliation, record, symbol_settings(tunables));
+                let symbol = with_group(
+                    symbol_look(look.affiliation, record, symbol_settings(tunables)),
+                    look.group,
+                );
+                let bar_gap = condition_bar_gap(tunables.bracket_margin_px);
+                // SYM-13: the label keeps clear of the amplifiers too.
+                marker.insert(amplifier_reach(&symbol, half * 2.0, bar_gap));
                 marker.with_children(|parent| {
-                    let bar_gap = condition_bar_gap(tunables.bracket_margin_px);
                     spawn_symbol_parts(parent, fonts, &symbol, half * 2.0, bar_gap);
                 });
             }
@@ -513,14 +526,16 @@ fn spawn_label(
 fn update_second_lines(
     clock: Res<GameClock>,
     bodies: Query<(&Affiliation, &ShipRecord)>,
+    groups: GroupFaces,
     mut lines: Query<(&SecondLineFor, &mut Text)>,
 ) {
     for (line_for, mut text) in &mut lines {
         let Ok((affiliation, record)) = bodies.get(line_for.0) else {
             continue;
         };
-        let line =
-            label_second_line(*affiliation, record, clock.elapsed_days()).unwrap_or_default();
+        let members = groups.member_classes(line_for.0);
+        let line = label_second_line(*affiliation, record, &members, clock.elapsed_days())
+            .unwrap_or_default();
         if text.0 != line {
             text.0 = line;
         }
@@ -871,6 +886,7 @@ mod tests {
                     class,
                     affiliation,
                     record: None,
+                    group: None,
                 };
                 assert_eq!(look.color(&tunables), colors::NEUTRAL);
             }

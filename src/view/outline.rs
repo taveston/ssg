@@ -30,6 +30,7 @@ use super::selection::Selection;
 use super::tunables::Tunables;
 use crate::Stage;
 use crate::sim::body::{Affiliation, BodyClass, DisplayName};
+use crate::sim::group::ShipGroup;
 use crate::sim::named_orbit::{InNamedOrbit, NamedOrbit};
 use crate::sim::orbit::Orbit;
 use crate::sim::track::ShipRecord;
@@ -66,6 +67,17 @@ pub struct OutlineNode {
     pub orbit_radius_km: f64,
     /// The named orbit it sits in (SCL-07), and that orbit's name.
     pub named_orbit: Option<(Entity, String)>,
+    /// A group's member count (GRP-09); `None` for anything else.
+    pub members: Option<usize>,
+}
+
+/// GRP-09: what an entry reads: its name, and for a group its member
+/// count, as "TF-1 · 4". A group is one entry, however many ships it has.
+pub fn entry_text(node: &OutlineNode) -> String {
+    match node.members {
+        Some(count) => format!("{} · {count}", node.name),
+        None => node.name.clone(),
+    }
 }
 
 /// A row of the outline, in display order.
@@ -287,6 +299,7 @@ type Bodies<'w, 's> = Query<
         Option<&'static Orbit>,
         Option<&'static ChildOf>,
         Option<&'static InNamedOrbit>,
+        Option<&'static ShipGroup>,
     ),
 >;
 
@@ -300,7 +313,7 @@ pub fn gather_nodes(bodies: &Bodies, named: &Query<&NamedOrbit>) -> Vec<OutlineN
     bodies
         .iter()
         .map(
-            |(entity, name, class, affiliation, record, orbit, child_of, in_orbit)| {
+            |(entity, name, class, affiliation, record, orbit, child_of, in_orbit, group)| {
                 let parent = match child_of {
                     Some(child_of) => Some(child_of.parent()),
                     None if Some(entity) == star => None,
@@ -317,6 +330,7 @@ pub fn gather_nodes(bodies: &Bodies, named: &Query<&NamedOrbit>) -> Vec<OutlineN
                     named_orbit: in_orbit.and_then(|in_orbit| {
                         Some((in_orbit.0, named.get(in_orbit.0).ok()?.name.clone()))
                     }),
+                    members: group.map(|group| group.members.len()),
                 }
             },
         )
@@ -481,6 +495,9 @@ fn spawn_entry(
         class: node.class,
         affiliation: node.affiliation,
         record: node.record.as_ref(),
+        // The entry's text gives a group's count (GRP-09); the small
+        // symbol carries no amplifiers of a group.
+        group: None,
     };
     let (row_node, background) = row_node(depth, selected);
     list.spawn((OutlineRow(body), row_node, background))
@@ -504,7 +521,7 @@ fn spawn_entry(
             .with_children(|label| {
                 spawn_list_icon(label, assets, look, tunables.list_marker_px / 2.0);
                 label.spawn((
-                    Text::new(node.name.clone()),
+                    Text::new(entry_text(node)),
                     fonts.label(tunables.sidebar_text_px),
                     TextColor(look.color(tunables)),
                 ));
@@ -638,7 +655,22 @@ mod tests {
             parent,
             orbit_radius_km: radius,
             named_orbit: orbit.map(|(o, n)| (o, n.to_string())),
+            members: None,
         }
+    }
+
+    /// GRP-09: a group's entry reads its name and its member count; any
+    /// other entry its name alone.
+    #[test]
+    fn a_group_is_listed_by_name_with_its_member_count() {
+        let mut world = World::new();
+        let ship = node(&mut world, "Orison", None, 0.0, None);
+        assert_eq!(entry_text(&ship), "Orison");
+        let group = OutlineNode {
+            members: Some(4),
+            ..node(&mut world, "TF-1", None, 0.0, None)
+        };
+        assert_eq!(entry_text(&group), "TF-1 · 4");
     }
 
     /// A star with two planets; the first has empty bands, the second a
