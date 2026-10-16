@@ -238,11 +238,6 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** PLNR-106, PLNR-96 · **Type:** spec gap
 - **Disposition:** open. Accept, and add the sentence to PLNR-106.
 
-### F-238 · Shared orbit trays: dot mode and header
-- **Observation:** HOV-05 opens the identity mark's tray, but in dot mode there is no identity mark, so a click on a shared ring opens no tray; it only closes any tray that is open. The identity mark's tray uses the "N OBJECTS" header meant for any other marker, rather than naming the orbit.
-- **Affects:** HOV-05, MUL-08 · **Type:** spec gap
-- **Disposition:** open. Say what a shared ring's click opens in dot mode. A header such as "HIGH ORBIT · N THINGS" may read better.
-
 ### F-240 · The panel fill shows the map through the tray
 - **Observation:** The panel fill is 0.97 alpha, and blending happens in linear light, so bright labels and the belt under the tray show faintly through it (about 15% on a white label). The inset uses the same fill, but it seldom sits over the map.
 - **Affects:** MUL-08, INS-09 · **Type:** idea

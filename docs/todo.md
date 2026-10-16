@@ -39,6 +39,10 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 - [ ] **Name the shared orbit's mark in the planner click rule** · F-235 · MUL-12
   - MUL-12 now says what the build already does: with the planner open, a click on a shared orbit's identity mark picks the orbit's band and opens the tray. Add a test for it.
 
+- [ ] **Shared orbit click in dot mode, and the identity mark's tray header** · F-238 · HOV-05, MUL-08
+  - A click on a shared ring selects the parent and expands that orbit's row in the outline in both modes, and opens the identity mark's tray only in exposure-ring mode; in dot mode it opens no tray. The identity mark's tray header reads "HIGH ORBIT · N THINGS", with the orbit's name.
+  - Tests: dot mode, a click on a shared ring opens no tray and closes an open one; ring mode, a click on the mark opens it with the orbit's header.
+
 ## Fixes
 
 - [ ] **Orbit membership follows the ship** · F-242, F-201 · RAIL-09, SCL-07, HOV-04, INS-05, MRK-09, HOV-02
