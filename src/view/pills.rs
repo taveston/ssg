@@ -19,7 +19,7 @@ use super::markers::{
     MarkerShape, MarkersPlaced, box_half, drawn_half, marker_half_size, marker_shape,
 };
 use super::screen::ScreenPositions;
-use super::symbol_draw::{Tint, TintSlot};
+use super::symbols::draw::{Tint, TintSlot};
 use super::targets::GroupPillFor;
 use super::true_size::DiscRadii;
 use super::tunables::Tunables;

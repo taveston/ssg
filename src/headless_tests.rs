@@ -61,7 +61,7 @@ use crate::view::scale::{km_to_render, km_to_render_vec3};
 use crate::view::screen::{ScreenPlugin, ScreenPositions};
 use crate::view::selection::Selection;
 use crate::view::shared_orbit::SharedOrbitPlugin;
-use crate::view::symbol_draw::Tint;
+use crate::view::symbols::draw::Tint;
 use crate::view::targets::{GroupPillFor, Hovered, MarkerFor};
 use crate::view::topbar::TOP_BAR_HEIGHT_PX;
 use crate::view::true_size::{TrueSizePlugin, projected_radius_px};
@@ -2387,7 +2387,7 @@ fn descendants(app: &mut App, root: Entity) -> Vec<Entity> {
 fn an_exposure_ring_carries_an_identity_mark() {
     use crate::view::pills::PillCountText;
     use crate::view::rings::marks::{IdentityPill, RingMarkFor, RingMarksPlugin};
-    use crate::view::symbol_shape::SymbolPart;
+    use crate::view::symbols::shape::SymbolPart;
     use crate::view::targets::OrbitFor;
 
     let mut app = camera_app_with(|app| {
@@ -3249,7 +3249,7 @@ fn labels_keep_clear_of_each_other_and_of_markers() {
         // symbol's amplifiers.
         let reach = app
             .world()
-            .get::<crate::view::symbol_draw::AmplifierReach>(marker);
+            .get::<crate::view::symbols::draw::AmplifierReach>(marker);
         let margin = app.world().resource::<Tunables>().bracket_margin_px;
         Some(crate::view::labels::marker_box(square, reach, margin).0)
     };
@@ -4389,7 +4389,7 @@ fn hovering_a_shared_orbit_brackets_its_identity_pill() {
 /// none.
 #[test]
 fn own_ships_carry_a_condition_bar_filled_to_their_condition() {
-    use crate::view::symbol_draw::ConditionFill;
+    use crate::view::symbols::draw::ConditionFill;
     let mut app = camera_app_with(|app| {
         app.insert_resource(placeholder_fonts()).add_plugins((
             EdgePlugin,
@@ -4487,7 +4487,7 @@ fn a_task_force_is_one_symbol_with_its_count_and_bracket() {
     use crate::sim::group::ShipGroup;
     use crate::sim::track::ShipClass;
     use crate::view::markers::SecondLineFor;
-    use crate::view::symbol_draw::{GroupCount, TaskForceBracket};
+    use crate::view::symbols::draw::{GroupCount, TaskForceBracket};
 
     let mut app = symbols_app_with(|_| {});
     let tf1 = body(&mut app, "TF-1");
@@ -4527,7 +4527,7 @@ fn a_task_force_is_one_symbol_with_its_count_and_bracket() {
 #[test]
 fn the_task_force_bar_warns_and_the_other_own_bars_do_not() {
     use crate::view::colors;
-    use crate::view::symbol_draw::ConditionFill;
+    use crate::view::symbols::draw::ConditionFill;
 
     let mut app = symbols_app_with(|_| {});
     let tf1 = body(&mut app, "TF-1");
@@ -4602,7 +4602,7 @@ fn add_a_second_group_beside_tf1(mut waiting: ResMut<SystemDataResource>) {
 /// own count, never merged into one.
 #[test]
 fn two_groups_in_one_place_stay_two_symbols() {
-    use crate::view::symbol_draw::GroupCount;
+    use crate::view::symbols::draw::GroupCount;
 
     let mut app = symbols_app_with(|app| {
         app.add_systems(
@@ -4668,7 +4668,7 @@ fn a_folded_group_counts_once_in_the_pill() {
 fn a_group_label_keeps_clear_of_its_amplifiers() {
     use crate::view::labels::{LabelState, label_rect};
     use crate::view::markers::MarkerLabel;
-    use crate::view::symbol_draw::AmplifierReach;
+    use crate::view::symbols::draw::AmplifierReach;
 
     let mut app = symbols_app_with(|_| {});
     let halden = body(&mut app, "Halden IV");
@@ -4760,7 +4760,7 @@ fn label_place(app: &mut App, body: Entity) -> (Vec2, crate::view::labels::Place
 #[test]
 fn labels_do_not_move_when_their_object_is_hovered_or_selected() {
     use crate::view::labels::{label_rect, marker_box};
-    use crate::view::symbol_draw::AmplifierReach;
+    use crate::view::symbols::draw::AmplifierReach;
 
     let mut app = symbols_app_with(|_| {});
     let halden = body(&mut app, "Halden IV");
@@ -4809,7 +4809,7 @@ fn labels_do_not_move_when_their_object_is_hovered_or_selected() {
 #[test]
 fn group_amplifiers_sit_just_outside_the_symbols_box() {
     use crate::view::colors;
-    use crate::view::symbol_draw::{
+    use crate::view::symbols::draw::{
         ConditionFill, GroupCount, TaskForceBracket, condition_track_color,
     };
 

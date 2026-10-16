@@ -2,7 +2,7 @@
 //! SYM-17), and the north dial's head (MRK-17). Each part is a UI node
 //! carrying a `SymbolPart`: which shape it is, its colour and the size it
 //! is drawn at. A UI material evaluates the
-//! shape per screen pixel in `symbol_shape.wesl`, so outlines are exactly
+//! shape per screen pixel in `shape.wesl`, so outlines are exactly
 //! `symbol_stroke_px` wide and as sharp as the orbit rings at any size or
 //! UI scale; nothing is a bitmap scaled to fit.
 //!
@@ -14,8 +14,8 @@ use bevy::prelude::*;
 use bevy::render::render_resource::{AsBindGroup, ShaderType};
 use bevy::shader::ShaderRef;
 
-use super::symbols::FrameShape;
-use super::tunables::Tunables;
+use super::FrameShape;
+use crate::view::tunables::Tunables;
 
 /// One part a symbol is built from.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
@@ -50,7 +50,7 @@ pub struct SymbolPart {
 }
 
 /// The values the shader reads; field order matches `SymbolShape` in
-/// `symbol_shape.wesl`.
+/// `shape.wesl`.
 #[derive(ShaderType, Clone, Copy, PartialEq, Debug)]
 pub struct ShapeUniform {
     pub color: Vec4,
@@ -62,6 +62,14 @@ pub struct ShapeUniform {
     pub size_px: f32,
 }
 
+/// How much of a square frame's half-size its outline takes. The shader
+/// keeps its own copy (`SQUARE_SCALE` in `shape.wesl`); the two must match.
+pub const SQUARE_SCALE: f32 = 0.85;
+/// A quatrefoil lobe's radius as a fraction of the frame's half-size. The
+/// shader keeps its own copy (`QUATREFOIL_LOBE` in `shape.wesl`); the two
+/// must match.
+pub const QUATREFOIL_LOBE: f32 = 0.6;
+
 /// The material that draws one symbol part.
 #[derive(AsBindGroup, Asset, TypePath, Clone, Debug)]
 pub struct SymbolShapeMaterial {
@@ -71,7 +79,7 @@ pub struct SymbolShapeMaterial {
 
 impl UiMaterial for SymbolShapeMaterial {
     fn fragment_shader() -> ShaderRef {
-        "embedded://orphan_worlds/view/symbol_shape.wesl".into()
+        "embedded://orphan_worlds/view/symbols/shape.wesl".into()
     }
 }
 
@@ -111,7 +119,7 @@ pub struct SymbolShapePlugin;
 
 impl Plugin for SymbolShapePlugin {
     fn build(&self, app: &mut App) {
-        embedded_asset!(app, "symbol_shape.wesl");
+        embedded_asset!(app, "shape.wesl");
         app.add_plugins(UiMaterialPlugin::<SymbolShapeMaterial>::default())
             .add_systems(PostUpdate, sync_materials);
     }

@@ -11,26 +11,21 @@
 
 use bevy::prelude::*;
 
-use super::markers::{MarkerShape, MarkersPlaced, symbol_settings};
-use super::scale::km_to_render_vec3;
-use super::screen::screen_angle;
-use super::symbol_draw::{Tint, TintSlot};
-use super::symbols::{FrameShape, symbol_look};
-use super::targets::MarkerFor;
-use super::tunables::Tunables;
-use super::world::ViewNow;
+use super::draw::{Tint, TintSlot};
+use super::shape::{QUATREFOIL_LOBE, SQUARE_SCALE};
+use super::{FrameShape, symbol_look};
 use crate::Stage;
 use crate::sim::body::Affiliation;
 use crate::sim::rail::km_per_day_to_km_per_s;
 use crate::sim::track::{ShipRecord, Track};
 use crate::sim::velocity::FlightVelocities;
+use crate::view::markers::{MarkerShape, MarkersPlaced, symbol_settings};
+use crate::view::scale::km_to_render_vec3;
+use crate::view::screen::screen_angle;
+use crate::view::targets::MarkerFor;
+use crate::view::tunables::Tunables;
+use crate::view::world::ViewNow;
 
-/// How much of a square frame's half-size its outline takes, as drawn by
-/// `symbol_shape.wesl` (`SQUARE_SCALE` there).
-const SQUARE_SCALE: f32 = 0.85;
-/// A quatrefoil lobe's radius as a fraction of the frame's half-size, as
-/// drawn by `symbol_shape.wesl` (`QUATREFOIL_LOBE` there).
-const QUATREFOIL_LOBE: f32 = 0.6;
 /// Below this many pixels of screen movement per step the motion is
 /// along the line of sight, with no direction on screen to point in.
 const MIN_SCREEN_STEP_PX: f32 = 1e-3;
@@ -84,7 +79,7 @@ pub fn leader_length_px(speed_kms: f32, tunables: &Tunables) -> Option<f32> {
 
 /// SYM-11: how far from a symbol's centre its frame's outer edge lies
 /// along the screen direction `dir`, for a frame `size` pixels across
-/// with an outline `stroke` wide, matching the shapes `symbol_shape.wesl`
+/// with an outline `stroke` wide, matching the shapes `shape.wesl`
 /// draws.
 pub fn frame_edge_px(frame: FrameShape, size: f32, stroke: f32, dir: Vec2) -> f32 {
     let d = dir.normalize_or(Vec2::Y);

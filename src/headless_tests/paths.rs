@@ -477,7 +477,7 @@ fn an_intercept_draws_its_coast_up_to_its_event() {
 /// The leader holder of `body`'s symbol: whether it shows, its clockwise
 /// angle from screen up, and its bar's top and height in pixels.
 fn leader_of(app: &mut App, body: Entity) -> (bool, f32, f32, f32) {
-    use crate::view::leaders::{Leader, LeaderBar};
+    use crate::view::symbols::leaders::{Leader, LeaderBar};
     let mut holders = app
         .world_mut()
         .query::<(&Leader, &Node, &UiTransform, &Children)>();
@@ -509,8 +509,8 @@ fn a_ship_in_flight_has_a_velocity_leader_the_way_it_moves() {
     use crate::sim::rail::km_per_day_to_km_per_s;
     use crate::sim::track::Track;
     use crate::sim::velocity::FlightVelocities;
-    use crate::view::leaders::{LeadersPlugin, leader_length_px};
     use crate::view::screen::screen_angle;
+    use crate::view::symbols::leaders::{LeadersPlugin, leader_length_px};
 
     let mut app = symbols_app_with(|app| {
         app.add_plugins((PlannerPlugin, PathsPlugin, LeadersPlugin))

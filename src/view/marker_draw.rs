@@ -16,7 +16,7 @@ use super::markers::{
     body_fill, marker_half_size, marker_shape, symbol_settings,
 };
 use super::ship_groups::GroupFaces;
-use super::symbol_draw::{
+use super::symbols::draw::{
     AmplifierStyle, Tint, TintSlot, amplifier_gap, amplifier_reach, spawn_symbol_parts,
 };
 use super::symbols::{GroupFace, label_second_line, symbol_look, with_group};

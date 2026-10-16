@@ -36,7 +36,7 @@ use super::paths::marks::PathLabel;
 use super::rings::marks::{PeriodLine, RingLabelBox, RingMarkFor};
 use super::selection::Selection;
 use super::shared_orbit::OrbitMembers;
-use super::symbol_draw::AmplifierReach;
+use super::symbols::draw::AmplifierReach;
 use super::symbols::own_flag_civilian;
 use super::targets::{GroupPillFor, MarkerFor, OrbitFor};
 use super::tunables::Tunables;

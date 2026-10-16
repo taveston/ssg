@@ -8,7 +8,7 @@
 //! (MRK-07, MRK-11). They are drawn nearer over farther (MRK-12); a
 //! salvage site is an X and a gate on
 //! screen a hollow circle; ships and stations are symbols (section 3a of
-//! the spec, built in `symbols.rs` and `symbol_draw.rs`). What's drawn is
+//! the spec, built in `symbols/mod.rs` and `symbols/draw.rs`). What's drawn is
 //! decided elsewhere - `fold.rs` says whether a satellite is folded into
 //! its parent (GRP-01, GRP-03), `motion_mode.rs` how far its dot has faded
 //! into the exposure ring (MOT-11), and `edge.rs` whether a gate is pinned
@@ -35,8 +35,8 @@ use super::marker_draw::spawn_markers;
 use super::motion_mode::MotionModeState;
 use super::screen::ScreenPositions;
 use super::ship_groups::GroupFaces;
-use super::symbol_draw::{Tint, TintSlot};
-use super::symbol_shape::SymbolPart;
+use super::symbols::draw::{Tint, TintSlot};
+use super::symbols::shape::SymbolPart;
 use super::symbols::{SymbolSettings, label_second_line, with_countdown};
 use super::targets::MarkerFor;
 use super::true_size::{DiscRadii, disc_half_px};
@@ -547,7 +547,7 @@ mod tests {
         let image = world
             .spawn((
                 SymbolPart {
-                    mask: crate::view::symbol_shape::SymbolMask::Triangle,
+                    mask: crate::view::symbols::shape::SymbolMask::Triangle,
                     color,
                     size_px: 22.0,
                 },

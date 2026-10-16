@@ -8,12 +8,16 @@
 //! amplifiers round the frame its state.
 //!
 //! Plain functions on plain values, so every rule is tested apart from
-//! drawing; `symbol_draw.rs` turns a `SymbolLook` into nodes.
+//! drawing; `symbols/draw.rs` turns a `SymbolLook` into nodes.
 
 use bevy::prelude::*;
 
 use super::colors;
 use crate::sim::track::{Affiliation, Echelon, ShipClass, ShipRecord, Track, TroopLoad};
+
+pub mod draw;
+pub mod leaders;
+pub mod shape;
 
 /// SYM-02: the frame's shape, by affiliation.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]

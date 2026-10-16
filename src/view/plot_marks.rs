@@ -16,7 +16,7 @@ use super::layers;
 use super::readout::format_distance;
 use super::scale::{km_to_render, render_to_km};
 use super::screen::{MapArea, MapView, screen_angle};
-use super::symbol_shape::{SymbolMask, SymbolPart};
+use super::symbols::shape::{SymbolMask, SymbolPart};
 use super::targets::MapInputBlocker;
 use super::tunables::Tunables;
 use super::world::ViewNow;

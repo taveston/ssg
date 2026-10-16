@@ -1,6 +1,6 @@
-//! Turns a `SymbolLook` (`symbols.rs`) into UI nodes (SYM-02 to SYM-09,
+//! Turns a `SymbolLook` (`symbols/mod.rs`) into UI nodes (SYM-02 to SYM-09,
 //! SYM-12): a square node `size` pixels across, holding the fill, frame
-//! and icon as vector parts (`symbol_shape.rs`), the "?" for an unknown
+//! and icon as vector parts (`symbols/shape.rs`), the "?" for an unknown
 //! class, the echelon above the frame, a station's installation bar on
 //! top, the condition bar below, and a group's count at the upper right
 //! and task-force bracket above.
@@ -13,10 +13,10 @@
 use bevy::color::Mix;
 use bevy::prelude::*;
 
-use super::colors;
-use super::fonts::Fonts;
-use super::symbol_shape::{SymbolMask, SymbolPart};
-use super::symbols::{ConditionBar, Icon, SymbolLook};
+use super::shape::{SymbolMask, SymbolPart};
+use super::{ConditionBar, Icon, SymbolLook};
+use crate::view::colors;
+use crate::view::fonts::Fonts;
 
 /// A part's full-strength colour and the one slot it is drawn with. A UI
 /// node has a background colour (and often a border colour) whether it
@@ -476,9 +476,9 @@ mod tests {
     /// bracket above it, so the brackets round a symbol never cover them.
     #[test]
     fn the_amplifiers_clear_the_bracket_box() {
-        use super::super::brackets::BracketBox;
-        use super::super::symbols::FrameShape;
-        use super::super::tunables::Tunables;
+        use super::super::FrameShape;
+        use crate::view::brackets::BracketBox;
+        use crate::view::tunables::Tunables;
         let tunables = Tunables::default();
         let half = tunables.ship_symbol_px / 2.0;
         let bbox = BracketBox::around_square(Vec2::ZERO, half, tunables.bracket_margin_px);
@@ -519,7 +519,7 @@ mod tests {
     /// nowhere.
     #[test]
     fn amplifiers_reach_beyond_the_square() {
-        use super::super::symbols::FrameShape;
+        use super::super::FrameShape;
         let bare = SymbolLook {
             frame: FrameShape::Circle,
             color: colors::OWN,
@@ -581,7 +581,7 @@ mod tests {
     /// civilian's is plain ground, and a larger mix is nearer the colour.
     #[test]
     fn symbol_insides_are_opaque_mixes_into_the_ground() {
-        use super::super::symbols::FrameShape;
+        use super::super::FrameShape;
         let look = |fill_mix: f32, alpha: f32| SymbolLook {
             frame: FrameShape::Circle,
             color: colors::OWN,

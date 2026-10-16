@@ -40,7 +40,6 @@ pub mod inset_content;
 pub mod inspect;
 pub mod labels;
 pub mod layers;
-pub mod leaders;
 pub mod marker_draw;
 pub mod marker_picking;
 pub mod markers;
@@ -64,8 +63,6 @@ pub mod selection;
 pub mod shared_orbit;
 pub mod ship_groups;
 pub mod sidebar;
-pub mod symbol_draw;
-pub mod symbol_shape;
 pub mod symbols;
 pub mod targets;
 pub mod topbar;
@@ -112,7 +109,7 @@ impl Plugin for ViewPlugin {
                 rings::picking::RingPickingPlugin,
                 screen::ScreenPlugin,
                 edge::EdgePlugin,
-                symbol_shape::SymbolShapePlugin,
+                symbols::shape::SymbolShapePlugin,
                 markers::MarkersPlugin,
                 pills::PillsPlugin,
                 hover::HoverPlugin,
@@ -129,7 +126,7 @@ impl Plugin for ViewPlugin {
                 planner::PlannerPlugin,
                 paths::PathsPlugin,
                 paths::ghost::GhostMaterialPlugin,
-                leaders::LeadersPlugin,
+                symbols::leaders::LeadersPlugin,
                 frame_cue::FrameCuePlugin,
                 frame_cue::stroke::CueStrokeMaterialPlugin,
             ));
