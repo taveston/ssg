@@ -183,8 +183,10 @@ enum Craft {
     /// A station: no drive.
     Station,
     /// A commanded, unarmed cargo ship with an impulsive drive of this
-    /// exhaust velocity (km/s), loaded acceleration (g) and delta-v (km/s).
+    /// display name, exhaust velocity (km/s), loaded acceleration (g) and
+    /// delta-v (km/s).
     Ship {
+        drive_name: &'static str,
         exhaust_velocity_kms: f64,
         accel_g: f64,
         delta_v_kms: f64,
@@ -216,6 +218,7 @@ const CRAFT: [CraftFigures; 4] = [
         name: "Marlin",
         // SOL-15: hydrogen nuclear thermal, sized to reach Ceres.
         craft: Craft::Ship {
+            drive_name: "hydrogen NTR",
             exhaust_velocity_kms: 9.0,
             accel_g: 0.1,
             delta_v_kms: 15.0,
@@ -228,6 +231,7 @@ const CRAFT: [CraftFigures; 4] = [
         name: "Vestige",
         // SOL-16: a relic continuous fusion torch.
         craft: Craft::Ship {
+            drive_name: "fusion torch",
             exhaust_velocity_kms: 500.0,
             accel_g: 0.02,
             delta_v_kms: 500.0,
@@ -256,6 +260,7 @@ fn craft(figures: &CraftFigures) -> BodyBlueprint {
             vec![("Status", "Active"), ("Owner", "Own")],
         ),
         Craft::Ship {
+            drive_name,
             exhaust_velocity_kms,
             accel_g,
             delta_v_kms,
@@ -264,6 +269,7 @@ fn craft(figures: &CraftFigures) -> BodyBlueprint {
             ShipRecord::new(ShipClass::Cargo, true),
             Some(Propulsion {
                 drive: Drive::new(
+                    drive_name,
                     true,
                     exhaust_velocity_kms,
                     accel_g * STANDARD_GRAVITY_M_PER_S2,

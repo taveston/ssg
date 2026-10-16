@@ -167,4 +167,8 @@ pub struct SolvedLeg {
     pub trim_days: Option<f64>,
     /// PLAN-11: the parked target ship the leg was solved against.
     pub target_lock: Option<TargetLock>,
+    /// PHAS-06: the whole laps of its phasing orbit a phasing leg flies,
+    /// which the planner's Travel time readout shows (PLNR-40); `None`
+    /// for a crossing.
+    pub phasing_laps: Option<u32>,
 }

@@ -166,8 +166,13 @@ pub fn layout() -> Layout {
         station,
         far_station,
         gate,
-        ntr: Drive::new(true, 9.0, 0.2 * STANDARD_GRAVITY_M_PER_S2),
-        nep: Drive::new(false, 35.0, 0.048e-3 * STANDARD_GRAVITY_M_PER_S2),
+        ntr: Drive::new("hydrogen NTR", true, 9.0, 0.2 * STANDARD_GRAVITY_M_PER_S2),
+        nep: Drive::new(
+            "NEP ion/Hall",
+            false,
+            35.0,
+            0.048e-3 * STANDARD_GRAVITY_M_PER_S2,
+        ),
     }
 }
 

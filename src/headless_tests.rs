@@ -4406,3 +4406,76 @@ fn a_group_label_keeps_clear_of_its_amplifiers() {
         placement.slot
     );
 }
+
+// --- Transfer planner rules (docs/spec/planner.md, section 7) ---
+
+/// The planner's search for `ship` and `request`, as the simulation
+/// stands.
+fn search(
+    app: &mut App,
+    ship: Entity,
+    request: crate::sim::transfer::search::Request,
+) -> (
+    crate::sim::transfer::search::SearchContext,
+    Result<crate::sim::transfer::search::Search, Infeasible>,
+) {
+    use bevy::ecs::system::RunSystemOnce;
+    let context = app
+        .world_mut()
+        .run_system_once(move |planner: Planner| planner.search_context(ship))
+        .unwrap()
+        .expect("the ship can be planned for");
+    let found = context.search(request);
+    (context, found)
+}
+
+/// TEST-30 / PLNR-80 to PLNR-86: the planner's tests plan with Orison and
+/// RFA Tolland from Halden IV's High band. Orison's drive is the hydrogen
+/// NTR, impulsive, so an Intercept of Iver has a Depart range set by the
+/// two planets' periods and a Travel range round the least-fuel time,
+/// and all three presets; Fastest is within its 9.9 km/s. Tolland's NEP
+/// ion/Hall drive is low-thrust: 180 days of Depart range, one travel
+/// time, and no Next window.
+#[test]
+fn the_planners_test_ships_search_from_haldens_high_band() {
+    use crate::sim::transfer::ranges::Slider;
+    use crate::sim::transfer::search::Request;
+
+    let mut app = sim_app();
+    let iver = body(&mut app, "Iver");
+    let orison = body(&mut app, "Orison");
+    let tolland = body(&mut app, "RFA Tolland");
+    let request = Request {
+        destination: Place::Body {
+            body: iver,
+            band: Band::High,
+        },
+        arrival: Arrival::Rendezvous,
+    };
+
+    let intercept = Request {
+        arrival: Arrival::Intercept { band: Band::High },
+        ..request
+    };
+    let (context, found) = search(&mut app, orison, intercept);
+    assert_eq!(context.drive.name, "hydrogen NTR");
+    assert_eq!(context.available_kms, 9.9);
+    let found = found.unwrap();
+    assert!(found.sliders.windows);
+    assert!(matches!(found.sliders.travel, Slider::Range { .. }));
+    let fastest = found.presets.fastest.expect("Iver is within reach");
+    assert!(context.solve(intercept, fastest).unwrap().delta_v_kms <= 9.9);
+    assert!(found.presets.cheapest.is_some());
+    assert!(found.presets.next_window.is_some());
+
+    let (context, found) = search(&mut app, tolland, request);
+    assert_eq!(context.drive.name, "NEP ion/Hall");
+    let found = found.unwrap();
+    assert!(!found.sliders.windows);
+    let Slider::Range { start, end } = found.sliders.depart else {
+        panic!("a Depart range");
+    };
+    assert!((end - start - 180.0).abs() < 1e-9);
+    assert!(matches!(found.sliders.travel, Slider::Fixed(_)));
+    assert_eq!(found.presets.next_window, None);
+}

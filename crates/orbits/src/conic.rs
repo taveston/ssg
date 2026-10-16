@@ -259,6 +259,94 @@ impl Conic {
         shape.true_anomaly_at_mean(mean)
     }
 
+    /// The true anomaly, from 0 to π, at which the path is `radius_km`
+    /// from the primary. The body is that far out twice per loop: at this
+    /// angle past periapsis on the way out, and at minus it on the way
+    /// in. `None` if the path never comes to that distance (closer than
+    /// periapsis, farther than an ellipse's apoapsis), or for a circle,
+    /// which has no periapsis to measure from.
+    ///
+    /// ```
+    /// use orbits::{Conic, Sense};
+    ///
+    /// // An ellipse from 1,000 km to 3,000 km out.
+    /// let conic = Conic {
+    ///     mu: 1e12,
+    ///     semi_latus_rectum_km: 1_500.0,
+    ///     eccentricity: 0.5,
+    ///     periapsis_angle_rad: 0.0,
+    ///     periapsis_day: 0.0,
+    ///     sense: Sense::Prograde,
+    /// };
+    /// // 1,500 km out is a quarter turn past periapsis.
+    /// let nu = conic.true_anomaly_at_radius(1_500.0).unwrap();
+    /// assert!((nu - std::f64::consts::FRAC_PI_2).abs() < 1e-12);
+    /// assert!(conic.true_anomaly_at_radius(500.0).is_none());
+    /// assert!(conic.true_anomaly_at_radius(4_000.0).is_none());
+    /// ```
+    pub fn true_anomaly_at_radius(&self, radius_km: f64) -> Option<f64> {
+        let e = self.eccentricity;
+        if !(e > 0.0 && radius_km > 0.0) {
+            return None;
+        }
+        // r = p / (1 + e cos ν), solved for cos ν.
+        let cos_nu = (self.semi_latus_rectum_km / radius_km - 1.0) / e;
+        (-1.0..=1.0).contains(&cos_nu).then(|| cos_nu.acos())
+    }
+
+    /// The first day after `after_day` on which the body is at true
+    /// anomaly `nu` (radians, in the sense of motion from periapsis). On
+    /// an ellipse that comes round once a period, so there is always one;
+    /// a hyperbola passes each angle at most once, so `None` if it already
+    /// has, or if the angle lies beyond the hyperbola's arms.
+    ///
+    /// ```
+    /// use orbits::{Conic, Sense};
+    ///
+    /// let ellipse = Conic {
+    ///     mu: 1e12,
+    ///     semi_latus_rectum_km: 1_500.0,
+    ///     eccentricity: 0.5,
+    ///     periapsis_angle_rad: 0.0,
+    ///     periapsis_day: 2.0,
+    ///     sense: Sense::Prograde,
+    /// };
+    /// let period = ellipse.period_days().unwrap();
+    /// // At periapsis on day 2, and again one period later.
+    /// assert!((ellipse.next_day_at_true_anomaly(0.0, 1.9).unwrap() - 2.0).abs() < 1e-9);
+    /// let again = ellipse.next_day_at_true_anomaly(0.0, 2.1).unwrap();
+    /// assert!((again - (2.0 + period)).abs() < 1e-9);
+    ///
+    /// let hyperbola = Conic { eccentricity: 1.5, ..ellipse };
+    /// assert!(hyperbola.next_day_at_true_anomaly(0.0, 1.0).is_some());
+    /// assert!(hyperbola.next_day_at_true_anomaly(0.0, 2.5).is_none());
+    /// ```
+    pub fn next_day_at_true_anomaly(&self, nu: f64, after_day: f64) -> Option<f64> {
+        let shape = self.shape();
+        let nu = wrap_to_pi(nu);
+        if !self.is_bound() {
+            // A hyperbola's arms run out to ±arccos(−1/e).
+            if nu.abs() >= (-1.0 / self.eccentricity).acos() {
+                return None;
+            }
+            let day = self.periapsis_day + shape.mean_anomaly_at_true(nu) / shape.mean_motion;
+            return (day > after_day).then_some(day);
+        }
+        let period = TAU / shape.mean_motion;
+        let first = self.periapsis_day + shape.mean_anomaly_at_true(nu) / shape.mean_motion;
+        let laps = ((after_day - first) / period).floor() + 1.0;
+        let day = first + laps * period;
+        // Rounding can land a whole period late or leave the day at
+        // `after_day`; step back or on one period to the first after it.
+        if day - period > after_day {
+            Some(day - period)
+        } else if day > after_day {
+            Some(day)
+        } else {
+            Some(day + period)
+        }
+    }
+
     fn shape(&self) -> Shape {
         Shape::new(self.mu, self.semi_latus_rectum_km, self.eccentricity)
     }
@@ -517,6 +605,43 @@ mod tests {
             Conic::from_state(sun_mu(), state(0.0, 60.0, 0.0, Sense::Prograde), 7.0, 1e-6).unwrap();
         assert!(hyperbola.passes_periapsis_between(6.0, 8.0));
         assert!(!hyperbola.passes_periapsis_between(8.0, 1e6));
+    }
+
+    /// The days a conic reaches a distance are the days it really is that
+    /// far out, going out at +ν and coming in at −ν, each the first after
+    /// the day asked from.
+    #[test]
+    fn the_day_at_a_distance_is_where_the_path_is_that_far_out() {
+        let ellipse =
+            Conic::from_state(sun_mu(), state(0.4, 25.0, 0.3, Sense::Prograde), 5.0, 1e-6).unwrap();
+        let hyperbola = Conic::from_state(
+            sun_mu(),
+            state(0.4, 50.0, 0.3, Sense::Retrograde),
+            5.0,
+            1e-6,
+        )
+        .unwrap();
+        for conic in [ellipse, hyperbola] {
+            let r = 1.2 * conic.periapsis_radius_km();
+            let nu = conic.true_anomaly_at_radius(r).unwrap();
+            for sign in [1.0, -1.0] {
+                let Some(day) = conic.next_day_at_true_anomaly(sign * nu, 5.0) else {
+                    assert!(!conic.is_bound(), "an ellipse always comes round");
+                    continue;
+                };
+                assert!(day > 5.0);
+                let there = conic.state_at(day).radius();
+                assert!((there - r).abs() < 1e-3 * r, "{there} vs {r}");
+                let heading_out = conic
+                    .state_at(day)
+                    .position
+                    .dot(conic.state_at(day).velocity);
+                assert_eq!(heading_out > 0.0, sign > 0.0);
+            }
+        }
+        let later = ellipse.next_day_at_true_anomaly(0.3, 400.0).unwrap();
+        let period = ellipse.period_days().unwrap();
+        assert!(later > 400.0 && later <= 400.0 + period);
     }
 
     /// A degenerate state (at the primary, radial, or non-finite) gives no

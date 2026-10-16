@@ -35,18 +35,24 @@ fn rocky_mass_kg(radius_km: f64) -> f64 {
     ROCK_DENSITY_KG_PER_M3 * 4.0 / 3.0 * std::f64::consts::PI * radius_m.powi(3)
 }
 
-/// TEST-20: the propulsion of the ships that can be ordered to move: the
-/// warship Orison's hydrogen NTR (9.0 km/s exhaust, 0.2 g, impulsive,
-/// 9.9 km/s of delta-v) and the tanker RFA Tolland's NEP ion/Hall drive
-/// (35 km/s, 0.048 milli-g, low-thrust, 24 km/s).
+/// TEST-20 / TEST-30: the propulsion of the ships that can be ordered to
+/// move, with each drive's display name: the warship Orison's "hydrogen
+/// NTR" (9.0 km/s exhaust, 0.2 g, impulsive, 9.9 km/s of delta-v) and the
+/// tanker RFA Tolland's "NEP ion/Hall" (35 km/s, 0.048 milli-g,
+/// low-thrust, 24 km/s).
 fn propulsion_for(name: &str) -> Option<Propulsion> {
     match name {
         "Orison" => Some(Propulsion {
-            drive: Drive::new(true, 9.0, 0.2 * STANDARD_GRAVITY_M_PER_S2),
+            drive: Drive::new("hydrogen NTR", true, 9.0, 0.2 * STANDARD_GRAVITY_M_PER_S2),
             delta_v_kms: 9.9,
         }),
         "RFA Tolland" => Some(Propulsion {
-            drive: Drive::new(false, 35.0, 0.048e-3 * STANDARD_GRAVITY_M_PER_S2),
+            drive: Drive::new(
+                "NEP ion/Hall",
+                false,
+                35.0,
+                0.048e-3 * STANDARD_GRAVITY_M_PER_S2,
+            ),
             delta_v_kms: 24.0,
         }),
         _ => None,
@@ -962,6 +968,16 @@ mod tests {
         assert!((tolland.drive.accel / g - 0.048e-3).abs() < 1e-12);
         assert_eq!(tolland.delta_v_kms, 24.0);
         assert!(child(&halden, "Ardent").propulsion.is_none());
+    }
+
+    /// TEST-30: the drives the planner shows carry their display names:
+    /// Orison's is "hydrogen NTR" and RFA Tolland's "NEP ion/Hall".
+    #[test]
+    fn the_drives_carry_their_display_names() {
+        let halden = planet("Halden IV");
+        let name = |ship| child(&halden, ship).propulsion.unwrap().drive.name;
+        assert_eq!(name("Orison"), "hydrogen NTR");
+        assert_eq!(name("RFA Tolland"), "NEP ion/Hall");
     }
 
     /// TEST-07, TEST-08: Morrow is Jupiter-sized and its moons keep the

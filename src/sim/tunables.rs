@@ -1,9 +1,10 @@
 //! Every number the transfer spec marks *tunable*, in one resource
 //! (ARCH-22), separate from the view's `Tunables`.
 //!
-//! The tunables table in `docs/spec/transfers.md` lists them with the spec
-//! IDs that use them. They live here, documented field by field, so a
-//! band altitude or a loss distance is changed in one place.
+//! The tunables tables in `docs/spec/transfers.md` and
+//! `docs/spec/planner.md` list them with the spec IDs that use them. They
+//! live here, documented field by field, so a band altitude or a loss
+//! distance is changed in one place.
 
 use bevy::prelude::*;
 
@@ -38,6 +39,34 @@ pub struct SimTunables {
     /// most this many times before it counts as unable to line up
     /// (PHAS-15).
     pub trim_max_iterations: u32,
+    /// The planner's Depart range runs this many days from today when no
+    /// pair of orbit periods sets it (PLNR-80).
+    pub depart_range_days: f64,
+    /// When two orbit periods set the Depart range, it runs this fraction
+    /// past one window-to-window time, so the next window is always on
+    /// the slider (PLNR-80).
+    pub depart_margin_fraction: f64,
+    /// The Travel range starts at this multiple of the least-fuel travel
+    /// time between the two orbits (PLNR-81).
+    pub travel_min_factor: f64,
+    /// And ends at this multiple of it (PLNR-81).
+    pub travel_max_factor: f64,
+    /// Depart days sampled across the Depart range, ends included, for the
+    /// planner's grid and its Depart track (PLNR-82).
+    pub track_depart_samples: usize,
+    /// Travel times sampled across the Travel range, ends included, for
+    /// the grid and the Travel time track (PLNR-82, PLNR-28).
+    pub track_travel_samples: usize,
+    /// Settings within this many km/s of the cheapest count as equally
+    /// cheap, and the earliest arrival among them wins (PLNR-84).
+    pub preset_tie_kms: f64,
+    /// A depart day whose cheapest trip is within this many km/s of the
+    /// cheapest of all is in a window (PLNR-85).
+    pub window_margin_kms: f64,
+    /// A planner slider has at most this many steps along its range; the
+    /// step is the smallest round duration that keeps within it (PLNR-23,
+    /// PLNR-86).
+    pub slider_max_steps: u32,
 }
 
 impl Default for SimTunables {
@@ -52,6 +81,15 @@ impl Default for SimTunables {
             together_km: 10.0,
             max_phasing_laps: 50,
             trim_max_iterations: 8,
+            depart_range_days: 180.0,
+            depart_margin_fraction: 0.1,
+            travel_min_factor: 0.3,
+            travel_max_factor: 2.0,
+            track_depart_samples: 60,
+            track_travel_samples: 36,
+            preset_tie_kms: 0.05,
+            window_margin_kms: 0.5,
+            slider_max_steps: 400,
         }
     }
 }

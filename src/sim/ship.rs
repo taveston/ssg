@@ -10,9 +10,13 @@ use super::units::accel_km_per_day2_from_m_per_s2;
 
 /// A ship's drive (PLAN-20): whether it burns in short impulses or pushes
 /// gently for the whole trip, its exhaust velocity, and its loaded
-/// acceleration in km/day², the unit the rails work in.
+/// acceleration in km/day², the unit the rails work in. It also carries
+/// the name the inset and the planner show for it, which content sets
+/// (PLNR-05, TEST-30).
 #[derive(Component, Debug, Clone, Copy, PartialEq)]
 pub struct Drive {
+    /// The drive's display name, as "hydrogen NTR" (PLNR-05).
+    pub name: &'static str,
     /// `true` for a drive planned as two burns (chemical, nuclear thermal,
     /// pulsed); `false` for a low-thrust drive planned as a spiral.
     pub impulsive: bool,
@@ -22,10 +26,17 @@ pub struct Drive {
 }
 
 impl Drive {
-    /// A drive from the catalogue's figures: the acceleration comes in as
-    /// m/s² and is converted once, here (PLAN-20).
-    pub fn new(impulsive: bool, exhaust_velocity_kms: f64, accel_m_per_s2: f64) -> Self {
+    /// A drive from the catalogue's figures, under its display name: the
+    /// acceleration comes in as m/s² and is converted once, here
+    /// (PLAN-20).
+    pub fn new(
+        name: &'static str,
+        impulsive: bool,
+        exhaust_velocity_kms: f64,
+        accel_m_per_s2: f64,
+    ) -> Self {
         Self {
+            name,
             impulsive,
             exhaust_velocity_kms,
             accel: accel_km_per_day2_from_m_per_s2(accel_m_per_s2),
@@ -116,7 +127,7 @@ mod tests {
     /// constructor: 1 m/s² is 7,464,960 km/day².
     #[test]
     fn drive_acceleration_is_converted_from_m_per_s2() {
-        let drive = Drive::new(true, 9.0, 1.0);
+        let drive = Drive::new("test drive", true, 9.0, 1.0);
         assert!((drive.accel - 7_464_960.0).abs() < 1e-6);
         assert!(drive.impulsive);
         assert_eq!(drive.exhaust_velocity_kms, 9.0);

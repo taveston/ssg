@@ -798,6 +798,7 @@ pub fn solve_leg(
         closest_approach_rad,
         trim_days,
         target_lock: target_lock(&setup.target),
+        phasing_laps: None,
     })
 }
 

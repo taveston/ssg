@@ -228,6 +228,7 @@ fn phasing_leg(
         closest_approach_rad: None,
         trim_days: None,
         target_lock: lock,
+        phasing_laps: Some(chosen.laps),
     })
 }
 
@@ -262,7 +263,9 @@ mod tests {
     /// for, the leg flies to the third meeting (4.86 days) for 0.29 km/s,
     /// one burn at each end, with no costs, approach days or waits. The
     /// rail is parked, then a conic round the planet, then parked at the
-    /// target's phase, where the target is.
+    /// target's phase, where the target is. The leg records the laps it
+    /// flies: three of the inner orbit, cheaper here than two of the
+    /// outer.
     #[test]
     fn a_phasing_leg_meets_a_ship_in_the_same_band() {
         let mut l = layout();
@@ -274,6 +277,7 @@ mod tests {
         within(leg.travel_days, 4.86, 0.03, "third meeting");
         within(leg.travel_days / high.period_days, 2.5, 1e-9, "k − g");
         within(leg.delta_v_kms, 0.29, 0.03, "delta-v");
+        assert_eq!(leg.phasing_laps, Some(3));
         assert_eq!(leg.burns.start_kms, leg.burns.end_kms);
         assert!((leg.burns.start_kms * 2.0 - leg.delta_v_kms).abs() < 1e-12);
         let burn_days = km_per_s_to_km_per_day(leg.burns.start_kms) / l.ntr.accel;

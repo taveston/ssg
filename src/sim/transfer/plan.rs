@@ -18,6 +18,7 @@ use super::order::{
 };
 use super::phase::{gap_rad, together};
 use super::places::{Place, is_escaping};
+use super::search::SearchContext;
 use super::tree::{ShipState, TreeQuery};
 use crate::sim::body::BodyClass;
 use crate::sim::clock::GameClock;
@@ -318,11 +319,13 @@ pub struct Planner<'w, 's> {
 }
 
 impl Planner<'_, '_> {
-    /// The leg `order` would give `ship` today, without scheduling it.
-    pub fn preview(&self, ship: Entity, order: &Order) -> Result<SolvedLeg, Infeasible> {
+    /// What a search for `ship` reads (PLNR-04): the system as it stands
+    /// today, where the ship sets out from, its drive and its available
+    /// delta-v, as plain values the planner's rules work on.
+    pub fn search_context(&self, ship: Entity) -> Result<SearchContext, Infeasible> {
         let (drive, account, _) = self.ships.get(ship).map_err(|_| Infeasible::NoDrive)?;
-        let day = self.clock.elapsed_days();
-        let tree = self.tree.snapshot(day);
+        let today = self.clock.elapsed_days();
+        let tree = self.tree.snapshot(today);
         let departure = match tree.ships.get(&ship).ok_or(Infeasible::UnknownPlace)? {
             ShipState::Parked { orbit, phase0_rad } => Departure::Parked {
                 orbit: *orbit,
@@ -334,13 +337,26 @@ impl Planner<'_, '_> {
             },
             ShipState::InFlight => return Err(Infeasible::ShipInFlight),
         };
+        Ok(SearchContext {
+            tree,
+            tunables: self.tunables.clone(),
+            departure,
+            drive: *drive,
+            available_kms: account.available_kms(),
+            today,
+        })
+    }
+
+    /// The leg `order` would give `ship` today, without scheduling it.
+    pub fn preview(&self, ship: Entity, order: &Order) -> Result<SolvedLeg, Infeasible> {
+        let context = self.search_context(ship)?;
         solve_leg(
-            &tree,
-            &self.tunables,
-            &departure,
+            &context.tree,
+            &context.tunables,
+            &context.departure,
             order,
-            drive,
-            account.available_kms(),
+            &context.drive,
+            context.available_kms,
         )
     }
 
