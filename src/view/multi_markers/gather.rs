@@ -419,7 +419,8 @@ fn cluster_markers(
                     None if unit.things.len() > 1 => MultiKey::Together(unit.lead),
                     _ => continue,
                 };
-                (key, unit.things.clone(), unit.pos, unit.visible)
+                let centre = snap_to_pixel(unit.pos, scale);
+                (key, unit.things.clone(), centre, unit.visible)
             }
             _ => {
                 let mean = members.iter().map(|u| u.pos).sum::<Vec2>() / members.len() as f32;
@@ -799,5 +800,76 @@ mod tests {
         assert!(!joined.contains_key(&e[0]));
         assert_eq!(joined.get(&e[3]), Some(&MultiKey::Together(e[2])));
         assert!(!joined.contains_key(&e[4]));
+    }
+
+    fn symbol(thing: Entity, station: bool) -> Symbol {
+        Symbol {
+            thing,
+            station,
+            pos: Some(Vec2::new(10.0, 10.0)),
+            alpha: 1.0,
+            folded: false,
+            in_flight: false,
+            settled: true,
+        }
+    }
+
+    /// MUL-05 / GRP-08: a ship in flight is never a symbol that joins
+    /// another, and a folded thing is in its parent's fold marker instead.
+    #[test]
+    fn ships_in_flight_and_folded_things_never_join() {
+        let e = entities(3);
+        let symbols = [
+            symbol(e[0], false),
+            Symbol {
+                in_flight: true,
+                ..symbol(e[1], false)
+            },
+            Symbol {
+                folded: true,
+                ..symbol(e[2], false)
+            },
+        ];
+        let units = units(&symbols, &[], |_| true);
+        assert_eq!(units.len(), 1);
+        assert_eq!(units[0].lead, e[0]);
+    }
+
+    /// MUL-03 / MUL-05: things together are one symbol on screen: led by
+    /// their station, which counts alone with the rest docked at it, or by
+    /// the first of them when there is no station. Off screen they still
+    /// hold together, just not drawn.
+    #[test]
+    fn things_together_are_one_unit_led_by_their_station() {
+        let e = entities(5);
+        let symbols = [
+            symbol(e[0], false),
+            symbol(e[1], true),
+            symbol(e[2], false),
+            symbol(e[3], false),
+            Symbol {
+                pos: None,
+                ..symbol(e[4], false)
+            },
+        ];
+        let sets = [vec![e[0], e[1], e[2]], vec![e[3], e[4]]];
+        let units = units(&symbols, &sets, |_| true);
+        assert_eq!(units.len(), 2);
+        assert_eq!(
+            (units[0].lead, &units[0].things, &units[0].docked),
+            (e[1], &vec![e[1]], &vec![e[0], e[2]])
+        );
+        assert_eq!(units[1].things, [e[3], e[4]]);
+        assert!(units[1].visible, "led by a thing on screen");
+        let drawn = set_drawn(&symbols, &[vec![e[4], e[3]]]);
+        assert!(!drawn, "led by a thing off screen");
+    }
+
+    /// Whether the unit of things together made of `sets` is drawn.
+    fn set_drawn(symbols: &[Symbol], sets: &[Vec<Entity>]) -> bool {
+        units(symbols, sets, |_| true)
+            .iter()
+            .find(|u| u.things.len() > 1)
+            .is_some_and(|u| u.visible)
     }
 }
