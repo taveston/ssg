@@ -2459,8 +2459,8 @@ fn click_node(app: &mut App, node: Entity, count: u8) {
 
 /// INS-05 / HOV-05 / ZOOM-16: the outline is the system from the star
 /// down. Selecting Halden IV opens the path to it and its satellites,
-/// inside out, with the parked ships under one "Halden IV · High · N" row
-/// that a ring click opens; the selected row is highlighted. A click on an
+/// inside out, with Arden Highport under a "Low orbit · 1" row and the
+/// parked ships under one "High orbit · N" row that a ring click opens; the selected row is highlighted. A click on an
 /// entry selects it at once, a double-click asks for a frame jump, and
 /// the toggle folds an entry's satellites away while the rest stays.
 #[test]
@@ -2486,6 +2486,7 @@ fn the_outline_shows_the_system_tree_and_opens_the_selections_path() {
     let orison = body(&mut app, "Orison");
     let morrow_ix = body(&mut app, "Morrow IX");
     let high = app.world().get::<InNamedOrbit>(orison).unwrap().0;
+    let low = app.world().get::<InNamedOrbit>(highport).unwrap().0;
     app.world_mut().spawn((OutlineRoot, Node::default()));
 
     run(&mut app, 2);
@@ -2501,9 +2502,10 @@ fn the_outline_shows_the_system_tree_and_opens_the_selections_path() {
         "inside out"
     );
     assert!(
-        at(&rows, highport) < at(&rows, iva),
-        "the highport is the innermost"
+        at(&rows, low) < at(&rows, iva),
+        "the Low orbit is the innermost"
     );
+    assert!(!rows.contains(&highport), "listed only inside its row");
     assert!(
         at(&rows, iva) < at(&rows, high),
         "IVa orbits inside the High band"
@@ -2528,13 +2530,20 @@ fn the_outline_shows_the_system_tree_and_opens_the_selections_path() {
         app.world().get::<BackgroundColor>(iver_row).unwrap().0,
         Color::NONE
     );
-    let high_row = row_of(&mut app, high);
-    let title = descendants(&mut app, high_row)
-        .into_iter()
-        .filter_map(|e| app.world().get::<Text>(e).map(|t| t.0.clone()))
-        .find(|t| t.starts_with("Halden IV"))
-        .unwrap();
-    assert!(title.starts_with("Halden IV · High · 1"), "{title}");
+    let title_of = |app: &mut App, orbit: Entity| {
+        let row = row_of(app, orbit);
+        descendants(app, row)
+            .into_iter()
+            .filter_map(|e| app.world().get::<Text>(e).map(|t| t.0.clone()))
+            .find(|t| t.contains(" orbit · "))
+            .unwrap()
+    };
+    assert_eq!(title_of(&mut app, low), "Low orbit · 1");
+    let members = {
+        let mut q = app.world_mut().query::<&InNamedOrbit>();
+        q.iter(app.world()).filter(|o| o.0 == high).count()
+    };
+    assert_eq!(title_of(&mut app, high), format!("High orbit · {members}"));
 
     app.world_mut()
         .resource_mut::<Selection>()

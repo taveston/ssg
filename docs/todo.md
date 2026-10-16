@@ -12,9 +12,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **Orbit rows in the outline** · INS-05
-  - Changes INS-05 (its ✓ is cleared). In `view/outline.rs`: drop the step in `children_of` that turns a one-member orbit back into a plain entry, so every named orbit with members gets its row. Name the row "High orbit · 14" (the orbit's name, "orbit", the member count) instead of "Halden IV · High · 14". An orbit with no members still gets no row.
-  - Tests: Halden IV's outline has "Low orbit · 1" (Arden Highport) and "High orbit" with its ships; a body with empty bands has no orbit rows; selecting a lone member opens its row.
 - [ ] **Ship groups** · SYM-09, SYM-10, GRP-09, TEST-06
   - Nothing forms groups in play yet (F-159), so only the test content (TEST-06) has them. TEST-06 now has the one task force; give the own ships of TEST-03 and TEST-05 conditions above `condition_warn_fraction`.
   - The symbols are built; groups add to them (`view/symbols.rs`, `symbol_draw.rs`).

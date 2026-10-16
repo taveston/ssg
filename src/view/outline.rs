@@ -2,8 +2,9 @@
 //! from the star down, in orbit order from the inside out, one indent per
 //! generation. Each entry shows its symbol (SYM-02, at `list_symbol_px`)
 //! or body marker (MRK-13) and its name; an entry with satellites has a
-//! toggle. The members of a shared orbit (HOV-04) sit under one orbit
-//! row, "Parent · Orbit · N", which expands and collapses like an entry.
+//! toggle. The members of each named orbit (HOV-04), however few, sit
+//! under one orbit row, "High orbit · N", which expands and collapses like
+//! an entry. A named orbit with no members has no row.
 //!
 //! When the selection changes, the path from the star to it and its own
 //! satellites are expanded; everything else keeps the state the player
@@ -79,7 +80,8 @@ pub enum Row {
     },
     Orbit {
         orbit: Entity,
-        /// "Parent · Orbit · N" (INS-05).
+        /// "High orbit · N": the orbit's name, "orbit", the member count
+        /// (INS-05).
         title: String,
         depth: usize,
         expanded: bool,
@@ -148,7 +150,8 @@ impl Child<'_> {
 }
 
 /// INS-05 / HOV-04: `parent`'s satellites inside out, with the members of
-/// a named orbit holding several of them under one orbit row.
+/// each named orbit under one orbit row, even a lone member. An orbit with
+/// no members has no node pointing at it, so it gets no row.
 fn children_of<'a>(nodes: &'a [OutlineNode], parent: Entity) -> Vec<Child<'a>> {
     let mut children: Vec<Child<'a>> = Vec::new();
     for node in nodes.iter().filter(|n| n.parent == Some(parent)) {
@@ -172,17 +175,14 @@ fn children_of<'a>(nodes: &'a [OutlineNode], parent: Entity) -> Vec<Child<'a>> {
             }),
         }
     }
-    let mut children: Vec<Child<'a>> = children
-        .into_iter()
-        .map(|child| match child {
-            Child::Orbit { mut members, .. } if members.len() == 1 => {
-                Child::Entry(members.remove(0))
-            }
-            child => child,
-        })
-        .collect();
     children.sort_by(|a, b| a.radius_km().total_cmp(&b.radius_km()));
     children
+}
+
+/// INS-05: an orbit row's title: the orbit's name, the word "orbit", then
+/// how many it holds, as "High orbit · 14".
+pub fn orbit_title(name: &str, members: usize) -> String {
+    format!("{name} orbit · {members}")
 }
 
 /// INS-05: the outline's rows from the star down. An expanded entry is
@@ -228,7 +228,7 @@ pub fn outline_rows(
                     let open = expanded.orbits.contains(&orbit);
                     rows.push(Row::Orbit {
                         orbit,
-                        title: format!("{} · {name} · {}", node.name, members.len()),
+                        title: orbit_title(&name, members.len()),
                         depth: depth + 1,
                         expanded: open,
                     });
@@ -515,7 +515,7 @@ fn spawn_entry(
         });
 }
 
-/// INS-05 / HOV-04: a shared orbit's row, "Parent · Orbit · N", with its
+/// INS-05 / HOV-04: a named orbit's row, "High orbit · N", with its
 /// toggle; clicking it expands or collapses the members under it.
 fn spawn_orbit_row(
     list: &mut ChildSpawnerCommands,
@@ -641,15 +641,23 @@ mod tests {
         }
     }
 
-    /// A star with two planets; the second has a station, two moons and
-    /// a shared orbit with two ships.
+    /// A star with two planets; the first has empty bands, the second a
+    /// station alone in its Low orbit, two moons and a High orbit with two
+    /// ships.
     fn system(world: &mut World) -> (Vec<OutlineNode>, Entity) {
         let star = node(world, "Vey", None, 0.0, None);
         let inner = node(world, "Pell", Some(star.body), 1.0e8, None);
         let outer = node(world, "Halden", Some(star.body), 3.0e8, None);
         let high = world.spawn_empty().id();
+        let low = world.spawn_empty().id();
         let moon_far = node(world, "IVd", Some(outer.body), 700_000.0, None);
-        let highport = node(world, "Highport", Some(outer.body), 9_000.0, None);
+        let highport = node(
+            world,
+            "Highport",
+            Some(outer.body),
+            9_000.0,
+            Some((low, "Low")),
+        );
         let moon_near = node(world, "IVa", Some(outer.body), 57_000.0, None);
         let ship_a = node(
             world,
@@ -685,7 +693,8 @@ mod tests {
 
     /// INS-05: with nothing expanded the outline is the star alone; the
     /// path to a selection and its satellites open, inside out and one
-    /// indent per generation, with the shared orbit as one row.
+    /// indent per generation, with each named orbit as one row, a lone
+    /// member's too, and none for a body whose bands are empty.
     #[test]
     fn the_outline_opens_the_path_to_the_selection() {
         let mut world = World::new();
@@ -712,8 +721,8 @@ mod tests {
                 ("Vey".to_string(), 0),
                 ("Pell".to_string(), 1),
                 ("Halden".to_string(), 1),
-                ("Highport".to_string(), 2),
-                ("Halden · High · 2".to_string(), 2),
+                ("Low orbit · 1".to_string(), 2),
+                ("High orbit · 2".to_string(), 2),
                 ("IVa".to_string(), 2),
                 ("IVd".to_string(), 2),
             ]
@@ -728,6 +737,14 @@ mod tests {
             }
         ));
         assert!(matches!(rows[4], Row::Orbit { orbit, expanded: false, .. } if orbit == high));
+
+        // Pell's bands are empty: it has no satellites and no orbit rows.
+        let pell = by_name("Pell");
+        reveal_selection(&mut expanded, &nodes, pell);
+        let rows = outline_rows(&nodes, &expanded, Some(pell));
+        let after_pell = &names(&rows, &nodes)[2..];
+        assert_eq!(after_pell[0], ("Halden".to_string(), 1));
+        toggle(&mut expanded.entries, pell);
 
         // Selecting a ship in the shared orbit opens that orbit too, and
         // Halden stays open as left.
@@ -753,6 +770,23 @@ mod tests {
             !listed.contains(&("Orison".to_string(), 3)),
             "the orbit stays closed"
         );
+    }
+
+    /// INS-05: selecting a lone member of a named orbit opens its row and
+    /// lists it there, never outside the row.
+    #[test]
+    fn selecting_a_lone_member_opens_its_row() {
+        let mut world = World::new();
+        let (nodes, _) = system(&mut world);
+        let highport = nodes.iter().find(|n| n.name == "Highport").unwrap().body;
+        let mut expanded = Expanded::default();
+        reveal_selection(&mut expanded, &nodes, highport);
+        let rows = outline_rows(&nodes, &expanded, Some(highport));
+        let listed = names(&rows, &nodes);
+        let at = listed.iter().position(|r| r.0 == "Low orbit · 1").unwrap();
+        assert_eq!(listed[at + 1], ("Highport".to_string(), 3));
+        assert_eq!(listed.iter().filter(|r| r.0 == "Highport").count(), 1);
+        assert!(matches!(rows[at], Row::Orbit { expanded: true, .. }));
     }
 
     /// INS-05: the panel scrolls up for a row above the view, down for one
