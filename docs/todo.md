@@ -12,18 +12,12 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **Transfer planner** · PLNR-60 to PLNR-69, SYM-13
-  - In place: the search rules (`sim/transfer/`), every planner string (`view/planner_words.rs`) and the panel (`view/planner/`): the Transfer button, choosing and picking, tuning, orders, Change and Cancel. What is left is section 6, "On the map", and the countdown in a ship's label.
-  - Draw from `PlannerState` (`view/planner_state.rs`): `session.leg` is the leg of the current setting (a `SolvedLeg` with its trajectory, `arrival_speed_kms` and `turn_rad`), `session.request` its destination and arrival mode, and `session.hover` the hovered place's Fastest leg while choosing (PLNR-12). A ship's order is its `Plan` component; `Leg` carries the same figures.
-  - SYM-13's group parts (the member count by class, and the label clear of the amplifiers) are built; only the countdown is left (`LegWords::countdown`). Drop the `expect(dead_code)` on it, `ghost_label`, `coast_label` and `sim/transfer/coast.rs` as they are wired.
-  - PLNR-68 draws ships in flight for the first time, so GRP-08 and MOT-08 now have real ships to test against.
-  - The path, ghost and consequence tunables of the planner's table (`path_width_px` to `ghost_dash_px`) are not in `Tunables` yet.
 - [ ] **Velocity leaders** · SYM-11
-  - Build after **Transfer planner**, which draws ships in flight (PLNR-68).
+  - Ships in flight are drawn now (PLNR-68, `view/paths/`); SYM-11 adds the leader PLNR-68 names. `OW_SHOT`'s `fly` key shows a ship in flight.
 - [ ] **Bracket and label spacing** · LBL-01, SYM-09, SYM-12, HOV-06, INS-06, MRK-08
   - Settles the bracket and label spacing findings. Most of it is already how the build behaves; the spec now says so. The ✓ on these is cleared until the code is checked against the new text.
   - What changes: a label's gap is measured from the box (HOV-07) for every marker, so labels no longer move on hover, and `label_gap_px` drops to 4. Bracket arms are capped by `bracket_arm_max_px`. New tunables: `amplifier_gap_px`, `condition_track_mix`.
-  - SYM-13's wording on the gap changed too; it lands with **Transfer planner**.
+  - SYM-13's wording on the gap changed too; it is built (`AmplifierReach::label_box`).
   - The playtest bug fixes are built (e3192a2). MRK-08 now measures a disc's hit area out to the edge of its rim (MRK-11); check `marker_picking.rs` against that and re-tick it.
 - [ ] **Label halo** · LBL-05
   - A 2 px ground-colour outline round every label's glyphs (`label_halo_px`), not a box. Mock-up 19, last board.

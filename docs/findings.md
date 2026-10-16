@@ -2,7 +2,7 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-198.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-206.
 
 ---
 
@@ -128,12 +128,41 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** PLNR-28, TEST-30, F-158 · **Type:** spec wrong
 - **Disposition:** open. Give Orison more delta-v or cheaper bands (F-158), and pick an empty colour darker than the hairline.
 
-### F-206 · An exposure ring's label never drops its period line
+### F-198 · The departure ghost of a leg that starts round its own primary
+- **Observation:** PLNR-63's departure ghost is the departure body where the path starts. A leg that starts in an orbit of the crossing's primary has no such body: a phasing leg, or a trip from Halden IV's High band to Halden IVa, goes round Halden IV itself. The build ghosts the ship there instead, a `ship_symbol_px` circle at the path's start. In every other case it ghosts the departure's ancestor directly below the primary (XFER-01), as the path starts from that body's state.
+- **Affects:** PLNR-63 · **Type:** spec gap
+- **Disposition:** open. Accept, or draw no departure ghost for such a leg.
+
+### F-199 · An order being changed hides its own path
+- **Observation:** While Change has the planner open on a Scheduled order (PLNR-53), the map draws only the leg being tuned, not the order still in force. Drawing both would give the ship two paths and two arrival ghosts with near-identical labels.
+- **Affects:** PLNR-53, PLNR-62 · **Type:** spec gap
+- **Disposition:** open. Accept, or show the old path faintly.
+
+### F-200 · How the coast and traffic paths are drawn where the spec is silent
+- **Observation:** The coast of a traffic path (PLNR-62) is drawn at `traffic_path_alpha` too, at `consequence_width_px`. Every drawn path has its start dot, traffic included. The coast and its label are drawn only while their event is still ahead; once a coasting ship has passed it, only the crossing it flew is drawn, as PLNR-88 gives no later event. A hovered place's preview (PLNR-12) is a Rendezvous, so it has no coast.
+- **Affects:** PLNR-61, PLNR-62, PLNR-67, PLNR-88 · **Type:** spec gap
+- **Disposition:** open. Accept, or say what a coast shows after its event.
+
+### F-201 · A ship that arrives in an orbit gets no tail
+- **Observation:** A named orbit's members are fixed at spawn (`shared_orbit.rs`, SCL-07). A ship that joins an orbit at the end of a Rendezvous gets its fold and motion state back (GRP-01, MOT-08), but it is not one of the orbit's members, so its ring draws no tail behind it (MRK-09) and hovering or clicking the ring doesn't reach it (HOV-02). If no one was in that orbit at the start, no ring is drawn at all. Leaving an orbit works: the ship drops out of the ring.
+- **Affects:** SCL-07, MRK-09, HOV-02, HOV-04 · **Type:** bug
+- **Disposition:** open. Fix: keep the members, ring strokes and ring targets up to date as ships come and go.
+
+### F-202 · Dashes crawl along a path in flight
+- **Observation:** Dashes and dots are laid on screen from the start of the dashed part, so their length stays `path_dash_px` at any zoom (PLNR-61). In flight that start is the ship, which moves, so the dashes slide along the path as the ship flies and as the camera moves. Laying them from the path's end would hold them still while the ship flies, but not while the camera zooms.
+- **Affects:** PLNR-61 · **Type:** idea
+- **Disposition:** open. Watch in play; anchor the dashes to the arrival end if the crawl distracts.
+
+### F-203 · Small choices on the map marks
+- **Observation:** The ghost's and the coast's labels are in the data face at 12 px, a marker name's size. The coast's label sits beside its event's point as if beside a marker of no size. A ghost's dashes are `ghost_dash_px` long and as far apart, with their count rounded so they meet evenly round the circle. Paths are world lines like the orbit rings, so they pass under a true-size disc rather than over it (MRK-12 draws near arcs over discs only for rings).
+- **Affects:** PLNR-63, PLNR-65, PLNR-67, PLNR-69 · **Type:** spec gap
+
+### F-204 · An exposure ring's label never drops its period line
 - **Observation:** MOT-02 says the period line is the first part to go when there is no room (LBL-03). But a ring's label isn't placed by LBL-01 to LBL-03: it always sits beside its mark, so the build always shows the period. Seen on screen: in Halden IV's frame at 2 d/s, IVa's "1.5 d" runs into Halden IV's "+1" pill. A ring label can also overlap other labels, as before.
 - **Affects:** MOT-02, LBL-01, LBL-03 · **Type:** spec gap
 - **Disposition:** open. Bring ring labels into label placement with the label spacing item.
 
-### F-207 · Where the direction chevron sits exactly
+### F-205 · Where the direction chevron sits exactly
 - **Observation:** MOT-14 doesn't say how "`chevron_gap_px` beyond the mark's edge" is measured on a curved ring. The build walks round the ring to the point whose straight-line distance from the mark's point is the mark's reach that way, plus the gap, plus half the arrowhead's length; the arrowhead has a right-angled tip, so it is half as long as it is wide. It turns along the ring there. A ring too small on screen to reach that far shows no chevron. The label moves to the mark's left only when the chevron's box would overlap the label's box on the right. On a selected moon the chevron sits close to the brackets.
 - **Affects:** MOT-14 · **Type:** spec gap
 - **Disposition:** open. Accept.
