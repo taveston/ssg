@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Fold marker size against planet marker</title>
+<!--
+  Orphan Worlds: how big a planet's fold marker should be beside the planet marker at the system overview (F-244).
+  Candidate. Marker drawing follows 18-multiple-objects.html (MUL-01, MUL-02) and body markers MRK-13.
+  The fold marker sits level with its planet, to its right, boxes touching (F-229). Names and counts follow Sol (SOL).
+  Render at 1440 wide.
+-->
+<style>
+@font-face{font-family:"Plex Cond";src:url("../../../../assets/fonts/IBMPlexSansCondensed-Regular.ttf")}
+@font-face{font-family:"Plex Cond";font-weight:600;src:url("../../../../assets/fonts/IBMPlexSansCondensed-SemiBold.ttf")}
+@font-face{font-family:"Plex Mono";src:url("../../../../assets/fonts/IBMPlexMono-Regular.ttf")}
+:root{--ground:#070A0E;--line2:rgba(159,182,196,.10);--text:#DCE6EC;--muted:#9FB6C4;--warn:#F0A040}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--ground);color:var(--text)}
+body{font-family:"Plex Cond",sans-serif;font-size:14px;width:1440px;padding:24px 32px 28px}
+h1{font-size:14px;font-weight:600;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin:0 0 6px;display:flex;gap:12px;align-items:center}
+.tag{font:11px "Plex Mono",monospace;color:var(--warn);border:1px solid var(--warn);border-radius:2px;padding:1px 6px;letter-spacing:.06em}
+.lede{color:var(--muted);margin:0 0 16px;font-size:13.5px;max-width:1180px;line-height:1.45}
+.grid{display:grid;grid-template-columns:678px 678px;gap:18px 20px;margin-bottom:22px}
+.board h2{font-size:12px;font-weight:600;color:var(--muted);margin:0 0 8px;letter-spacing:.06em;text-transform:uppercase}
+.frame{border:1px solid #1E2A35;border-radius:4px;overflow:hidden}
+.cap{color:var(--muted);font-size:12.5px;line-height:1.45;margin:8px 2px 0}
+.cap b{color:var(--text);font-weight:600}
+</style>
+</head>
+<body>
+<h1>Fold marker size against planet marker <span class="tag">CANDIDATE</span></h1>
+<p class="lede">The same Sol overview four ways, at the real pixel size (1 px = 1 px, so judge them at 100%). A fold marker that holds only natural bodies is two plain neutral circles; one that holds a ship, group or station keeps the full 22 px symbol so its affiliation shape reads. In every panel Earth's marker holds own ships. Below, one planet and its marker enlarged 4 times.</p>
+
+<div class="grid">
+  <section class="board"><h2>A · Today: planet 12, every fold marker 22</h2><div class="frame" id="a"></div>
+    <p class="cap"><b>The marker is about twice the planet.</b> Counts of moons carry the weight of a contact.</p></section>
+  <section class="board"><h2>B · Natural-only fold marker 16, planet 12</h2><div class="frame" id="b"></div>
+    <p class="cap"><b>Option 1 as recommended.</b> The moons' markers recede; Earth's own-ship marker stays 22 and is now the one that stands out.</p></section>
+  <section class="board"><h2>C · Natural-only fold marker 16, planet 13</h2><div class="frame" id="c"></div>
+    <p class="cap"><b>A small bump to the planet.</b> Planet and marker are closer in size; the star stays 16.</p></section>
+  <section class="board"><h2>D · Natural-only fold marker 16, planet 14</h2><div class="frame" id="d"></div>
+    <p class="cap"><b>Planet nearly the star's size.</b> At 14 against the star's 16 the ordering star &gt; planet is barely there, so the star would need to rise too.</p></section>
+</div>
+
+<section class="board"><h2>Enlarged 4 times: one planet and its natural-only marker, then Earth's own-ship marker</h2><div class="frame" id="z"></div></section>
+
+<script>
+const C = {ground:'#070A0E', text:'#DCE6EC', muted:'#9FB6C4', own:'#5AA9E6'};
+const hex = h => [1,3,5].map(i => parseInt(h.slice(i,i+2),16));
+const mix = (a,b,t) => { const A=hex(a), B=hex(b); return '#'+A.map((v,i)=>Math.round(v*t+B[i]*(1-t)).toString(16).padStart(2,'0')).join(''); };
+const mono = (txt, x, y, size, col, anchor='middle') =>
+  `<text x="${x}" y="${y}" text-anchor="${anchor}" font-family="Plex Mono, monospace" font-size="${size}" fill="${col}" stroke="none">${txt}</text>`;
+const halo = (x, y, name, anchor) =>
+  `<text x="${x}" y="${y}" text-anchor="${anchor}" font-family="Plex Cond, sans-serif" font-size="12" fill="${C.text}" stroke="${C.ground}" stroke-width="3" paint-order="stroke" stroke-linejoin="round">${name}</text>`;
+
+// Body marker (MRK-13): outline circle, opaque inside; planets carry a centre dot.
+const planetMark = (x, y, P) =>
+  `<circle cx="${x}" cy="${y}" r="${P/2 - .5}" fill="${C.ground}" stroke="${C.text}" stroke-width="1"/><circle cx="${x}" cy="${y}" r="1.5" fill="${C.text}"/>`;
+const starMark = (x, y, P) => {
+  let s = `<circle cx="${x}" cy="${y}" r="${P/2 - .5}" fill="${C.ground}" stroke="${C.text}" stroke-width="1"/>`;
+  for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4, r0 = P/2, r1 = P/2 + 3;
+    s += `<line x1="${x + r0*Math.cos(a)}" y1="${y + r0*Math.sin(a)}" x2="${x + r1*Math.cos(a)}" y2="${y + r1*Math.sin(a)}" stroke="${C.text}" stroke-width="1"/>`; }
+  return s;
+};
+
+// Fold marker holding natural bodies only (MUL-01, MUL-02): two plain neutral circles, count in the icon slot.
+function bodyFold(x, y, n, S, back, font) {
+  const r = S/2 - .75;
+  return `<circle cx="${x+back}" cy="${y-back}" r="${r}" fill="${C.ground}" stroke="${C.text}" stroke-width="1.5"/>` +
+         `<circle cx="${x}" cy="${y}" r="${r}" fill="${C.ground}" stroke="${C.text}" stroke-width="1.5"/>` +
+         mono(n, x, y + font*.34, font, C.text);
+}
+// Fold marker holding own ships: the full 22 px own frame (SYM-02, SYM-03) with an own back frame.
+function ownFold(x, y, n) {
+  const fill = mix(C.own, C.ground, .30);
+  return `<circle cx="${x+4}" cy="${y-4}" r="10.25" fill="${fill}" stroke="${C.own}" stroke-width="1.5"/>` +
+         `<circle cx="${x}" cy="${y}" r="10.25" fill="${fill}" stroke="${C.own}" stroke-width="1.5"/>` +
+         mono(n, x, y + 3.6, 10.5, C.own);
+}
+
+// One planet with its fold marker beside it, level with the planet's centre and touching its box (F-229).
+function planetWithFold(x, y, name, n, P, o) {
+  const S = o.own ? 22 : o.S;
+  const fx = x + P/2 + S/2;
+  return planetMark(x, y, P) +
+         (o.own ? ownFold(fx, y, n) : bodyFold(fx, y, n, S, o.back, o.font)) +
+         halo(x - P/2 - 6, y + 4, name, 'end');
+}
+
+const SOL = [
+  {name:'Earth',  rx:52,  a:40,  n:5, own:true},
+  {name:'Ceres',  rx:92,  a:-35, n:2},
+  {name:'Jupiter',rx:110, a:195, n:5},
+  {name:'Saturn', rx:178, a:150, n:7},
+  {name:'Uranus', rx:262, a:25,  n:4}
+];
+
+function scene(el, P, S, back, font, star) {
+  const W = 678, H = 270, cx = 338, cy = 135, k = 0.42;
+  let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="${C.ground}"/>`;
+  SOL.forEach(b => s += `<ellipse cx="${cx}" cy="${cy}" rx="${b.rx}" ry="${b.rx*k}" fill="none" stroke="rgba(159,182,196,.28)" stroke-width="1"/>`);
+  s += starMark(cx, cy, star) + halo(cx, cy - star/2 - 9, 'Sol', 'middle');
+  SOL.forEach(b => {
+    const t = b.a * Math.PI / 180, x = Math.round(cx + b.rx*Math.cos(t)), y = Math.round(cy + b.rx*k*Math.sin(t));
+    s += planetWithFold(x, y, b.name, b.n, P, {own:b.own, S, back, font});
+  });
+  document.getElementById(el).innerHTML = s + '</svg>';
+}
+scene('a', 12, 22, 4, 10.5, 16);
+scene('b', 12, 16, 3, 9, 16);
+scene('c', 13, 16, 3, 9, 16);
+scene('d', 14, 16, 3, 9, 16);
+
+// Enlarged strip: four natural-only pairs, then Earth's own-ship marker beside a 12 px planet.
+(function () {
+  const Z = 4, cases = [
+    {t:'A · planet 12, marker 22', P:12, S:22, back:4, font:10.5, w:'26 px across'},
+    {t:'B · planet 12, marker 16', P:12, S:16, back:3, font:9,    w:'19 px across'},
+    {t:'C · planet 13, marker 16', P:13, S:16, back:3, font:9,    w:'19 px across'},
+    {t:'D · planet 14, marker 16', P:14, S:16, back:3, font:9,    w:'19 px across'},
+    {t:'Own ships (all panels)',   P:12, own:true,                w:'26 px across'}
+  ];
+  const W = 1376, H = 190, colW = W / cases.length;
+  let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="${C.ground}"/>`;
+  cases.forEach((c, i) => {
+    const x0 = i * colW + colW/2 - 40, y0 = 92;
+    s += `<g transform="translate(${x0},${y0}) scale(${Z})"><g transform="translate(0,0)">` +
+         planetMark(0, 0, c.P) +
+         (c.own ? ownFold(c.P/2 + 11, 0, 5) : bodyFold(c.P/2 + c.S/2, 0, 5, c.S, c.back, c.font)) + `</g></g>`;
+    s += mono(c.t, i*colW + colW/2, 28, 11, C.muted) + mono(c.w, i*colW + colW/2, 176, 11, C.muted);
+    if (i) s += `<line x1="${i*colW}" y1="14" x2="${i*colW}" y2="${H-14}" stroke="rgba(159,182,196,.10)"/>`;
+  });
+  document.getElementById('z').innerHTML = s + '</svg>';
+})();
+</script>
+</body>
+</html>
