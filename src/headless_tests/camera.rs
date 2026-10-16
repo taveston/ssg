@@ -1084,28 +1084,24 @@ fn a_shot_whose_order_fails_at_schedule_exits_at_once() {
         }
     }
     assert_eq!(app.world().resource::<Shot>().phase, ShotPhase::Scheduling);
-    let budget = {
-        let planner = app.world().resource::<PlannerState>();
-        let session = planner.session.as_ref().unwrap();
-        session
-            .found
-            .as_ref()
-            .unwrap()
-            .context
-            .as_ref()
-            .unwrap()
-            .available_kms
-    };
+    let budget = super::planner::context(&app).available_kms;
     let (setting, then) = super::planner::soonest_change(&app, |first, later| {
         first.as_ref().is_ok_and(|leg| leg.delta_v_kms <= budget) && later.is_err()
     })
     .expect("a leg that is rejected later the same day");
+    let request = app
+        .world()
+        .resource::<PlannerState>()
+        .session
+        .as_ref()
+        .unwrap()
+        .request;
+    let leg = super::planner::context(&app).solve(request.unwrap(), setting);
     {
         let mut planner = app.world_mut().resource_mut::<PlannerState>();
         let session = planner.session.as_mut().unwrap();
-        let context = session.found.as_ref().unwrap().context.clone().unwrap();
         session.setting = Some(setting);
-        session.leg = Some(context.solve(session.request.unwrap(), setting));
+        session.leg = Some(leg);
         session.solved_for = Some(setting);
     }
     let mut clock = app.world_mut().resource_mut::<GameClock>();

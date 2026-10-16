@@ -397,7 +397,7 @@ fn the_band_choice_and_arrival_mode_retune_the_leg() {
 }
 
 /// The search's snapshot.
-fn context(app: &App) -> &crate::sim::transfer::search::SearchContext {
+pub(super) fn context(app: &App) -> &crate::sim::transfer::search::SearchContext {
     session(app)
         .found
         .as_ref()
