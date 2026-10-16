@@ -13,12 +13,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **Several objects on one marker, part 2: the tray** · MUL-07 to MUL-10, MUL-12, GRP-07, GRP-09, HOV-01, HOV-02, HOV-05, INS-03, INS-06, MRK-12, CAM-10, PLNR-11
-  - Part 1 (the multi-marker on the map) is built. A click on a multi-marker now opens a tray of what it holds (MUL-07). Tunables: the five `tray_*` ones.
-  - Meaning changed, so their ✓ is cleared: GRP-07, GRP-09, HOV-05, INS-03, INS-06, MRK-12, CAM-10 and PLNR-11. HOV-01 and HOV-02 were reworded only (pill to multi-marker), but their ✓ is cleared too, since the pill they name is gone.
-  - MRK-12 needs only the tray layer; CAM-10 needs the tray's root to carry `MapInputBlocker`. INS-06's mark already moves onto the multi-marker.
-  - Tests: a click opens one tray and selects the parent or the first row (MUL-07); Up, Down, Right, Left and Esc in the tray, with the arrow keys not panning; the tray stays inside the map area and follows its marker; with the planner open a row picks as its symbol would.
-
 ## Fixes
 
 ## Other

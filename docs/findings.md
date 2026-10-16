@@ -2,7 +2,7 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-235.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-242.
 
 ---
 
@@ -277,6 +277,41 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** A fold marker is always drawn at full strength, even when its parent's dot has faded into the exposure ring (MOT-11). Other multi-markers fade with the strongest thing in them. The old pill behaved the same.
 - **Affects:** GRP-05, MOT-11 · **Type:** spec gap
 - **Disposition:** open. Accept, or fade the fold marker with its parent.
+
+### F-235 · A shared orbit's identity mark while the planner is open
+- **Observation:** MUL-12 says a click on any multi-marker other than a fold marker picks nothing. MOT-14 says the identity mark targets what its ring targets, and PLNR-11 says a shared ring picks that orbit's band. The build follows MOT-14 and PLNR-11: the mark picks the band and opens its tray.
+- **Affects:** MUL-12, MOT-14, PLNR-11, HOV-05 · **Type:** spec wrong
+- **Disposition:** open. Keep this and name the shared orbit's mark beside the fold marker in MUL-12, or make the mark pick nothing.
+
+### F-236 · Rows for a group's members
+- **Observation:** A member has no inset of its own, so a member row, clicked or stepped onto, selects its group, and the tray highlights the member row. With the planner open, member rows are dimmed, since a member is wherever its group is and a group can't be picked. With the planner open, Up and Down move only the highlight; picking takes a click. With no row selected, Up or Down selects the first row. Left on a member closes its group and selects the group.
+- **Affects:** MUL-09, MUL-10, MUL-12 · **Type:** spec gap
+- **Disposition:** open. Copy into the spec if fine.
+
+### F-237 · Esc with both a tray and the planner open
+- **Observation:** INS-03 doesn't say which Esc closes first. The build closes the tray first, then ends the planner, then clears the selection.
+- **Affects:** INS-03 · **Type:** spec gap
+- **Disposition:** open. Accept, and add the order to INS-03.
+
+### F-238 · Shared orbit trays: dot mode and header
+- **Observation:** HOV-05 opens the identity mark's tray, but in dot mode there is no identity mark, so a click on a shared ring opens no tray; it only closes any tray that is open. The identity mark's tray uses the "N OBJECTS" header meant for any other marker, rather than naming the orbit.
+- **Affects:** HOV-05, MUL-08 · **Type:** spec gap
+- **Disposition:** open. Say what a shared ring's click opens in dot mode. A header such as "HIGH ORBIT · N THINGS" may read better.
+
+### F-239 · A fold marker's tray opening left covers its parent
+- **Observation:** The fold marker sits to the right of its parent. When its tray opens to the left (for example Morrow with the inset open), the tray covers the parent's marker and label.
+- **Affects:** MUL-08, GRP-05 · **Type:** spec wrong
+- **Disposition:** open. Keep it, or for a fold marker open the tray above or below instead of to the left. Bears on F-229.
+
+### F-240 · The panel fill shows the map through the tray
+- **Observation:** The panel fill is 0.97 alpha, and blending happens in linear light, so bright labels and the belt under the tray show faintly through it (about 15% on a white label). The inset uses the same fill, but it seldom sits over the map.
+- **Affects:** MUL-08, INS-09 · **Type:** idea
+- **Disposition:** open. Make the tray's fill opaque.
+
+### F-241 · When a changing cluster stops existing
+- **Observation:** MUL-10 closes the tray when its marker stops existing. Together and overlap markers are known by their first thing, so if that thing leaves while the others stay, or a new thing joins ahead of it, the build treats the marker as gone and closes the tray, though most of its things are still on one marker.
+- **Affects:** MUL-10, MUL-05 · **Type:** spec gap
+- **Disposition:** open. Accept, or say the tray follows the marker that keeps most of its things.
 
 ## Parked
 
