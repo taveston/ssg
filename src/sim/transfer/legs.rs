@@ -101,7 +101,7 @@ impl Setup<'_> {
         tunables: &'a SimTunables,
         departure: &Departure,
         order: &Order,
-        (target, window_hint): (Target, Option<f64>),
+        target: Target,
     ) -> Result<(Setup<'a>, Option<Place>), Infeasible> {
         let (from, origin) = departure_end(tree, departure, tunables.together_km)?;
         let to = target_end(&target);
@@ -148,7 +148,7 @@ impl Setup<'_> {
                 depart,
                 arrive,
                 window_interval,
-                window_hint,
+                window_hint: None,
             },
             origin,
         ))
@@ -283,13 +283,13 @@ impl Setup<'_> {
         let mut price = |i: usize| {
             *prices[i].get_or_insert_with(|| self.lambert_burns(earliest + wait_of(i), travel_days))
         };
-        let flies = |wait: f64| -> Result<Option<Crossing>, Infeasible> {
-            let first = first_at(wait)?;
+        let flies = |wait: f64| -> Option<Crossing> {
+            let first = first_at(wait).ok()?;
             let start = earliest + wait + self.burn_days(drive, &first);
             let clear = self
                 .lambert_crossing(start, travel_days)
                 .is_some_and(|flown| self.check_periapsis(&flown).is_ok());
-            Ok(clear.then_some(first))
+            clear.then_some(first)
         };
         if let Some(hint) = self.window_hint {
             // The start nearest the hint and its two neighbours, cheapest
@@ -306,7 +306,7 @@ impl Setup<'_> {
                 .collect();
             near.sort_by(|a, b| a.0.total_cmp(&b.0));
             for &(_, i) in &near {
-                if let Some(first) = flies(wait_of(i))? {
+                if let Some(first) = flies(wait_of(i)) {
                     return Ok((wait_of(i), first));
                 }
             }
@@ -318,7 +318,7 @@ impl Setup<'_> {
         priced.sort_by(|a, b| a.0.total_cmp(&b.0));
         let cheapest = wait_of(priced.first().ok_or(Infeasible::NoPath)?.1);
         for &(_, i) in &priced {
-            if let Some(first) = flies(wait_of(i))? {
+            if let Some(first) = flies(wait_of(i)) {
                 return Ok((wait_of(i), first));
             }
         }
@@ -621,7 +621,8 @@ pub fn solve_leg_near(
             budget_kms,
         );
     }
-    let (setup, origin) = Setup::new(tree, tunables, departure, order, (target, window_hint))?;
+    let (mut setup, origin) = Setup::new(tree, tunables, departure, order, target)?;
+    setup.window_hint = window_hint;
     let (flight, trim_days) = setup.fly_or_trim(order, drive, departure)?;
     let crossing = &flight.crossing;
     setup.check_periapsis(crossing)?;

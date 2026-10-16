@@ -14,7 +14,7 @@ use bevy::prelude::*;
 use crate::sim::transfer::grid::Sample;
 use crate::sim::transfer::ranges::Slider;
 use crate::view::colors;
-pub use crate::view::colors::mix;
+use crate::view::colors::mix;
 use crate::view::tunables::Tunables;
 
 /// PLNR-23: a slider's settings move ten steps at a time with Shift.
