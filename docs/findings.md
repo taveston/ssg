@@ -2,7 +2,7 @@
 
 Open observations from building and playing the prototype. Each one is waiting for a decision. Once it's settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings take the next free number from F-161.
+Format and types are in `docs/README.md`. New findings take the next free number from F-162.
 
 ---
 
@@ -89,4 +89,9 @@ Format and types are in `docs/README.md`. New findings take the next free number
 ### F-160 · The selection ring looks like a marker
 - **Observation:** Raised in a design session. A solid white ring round a selected object reads as one more circle on the map. Round a planet it looks like a satellite marker (MRK-13). Round an own ship's circle frame it looks like a second frame, which is how the candidate "several" idiom is drawn (*Symbology* 4). The frame body's four corner brackets (CAM-22) say "selected" better than the ring, and showing which body holds the frame matters less than showing the selection.
 - **Affects:** MRK-01, SYM-14, HOV-01, GRP-07, INS-06, CAM-22 · **Type:** spec wrong
-- **Disposition:** open. Option: the selection is drawn as four corner brackets (white, sized to the symbol's square as now), and CAM-22's frame brackets are withdrawn, with nothing marking the frame body. Open: what hover looks like (the ring, or the same brackets dimmer), and how a pill or a cluster marker is bracketed.
+- **Disposition:** open. Agreed in the session: the selection is drawn as four corner brackets (white, sized to the symbol's square as now), hover as the same brackets dimmer, and CAM-22's frame brackets are withdrawn, with nothing marking the frame body. To spec: how a pill or a cluster marker is bracketed, and how the brackets size to a true-size disc (F-161).
+
+### F-161 · The focus brackets do not grow with a body's true-size disc
+- **Observation:** Seen in play. A body's marker becomes a disc at its true size when it is larger on screen than the marker (MRK-07). CAM-22 boxes the frame body's marker with four brackets sized to the selection ring, and the brackets stay at marker size, so at close zoom they sit well inside the disc. CAM-22 does not say what the box encloses once the body is a disc.
+- **Affects:** CAM-22, MRK-07, SYM-14 · **Type:** spec gap
+- **Disposition:** open. Option: the box follows the larger of the marker and the disc, with the same margin. If F-160 is adopted, the same must hold for the selection brackets and for hover, so settle them together.
