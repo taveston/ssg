@@ -158,15 +158,25 @@ fn mark_root(owner: Entity, half: f32) -> impl Bundle {
             shown: 0.0,
         },
         GlobalZIndex(layers::LABELS),
-        Node {
-            position_type: PositionType::Absolute,
-            display: Display::None,
-            flex_direction: FlexDirection::Row,
-            align_items: AlignItems::Center,
-            column_gap: px(LABEL_GAP_PX),
-            ..default()
-        },
+        mark_root_node(half),
     )
+}
+
+/// MOT-14: the row is exactly as tall as the mark, so the mark's centre
+/// is `half` below the row's top, where `place_ring_marks` and the
+/// brackets put the ring point. A label taller than the mark is centred
+/// on it and spills over the row equally above and below, rather than
+/// making the row taller and pushing the mark down off the ring.
+fn mark_root_node(half: f32) -> Node {
+    Node {
+        position_type: PositionType::Absolute,
+        display: Display::None,
+        flex_direction: FlexDirection::Row,
+        align_items: AlignItems::Center,
+        column_gap: px(LABEL_GAP_PX),
+        height: px(2.0 * half),
+        ..default()
+    }
 }
 
 /// MOT-02: the label beside a mark, in its colour.
@@ -307,6 +317,27 @@ mod tests {
         assert!(!ring_mark_wanted(&state(0.95), false));
         assert!(ring_mark_wanted(&state(1.0), false));
         assert!(!ring_mark_wanted(&state(1.0), true));
+    }
+
+    /// MOT-14 / HOV-06: a moon's mark is shorter than its label's line, yet
+    /// its row is exactly the mark's height with the mark centred in it, so
+    /// the mark's centre is `half` below the row's top: on the ring point,
+    /// where the brackets centre their box. A row sized by its label would
+    /// push the mark below the ring and off its brackets.
+    #[test]
+    fn the_mark_row_is_the_marks_height_so_the_mark_sits_on_the_ring_point() {
+        let tunables = Tunables::default();
+        let moon_half = marker_half_size(BodyClass::Moon, &tunables);
+        assert!(2.0 * moon_half < LABEL_FONT_PX, "the label is the taller");
+        for half in [
+            moon_half,
+            PILL_HALF_HEIGHT_PX,
+            tunables.ship_symbol_px / 2.0,
+        ] {
+            let node = mark_root_node(half);
+            assert_eq!(node.height, px(2.0 * half));
+            assert_eq!(node.align_items, AlignItems::Center);
+        }
     }
 
     /// MOT-14: a shared orbit's mark is a pill; a lone body's is its own
