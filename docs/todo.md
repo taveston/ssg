@@ -22,9 +22,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - The pip's front and back colours follow MUL-02. Only the parent's own folded satellites decide, as they do for the count. A moon whose station is folded into it is still one body.
   - Tests: moons only shows the neutral ring and "+N", no pip; a folded ship adds the pip and leaves ring and "+N" unchanged; allied plus own shows an allied front pip and an own back pip; the pointer near pops it out and away releases it; selecting the parent pops it with no pointer; a selected folded ship puts the mark round the popped marker; the tray never covers the parent; the label doesn't move when the marker pops; the ring's box and hit area count in the parent's marker. Mock-ups 20 to 22, 26 and 27 show the look; mock-up 26's popped state sits below the planet and is superseded by GRP-13.
 
-- [ ] **A shared orbit with one station shows the station's marker** · F-231 · MOT-14
-  - MOT-14 now says a shared orbit whose only thing is a station shows that station's marker, with its docked count, as the build already does. Clear the check on the build's behaviour only if it differs; add a test for Iver's High band.
-
 - [ ] **A joined marker draws one tail in dot mode** · F-232 · MUL-05
   - In dot mode a together or overlap marker draws the tail of its first tray row's thing, behind its centre, so a convoy or cluster no longer looks still on a running clock. Joined things still draw no tail of their own, and a fold marker has none. Ring mode is unchanged.
   - Tests: the TEST-12 convoy shows one tail in dot mode; an overlap cluster shows its lead's tail; the tail follows the lead when the tray order changes; no tail in ring mode beyond the exposure ring.
@@ -32,9 +29,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 - [ ] **Two stations are never together** · F-233 · MUL-03
   - Reject content that puts two stations together (PHAS-02) with a loader error naming both. Remove the build's lead-and-docked handling of two stations at one point. Two overlapping station markers join as two things (MUL-05), each shown in the tray (MUL-09) with its own docked things under it.
   - Tests: the loader rejects two stations at one orbit and phase; two overlapping stations form a marker counting 2 with neither docked.
-
-- [ ] **Name the shared orbit's mark in the planner click rule** · F-235 · MUL-12
-  - MUL-12 now says what the build already does: with the planner open, a click on a shared orbit's identity mark picks the orbit's band and opens the tray. Add a test for it.
 
 - [ ] **Shared orbit click in dot mode, and the identity mark's tray header** · F-238 · HOV-05, MUL-08
   - A click on a shared ring selects the parent and expands that orbit's row in the outline in both modes, and opens the identity mark's tray only in exposure-ring mode; in dot mode it opens no tray. The identity mark's tray header reads "HIGH ORBIT · N THINGS", with the orbit's name.
