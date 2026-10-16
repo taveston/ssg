@@ -50,6 +50,11 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - Identify a tray's marker by the set of things on its rows, not by its first thing. When things leave or join, the tray moves to the marker holding most of them, a tie going to the one holding the first row's thing, and rebuilds its rows; it closes only when no marker holds any of them.
   - Tests: a convoy's lead leaves and the tray stays open on the rest; a new thing joins ahead of the first and the tray stays; everything parts and the tray closes with the selection kept.
 
+- [ ] **Map text sizes in one place, and the vertical axis clips at the map edge** · F-216, F-220 · MRK-19, REF-06
+  - Add `map_label_px` (12), `map_second_line_px` (10) and `bar_text_px` (14) to the `Tunables` resource and read every map and bar text size from them, so an exposure ring's name is 12 px like a marker's. Remove the sizes each module sets for itself.
+  - Clip the vertical axis's upper half at the map area's edge, as the arms are, so its arrowhead never runs under the top bar.
+  - Tests: a ring's name and a marker's name share one size; changing a tunable changes every text it names; at tilt 75 with the frame body high on screen, the axis ends at the map's edge.
+
 ## Fixes
 
 - [ ] **Orbit membership follows the ship** · F-242, F-201 · RAIL-09, SCL-07, HOV-04, INS-05, MRK-09, HOV-02

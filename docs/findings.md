@@ -138,45 +138,10 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** PLNR-61 · **Type:** idea
 - **Disposition:** open. Watch in play; anchor the dashes to the arrival end if the crawl distracts.
 
-### F-207 · Labels keep clear of other markers' boxes
-- **Observation:** LBL-01 says labels never overlap any marker. The build keeps every label clear of each marker's box (HOV-07, `bracket_margin_px` round it), not just the drawn marker, so the brackets round a hovered or selected marker never cross another object's label. Symbols already worked this way (SYM-13). In a crowded view a few more labels drop their second line or hide.
-- **Affects:** LBL-01, HOV-07 · **Type:** spec gap
-- **Disposition:** open. Accept.
-
-### F-210 · Ticks crowd into a bar near the horizon
-- **Observation:** REF-05 puts a tick at every multiple of the scale bar's distance. Towards the plane's horizon, seen near edge-on, they crowd without end. The build stops an arm's ticks at the first pair closer than 4 px, and at 64 per arm. At tilt 85° the last few still read as a short solid bar before the dots run on to the "N".
-- **Affects:** REF-05 · **Type:** spec gap
-- **Disposition:** open. Accept, or stop the ticks sooner (for example once two are closer than `ref_tick_px`).
-
-### F-211 · Small choices on the frame cue
-- **Observation:** The spec leaves these open, so the build chose: the "N" is in the data face at 10 px, at full strength rather than faded with the arm, and shows only while the north arm is longer than `ref_n_inset_px`. A tick is 1 px wide. The arrowhead is 0.75 of its length wide. The vertical axis is drawn at the north arm's strength. The upper half's length is measured from its start (the pole or the gap), not from the centre. An arm's gap is a distance from the centre, not from the box's edge along the arm. The vertical axis is not cut at the map area's edge.
-- **Affects:** REF-03, REF-04, REF-05, REF-06 · **Type:** spec gap
-- **Disposition:** open. Accept.
-
-### F-212 · The cue lies over the rings, and labels don't avoid it
-- **Observation:** The orbit rings, tails, exposure rings and the belt are world lines drawn under the whole overlay, so the cue's arms and lower half, though under every body, lie over them. Labels don't keep clear of the cue: the label halo breaks it where they cross, as for rings. A frame body's label can sit across the upper half of the vertical axis, as Morrow X's does when the label goes above it.
-- **Affects:** REF-09, MRK-12, LBL-01 · **Type:** spec gap
-- **Disposition:** open. Accept.
-
-### F-215 · The paths' marks and the frame cue shared layers
-- **Observation:** The frame cue's arms and the paths' start dots were both drawn one layer below the bodies, and the cue's "N" and the ghosts both just below them, so which drew on top was undefined. The spec puts both the cue and the paths "above the rings" without ordering them. The build now draws, from the bottom: the cue's arms and lower axis, its "N", the paths' dots, the ghosts, then the bodies. Every layer is now named in `view/layers.rs`.
-- **Affects:** MRK-12, REF-09, PLNR-69 · **Type:** spec gap
-- **Disposition:** open. Accept, or put the cue over the paths.
-
-### F-216 · Map text sizes are set in many places
-- **Observation:** The spec names the type roles (MRK-02) but no sizes. Each module sets its own: a marker's name 12 px and its second line 10 px, an exposure ring's label 11 px and its period line 10 px, an edge tab's name 12 px, a path's label 12 px, the scale bar 10 px, the cue's "N" 10 px, the breadcrumb and date 14 px, buttons 13 px. A ring's label is 1 px smaller than a marker's name for no stated reason.
-- **Affects:** MRK-02, MOT-02, LBL-01 · **Type:** spec gap
-- **Disposition:** open. Options: add a size column to the type roles table (map label, map second line, panel text, bar text) and read the sizes from one place in `view/fonts.rs`; or accept as is.
-
 ### F-219 · At heading 0 the vertical axis lies on the north arm
 - **Observation:** At heading 0, at any tilt between straight down and edge-on, the north arm and the plane's normal both point straight up the screen. They start at the same gap beyond the frame body's box, with the same dot size and pitch, so the axis's upper half sits dot for dot on the north arm. Only the arrowhead, the ticks and a slightly stronger fade show there are two strokes. A few degrees of heading separates them. The build follows REF-06 as written, with no offset or tint.
 - **Affects:** REF-06, REF-01 · **Type:** spec gap
 - **Disposition:** open. Check on screen. If it reads as one line: a different dot pitch or size for the axis, dots offset by half a pitch, or a tint (spec open points).
-
-### F-220 · The vertical axis can run past the top of the map
-- **Observation:** At `ref_up_fraction` 0.45 of the map height, the axis's upper half can run past the top of the map area when the frame body sits high on screen at a steep tilt. With Halden IV mid-screen at tilt 75 the arrowhead already reaches just under the top bar. The arms are clipped at the map edge or the horizon (REF-03), but REF-06 sets no limit for the axis, so the build doesn't clip it.
-- **Affects:** REF-06, REF-03 · **Type:** spec gap
-- **Disposition:** open. Clip the upper half at the map's edge as the arms are, or accept.
 
 ### F-221 · A window leg skips a start whose crossing would graze the Low band
 - **Observation:** PHAS-16 says to take the cheapest of the sampled starts. Inside a planet's frame the cheapest arc to a station in the Low band often just touches the band, and the burn days alone tip it under, so the leg would be refused (XFER-07). The build prices each start by its arc, then takes the cheapest start whose crossing, flown after its burn days, clears the primary. It takes the cheapest outright only if none clears.
