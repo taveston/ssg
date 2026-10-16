@@ -45,6 +45,7 @@ pub mod markers;
 pub mod motion;
 pub mod motion_mode;
 pub mod near_arcs;
+pub mod node_box;
 pub mod outline;
 pub mod parent_tab;
 pub mod paths;

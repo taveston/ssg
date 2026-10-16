@@ -20,6 +20,7 @@ use super::hovered::HoveredBodies;
 use super::layers;
 use super::markers::{MarkerDrawn, MarkersPlaced};
 use super::motion_mode::MotionModeState;
+use super::node_box::{node_min, node_size};
 use super::ring_marks::{IdentityPill, RingMarkFor};
 use super::selection::Selection;
 use super::shared_orbit::OrbitMembers;
@@ -266,21 +267,6 @@ pub struct MarkSources<'w, 's> {
     pills: FoldPills<'w, 's>,
     ring_marks: RingMarks<'w, 's>,
     identity_pills: Query<'w, 's, (&'static IdentityPill, &'static ComputedNode)>,
-}
-
-/// A node's top-left as placed in pixels.
-fn node_min(node: &Node) -> Option<Vec2> {
-    match (node.left, node.top) {
-        (Val::Px(left), Val::Px(top)) if node.display != Display::None => {
-            Some(Vec2::new(left, top))
-        }
-        _ => None,
-    }
-}
-
-/// A laid-out node's size in logical pixels.
-fn node_size(computed: &ComputedNode) -> Vec2 {
-    computed.size() * computed.inverse_scale_factor()
 }
 
 impl MarkSources<'_, '_> {

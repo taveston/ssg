@@ -33,6 +33,7 @@ use super::markers::{
     BodyLook, MarkersPlaced, TintedParts, fade_parts, marker_half_size, spawn_icon,
 };
 use super::motion_mode::MotionModeState;
+use super::node_box::node_size;
 use super::pills::{PILL_HALF_HEIGHT_PX, PillFace, pill_bundle, pill_node};
 use super::readout::format_duration;
 use super::ring_chevron::{ChevronFit, ChevronSpot, chevron_box, chevron_spot};
@@ -362,11 +363,6 @@ struct MarkParts<'w, 's> {
     children: Query<'w, 's, &'static Children>,
     pills: Query<'w, 's, &'static ComputedNode, With<IdentityPill>>,
     chevrons: Chevrons<'w, 's>,
-}
-
-/// A laid-out node's size in logical pixels.
-fn node_size(computed: &ComputedNode) -> Vec2 {
-    computed.size() * computed.inverse_scale_factor()
 }
 
 impl MarkParts<'_, '_> {

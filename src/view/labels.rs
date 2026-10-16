@@ -31,6 +31,7 @@ use super::anim::{advance_towards, step_per_frame};
 use super::frame::Frame;
 use super::hovered::HoveredBodies;
 use super::markers::{MarkerHalfSize, MarkerLabel, MarkersPlaced, SecondLineFor};
+use super::node_box::{node_rect, node_size};
 use super::paths::marks::PathLabel;
 use super::ring_marks::{PeriodLine, RingLabelBox, RingMarkFor};
 use super::selection::Selection;
@@ -256,22 +257,6 @@ fn attach_label_state(mut commands: Commands, labels: Query<Entity, UnplacedLabe
     for label in &labels {
         commands.entity(label).insert(LabelState::default());
     }
-}
-
-/// The box a laid-out node takes on screen: its `left`/`top` in pixels
-/// and its computed size, in logical pixels. `None` while it isn't shown.
-fn node_rect(node: &Node, computed: &ComputedNode) -> Option<Rect> {
-    if node.display == Display::None {
-        return None;
-    }
-    let (Val::Px(left), Val::Px(top)) = (node.left, node.top) else {
-        return None;
-    };
-    let size = computed.size * computed.inverse_scale_factor;
-    Some(Rect::from_corners(
-        Vec2::new(left, top),
-        Vec2::new(left, top) + size,
-    ))
 }
 
 /// What a label's rank is read from.
@@ -637,8 +622,8 @@ fn label_sizes(label: Entity, computed: &ComputedNode, second_lines: &SecondLine
     let second = second_lines
         .iter()
         .find(|(line_of, ..)| line_of.parent() == label)
-        .map_or(0.0, |(_, c, ..)| c.size.y * c.inverse_scale_factor);
-    (computed.size * computed.inverse_scale_factor, second)
+        .map_or(0.0, |(_, c, ..)| node_size(c).y);
+    (node_size(computed), second)
 }
 
 /// MOT-02 / MOT-14: each shown exposure ring's label as a candidate
@@ -699,7 +684,7 @@ fn path_label_entries(path_labels: &PathLabels) -> Vec<(Entity, Candidate, Vec2)
     let mut used: Vec<(Entity, Rect, Vec2, Option<Placement>)> = path_labels
         .iter()
         .filter_map(|(label, path, computed, _, state, _)| {
-            let size = computed.size * computed.inverse_scale_factor;
+            let size = node_size(computed);
             Some((label, path.anchor?, size, state.shown))
         })
         .collect();

@@ -13,6 +13,7 @@ use bevy::prelude::*;
 use super::colors;
 use super::fonts::Fonts;
 use super::layers;
+use super::node_box::node_size;
 use super::screen::MapArea;
 
 /// Half the chevron's box. The same footprint as a gate's own marker, so
@@ -165,7 +166,7 @@ pub fn tab_label(fonts: &Fonts, text: &str) -> impl Bundle {
 /// is on and kept whole inside the map area.
 pub fn place_tab(node: &mut Node, computed: &ComputedNode, at: Vec2, area: &MapArea) {
     let side = edge_side(at, area);
-    let size = computed.size() * computed.inverse_scale_factor();
+    let size = node_size(computed);
     let origin = tab_origin(at, size, side, area);
     node.display = Display::Flex;
     node.flex_direction = tab_direction(side);
