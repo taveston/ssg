@@ -17,6 +17,7 @@
 //! a ring fades out and then isn't drawn, in every frame (MRK-14).
 
 use bevy::color::Mix;
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
 use crate::sim::body::BodyClass;
@@ -313,16 +314,10 @@ impl RingColors {
 /// every ring stroke: the ring as the camera sees it, bright along each
 /// body's tail (or all round in ring mode), as wide as its closing makes
 /// it, and faded by its size on screen.
-#[allow(clippy::too_many_arguments)]
 fn draw_orbit_rings(
     screen: Res<ScreenPositions>,
-    selection: Res<Selection>,
-    hovered: Res<HoveredBodies>,
-    tunables: Res<Tunables>,
     camera_q: Query<(&Camera, &Transform, &Projection), With<Camera3d>>,
-    rings: OrbitRings,
-    positions: Res<WorldPositions>,
-    origin: Res<RenderOrigin>,
+    looks: RingLooks,
     mut strokes: Query<(&RingStrokeFor, &mut Gizmo)>,
     mut assets: ResMut<Assets<GizmoAsset>>,
     mut drawn: ResMut<DrawnRings>,
@@ -333,23 +328,19 @@ fn draw_orbit_rings(
     let Ok((camera, camera_transform, projection)) = camera_q.single() else {
         return;
     };
+    let tunables = &looks.tunables;
     let view = RingView {
         camera_pos: camera_transform.translation,
         camera_forward: camera_transform.forward().as_vec3(),
         max_error_rad: max_error_rad(camera, projection),
     };
-    let fade = FadeView::new((camera, camera_transform, projection), &screen, &tunables);
+    let fade = FadeView::new((camera, camera_transform, projection), &screen, tunables);
     for (stroke_for, mut gizmo) in &mut strokes {
         let Some(mut asset) = assets.get_mut(&gizmo.handle) else {
             continue;
         };
         asset.clear();
-        let Some(mut look) = stroke_look(
-            stroke_for.0,
-            &rings,
-            (&positions, origin.star),
-            (&selection, &hovered, &tunables),
-        ) else {
+        let Some(mut look) = looks.look(stroke_for.0) else {
             continue;
         };
         let factor = fade.map_or(1.0, |fade| fade.of(look.center, look.radius));
@@ -357,29 +348,10 @@ fn draw_orbit_rings(
             continue;
         }
         look.colors = look.colors.faded(factor);
-        let segments = ring_segments(look.center, look.radius, view);
         let width = look
             .mode
             .ring_width(look.base_width, tunables.exposure_ring_width_px);
-        let mut ring = DrawnRing {
-            centre: look.centre_body,
-            width,
-            lines: Vec::new(),
-        };
-        for segment in segments
-            .into_iter()
-            .flat_map(|segment| split_at_angles(segment, &look.body_angles))
-        {
-            let (from, to) = ends_brightness(&segment, &look.body_angles, &look.mode);
-            let line = RingLine {
-                from: segment.from,
-                to: segment.to,
-                from_color: ring_color_at(look.colors, from),
-                to_color: ring_color_at(look.colors, to),
-            };
-            asset.line_gradient(line.from, line.to, line.from_color, line.to_color);
-            ring.lines.push(line);
-        }
+        let ring = draw_ring(&mut asset, &look, view, width);
         drawn.0.insert(stroke_for.0, ring);
         if gizmo.line_config.width != width {
             gizmo.line_config.width = width;
@@ -387,54 +359,89 @@ fn draw_orbit_rings(
     }
 }
 
-/// Where a ring is, where the bodies on it are, and how it is coloured;
-/// `None` if the ring isn't drawn.
-fn stroke_look(
-    owner: Entity,
-    rings: &OrbitRings,
-    (positions, star): (&WorldPositions, Vec3),
-    (selection, hovered, tunables): (&Selection, &HoveredBodies, &Tunables),
-) -> Option<StrokeLook> {
-    let ring = rings.ring(owner)?;
-    let body_angles: Vec<f32> = ring.drawn().map(|m| m.angle).collect();
-    let mode = ring.mode();
-    let (selected, is_hovered) = ring.highlight(selection, hovered);
-    let highlight = ring_highlight(
-        selected,
-        is_hovered,
-        tunables.orbit_selected_alpha,
-        tunables.orbit_hover_alpha,
-    );
-    let extent = ring_extent(
-        ring.class(),
-        body_angles.is_empty(),
-        mode.ring_mode,
-        highlight.is_some(),
-    );
-    let mut colors = ring_colors(
-        highlight,
-        tunables.orbit_ring_alpha,
-        tunables.exposure_ring_alpha,
-    );
-    match extent {
-        RingExtent::Hidden => return None,
-        // MRK-09: past the tail's end there is no ring to fade into.
-        RingExtent::Tail => colors.normal = colors.normal.with_alpha(0.0),
-        RingExtent::Full => {}
+/// Draws one ring's lines into its stroke, each brightening towards the
+/// bodies' tails (MOT-01), and keeps them for the markers to match.
+fn draw_ring(asset: &mut GizmoAsset, look: &StrokeLook, view: RingView, width: f32) -> DrawnRing {
+    let mut ring = DrawnRing {
+        centre: look.centre_body,
+        width,
+        lines: Vec::new(),
+    };
+    for segment in ring_segments(look.center, look.radius, view)
+        .into_iter()
+        .flat_map(|segment| split_at_angles(segment, &look.body_angles))
+    {
+        let (from, to) = ends_brightness(&segment, &look.body_angles, &look.mode);
+        let line = RingLine {
+            from: segment.from,
+            to: segment.to,
+            from_color: ring_color_at(look.colors, from),
+            to_color: ring_color_at(look.colors, to),
+        };
+        asset.line_gradient(line.from, line.to, line.from_color, line.to_color);
+        ring.lines.push(line);
     }
-    let center = ring
-        .centre
-        .and_then(|parent| positions.0.get(&parent).copied())
-        .unwrap_or(star);
-    Some(StrokeLook {
-        center,
-        centre_body: ring.centre,
-        radius: km_to_render(ring.radius_km),
-        body_angles,
-        mode,
-        colors,
-        base_width: ring_base_width(highlight.is_some(), tunables),
-    })
+    ring
+}
+
+/// What a ring's look is worked out from: the rings, where bodies are,
+/// the selection and hover, and the tunables.
+#[derive(SystemParam)]
+struct RingLooks<'w, 's> {
+    rings: OrbitRings<'w, 's>,
+    positions: Res<'w, WorldPositions>,
+    origin: Res<'w, RenderOrigin>,
+    selection: Res<'w, Selection>,
+    hovered: Res<'w, HoveredBodies>,
+    tunables: Res<'w, Tunables>,
+}
+
+impl RingLooks<'_, '_> {
+    /// Where a ring is, where the bodies on it are, and how it is
+    /// coloured; `None` if the ring isn't drawn.
+    fn look(&self, owner: Entity) -> Option<StrokeLook> {
+        let tunables = &self.tunables;
+        let ring = self.rings.ring(owner)?;
+        let body_angles: Vec<f32> = ring.drawn().map(|m| m.angle).collect();
+        let mode = ring.mode();
+        let (selected, is_hovered) = ring.highlight(&self.selection, &self.hovered);
+        let highlight = ring_highlight(
+            selected,
+            is_hovered,
+            tunables.orbit_selected_alpha,
+            tunables.orbit_hover_alpha,
+        );
+        let extent = ring_extent(
+            ring.class(),
+            body_angles.is_empty(),
+            mode.ring_mode,
+            highlight.is_some(),
+        );
+        let mut colors = ring_colors(
+            highlight,
+            tunables.orbit_ring_alpha,
+            tunables.exposure_ring_alpha,
+        );
+        match extent {
+            RingExtent::Hidden => return None,
+            // MRK-09: past the tail's end there is no ring to fade into.
+            RingExtent::Tail => colors.normal = colors.normal.with_alpha(0.0),
+            RingExtent::Full => {}
+        }
+        let center = ring
+            .centre
+            .and_then(|parent| self.positions.0.get(&parent).copied())
+            .unwrap_or(self.origin.star);
+        Some(StrokeLook {
+            center,
+            centre_body: ring.centre,
+            radius: km_to_render(ring.radius_km),
+            body_angles,
+            mode,
+            colors,
+            base_width: ring_base_width(highlight.is_some(), tunables),
+        })
+    }
 }
 
 /// `MAX_RING_ERROR_PX` as an angle seen from the camera. Without a viewport

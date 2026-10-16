@@ -36,13 +36,10 @@ impl Plugin for HoverPlugin {
 /// `drag_threshold_px` that hits no marker, pill, ring or panel - clears
 /// the selection and closes the inset. While the transfer planner is open
 /// it does nothing (PLNR-03).
-#[allow(clippy::too_many_arguments)]
 fn clear_on_empty_click(
     buttons: Res<ButtonInput<MouseButton>>,
     bindings: Res<Bindings>,
-    windows: Query<&Window>,
-    press: Res<PressStart>,
-    tunables: Res<Tunables>,
+    check: ClickCheck,
     targets: PointerTargets,
     planner: Res<PlannerState>,
     mut selection: ResMut<Selection>,
@@ -50,10 +47,7 @@ fn clear_on_empty_click(
     if !buttons.just_released(bindings.select_button) || planner.is_open() {
         return;
     }
-    let Some(release) = windows.single().ok().and_then(Window::cursor_position) else {
-        return;
-    };
-    if was_click(&press, release, tunables.drag_threshold_px) && targets.over_nothing() {
+    if check.released_as_click() && targets.over_nothing() {
         selection.clear();
     }
 }
@@ -80,6 +74,13 @@ pub struct ClickCheck<'w, 's> {
 }
 
 impl ClickCheck<'_, '_> {
+    /// Whether the cursor is in the window and still within the drag
+    /// threshold of where the press started (CAM-10).
+    fn released_as_click(&self) -> bool {
+        let release = self.windows.single().ok().and_then(Window::cursor_position);
+        release.is_some_and(|at| was_click(&self.press, at, self.tunables.drag_threshold_px))
+    }
+
     /// A click that selects: the primary button, and not the release of a
     /// drag (CAM-10). Right-clicks are reserved for context menus (CAM-13).
     fn selects(&self, click: &On<PointerClick>) -> bool {

@@ -18,6 +18,7 @@
 
 use std::collections::HashMap;
 
+use bevy::ecs::system::SystemParam;
 use bevy::picking::PickingSystems;
 use bevy::picking::backend::{HitData, PointerHits};
 use bevy::picking::pointer::{PointerId, PointerLocation};
@@ -162,71 +163,99 @@ pub fn drawn_arcs(extent: RingExtent, body_angles: &[f32], tail_degrees: f32) ->
 type RingTargets<'w, 's> = Query<'w, 's, (Entity, &'static RingTarget)>;
 type TailTargets<'w, 's> = Query<'w, 's, (Entity, &'static MemberTailTarget)>;
 
-/// HOV-02: trace every drawn ring and tail on screen. A folded satellite's
-/// ring isn't drawn, so it has no path (GRP-07: its pill stands for it),
-/// and a ring carrying the frame body is left out, as is one faded out by
-/// its size (MRK-14). On a shared ring carrying the frame body, each other
-/// drawn member's tail is traced for that member instead.
-#[allow(clippy::too_many_arguments)]
-fn trace_rings(
-    view: ViewNow,
-    rings: OrbitRings,
-    (frame, selection, hovered): (Res<Frame>, Res<Selection>, Res<HoveredBodies>),
-    (screen, tunables): (Res<ScreenPositions>, Res<Tunables>),
-    camera_q: Query<(&Camera, &Transform, &Projection), With<Camera3d>>,
-    (targets, tail_targets): (RingTargets, TailTargets),
-    mut paths: ResMut<RingPaths>,
-) {
-    paths.0.clear();
-    let frame_body = frame.non_star_body();
-    let fade = camera_q
-        .single()
-        .ok()
-        .and_then(|camera| FadeView::new(camera, &screen, &tunables));
-    for (target, ring_target) in &targets {
-        let Some(ring) = rings.ring(ring_target.0) else {
-            continue;
+/// What tracing the rings reads: this frame's view, the rings, the frame,
+/// the selection and hover, and the camera for the fade by size.
+#[derive(SystemParam)]
+struct RingTrace<'w, 's> {
+    view: ViewNow<'w, 's>,
+    rings: OrbitRings<'w, 's>,
+    frame: Res<'w, Frame>,
+    selection: Res<'w, Selection>,
+    hovered: Res<'w, HoveredBodies>,
+    screen: Res<'w, ScreenPositions>,
+    tunables: Res<'w, Tunables>,
+    cameras:
+        Query<'w, 's, (&'static Camera, &'static Transform, &'static Projection), With<Camera3d>>,
+}
+
+impl RingTrace<'_, '_> {
+    /// MRK-14: how rings fade by their size on screen this frame.
+    fn fade(&self) -> Option<FadeView> {
+        self.cameras
+            .single()
+            .ok()
+            .and_then(|camera| FadeView::new(camera, &self.screen, &self.tunables))
+    }
+
+    /// The segments of `owner`'s ring as drawn: none for a ring carrying
+    /// the frame body or faded out by its size.
+    fn ring_segments(&self, owner: Entity, fade: Option<FadeView>) -> Vec<(Vec2, Vec2)> {
+        let frame_body = self.frame.non_star_body();
+        let Some(ring) = self.rings.ring(owner) else {
+            return Vec::new();
         };
-        if ring.carries(frame_body) {
-            continue;
-        }
-        if faded_out(&ring, fade, &view) {
-            continue;
+        if ring.carries(frame_body) || faded_out(&ring, fade, &self.view) {
+            return Vec::new();
         }
         let angles: Vec<f32> = ring.drawn().map(|m| m.angle).collect();
         let mode = ring.mode();
-        let (selected, is_hovered) = ring.highlight(&selection, &hovered);
+        let (selected, is_hovered) = ring.highlight(&self.selection, &self.hovered);
         let extent = ring_extent(
             ring.class(),
             angles.is_empty(),
             mode.ring_mode,
             selected || is_hovered,
         );
-        let segments = trace_arcs(
+        trace_arcs(
             &ring,
             &drawn_arcs(extent, &angles, mode.tail_degrees),
-            &view,
-        );
+            &self.view,
+        )
+    }
+
+    /// The segments of one member's tail on a shared ring, only while the
+    /// frame body is another member of it.
+    fn tail_segments(&self, tail: &MemberTailTarget, fade: Option<FadeView>) -> Vec<(Vec2, Vec2)> {
+        let frame_body = self.frame.non_star_body();
+        let Some(ring) = self.rings.ring(tail.orbit) else {
+            return Vec::new();
+        };
+        if !ring.carries(frame_body) || frame_body == Some(tail.body) {
+            return Vec::new();
+        }
+        let mode = ring.mode();
+        let Some(member) = ring.drawn().find(|m| m.body == tail.body) else {
+            return Vec::new();
+        };
+        if mode.ring_mode || faded_out(&ring, fade, &self.view) {
+            return Vec::new();
+        }
+        let arc = drawn_arc(RingExtent::Tail, member.angle, mode.tail_degrees);
+        trace_arcs(&ring, &Vec::from_iter(arc), &self.view)
+    }
+}
+
+/// HOV-02: trace every drawn ring and tail on screen. A folded satellite's
+/// ring isn't drawn, so it has no path (GRP-07: its pill stands for it),
+/// and a ring carrying the frame body is left out, as is one faded out by
+/// its size (MRK-14). On a shared ring carrying the frame body, each other
+/// drawn member's tail is traced for that member instead.
+fn trace_rings(
+    trace: RingTrace,
+    targets: RingTargets,
+    tail_targets: TailTargets,
+    mut paths: ResMut<RingPaths>,
+) {
+    paths.0.clear();
+    let fade = trace.fade();
+    for (target, ring_target) in &targets {
+        let segments = trace.ring_segments(ring_target.0, fade);
         if !segments.is_empty() {
             paths.0.insert(target, segments);
         }
     }
     for (target, tail) in &tail_targets {
-        let Some(ring) = rings.ring(tail.orbit) else {
-            continue;
-        };
-        if !ring.carries(frame_body) || frame_body == Some(tail.body) {
-            continue;
-        }
-        let mode = ring.mode();
-        let Some(member) = ring.drawn().find(|m| m.body == tail.body) else {
-            continue;
-        };
-        if mode.ring_mode || faded_out(&ring, fade, &view) {
-            continue;
-        }
-        let arc = drawn_arc(RingExtent::Tail, member.angle, mode.tail_degrees);
-        let segments = trace_arcs(&ring, &Vec::from_iter(arc), &view);
+        let segments = trace.tail_segments(tail, fade);
         if !segments.is_empty() {
             paths.0.insert(target, segments);
         }

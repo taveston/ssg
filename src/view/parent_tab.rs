@@ -7,6 +7,7 @@
 //! It is placed and styled as a gate's edge tab is (`edge_tab.rs`). The
 //! marker inside is rebuilt whenever the parent changes.
 
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
 use super::edge::{edge_arrow_angle, edge_point};
@@ -67,9 +68,16 @@ fn frame_parent(frame: &Frame, parents: &Query<&ChildOf>) -> Option<Entity> {
     Some(parents.get(body).map_or(frame.star, ChildOf::parent))
 }
 
+/// The tab's parts that are filled for each parent: the marker's holder
+/// and the name.
+#[derive(SystemParam)]
+struct ParentTabParts<'w, 's> {
+    icons: Query<'w, 's, Entity, With<ParentTabIcon>>,
+    labels: Query<'w, 's, &'static mut Text, With<ParentTabLabel>>,
+}
+
 /// MRK-15: puts the parent's marker and name in the tab when the parent
 /// changes.
-#[allow(clippy::too_many_arguments)]
 fn fill_parent_tab(
     mut commands: Commands,
     mut built_for: Local<Option<Entity>>,
@@ -77,9 +85,9 @@ fn fill_parent_tab(
     (fonts, tunables): (Res<Fonts>, Res<Tunables>),
     parents: Query<&ChildOf>,
     bodies: Query<(&BodyClass, Option<&Affiliation>, &DisplayName)>,
-    icons: Query<Entity, With<ParentTabIcon>>,
-    mut labels: Query<&mut Text, With<ParentTabLabel>>,
+    mut parts: ParentTabParts,
 ) {
+    let ParentTabParts { icons, labels } = &mut parts;
     let parent = frame_parent(&frame, &parents);
     if *built_for == parent {
         return;
@@ -88,7 +96,7 @@ fn fill_parent_tab(
     let Some((class, affiliation, name)) = parent.and_then(|p| bodies.get(p).ok()) else {
         return;
     };
-    for mut text in &mut labels {
+    for mut text in labels.iter_mut() {
         text.0 = name.0.clone();
     }
     let look = BodyLook {
@@ -97,7 +105,7 @@ fn fill_parent_tab(
         record: None,
         group: None,
     };
-    for icon in &icons {
+    for icon in icons.iter() {
         commands
             .entity(icon)
             .despawn_related::<Children>()
