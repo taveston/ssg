@@ -297,6 +297,8 @@ mod tests {
         assert_eq!(clusters_at(between), 2, "apart, and not yet joined");
         assert_eq!(clusters_at(join - 1.0), 1, "joined");
         assert_eq!(clusters_at(between), 1, "stays joined in the band");
+        // Exactly the split apart, one grid cell over: still in the band.
+        assert_eq!(clusters_at(split), 1, "stays joined at the split");
         assert_eq!(clusters_at(split + 1.0), 2, "parted");
         assert_eq!(clusters_at(between), 2, "stays parted in the band");
     }
@@ -350,35 +352,47 @@ mod tests {
     }
 
     /// MUL-05 / PHAS-02: linking only neighbours in phase finds the same
-    /// sets as testing every pair, over many crowded orbits with things
-    /// across the zero angle.
+    /// sets as testing every pair, over many crowded orbits of different
+    /// radii, with things at the very same phase and across the zero
+    /// angle.
     #[test]
     fn neighbours_in_phase_find_the_same_sets_as_every_pair() {
         let e = entities(400);
         let orbits = &e[390..];
         let mut rng = Lcg(7);
-        let mut chains = 0;
+        let (mut chains, mut wraps) = (0, 0);
         for scene in 0..20 {
             let slots: Vec<OrbitSlot> = e[..390]
                 .iter()
                 .map(|&thing| {
-                    let orbit = orbits[(rng.next() * orbits.len() as f64) as usize];
+                    let o = (rng.next() * orbits.len() as f64) as usize;
                     // Clustered near a few phases, some just either side
-                    // of zero, so sets form, chain and wrap.
-                    let centre = (rng.next() * 6.0).floor() - 1.0;
+                    // of zero, so sets form, chain and wrap; one in five
+                    // exactly on its cluster's phase.
+                    let centre = ((rng.next() * 6.0).floor() - 1.0) * 0.5;
+                    let spread = (rng.next() - 0.5) * 2e-3;
+                    let exact = rng.next() < 0.2;
                     OrbitSlot {
                         thing,
-                        orbit,
-                        radius_km: 40_000.0,
-                        phase_rad: centre * 0.5 + (rng.next() - 0.5) * 2e-3,
+                        orbit: orbits[o],
+                        radius_km: 30_000.0 + 2_000.0 * o as f64,
+                        phase_rad: if exact { centre } else { centre + spread },
                     }
                 })
                 .collect();
             let sets = together_sets(&slots, 10.0);
             assert_eq!(sets, together_sets_by_pairs(&slots, 10.0), "scene {scene}");
             chains += sets.iter().filter(|set| set.len() > 2).count();
+            let phase_of = |t: &Entity| slots.iter().find(|s| s.thing == *t).unwrap().phase_rad;
+            wraps += sets
+                .iter()
+                .filter(|set| {
+                    set.iter().any(|t| phase_of(t) < 0.0) && set.iter().any(|t| phase_of(t) > 0.0)
+                })
+                .count();
         }
         assert!(chains > 0, "the scenes have chains to find");
+        assert!(wraps > 0, "the scenes have sets across the zero angle");
     }
 
     /// The overlap clusters by testing every pair, with the latch kept as

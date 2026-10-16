@@ -6,9 +6,10 @@
 //! together in one phase, and symbols that merely overlap.
 //!
 //! `gather.rs` decides which markers there are and what each holds, by
-//! the rules in `link.rs`; `look.rs` how each looks, `draw.rs` draws them, `order.rs` lists a
-//! marker's things in order and `click.rs` handles a click on one. What
-//! they produce is shared state in `view/multi.rs`.
+//! the rules in `link.rs`; `look.rs` how each looks, `draw.rs` draws
+//! them, `order.rs` lists a marker's things in order and `click.rs`
+//! handles a click on one. What they produce is shared state in
+//! `view/multi.rs`.
 
 use bevy::prelude::*;
 
