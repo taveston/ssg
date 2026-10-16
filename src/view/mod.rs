@@ -36,6 +36,7 @@ pub mod grouping;
 pub mod halo;
 pub mod hover;
 pub mod hovered;
+pub mod inset_content;
 pub mod inspect;
 pub mod labels;
 pub mod layers;
