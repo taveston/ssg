@@ -78,6 +78,12 @@ pub fn ship_facts(account: &DeltaV, drive: &Drive) -> Vec<(String, String)> {
     ]
 }
 
+/// PLNR-01: whether a body is a ship the faction commands, the only kind
+/// that can be given orders.
+pub fn is_commanded_ship(class: BodyClass, record: Option<&ShipRecord>) -> bool {
+    class == BodyClass::Ship && record.is_some_and(|r| r.commanded)
+}
+
 /// PLNR-01: whether a ship the faction commands shows the Transfer
 /// button: it is not a group, it is parked in a named orbit (not in
 /// flight or coasting), and it has no plan that is Scheduled, InFlight or
@@ -164,7 +170,7 @@ pub fn gather_content(
         bodies.get(body).ok()?;
     let (orbit, mass, radius) = physics;
     let (account, drive, group) = ship;
-    let commanded_ship = *class == BodyClass::Ship && record.is_some_and(|r| r.commanded);
+    let commanded_ship = is_commanded_ship(*class, record);
     let radius = radius.filter(|_| is_natural(*class));
     let mut facts = facts.0.clone();
     facts.extend(astronomical_facts(

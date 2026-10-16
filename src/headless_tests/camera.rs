@@ -994,3 +994,87 @@ fn the_debug_shot_sets_up_its_view_then_asks_for_a_capture() {
     let mut shots = app.world_mut().query::<&Screenshot>();
     assert_eq!(shots.iter(app.world()).count(), 1);
 }
+
+/// Runs a debug shot until it asks for a capture or fails, and says
+/// which, with whether the app was asked to exit with an error.
+fn run_shot_to_end(app: &mut App) -> (crate::view::debug_shot::ShotPhase, bool) {
+    use crate::view::debug_shot::{Shot, ShotPhase};
+    let mut frames = 0;
+    loop {
+        run(app, 1);
+        frames += 1;
+        let phase = app.world().resource::<Shot>().phase;
+        if matches!(phase, ShotPhase::Capturing | ShotPhase::Failed) {
+            let failed = app.should_exit().is_some_and(|exit| exit.is_error());
+            return (phase, failed);
+        }
+        assert!(frames < 600, "the shot is stuck in {phase:?}");
+    }
+}
+
+/// A debug shot of Corvane with the transfer planner, for `spec`.
+fn planner_shot_app(spec: &str) -> App {
+    use crate::view::debug_shot::{DebugShotPlugin, Shot, ShotPlan};
+    use crate::view::planner::PlannerPlugin;
+    let plan = ShotPlan::parse(spec).unwrap();
+    camera_app_with(|app| {
+        app.insert_resource(Shot::new(plan))
+            .insert_resource(placeholder_fonts())
+            .add_plugins((DebugShotPlugin, HoveredPlugin, PlannerPlugin));
+    })
+}
+
+/// A shot that flies to a place the ship can't reach fails as soon as
+/// the planner has searched and solved it, long before its timeout: a
+/// Rendezvous at Iver needs more delta-v than Orison has.
+#[test]
+fn a_shot_that_cant_plan_its_trip_fails_once_the_planner_answers() {
+    use crate::view::debug_shot::ShotPhase;
+    let mut app = planner_shot_app("out=unused.png;select=Orison;planner=Iver;fly=5;timeout=30");
+    let (phase, failed) = run_shot_to_end(&mut app);
+    assert_eq!(phase, ShotPhase::Failed);
+    assert!(failed, "the app is asked to exit with an error");
+    let elapsed = app.world().resource::<Time>().elapsed_secs();
+    assert!(elapsed < 5.0, "failed after {elapsed}s");
+    let planner = app.world().resource::<PlannerState>();
+    let session = planner.session.as_ref().expect("the planner stays open");
+    assert!(session.found.is_some(), "the search ran before the failure");
+    assert!(
+        session.setting.is_some() && session.solved_for == session.setting,
+        "the leg was solved before the failure"
+    );
+}
+
+/// The same check lets a trip that can be planned go on: Halden IVa is
+/// within Orison's budget, so the order is scheduled and the shot goes on
+/// to its capture.
+#[test]
+fn a_shot_that_can_plan_its_trip_goes_on_to_the_capture() {
+    use crate::view::debug_shot::ShotPhase;
+    let mut app =
+        planner_shot_app("out=unused.png;select=Orison;planner=Halden IVa;fly=1;wait=0.1");
+    let (phase, failed) = run_shot_to_end(&mut app);
+    assert_eq!(phase, ShotPhase::Capturing);
+    assert!(!failed);
+}
+
+/// `planner` needs a selected ship that can open the planner (PLNR-01):
+/// with nothing selected, or a planet selected, the shot fails at its
+/// start instead of waiting for the timeout.
+#[test]
+fn a_shot_whose_selection_cant_open_the_planner_fails_at_its_start() {
+    use crate::view::debug_shot::ShotPhase;
+    for spec in [
+        "out=unused.png;planner=open",
+        "out=unused.png;select=Halden IV;planner=Iver;fly=1",
+    ] {
+        let mut app = planner_shot_app(spec);
+        let (phase, failed) = run_shot_to_end(&mut app);
+        assert_eq!(phase, ShotPhase::Failed, "{spec}");
+        assert!(failed, "{spec}");
+        assert!(
+            !app.world().resource::<PlannerState>().is_open(),
+            "{spec}: no planner opens"
+        );
+    }
+}

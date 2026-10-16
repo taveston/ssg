@@ -33,8 +33,18 @@
 //! Names are the bodies' display names. The app starts, waits a moment for
 //! the world to load, applies the selection, the rate and the frame, waits
 //! for the frame move to end, sets distance, tilt and heading, waits
-//! `wait` seconds, saves the screenshot and exits. A name that matches no
-//! body is logged and the app exits with an error.
+//! `wait` seconds, saves the screenshot and exits.
+//!
+//! These exit at once with an error log instead of waiting for the
+//! timeout:
+//! - a name that matches no body;
+//! - `planner` with no `select`, or selecting a body that can't open the
+//!   planner: anything but a ship the faction commands, parked in a named
+//!   orbit with no order (PLNR-01);
+//! - with `fly`, a destination that can't be picked, or whose order can't
+//!   be scheduled once the planner has searched and solved it: the log
+//!   gives the planner's own reason (PLNR-92), such as "Needs 13.2 km/s,
+//!   has 9.9" for a trip over the ship's budget.
 
 use std::path::PathBuf;
 
@@ -45,15 +55,21 @@ use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured, save_to_dis
 use super::camera::requests::FrameRequest;
 use super::camera::rules::clamp_tilt;
 use super::camera::state::{ActiveMove, CameraRig, MAX_DISTANCE, MIN_DISTANCE};
+use super::inset::content::is_commanded_ship;
+use super::inset::inspect::{OrderableShip, may_take_order};
 use super::planner::input::order_to_schedule;
+use super::planner::model::blocking_reason;
 use super::planner::state::{PickTarget, PlannerState};
+use super::planner::words::reason;
 use super::scale::km_to_render;
 use super::selection::Selection;
 use super::targets::{Hovered, MarkerFor};
 use super::tunables::Tunables;
 use crate::Stage;
-use crate::sim::body::DisplayName;
+use crate::sim::body::{BodyClass, DisplayName};
 use crate::sim::clock::GameClock;
+use crate::sim::track::ShipRecord;
+use crate::sim::transfer::order::Infeasible;
 use crate::sim::transfer::plan::{Plan, ShipOrder};
 
 /// The environment variable that asks for a screenshot.
@@ -163,6 +179,8 @@ pub enum ShotPhase {
     Capturing,
     /// Saved; the app exits.
     Saved,
+    /// The shot can't be taken as asked; the app exits with an error.
+    Failed,
 }
 
 /// The shot in progress. Present only when `OW_SHOT` is set (or a test
@@ -181,9 +199,18 @@ impl Shot {
         }
     }
 
-    /// True once the shot has run past its timeout without being saved.
+    /// True once the shot has run past its timeout without being saved
+    /// or failing.
     pub fn timed_out(&self, now: f32) -> bool {
-        self.phase != ShotPhase::Saved && now >= self.plan.timeout_secs
+        !matches!(self.phase, ShotPhase::Saved | ShotPhase::Failed) && now >= self.plan.timeout_secs
+    }
+
+    /// Logs why the shot can't be taken and asks the app to exit with an
+    /// error.
+    fn fail(&mut self, why: &str, exit: &mut MessageWriter<AppExit>) {
+        error!("{SHOT_ENV}: {why}");
+        exit.write(AppExit::error());
+        self.phase = ShotPhase::Failed;
     }
 }
 
@@ -197,7 +224,7 @@ impl Plugin for DebugShotPlugin {
         }
         app.add_systems(
             Update,
-            (fly_order, run_shot)
+            (fly_order, refuse_unplannable, run_shot)
                 .chain()
                 .run_if(resource_exists::<Shot>)
                 .after(Stage::Simulation)
@@ -206,6 +233,14 @@ impl Plugin for DebugShotPlugin {
     }
 }
 
+/// What the shot reads of a body to decide whether it can open the
+/// planner (PLNR-01).
+type PlannerShip = (
+    &'static BodyClass,
+    Option<&'static ShipRecord>,
+    OrderableShip,
+);
+
 /// What the shot sets up at its start: the bodies it names, their
 /// markers, the selection, the planner, the clock and the frame request.
 #[derive(SystemParam)]
@@ -213,6 +248,7 @@ struct ShotScene<'w, 's> {
     commands: Commands<'w, 's>,
     names: Query<'w, 's, (Entity, &'static DisplayName)>,
     markers: Query<'w, 's, (Entity, &'static MarkerFor)>,
+    ships: Query<'w, 's, PlannerShip>,
     selection: ResMut<'w, Selection>,
     planner: ResMut<'w, PlannerState>,
     clock: ResMut<'w, GameClock>,
@@ -228,8 +264,31 @@ impl ShotScene<'_, '_> {
             .map(|(entity, _)| entity)
     }
 
+    /// Whether the body named `select` is a ship the planner can open
+    /// for, as the inset's Transfer button shows (PLNR-01); or why not.
+    fn check_planner_ship(&self, select: Option<&str>) -> Result<(), String> {
+        let Some(name) = select else {
+            return Err("`planner` needs `select` to name the ship to plan for".to_string());
+        };
+        let ship = self.find(name);
+        let ok = ship.and_then(|ship| self.ships.get(ship).ok()).is_some_and(
+            |(class, record, orderable)| {
+                is_commanded_ship(*class, record) && may_take_order(orderable)
+            },
+        );
+        if ok {
+            Ok(())
+        } else {
+            Err(format!(
+                "`{name}` can't open the planner: only a ship the faction \
+                 commands, parked in a named orbit with no order, can"
+            ))
+        }
+    }
+
     /// Applies the plan's selection, planner, hover, rate and frame, and
-    /// says which phase comes next; or names a body that doesn't exist.
+    /// says which phase comes next; or says why the shot can't be taken:
+    /// a body that doesn't exist, or a planner that can't open.
     fn start(&mut self, plan: &ShotPlan) -> Result<ShotPhase, String> {
         let destination = plan.planner.as_ref().filter(|p| *p != PLANNER_OPEN);
         let wanted = [&plan.frame, &plan.select, &plan.hover]
@@ -237,7 +296,10 @@ impl ShotScene<'_, '_> {
             .flatten()
             .chain(destination);
         if let Some(missing) = wanted.into_iter().find(|n| self.find(n).is_none()) {
-            return Err(missing.clone());
+            return Err(format!("no body is named `{missing}`"));
+        }
+        if plan.planner.is_some() {
+            self.check_planner_ship(plan.select.as_deref())?;
         }
         if let Some(body) = plan.select.as_deref().and_then(|n| self.find(n)) {
             self.selection.select(body);
@@ -294,20 +356,17 @@ fn run_shot(
 ) {
     let now = time.elapsed_secs();
     if shot.timed_out(now) {
-        error!(
-            "{SHOT_ENV}: gave up after {}s, stuck in {:?}",
+        let why = format!(
+            "gave up after {}s, stuck in {:?}",
             shot.plan.timeout_secs, shot.phase
         );
-        exit.write(AppExit::error());
+        shot.fail(&why, &mut exit);
         return;
     }
     match shot.phase {
         ShotPhase::Starting if now >= START_AFTER_SECS => match scene.start(&shot.plan) {
             Ok(next) => shot.phase = next,
-            Err(missing) => {
-                error!("{SHOT_ENV}: no body is named `{missing}`");
-                exit.write(AppExit::error());
-            }
+            Err(why) => shot.fail(&why, &mut exit),
         },
         ShotPhase::Framing if scene.frame_request.0.is_none() && active.0.is_none() => {
             set_pose(&shot.plan, &mut rig, &tunables);
@@ -371,6 +430,94 @@ fn fly_order(
     }
 }
 
+/// Why the planner can't give the shot its order.
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum Refusal {
+    /// The planner closed before the order was ready.
+    Closed,
+    /// The destination can't be picked, so nothing is planned.
+    NotPickable,
+    /// The search or the leg can't be flown, or the leg is over budget;
+    /// with the crossing's primary, for the reasons that name it.
+    Unplannable {
+        why: Infeasible,
+        primary: Option<Entity>,
+    },
+}
+
+/// Why the planner's order can't be scheduled, once the planner has
+/// answered: `None` while the pick, the search or the leg is still to
+/// come, and when the order can be scheduled.
+fn refusal(planner: &PlannerState) -> Option<Refusal> {
+    let Some(session) = planner.session.as_ref() else {
+        return Some(Refusal::Closed);
+    };
+    if session.request.is_none() {
+        // A pick still waiting in `clicked` is yet to be resolved.
+        return planner.clicked.is_none().then_some(Refusal::NotPickable);
+    }
+    let found = session.found.as_ref()?;
+    let available_kms = match (&found.result, &found.context) {
+        (Err(_), _) => 0.0,
+        // The leg must be solved for the setting the search left.
+        (Ok(_), Some(context)) if session.setting.is_some() => {
+            if session.solved_for != session.setting {
+                return None;
+            }
+            context.available_kms
+        }
+        (Ok(_), _) => return None,
+    };
+    let why = blocking_reason(Some(&found.result), session.leg.as_ref(), available_kms)?;
+    Some(Refusal::Unplannable {
+        why,
+        primary: found.primary,
+    })
+}
+
+/// `fly`: once the planner has answered, a destination it can't plan for
+/// ends the shot at once with the planner's reason, rather than leaving
+/// it waiting for the timeout.
+fn refuse_unplannable(
+    mut shot: ResMut<Shot>,
+    planner: Res<PlannerState>,
+    names: Query<&DisplayName>,
+    parents: Query<&ChildOf>,
+    mut exit: MessageWriter<AppExit>,
+) {
+    if shot.phase != ShotPhase::Scheduling {
+        return;
+    }
+    let Some(refusal) = refusal(&planner) else {
+        return;
+    };
+    let ship = shot.plan.select.clone().unwrap_or_default();
+    let target = shot.plan.planner.clone().unwrap_or_default();
+    let because = match refusal {
+        Refusal::Closed => "the planner closed before its order was ready".to_string(),
+        Refusal::NotPickable => format!("`{target}` can't be picked as a destination"),
+        Refusal::Unplannable { why, primary } => {
+            // The crossing's primary, or else the body the ship orbits,
+            // as the planner's panel names it.
+            let ship_entity = planner.session.as_ref().map(|s| s.ship);
+            let primary = primary
+                .or_else(|| {
+                    ship_entity
+                        .and_then(|s| parents.get(s).ok())
+                        .map(ChildOf::parent)
+                })
+                .and_then(|e| names.get(e).ok())
+                .map_or(String::new(), |n| n.0.clone());
+            reason(why, &primary, &target)
+        }
+    };
+    let why = format!(
+        "can't plan `{ship}` to `{target}` (fly={}): {because}",
+        shot.plan.fly_days.unwrap_or(0.0)
+    );
+    shot.fail(&why, &mut exit);
+}
+
 /// Distance, tilt and heading as the plan gives them, each left as it is
 /// when not given. Distance and tilt keep the camera's limits.
 fn set_pose(plan: &ShotPlan, rig: &mut CameraRig, tunables: &Tunables) {
@@ -416,6 +563,8 @@ mod tests {
         assert!(shot.timed_out(5.0));
         shot.phase = ShotPhase::Saved;
         assert!(!shot.timed_out(10.0));
+        shot.phase = ShotPhase::Failed;
+        assert!(!shot.timed_out(10.0), "a failed shot has already exited");
         let default = ShotPlan::parse("out=a.png").unwrap();
         assert_eq!(default.timeout_secs, DEFAULT_TIMEOUT_SECS);
     }

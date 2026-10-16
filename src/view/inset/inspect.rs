@@ -344,12 +344,18 @@ fn handle_escape(
 
 /// What PLNR-01 reads of a ship: whether it is a group, parked, in
 /// flight, and its plan.
-type OrderableShip = (
+pub type OrderableShip = (
     Has<ShipGroup>,
     Has<InNamedOrbit>,
     Has<InFlight>,
     Option<&'static Plan>,
 );
+
+/// PLNR-01: whether a ship may be given an order now: not a group,
+/// parked in a named orbit and not in flight, with no active plan.
+pub fn may_take_order((group, parked, flying, plan): (bool, bool, bool, Option<&Plan>)) -> bool {
+    offers_transfer(group, parked && !flying, plan.map(|p| p.status))
+}
 
 /// PLNR-01: the Transfer button shows while its ship may be given an
 /// order, and not while the planner is open for it.
@@ -359,12 +365,7 @@ fn show_transfer_buttons(
     mut buttons: Query<(&TransferButton, &mut Node)>,
 ) {
     for (button, mut node) in &mut buttons {
-        let shown = ships
-            .get(button.0)
-            .is_ok_and(|(group, parked, flying, plan)| {
-                offers_transfer(group, parked && !flying, plan.map(|p| p.status))
-            })
-            && !planner.is_open_for(button.0);
+        let shown = ships.get(button.0).is_ok_and(may_take_order) && !planner.is_open_for(button.0);
         let display = if shown { Display::Flex } else { Display::None };
         if node.display != display {
             node.display = display;

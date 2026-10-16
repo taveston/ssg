@@ -224,19 +224,28 @@ pub fn tuning_model(facts: &TuningFacts, tunables: &Tunables) -> TuningModel {
 /// PLNR-31 / PLNR-42 / PLNR-92: Schedule is enabled only for a leg that
 /// can be flown within the budget; otherwise the reason says why.
 fn schedule_state(facts: &TuningFacts) -> (bool, String) {
-    let words = |why: Infeasible| reason(why, facts.primary, facts.destination);
-    match (facts.found, facts.leg) {
-        (Some(Err(why)), _) => (false, words(*why)),
-        (_, Some(Err(why))) => (false, words(*why)),
-        (_, Some(Ok(leg))) if leg.delta_v_kms > facts.available_kms => (
-            false,
-            words(Infeasible::DeltaV {
-                needed_kms: leg.delta_v_kms,
-                available_kms: facts.available_kms,
-            }),
-        ),
-        (_, Some(Ok(_))) => (true, String::new()),
-        _ => (false, String::new()),
+    match blocking_reason(facts.found, facts.leg, facts.available_kms) {
+        Some(why) => (false, reason(why, facts.primary, facts.destination)),
+        None => (matches!(facts.leg, Some(Ok(_))), String::new()),
+    }
+}
+
+/// PLNR-31 / PLNR-92: why a request's current setting can't be
+/// scheduled: the search found nothing, the leg can't be flown, or it
+/// needs more delta-v than `available_kms`. `None` when it can be, or
+/// while the search or the leg is still to come.
+pub fn blocking_reason(
+    found: Option<&Result<Search, Infeasible>>,
+    leg: Option<&Result<SolvedLeg, Infeasible>>,
+    available_kms: f64,
+) -> Option<Infeasible> {
+    match (found, leg) {
+        (Some(Err(why)), _) | (_, Some(Err(why))) => Some(*why),
+        (_, Some(Ok(leg))) if leg.delta_v_kms > available_kms => Some(Infeasible::DeltaV {
+            needed_kms: leg.delta_v_kms,
+            available_kms,
+        }),
+        _ => None,
     }
 }
 
