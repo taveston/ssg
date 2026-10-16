@@ -186,7 +186,7 @@ impl Setup<'_> {
         Some((start, end, arc))
     }
 
-    /// XFER-03: the prograde Lambert arc between the two ends' positions.
+    /// XFER-03: the crossing from `start_day` along the prograde Lambert arc.
     fn lambert_crossing(&self, start_day: f64, travel_days: f64) -> Option<Crossing> {
         let end_day = start_day + travel_days;
         let (start, end, arc) = self.lambert_arc(start_day, travel_days)?;
