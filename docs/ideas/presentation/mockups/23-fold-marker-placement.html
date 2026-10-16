@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Fold marker placement</title>
+<!--
+  Orphan Worlds: where a planet's fold marker sits (F-229) and what a tray opening to the left covers (F-239).
+  Candidate. The fold marker is the mixed one of GRP-05 (own ships folded in); moons alone use a moon ring (GRP-10).
+  Planet marker 12 px, fold marker 22 px with a back frame offset 4 px. Labels follow LBL-01: right, left, above, below.
+  Render at 1440 wide.
+-->
+<style>
+@font-face{font-family:"Plex Cond";src:url("../../../../assets/fonts/IBMPlexSansCondensed-Regular.ttf")}
+@font-face{font-family:"Plex Cond";font-weight:600;src:url("../../../../assets/fonts/IBMPlexSansCondensed-SemiBold.ttf")}
+@font-face{font-family:"Plex Mono";src:url("../../../../assets/fonts/IBMPlexMono-Regular.ttf")}
+:root{--ground:#070A0E;--text:#DCE6EC;--muted:#9FB6C4;--warn:#F0A040}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--ground);color:var(--text)}
+body{font-family:"Plex Cond",sans-serif;font-size:14px;width:1440px;padding:24px 32px 28px}
+h1{font-size:14px;font-weight:600;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin:0 0 6px;display:flex;gap:12px;align-items:center}
+.tag{font:11px "Plex Mono",monospace;color:var(--warn);border:1px solid var(--warn);border-radius:2px;padding:1px 6px;letter-spacing:.06em}
+.lede{color:var(--muted);margin:0 0 16px;font-size:13.5px;max-width:1180px;line-height:1.45}
+.board{margin-bottom:20px}
+.board h2{font-size:12px;font-weight:600;color:var(--muted);margin:0 0 8px;letter-spacing:.06em;text-transform:uppercase}
+.row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.frame{border:1px solid #1E2A35;border-radius:4px;overflow:hidden}
+.cap{color:var(--muted);font-size:12.5px;line-height:1.45;margin:8px 2px 0;max-width:1240px}
+.cap b{color:var(--text);font-weight:600}
+</style>
+</head>
+<body>
+<h1>Fold marker placement <span class="tag">CANDIDATE</span></h1>
+<p class="lede">Halden IV with its fold marker, which holds own ships (a mixed marker, so it keeps the full 22 px frame). Two placements, each shown quiet, with a neighbour in the planet's left label slot, and with the tray open to the left (the side it takes when it does not fit on the right). The labels follow LBL-01: right, then left, above, below. Real pixel size.</p>
+
+<section class="board"><h2>A · Level with the planet, to its right (as built, mock-up 18)</h2>
+  <div class="row"><div class="frame" id="a1"></div><div class="frame" id="a2"></div><div class="frame" id="a3"></div></div>
+  <p class="cap"><b>The marker takes the planet's right slot, so the label goes left.</b> A neighbour there leaves no free slot (above and below run into the marker's box), so the label is hidden, as seen in Halden IV's own frame. A tray opening left lies over the planet and its label.</p></section>
+
+<section class="board"><h2>B · Directly below the planet, touching its box</h2>
+  <div class="row"><div class="frame" id="b1"></div><div class="frame" id="b2"></div><div class="frame" id="b3"></div></div>
+  <p class="cap"><b>The right slot stays free, so the label is on the right as it is for a planet with a moon ring.</b> A neighbour on the left changes nothing. A tray opening left clears the planet, which sits above the marker rather than beside it.</p></section>
+
+<script>
+const C = {ground:'#070A0E', text:'#DCE6EC', muted:'#9FB6C4', own:'#5AA9E6', panel:'#0B1016', line:'rgba(159,182,196,.35)'};
+const hex = h => [1,3,5].map(i => parseInt(h.slice(i,i+2),16));
+const mix = (a,b,t) => { const A=hex(a), B=hex(b); return '#'+A.map((v,i)=>Math.round(v*t+B[i]*(1-t)).toString(16).padStart(2,'0')).join(''); };
+const mono = (txt, x, y, size, col, anchor='middle') =>
+  `<text x="${x}" y="${y}" text-anchor="${anchor}" font-family="Plex Mono, monospace" font-size="${size}" fill="${col}" stroke="none">${txt}</text>`;
+const name = (x, y, txt, anchor, size=12, col=C.text) =>
+  `<text x="${x}" y="${y}" text-anchor="${anchor}" font-family="Plex Cond, sans-serif" font-size="${size}" fill="${col}" stroke="${C.ground}" stroke-width="3" paint-order="stroke" stroke-linejoin="round">${txt}</text>`;
+
+const P = 12;
+const planet = (x, y) => `<circle cx="${x}" cy="${y}" r="${P/2 - .5}" fill="${C.ground}" stroke="${C.text}" stroke-width="1"/><circle cx="${x}" cy="${y}" r="1.5" fill="${C.text}"/>`;
+const moon = (x, y) => `<circle cx="${x}" cy="${y}" r="3.5" fill="${C.ground}" stroke="${C.text}" stroke-width="1"/>`;
+function fold(x, y, n) {
+  const fill = mix(C.own, C.ground, .30);
+  return `<circle cx="${x+4}" cy="${y-4}" r="10.25" fill="${fill}" stroke="${C.own}" stroke-width="1.5"/>` +
+         `<circle cx="${x}" cy="${y}" r="10.25" fill="${fill}" stroke="${C.own}" stroke-width="1.5"/>` + mono(n, x, y + 3.6, 10.5, C.own);
+}
+// A tray (MUL-08): header, rows, notch pointing at the marker on its right edge.
+function tray(rightX, midY) {
+  const w = 156, rows = ['Corvid', 'Pellam trader', 'TF-2 · ×2'], h = 22 + rows.length * 26 + 20, x = rightX - w, y = midY - h/2;
+  let s = `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${C.panel}" stroke="${C.line}"/>`;
+  s += `<path d="M${rightX},${midY - 5} L${rightX + 5},${midY} L${rightX},${midY + 5} Z" fill="${C.panel}" stroke="${C.line}"/>`;
+  s += mono('HALDEN IV · 3 IN ORBIT', x + 8, y + 15, 9, C.muted, 'start');
+  rows.forEach((r, i) => { const ry = y + 22 + i * 26 + 13;
+    s += `<circle cx="${x + 16}" cy="${ry}" r="5" fill="${mix(C.own, C.ground, .3)}" stroke="${C.own}" stroke-width="1.2"/>`;
+    s += `<text x="${x + 30}" y="${ry + 4}" font-family="Plex Cond, sans-serif" font-size="12" fill="${C.text}">${r}</text>`; });
+  s += mono('↑↓ pick · esc close', x + 8, y + h - 7, 8.5, C.muted, 'start');
+  return s;
+}
+
+const W = 452, H = 200, cx = 226, cy = 96;
+function scene(el, place, mode) {
+  let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="${C.ground}"/>`;
+  s += mono({quiet:'quiet', busy:'neighbour on the left', tray:'tray open to the left'}[mode], 10, 18, 10, C.muted, 'start');
+  // The neighbour: moon IVa with its label to its own left, standing in the planet's left label slot.
+  if (mode === 'busy') s += moon(cx - 34, cy + 1) + name(cx - 34 - 8, cy + 5, 'Halden IVa', 'end');
+  // Fold marker and its union box: A is level right, B is directly below; each touches the planet's box.
+  const A = place === 'a', fx = A ? cx + P/2 + 11 : cx, fy = A ? cy : cy + P/2 + 4 + 11;
+  s += planet(cx, cy) + fold(fx, fy, 3);
+  // The label: first free of right, left, above, below.
+  if (A) {
+    // With the left taken, above and below would run into the marker's box, so the label is hidden (LBL-01, LBL-03).
+    if (mode === 'busy') s += mono('label hidden: no free slot', cx, H - 14, 10, C.muted);
+    else s += name(cx - P/2 - 6, cy + 4, 'Halden IV', 'end');
+  } else s += name(cx + P/2 + 6, cy + 4, 'Halden IV', 'start');
+  // The tray: right of the box if it fits, else left; here forced left to show what it covers.
+  if (mode === 'tray') s += tray(A ? cx + P/2 - 6 : cx - 11 - 6, A ? cy : fy);
+  document.getElementById(el).innerHTML = s + '</svg>';
+}
+['quiet','busy','tray'].forEach((m, i) => { scene('a' + (i+1), 'a', m); scene('b' + (i+1), 'b', m); });
+</script>
+</body>
+</html>
