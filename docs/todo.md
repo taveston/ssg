@@ -27,6 +27,9 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 - [ ] **Orbit rows in the outline** · INS-05
   - Changes INS-05 (its ✓ is cleared). In `view/outline.rs`: drop the step in `children_of` that turns a one-member orbit back into a plain entry, so every named orbit with members gets its row. Name the row "High orbit · 14" (the orbit's name, "orbit", the member count) instead of "Halden IV · High · 14". An orbit with no members still gets no row.
   - Tests: Halden IV's outline has "Low orbit · 1" (Arden Highport) and "High orbit" with its ships; a body with empty bands has no orbit rows; selecting a lone member opens its row.
+- [ ] **High band default** · BAND-01
+  - Changes BAND-01 (its ✓ is cleared): `high_band_radii` becomes 34 (it was 10), so a planet's High band turns about every twelve days (Halden IV 12 d, Earth 11.6 d) and its parked ships show as dots at 1 d/s. Change the default in `SimTunables`; it is a starting point to tune in play.
+  - Check the tests that assumed Halden IV's old 1.9 d High band: the headless identity-mark test runs at 0.2 d/s for it, and a test of the "+N" pill on an exposure ring (MOT-14) now needs a rate fast enough for ring mode. Drop the F-147 note in `content/corvane.rs`.
 - [ ] **Condition bar** · SYM-12
   - The symbols are built; the bar adds to them (`view/symbols.rs`, `symbol_draw.rs`).
   - Build a group's mean as a function of its members' conditions, tested on its own, so **Ship groups** can use it.
@@ -42,7 +45,7 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 - [ ] **Sol test ships and stations** · SOL-08, SOL-11, SOL-12 to SOL-17
   - Changes SOL-08 and SOL-11 (their ✓ is cleared). In `content/sol.rs`: Perigee Station, Marlin and Vestige in Earth's Low band, Apogee Station in its High band, at the phases of table 3 (SOL-14). Marlin's phase equals the station's, so it is docked.
   - Build after **Stations in bands**, so both stations can be placed in bands. Drives and delta-v follow `propulsion_for` in `content/corvane.rs` (`Drive::new`, `Propulsion`); the tests in `content/sol.rs` and `headless_tests.rs` (SOL-11) take the new counts.
-  - SOL-17's test uses the `orbits` crate's `hohmann` for the Low-to-High crossing. Vestige's 3.7 h first burn is a large share of the 9.2 h crossing; log what the burn-time rule does with it as a finding.
+  - SOL-17's test uses the `orbits` crate's `hohmann` for the Low-to-High crossing. Vestige's 4.2 h first burn is a small share of the 52 h crossing; log what the burn-time rule does with it as a finding.
 - [ ] **Phase in transfers** · BAND-05, BAND-06, XFER-02, XFER-05, XFER-10, PLAN-11, PHAS-01 to PHAS-15
   - Ships in one band are at real places. A same-band target is a phasing leg; a station or ship in another body's band is met by timing the arrival; leaving an impulsive drive's band waits for the exit point. Ships in a group share one phase.
   - The maths goes in the `orbits` crate (PHAS-12): the phasing orbit, the capture angle and the exit angle. Lambert can't do the same-band case, because the path returns to its start point.
