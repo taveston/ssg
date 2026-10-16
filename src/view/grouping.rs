@@ -1,7 +1,7 @@
 //! Satellite grouping (`docs/spec/system-view.md`, GRP-01 to GRP-05,
 //! GRP-08): measures each satellite's orbit on screen and folds or unfolds
-//! it, then summarises what each parent carries for its fold marker
-//! (`multi_markers/`).
+//! it, then summarises what each parent carries for its moon ring
+//! (`moon_ring.rs`) and its object marker (`multi_markers/`).
 //!
 //! A satellite is anything orbiting a body other than the star - moons,
 //! stations, ships parked in orbit. Satellites are identified structurally:
@@ -25,6 +25,7 @@ use super::scale::km_to_render;
 use super::tunables::Tunables;
 use super::world::ViewNow;
 use crate::sim::orbit::Orbit;
+use crate::sim::track::ShipRecord;
 use crate::{Boot, Stage};
 
 pub struct GroupingPlugin;
@@ -132,13 +133,15 @@ fn resolve_hidden(mut satellites: Query<(Entity, &ChildOf, &mut SatelliteFoldSta
     }
 }
 
-/// GRP-05: what each parent's fold marker holds.
+/// GRP-05: what each parent has folded into it: natural bodies for its
+/// moon ring (GRP-10), and ships, groups and stations (those with a
+/// track record) for its object marker (GRP-12).
 fn summarise_folds(
-    satellites: Query<(Entity, &ChildOf, &SatelliteFoldState)>,
+    satellites: Query<(Entity, &ChildOf, &SatelliteFoldState, Has<ShipRecord>)>,
     mut summary: ResMut<FoldSummary>,
 ) {
     summary.0.clear();
-    for (entity, child_of, fold) in &satellites {
+    for (entity, child_of, fold, object) in &satellites {
         // Count by the latch, not by `effective_hidden`: a satellite joins
         // or leaves the count the moment it starts folding or unfolding,
         // so the fold marker and the sliding marker hand over cleanly.
@@ -148,12 +151,17 @@ fn summarise_folds(
         // Only count a satellite against the nearest *visible* ancestor:
         // if its own parent is folded too, it's already represented there.
         let parent = child_of.parent();
-        let parent_folded = satellites
-            .get(parent)
-            .is_ok_and(|(_, _, parent_fold)| fully_folded(parent_fold.folded, parent_fold.anim_t));
+        let parent_folded = satellites.get(parent).is_ok_and(|(_, _, parent_fold, _)| {
+            fully_folded(parent_fold.folded, parent_fold.anim_t)
+        });
         if parent_folded {
             continue;
         }
-        summary.0.entry(parent).or_default().members.push(entity);
+        let group = summary.0.entry(parent).or_default();
+        if object {
+            group.objects.push(entity);
+        } else {
+            group.bodies.push(entity);
+        }
     }
 }

@@ -36,14 +36,36 @@ fn zoom_in_on_until(app: &mut App, body: Entity, notches: usize, done: impl Fn(&
     zoom_in_until(app, notches, done);
 }
 
-/// GRP-05 / GRP-09 / MUL-04 / MUL-06 / SYM-16 / MRK-12: at the system fit
-/// Halden IV shows a fold marker beside its marker, level with it and
-/// clear of its box, centred on a whole pixel and drawn with the symbols.
-/// It counts every satellite folded into it, the task force TF-1 once.
+/// The count holder's display under a multi-marker's node.
+fn count_display(app: &mut App, root: Entity) -> Display {
+    use crate::view::multi_markers::draw::CountHolder;
+    let holder = descendants(app, root)
+        .into_iter()
+        .find(|&e| app.world().get::<CountHolder>(e).is_some())
+        .expect("a count holder");
+    app.world().get::<Node>(holder).unwrap().display
+}
+
+/// Halden IV's satellites with a track record: its ships, groups and
+/// stations, which fold into its object marker rather than its ring.
+fn object_satellites(app: &App, parent: Entity) -> Vec<Entity> {
+    let children = app.world().get::<Children>(parent).unwrap();
+    children
+        .iter()
+        .filter(|&c| app.world().get::<ShipRecord>(c).is_some())
+        .collect()
+}
+
+/// GRP-05 / GRP-09 / GRP-12 / MUL-04 / MUL-06 / SYM-16 / MRK-12: at the
+/// system fit, with nothing selected and no pointer, Halden IV's ships,
+/// groups and stations are held by its object marker, at rest a pip
+/// `object_pip_px` across with no count, down and to the right of its
+/// marker on a whole pixel, drawn with the symbols. It counts its ships,
+/// groups and stations, the task force TF-1 once, and none of its moons.
 /// Iver's counts only Iver Yard: the ships docked there are listed under
-/// the yard, not counted.
+/// the yard, not counted, but count for its colours (MUL-02).
 #[test]
-fn a_parent_with_folded_satellites_shows_a_fold_marker() {
+fn a_parent_with_folded_ships_shows_an_object_pip() {
     use crate::sim::group::ShipGroup;
     use crate::view::layers;
     use crate::view::markers::parent_clear_px;
@@ -52,17 +74,20 @@ fn a_parent_with_folded_satellites_shows_a_fold_marker() {
     run(&mut app, SETTLE_FRAMES);
     let halden = body(&mut app, "Halden IV");
     let tf1 = body(&mut app, "TF-1");
-    let satellites: Vec<Entity> = app.world().get::<Children>(halden).unwrap().to_vec();
-    let fold = multi_marker(&app, MultiKey::Fold(halden)).expect("Halden IV's fold marker");
-    assert_eq!(fold.count(), satellites.len());
+    let objects = object_satellites(&app, halden);
+    let fold = multi_marker(&app, MultiKey::Fold(halden)).expect("Halden IV's object marker");
+    assert_eq!(fold.count(), objects.len());
+    assert!(fold.things.iter().all(|t| objects.contains(t)), "no moons");
     assert!(fold.things.contains(&tf1));
     let members = app.world().get::<ShipGroup>(tf1).unwrap().members.clone();
     assert!(members.iter().all(|m| !fold.all_things().any(|t| t == *m)));
 
     let tunables = Tunables::default();
-    let half = tunables.ship_symbol_px / 2.0;
+    let pip = tunables.object_pip_px;
     let (node, _) = multi_node(&mut app, MultiKey::Fold(halden)).expect("drawn");
-    let centre = node_min(app.world().get::<Node>(node).unwrap()).unwrap() + Vec2::splat(half);
+    let drawn = app.world().get::<Node>(node).unwrap().clone();
+    assert_eq!(drawn.width, px(pip), "a pip");
+    let centre = node_min(&drawn).unwrap() + Vec2::splat(pip / 2.0);
     assert_eq!(centre, centre.round(), "on a whole pixel");
     assert_eq!(centre, fold.centre);
     let marker = app
@@ -70,17 +95,17 @@ fn a_parent_with_folded_satellites_shows_a_fold_marker() {
         .resource::<ScreenPositions>()
         .get(halden)
         .unwrap();
-    let clear = parent_clear_px(BodyClass::Planet, false, 0.0, &tunables);
-    assert_eq!(centre.y, marker.y.round(), "level with its parent");
+    let h = parent_clear_px(BodyClass::Planet, false, 0.0, &tunables);
+    let gap = h + tunables.object_pip_gap_px;
     assert!(
-        centre.x - half - tunables.bracket_margin_px >= marker.x + clear - 0.5,
-        "its box clears its parent's"
+        close(centre, (marker + Vec2::splat(gap)).round()),
+        "down and right"
     );
     assert_eq!(
         app.world().get::<GlobalZIndex>(node).unwrap().0,
         layers::SYMBOLS
     );
-    assert_eq!(count_under(&mut app, node), [satellites.len().to_string()]);
+    assert_eq!(count_display(&mut app, node), Display::None, "no count");
 
     let iver = body(&mut app, "Iver");
     let yard = body(&mut app, "Iver Yard");
@@ -89,13 +114,18 @@ fn a_parent_with_folded_satellites_shows_a_fold_marker() {
     assert_eq!(iver_fold.count(), 1);
     assert_eq!(iver_fold.docked[0].0, yard);
     assert_eq!(iver_fold.docked[0].1.len(), 2);
-    // MUL-02: the frames follow what is counted: the own yard, not the
-    // neutral trader docked at it.
-    let own = crate::view::multi_markers::look::affiliation_frame(
-        Affiliation::Own,
-        crate::view::markers::symbol_settings(&tunables),
+    // MUL-02: the neutral trader docked at the own yard is the most
+    // pressing, so the front is neutral and the back own.
+    let frame = |affiliation| {
+        crate::view::multi_markers::look::affiliation_frame(
+            affiliation,
+            crate::view::markers::symbol_settings(&tunables),
+        )
+    };
+    assert_eq!(
+        (iver_fold.look.front, iver_fold.look.back),
+        (frame(Affiliation::Neutral), frame(Affiliation::Own))
     );
-    assert_eq!((iver_fold.look.front, iver_fold.look.back), (own, own));
 }
 
 /// MUL-03 / MUL-13 / SYM-13 / TEST-11: framing Iver unfolds Iver Yard,

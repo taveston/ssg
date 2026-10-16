@@ -118,16 +118,6 @@ pub fn affiliation_frame(affiliation: Affiliation, settings: SymbolSettings) -> 
     }
 }
 
-/// MUL-02 / MRK-10: a plain circle in the neutral colour with a
-/// ground-colour inside, for a marker that holds only natural bodies.
-pub fn bodies_frame() -> FrameLook {
-    FrameLook {
-        shape: FrameShape::Circle,
-        color: colors::NEUTRAL,
-        fill_mix: 0.0,
-    }
-}
-
 /// Whether a thing shows affiliation on a multi-marker: ships, groups
 /// and stations do; natural bodies don't (MUL-02).
 fn has_symbol(class: BodyClass) -> bool {
@@ -152,8 +142,9 @@ fn back_frame(
 }
 
 /// MUL-02: a multi-marker's front and back frames from the class and
-/// affiliation of each thing it holds. Natural bodies are left out; with
-/// nothing else, both frames are plain neutral circles.
+/// affiliation of each thing it holds. Natural bodies are left out. A
+/// multi-marker always holds a ship, group or station; were it to hold
+/// none, it would show as unknown.
 fn multi_frames(
     things: &[(BodyClass, Affiliation)],
     settings: SymbolSettings,
@@ -162,10 +153,8 @@ fn multi_frames(
         .iter()
         .filter(|(class, _)| has_symbol(*class))
         .map(|&(_, affiliation)| affiliation)
-        .max_by_key(|&affiliation| urgency(affiliation));
-    let Some(pressing) = pressing else {
-        return (bodies_frame(), bodies_frame());
-    };
+        .max_by_key(|&affiliation| urgency(affiliation))
+        .unwrap_or(Affiliation::Unknown);
     let front = affiliation_frame(pressing, settings);
     (front, back_frame(things, front, settings))
 }
@@ -252,20 +241,9 @@ mod tests {
         );
     }
 
-    /// MUL-02 / MRK-10: natural bodies don't count for affiliation; a
-    /// marker of bodies only is two plain neutral circles with a ground
-    /// inside.
+    /// MUL-02: natural bodies don't count for affiliation.
     #[test]
-    fn bodies_only_make_plain_neutral_circles() {
-        let moons = [
-            (BodyClass::Moon, Affiliation::Own),
-            (BodyClass::Moon, Affiliation::Hostile),
-        ];
-        let (front, back) = multi_frames(&moons, SETTINGS);
-        assert_eq!(front, bodies_frame());
-        assert_eq!(back, bodies_frame());
-        assert_eq!(front.fill(), colors::GROUND);
-        assert_eq!(front.color, colors::NEUTRAL);
+    fn natural_bodies_never_colour_the_frames() {
         // A hostile moon doesn't turn a marker of own ships red.
         let mixed = [
             (BodyClass::Moon, Affiliation::Hostile),

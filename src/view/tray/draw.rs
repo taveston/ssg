@@ -14,7 +14,7 @@ use bevy::prelude::*;
 use super::TrayState;
 use super::contents::{TrayContents, TrayLine};
 use super::input::{RowSelect, toggle_row};
-use super::place::place_tray;
+use super::place::{TrayAnchor, TrayRoom, TraySide, place_tray};
 use crate::view::colors;
 use crate::view::fonts::Fonts;
 use crate::view::hover::ClickCheck;
@@ -398,15 +398,24 @@ pub fn place_tray_panel(
     let Ok((mut node, mut visibility, computed)) = roots.single_mut() else {
         return;
     };
-    let (Some(anchor), Some(viewport)) = (contents.anchor, map.viewport()) else {
+    let (Some(marker), Some(viewport)) = (contents.anchor, map.viewport()) else {
         if node.display != Display::None {
             node.display = Display::None;
         }
         return;
     };
     let size = node_size(computed);
-    let area = MapArea::of(viewport).rect();
-    let place = place_tray(anchor, size, area, tunables.tray_gap_px, NOTCH_INSET_PX);
+    let anchor = TrayAnchor {
+        marker,
+        parent: contents.parent,
+    };
+    let room = TrayRoom {
+        size,
+        area: MapArea::of(viewport).rect(),
+        gap: tunables.tray_gap_px,
+        notch_inset: NOTCH_INSET_PX,
+    };
+    let place = place_tray(anchor, room);
     // Nodes are written only when they move, so a still tray costs no
     // layout.
     node.set_if_neq(Node {
@@ -427,11 +436,17 @@ pub fn place_tray_panel(
             ..panel.clone()
         });
     }
+    // The notch's centre, on the edge facing the marker.
+    let at = match place.side {
+        TraySide::Right => Vec2::new(0.0, place.notch),
+        TraySide::Left => Vec2::new(size.x, place.notch),
+        TraySide::Below => Vec2::new(place.notch, 0.0),
+        TraySide::Above => Vec2::new(place.notch, size.y.min(place.max_height)),
+    };
     for mut notch in &mut notches {
-        let edge = if place.left_side { size.x } else { 0.0 };
         notch.set_if_neq(Node {
-            left: px(edge - NOTCH_PX / 2.0),
-            top: px(place.notch_y - NOTCH_PX / 2.0),
+            left: px(at.x - NOTCH_PX / 2.0),
+            top: px(at.y - NOTCH_PX / 2.0),
             ..notch.clone()
         });
     }

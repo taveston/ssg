@@ -8,6 +8,7 @@
 
 use bevy::prelude::*;
 
+use super::moon_ring::{MoonRing, moon_count_line, spawn_moon_ring};
 use super::{
     BodyDetail, BodyRim, MarkerDrawn, MarkerHalfSize, MarkerLabel, MarkerShape, SecondLineFor,
     body_fill, marker_half_size, marker_shape, symbol_settings,
@@ -79,6 +80,7 @@ pub(super) fn spawn_markers(
                 };
                 label_second_line(*affiliation, r, facts).unwrap_or_default()
             }),
+            moon_count: false,
         };
         spawn_marker(&mut commands, assets, body, marker, label);
     }
@@ -114,6 +116,9 @@ impl BodyLook<'_> {
 struct MarkerText<'a> {
     name: &'a str,
     second_line: Option<String>,
+    /// A natural body's label carries its moon count as its second line
+    /// (GRP-11).
+    moon_count: bool,
 }
 
 /// The fonts and tunables a marker is built from.
@@ -304,8 +309,14 @@ fn spawn_marker(
         // (MRK-08, `markers/picking.rs`), so the node itself takes none.
         Pickable::IGNORE,
     ));
-    if shape == MarkerShape::Disc {
-        marker.insert(disc_gap(tunables));
+    let disc = shape == MarkerShape::Disc;
+    if disc {
+        // GRP-10: the moon ring and the cover over it come before the
+        // class detail and rim, so they draw under them.
+        let fill = body_fill(false, tunables);
+        marker
+            .insert((MoonRing::default(), BackFrame(None)))
+            .with_children(|parent| spawn_moon_ring(parent, fill, disc_gap(tunables), tunables));
     }
     let station = look.class == BodyClass::Station && shape == MarkerShape::Symbol;
     if station {
@@ -324,6 +335,10 @@ fn spawn_marker(
         });
     }
     let color = look.color(tunables);
+    let text = MarkerText {
+        moon_count: disc,
+        ..text
+    };
     marker.with_children(|parent| spawn_label(parent, assets, (body, half, color), text));
 }
 
@@ -372,6 +387,10 @@ fn spawn_label(
                     Tint::new(colors::PANEL_BORDER, TintSlot::Text),
                     TextHalo::ground(),
                 ));
+            }
+            if text.moon_count {
+                let font = fonts.data(tunables.moon_count_px);
+                label.spawn((moon_count_line(body, font, tunables), TextHalo::ground()));
             }
         })
         .observe(hover::on_marker_over)

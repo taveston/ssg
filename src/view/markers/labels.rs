@@ -30,6 +30,7 @@
 
 use bevy::prelude::*;
 
+use super::moon_ring::MoonCountLine;
 use super::{MarkerHalfSize, MarkerLabel, MarkersPlaced, SecondLineFor};
 use crate::Stage;
 use crate::sim::body::{Affiliation, BodyClass};
@@ -37,7 +38,7 @@ use crate::sim::track::ShipRecord;
 use crate::view::anim::{advance_towards, step_per_frame};
 use crate::view::frame::Frame;
 use crate::view::hovered::HoveredBodies;
-use crate::view::multi::{BackFrame, MultiNode, frames_rect};
+use crate::view::multi::{BackFrame, MultiMarkers, MultiNode, frames_rect, popped_frames};
 use crate::view::node_box::{node_min, node_rect, node_size};
 use crate::view::paths::marks::PathLabel;
 use crate::view::rings::marks::{PeriodLine, RingLabelBox, RingMarkFor};
@@ -58,7 +59,13 @@ pub enum Slot {
     Below,
 }
 
-const SLOTS: [Slot; 4] = [Slot::Right, Slot::Left, Slot::Above, Slot::Below];
+/// LBL-01: the order a label tries its positions in.
+pub const SLOTS: [Slot; 4] = [Slot::Right, Slot::Left, Slot::Above, Slot::Below];
+
+/// GRP-12: a parent with an object marker tries left first, then above,
+/// below and right, measured from a box that takes in its popped fold
+/// marker, so the label stays put when the marker pops out.
+pub const OBJECT_PARENT_SLOTS: [Slot; 4] = [Slot::Left, Slot::Above, Slot::Below, Slot::Right];
 
 /// Where a label sits: its slot, and whether it keeps its second line.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -78,6 +85,8 @@ pub struct Candidate {
     pub depth: f32,
     /// The marker's box on screen.
     pub marker: Rect,
+    /// The positions it tries, in order (LBL-01, GRP-12).
+    pub slots: [Slot; 4],
     /// The label's size with its second line, and with the name alone.
     pub full_size: Vec2,
     pub name_size: Vec2,
@@ -175,18 +184,19 @@ pub fn place_labels(
         };
         let free = |rect: Rect| !taken.iter().any(|&other| overlaps(other, rect));
         let has_second_line = candidate.full_size != candidate.name_size;
+        let slots = candidate.slots;
         let tries = candidate.previous.into_iter().chain(
             [true, false]
                 .into_iter()
                 .filter(|&full| full || has_second_line)
-                .flat_map(|full| SLOTS.into_iter().map(move |slot| Placement { slot, full })),
+                .flat_map(|full| slots.into_iter().map(move |slot| Placement { slot, full })),
         );
         let mut chosen = tries
             .map(|placement| (placement, rect_for(placement)))
             .find(|&(_, rect)| free(rect));
         if chosen.is_none() && candidate.pinned {
             let placement = Placement {
-                slot: Slot::Right,
+                slot: slots[0],
                 full: true,
             };
             chosen = Some((placement, rect_for(placement)));
@@ -289,10 +299,33 @@ type Markers<'w, 's> = Query<
     (With<MarkerHalfSize>, Without<MarkerLabel>),
 >;
 
-/// A marker shown this frame: its node, its body, the box it takes with
-/// its amplifiers (SYM-13), and where that box's top-left sits relative
-/// to the node's, which is what a label's offset is measured from.
-type MarkerBox = (Entity, Entity, Rect, Vec2);
+/// A marker shown this frame, as the labels see it.
+#[derive(Debug, Clone, Copy)]
+struct MarkerBox {
+    node: Entity,
+    body: Entity,
+    /// The box it takes with its amplifiers (SYM-13), which other labels
+    /// keep clear of.
+    rect: Rect,
+    /// The box its own label is placed beside: `rect`, or for a parent
+    /// with an object marker, that and its popped fold marker (GRP-12).
+    label: Rect,
+    /// Where `label`'s top-left sits relative to the node's, which is
+    /// what a label's offset is measured from.
+    shift: Vec2,
+    /// The positions its label tries, in order.
+    slots: [Slot; 4],
+}
+
+/// GRP-12 / LBL-01: the box a parent's label is placed beside while it
+/// has an object marker: its marker's box `rect` and the box its fold
+/// marker takes popped out, beside the marker drawn in `drawn`, whether
+/// or not it is out, so the label never moves when it pops.
+pub fn object_parent_label_box(rect: Rect, drawn: Rect, tunables: &Tunables) -> Rect {
+    let margin = tunables.bracket_margin_px;
+    let h = drawn.half_size().x + margin;
+    rect.union(popped_frames(drawn.center(), h, tunables).inflate(margin))
+}
 
 /// LBL-01 / SYM-13 / MUL-13: the box a marker's label is placed beside
 /// and other labels keep clear of: the marker's box (`margin` round what
@@ -351,6 +384,7 @@ type PathLabels<'w, 's> = Query<
         Without<RingMarkFor>,
         Without<RingLabelBox>,
         Without<PeriodLine>,
+        Without<MoonCountLine>,
     ),
 >;
 
@@ -387,7 +421,7 @@ type SecondLines<'w, 's> = Query<
         &'static Text,
     ),
     (
-        Or<(With<SecondLineFor>, With<PeriodLine>)>,
+        Or<(With<SecondLineFor>, With<PeriodLine>, With<MoonCountLine>)>,
         Without<MarkerLabel>,
         Without<MarkerHalfSize>,
         Without<RingLabelBox>,
@@ -484,7 +518,7 @@ fn gather_obstacles(
     (multis, ring_marks): &Obstacles,
     margin: f32,
 ) -> Vec<Rect> {
-    let mut obstacles: Vec<Rect> = markers.iter().map(|&(_, _, rect, _)| rect).collect();
+    let mut obstacles: Vec<Rect> = markers.iter().map(|marker| marker.rect).collect();
     obstacles.extend(multis.iter().filter_map(|(node, back)| {
         let (min, Val::Px(width)) = (node_min(node)?, node.width) else {
             return None;
@@ -516,18 +550,33 @@ fn place_marker_labels(
     markers: Markers,
     (mut labels, mut path_labels, mut ring_labels): (Labels, PathLabels, RingLabels),
     mut second_lines: SecondLines,
-    obstacles: Obstacles,
+    (obstacles, multis): (Obstacles, Res<MultiMarkers>),
     mut colors: Query<(&ChildOf, &mut TextColor)>,
 ) {
     let marker_rects: Vec<MarkerBox> = markers
         .iter()
-        .filter_map(|(entity, marker_for, node, computed, (reach, back))| {
-            let (rect, shift) = marker_box(
-                node_rect(node, computed)?,
+        .filter_map(|(node, marker_for, layout, computed, (reach, back))| {
+            let drawn = node_rect(layout, computed)?;
+            let (rect, _) = marker_box(
+                drawn,
                 (reach, back.and_then(|b| b.0)),
                 tunables.bracket_margin_px,
             );
-            Some((entity, marker_for.0, rect, shift))
+            let body = marker_for.0;
+            let (label, slots) = if multis.has_object_marker(body) {
+                let label = object_parent_label_box(rect, drawn, &tunables);
+                (label, OBJECT_PARENT_SLOTS)
+            } else {
+                (rect, SLOTS)
+            };
+            Some(MarkerBox {
+                node,
+                body,
+                rect,
+                label,
+                shift: label.min - drawn.min,
+                slots,
+            })
         })
         .collect();
     let margin = tunables.bracket_margin_px;
@@ -590,22 +639,22 @@ fn marker_label_entries(
 ) -> Vec<LabelEntry> {
     let mut entries = Vec::new();
     for (label, child_of, computed, _, state, _) in labels {
-        let Some(&(_, body, marker, shift)) =
-            marker_rects.iter().find(|(m, ..)| *m == child_of.parent())
-        else {
+        let Some(marker) = marker_rects.iter().find(|m| m.node == child_of.parent()) else {
             continue;
         };
-        let Some((rank, depth, pinned)) = ranking.of(body) else {
+        let Some((rank, depth, pinned)) = ranking.of(marker.body) else {
             continue;
         };
         let (full_size, second) = label_sizes(label, computed, second_lines);
+        let shift = marker.shift;
         entries.push((
             label,
             Candidate {
-                body,
+                body: marker.body,
                 rank,
                 depth,
-                marker,
+                marker: marker.label,
+                slots: marker.slots,
                 full_size,
                 name_size: full_size - Vec2::new(0.0, second),
                 pinned,
@@ -721,6 +770,7 @@ fn ring_label_entries(
                 rank,
                 depth,
                 marker: bbox,
+                slots: SLOTS,
                 full_size,
                 name_size: full_size - Vec2::new(0.0, second),
                 pinned,
@@ -753,6 +803,7 @@ fn path_label_entries(path_labels: &PathLabels) -> Vec<(Entity, Candidate, Vec2)
                 rank: PATH_LABEL_RANK,
                 depth: order as f32,
                 marker: anchor,
+                slots: SLOTS,
                 full_size: size,
                 name_size: size,
                 pinned: false,
@@ -788,6 +839,7 @@ mod tests {
             rank,
             depth: 1.0,
             marker,
+            slots: SLOTS,
             full_size: Vec2::new(60.0, 26.0),
             name_size: Vec2::new(60.0, 14.0),
             pinned: false,

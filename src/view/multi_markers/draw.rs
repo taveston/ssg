@@ -212,11 +212,11 @@ type CountParts<'w, 's> = Query<
 >;
 
 /// Rewrite the parts under `root` to show `look` at `alpha`, each in the
-/// one colour slot it is drawn with.
+/// one colour slot it is drawn with, and, when `size` is given, as a
+/// frame that many pixels across (a fold marker's pip is small, GRP-12).
 pub fn write_look(
     root: Entity,
-    look: &MultiLook,
-    alpha: f32,
+    (look, alpha, size): (&MultiLook, f32, Option<f32>),
     children: &Query<&Children>,
     (frames, counts): (&mut FrameParts, &mut CountParts),
 ) {
@@ -227,7 +227,7 @@ pub fn write_look(
             shape.set_if_neq(SymbolPart {
                 mask,
                 color: color.with_alpha(color.alpha() * alpha),
-                ..*shape
+                size_px: size.unwrap_or(shape.size_px),
             });
         } else if let Ok((mut text, mut text_color, mut tint)) = counts.get_mut(node) {
             if text.0 != look.count {
@@ -319,17 +319,69 @@ pub fn assign_slots(
     (slots, short)
 }
 
-/// MUL-01 / MUL-06 / SYM-16: draw this frame's fold, together and
-/// overlap markers with the pool, each on the node it had last frame
-/// where it can, centred on its whole-pixel centre and faded with its
-/// things; hide the rest, and grow the pool when it is short. A station
-/// marker is its station's own marker.
+/// A pool node's back frame and count holders, which a fold marker
+/// resizes and shows or hides as it pops out (GRP-12, GRP-13).
+type PoolHolders<'w, 's> = Query<
+    'w,
+    's,
+    (&'static mut Node, Has<BackHolder>),
+    (
+        Or<(With<BackHolder>, With<CountHolder>)>,
+        Without<MultiNode>,
+        Without<MarkerFor>,
+    ),
+>;
+
+/// GRP-12 / GRP-13 / MUL-01: lay out the back frame and count under a
+/// pool node for `marker`: the back frame its size and at its offset, or
+/// hidden when it has none (a pip of one thing); the count only while
+/// it shows. Written only when they change.
+fn lay_out_holders(
+    root: Entity,
+    marker: &MultiMarker,
+    children: &Query<&Children>,
+    holders: &mut PoolHolders,
+) {
+    for node in children.iter_descendants(root) {
+        let Ok((mut holder, back)) = holders.get_mut(node) else {
+            continue;
+        };
+        let wanted = if back {
+            let offset = marker.back.unwrap_or_default();
+            Node {
+                display: display_if(marker.back.is_some()),
+                left: px(offset.x),
+                top: px(offset.y),
+                width: px(marker.frame_px),
+                height: px(marker.frame_px),
+                ..holder.clone()
+            }
+        } else {
+            Node {
+                display: display_if(marker.count_shown),
+                ..holder.clone()
+            }
+        };
+        holder.set_if_neq(wanted);
+    }
+}
+
+fn display_if(shown: bool) -> Display {
+    if shown { Display::Flex } else { Display::None }
+}
+
+/// MUL-01 / MUL-06 / SYM-16 / GRP-12: draw this frame's fold, together
+/// and overlap markers with the pool, each on the node it had last frame
+/// where it can, centred on its whole-pixel centre, at its size (a fold
+/// marker may be a pip) and faded with its things; hide the rest, and
+/// grow the pool when it is short. A station marker is its station's own
+/// marker.
 pub fn place_multi_markers(
     mut commands: Commands,
     (fonts, tunables): (Res<Fonts>, Res<Tunables>),
     multis: Res<MultiMarkers>,
     (mut pool, mut targets): (PoolNodes, Query<&mut MultiTarget>),
-    children: Query<&Children>,
+    (children, mut holders): (Query<&Children>, PoolHolders),
     mut parts: (FrameParts, CountParts),
 ) {
     let wanted: Vec<&MultiMarker> = multis
@@ -348,8 +400,6 @@ pub fn place_multi_markers(
     for _ in 0..short {
         spawn_pool_node(&mut commands, (&fonts, &tunables));
     }
-    let half = tunables.ship_symbol_px / 2.0;
-    let back = back_offset(tunables.back_frame_offset_px);
     for ((node_entity, target), slot) in nodes.into_iter().zip(slots) {
         let marker = slot.map(|i| wanted[i]);
         if let Ok(mut target) = targets.get_mut(target) {
@@ -367,18 +417,21 @@ pub fn place_multi_markers(
             back_frame.set_if_neq(BackFrame(None));
             continue;
         };
+        let half = marker.frame_px / 2.0;
         let (left, top) = (px(marker.centre.x - half), px(marker.centre.y - half));
-        if (node.display, node.left, node.top) != (Display::Flex, left, top) {
+        let size = px(marker.frame_px);
+        if (node.display, node.left, node.top, node.width) != (Display::Flex, left, top, size) {
             node.display = Display::Flex;
             node.left = left;
             node.top = top;
+            node.width = size;
+            node.height = size;
         }
-        back_frame.set_if_neq(BackFrame(Some(back)));
-        let alpha = marker.alpha;
+        back_frame.set_if_neq(BackFrame(marker.back));
+        lay_out_holders(node_entity, marker, &children, &mut holders);
         write_look(
             node_entity,
-            &marker.look,
-            alpha,
+            (&marker.look, marker.alpha, Some(marker.frame_px)),
             &children,
             (&mut parts.0, &mut parts.1),
         );
@@ -422,8 +475,7 @@ pub fn show_station_markers(
         if let Some(marker) = marker {
             write_look(
                 root,
-                &marker.look,
-                1.0,
+                (&marker.look, 1.0, None),
                 &children,
                 (&mut parts.0, &mut parts.1),
             );

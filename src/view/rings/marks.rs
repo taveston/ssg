@@ -476,8 +476,13 @@ fn identity_multi(
         let look = MultiLook::of_station(&symbol, &at_looks, at.len(), settings);
         return (IdentityFront::Station(symbol), look);
     }
-    // Docked members are left out of the frames as of the count.
-    let thing_looks: Vec<_> = things.iter().filter_map(|&b| look_of(b)).collect();
+    // MUL-02: docked members count for the frames, though not for the
+    // count.
+    let thing_looks: Vec<_> = things
+        .iter()
+        .chain(docked.iter().flat_map(|(_, at)| at))
+        .filter_map(|&b| look_of(b))
+        .collect();
     let look = MultiLook::of_things(&thing_looks, things.len(), settings);
     (IdentityFront::Frame, look)
 }

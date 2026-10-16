@@ -2,10 +2,13 @@
 //! brackets round whatever stands for the selected object on the map, and
 //! the same brackets dimmer round each hovered one. What stands for an
 //! object is its marker, symbol or true-size disc; the multi-marker that
-//! holds it while it is folded or joined, the box sliding between the two
-//! as it folds, unfolds, joins or parts (INS-06, MUL-05); or its exposure
-//! ring's identity mark (MOT-14). A multi-marker's box takes in both its
-//! frames (HOV-07). A multi-marker under the pointer is bracketed too
+//! holds it while it is folded or joined (a folded ship's pops out,
+//! GRP-13), or for a moon folded into a moon ring its parent's marker and
+//! the ring, the box sliding between the two as it folds, unfolds, joins
+//! or parts (INS-06, MUL-05, GRP-10); or its exposure ring's identity
+//! mark (MOT-14). A multi-marker's box takes in both its frames, and a
+//! body marker's its moon ring (HOV-07). A multi-marker under the pointer
+//! is bracketed too
 //! (MUL-11, GRP-07), and a shared orbit's identity mark while the orbit or
 //! one of its members is hovered or selected (HOV-05).
 //!
@@ -17,6 +20,7 @@ use bevy::prelude::*;
 
 use super::{MarkerDrawn, MarkersPlaced};
 use crate::sim::body::BodyClass;
+use crate::sim::track::ShipRecord;
 use crate::view::colors;
 use crate::view::fold::{FoldSummary, SatelliteFoldState};
 use crate::view::hovered::HoveredBodies;
@@ -263,6 +267,9 @@ pub struct MarkSources<'w, 's> {
     members: Res<'w, OrbitMembers>,
     markers: Markers<'w, 's>,
     bodies: BodyStates<'w, 's>,
+    /// Ships, groups and stations, which fold into an object marker
+    /// rather than a moon ring (GRP-05).
+    objects: Query<'w, 's, (), With<ShipRecord>>,
     hovered_multis: Query<'w, 's, &'static MultiTarget, With<Hovered>>,
     ring_marks: RingMarks<'w, 's>,
 }
@@ -299,14 +306,15 @@ impl MarkSources<'_, '_> {
     fn multi_box(&self, key: MultiKey, tunables: &Tunables) -> Option<BracketBox> {
         let rect = self
             .multis
-            .frames_box(key, |station| self.drawn_marker(station), tunables)?;
+            .frames_box(key, |station| self.drawn_marker(station))?;
         Some(BracketBox::around_rect(rect, tunables.bracket_margin_px))
     }
 
-    /// INS-06: the parent whose fold marker holds `body` while it is
-    /// folded: its own, or, while its parent is folded too, the one that
-    /// holds the parent.
-    fn holding_fold(&self, body: Entity) -> Option<Entity> {
+    /// INS-06: the parent `body` is folded into: its own, or, while its
+    /// parent is folded too, the one that holds the parent; and the
+    /// satellite of that parent it is folded in with (itself, or the
+    /// folded ancestor that carries it).
+    fn holding_fold(&self, body: Entity) -> Option<(Entity, Entity)> {
         let mut at = body;
         loop {
             let parent = self.bodies.get(at).ok()?.0?.parent();
@@ -314,30 +322,48 @@ impl MarkSources<'_, '_> {
                 .folds
                 .0
                 .get(&parent)
-                .is_some_and(|group| group.members.contains(&at));
+                .is_some_and(|group| group.contains(at));
             if held {
-                return Some(parent);
+                return Some((parent, at));
             }
             at = parent;
         }
     }
 
-    /// INS-06: the multi-marker box a body's mark slides from or to, and
-    /// how far out of it the body is (0 in it, 1 on its own): the fold
-    /// marker that holds it, or that it is unfolding out of; or the
-    /// marker it is joined into, or parting from (MUL-05).
+    /// INS-06 / GRP-10 / GRP-13: what stands for `satellite` while it is
+    /// folded into `parent`: the parent's fold marker, popped out, for a
+    /// ship, group or station; the parent's marker with its moon ring for
+    /// a natural body.
+    fn folded_box(
+        &self,
+        parent: Entity,
+        satellite: Entity,
+        tunables: &Tunables,
+    ) -> Option<BracketBox> {
+        if self.objects.contains(satellite) {
+            self.multi_box(MultiKey::Fold(parent), tunables)
+        } else {
+            self.marker_box(parent, tunables.bracket_margin_px)
+        }
+    }
+
+    /// INS-06: the box a body's mark slides from or to, and how far out of
+    /// it the body is (0 in it, 1 on its own): what stands for it while it
+    /// is folded, or is unfolding out of; or the marker it is joined into,
+    /// or parting from (MUL-05).
     fn holder_box(&self, body: Entity, tunables: &Tunables) -> (Option<BracketBox>, f32) {
         let Ok((child_of, fold, _, slide)) = self.bodies.get(body) else {
             return (None, 1.0);
         };
         let unfold = fold.map_or(1.0, |fold| fold.anim_t);
-        if let Some(parent) = self.holding_fold(body) {
-            return (self.multi_box(MultiKey::Fold(parent), tunables), unfold);
+        if let Some((parent, satellite)) = self.holding_fold(body) {
+            return (self.folded_box(parent, satellite, tunables), unfold);
         }
         if unfold < 1.0 {
-            // Unfolding out of a fold marker it has already left the count of.
+            // Unfolding out of a fold marker or moon ring it has already
+            // left the count of.
             let parent = child_of.map(ChildOf::parent);
-            let held = parent.and_then(|p| self.multi_box(MultiKey::Fold(p), tunables));
+            let held = parent.and_then(|p| self.folded_box(p, body, tunables));
             return (held, unfold);
         }
         match slide {

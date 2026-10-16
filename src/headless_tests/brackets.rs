@@ -80,11 +80,12 @@ fn marker_drawn(app: &mut App, body: Entity) -> Option<(Vec2, f32)> {
         .and_then(|(_, drawn)| drawn.0)
 }
 
-/// HOV-06 / HOV-07 / HOV-01 / INS-06 / GRP-07: at the system fit, the
-/// selected Halden IV has white corner brackets on a square that clears
-/// its marker by `bracket_margin_px`; hovered instead, the same brackets
-/// at `bracket_hover_alpha`. Orison, folded into Halden IV, puts its
-/// selection mark on the fold marker, round both its frames; hovering
+/// HOV-06 / HOV-07 / HOV-01 / INS-06 / GRP-07 / GRP-10 / GRP-13: at the
+/// system fit, the selected Halden IV has white corner brackets on a
+/// square that clears its marker and moon ring by `bracket_margin_px`;
+/// hovered instead, the same brackets at `bracket_hover_alpha`. Orison,
+/// folded into Halden IV, pops its fold marker out and puts its
+/// selection mark on it, round both its frames; hovering
 /// that marker merges into the one mark, and hovering it alone gives the
 /// hover mark (MUL-11). With nothing hovered or selected, no brackets
 /// show, and the frame body has none.
@@ -101,15 +102,21 @@ fn selection_and_hover_bracket_what_stands_for_the_object() {
         "no selection, no hover"
     );
 
+    // GRP-10 / HOV-07: Halden IV's moons are folded into a moon ring,
+    // which its box takes in, offset right and up.
     app.world_mut().resource_mut::<Selection>().select(halden);
     run(&mut app, 1);
     let (centre, half) = marker_drawn(&mut app, halden).expect("Halden IV is drawn");
+    let ring = tunables.moon_ring_offset_px;
     let marks = shown_brackets(&mut app);
     assert_eq!(marks.len(), 1);
-    assert!(close(marks[0].centre(), centre));
+    assert!(close(
+        marks[0].centre(),
+        centre + Vec2::new(ring, -ring) / 2.0
+    ));
     assert_eq!(
         marks[0].size,
-        Vec2::splat(tunables.planet_marker_px + 2.0 * margin)
+        Vec2::splat(tunables.planet_marker_px + ring + 2.0 * margin)
     );
     assert_eq!(half, tunables.planet_marker_px / 2.0);
     assert_eq!(marks[0].alpha, 1.0, "the selection mark is full white");
@@ -122,10 +129,11 @@ fn selection_and_hover_bracket_what_stands_for_the_object() {
     assert_eq!(marks[0].alpha, tunables.bracket_hover_alpha);
     app.world_mut().entity_mut(pointer).despawn();
 
-    // INS-06 / HOV-07: a folded ship's mark is on the fold marker that
-    // holds it: the square that clears both its frames by the margin.
+    // INS-06 / HOV-07 / GRP-13: a folded ship's mark is on the fold
+    // marker that holds it, popped out: the square that clears both its
+    // frames by the margin.
     app.world_mut().resource_mut::<Selection>().select(orison);
-    run(&mut app, 2);
+    run(&mut app, SETTLE_FRAMES);
     let (node, target) = multi_node(&mut app, MultiKey::Fold(halden)).expect("a fold marker");
     let front_min = node_min(app.world().get::<Node>(node).unwrap()).unwrap();
     let offset = tunables.back_frame_offset_px;
@@ -275,7 +283,7 @@ fn a_last_things_mark_leaves_its_multi_marker_with_it() {
     let iver = body(&mut app, "Iver");
     let yard = body(&mut app, "Iver Yard");
     app.world_mut().resource_mut::<Selection>().select(yard);
-    run(&mut app, 2);
+    run(&mut app, SETTLE_FRAMES);
     let fold = multi_marker(&app, MultiKey::Fold(iver)).expect("Iver's fold marker");
     assert_eq!(fold.things, [yard]);
     let marks = shown_brackets(&mut app);

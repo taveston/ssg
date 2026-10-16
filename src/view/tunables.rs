@@ -27,6 +27,34 @@ pub struct Tunables {
     /// How long a satellite takes to slide out from (or back into) its
     /// parent when it unfolds or folds.
     pub fold_unfold_anim_ms: f32,
+    /// A parent's moon ring sits this far right of and above its marker
+    /// (GRP-10).
+    pub moon_ring_offset_px: f32,
+    /// The size of the "+N" moon count under a parent's name, in the data
+    /// face (GRP-11).
+    pub moon_count_px: f32,
+    /// How strongly the "+N" moon count is drawn, in the secondary text
+    /// colour (GRP-11).
+    pub moon_count_alpha: f32,
+    /// The object pip's size: a copy of the fold marker's front frame
+    /// this many pixels across (GRP-12).
+    pub object_pip_px: f32,
+    /// The pip's centre sits this far beyond the corner of its parent's
+    /// box, to the right and below (GRP-12).
+    pub object_pip_gap_px: f32,
+    /// The back pip sits this far right of and above the pip (GRP-12).
+    pub pip_back_offset_px: f32,
+    /// The pip pops out into the fold marker while the pointer is within
+    /// this many pixels of its parent's centre, and nearer to it than to
+    /// any other parent's (GRP-13).
+    pub pop_reach_px: f32,
+    /// Once out, the fold marker stays out while the pointer is within
+    /// this many pixels of its parent's centre; the gap from
+    /// `pop_reach_px` stops it flickering at the edge (GRP-13).
+    pub pop_release_px: f32,
+    /// How long the pip takes to grow into the fold marker, or shrink
+    /// back (GRP-13).
+    pub pop_anim_ms: f32,
 
     // --- Motion rule ---
     /// An orbit's tail covers the arc swept in this many real seconds; an
@@ -191,7 +219,7 @@ pub struct Tunables {
     /// Width of a bracket arm's stroke (HOV-06).
     pub bracket_stroke_px: f32,
     /// The bracket box clears what is drawn by this much on every side
-    /// (HOV-07); a fold marker sits clear of its parent's box (GRP-05).
+    /// (HOV-07).
     pub bracket_margin_px: f32,
     /// The inspection sidebar's width (INS-07).
     pub inset_width_px: f32,
@@ -388,6 +416,15 @@ impl Default for Tunables {
             fold_below_px: 20.0,
             unfold_at_px: 24.0,
             fold_unfold_anim_ms: 200.0,
+            moon_ring_offset_px: 3.0,
+            moon_count_px: 9.0,
+            moon_count_alpha: 0.7,
+            object_pip_px: 6.0,
+            object_pip_gap_px: 2.0,
+            pip_back_offset_px: 3.0,
+            pop_reach_px: 24.0,
+            pop_release_px: 32.0,
+            pop_anim_ms: 120.0,
 
             tail_secs: 8.0,
             dot_fade_from_degrees: 300.0,

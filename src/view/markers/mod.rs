@@ -53,6 +53,7 @@ use draw::spawn_markers;
 pub mod brackets;
 pub mod draw;
 pub mod labels;
+pub mod moon_ring;
 pub mod picking;
 
 /// Half-size in pixels, so the update system can centre the node on its
@@ -222,12 +223,16 @@ pub struct MarkersPlugin;
 impl Plugin for MarkersPlugin {
     fn build(&self, app: &mut App) {
         // MUL-13: a station's second line reads its docked count.
+        // GRP-10: a moon ring reads what is folded into its body.
         app.init_resource::<MultiMarkers>()
+            .init_resource::<super::fold::FoldSummary>()
             .add_systems(Startup, spawn_markers.in_set(Boot::Overlay))
             .add_systems(
                 Update,
                 (
-                    update_markers.in_set(MarkersPlaced),
+                    (moon_ring::update_moon_rings, update_markers)
+                        .chain()
+                        .in_set(MarkersPlaced),
                     layer_bodies_by_depth,
                     // Reads this frame's docked counts, so none lags a frame.
                     update_second_lines.after(MultiGathered),
@@ -428,28 +433,76 @@ impl MarkerScreen<'_> {
     }
 }
 
-/// A marker's coloured parts and its class detail, and the tunables
-/// they are coloured by.
+/// A moon ring's node and its cover (GRP-10).
+type RingNodes<'w, 's> = Query<
+    'w,
+    's,
+    (&'static mut Node, Has<moon_ring::MoonRingNode>),
+    (
+        Or<(
+            With<moon_ring::MoonRingNode>,
+            With<moon_ring::MoonRingCover>,
+        )>,
+        Without<MarkerShape>,
+        Without<BodyDetail>,
+    ),
+>;
+
+/// A marker's coloured parts, its class detail and moon ring, and the
+/// tunables they are coloured by.
 #[derive(SystemParam)]
 struct MarkerPaint<'w, 's> {
     children: Query<'w, 's, &'static Children>,
     parts: TintedParts<'w, 's>,
     details: DetailNodes<'w, 's>,
+    rings: Query<'w, 's, &'static moon_ring::MoonRing>,
+    ring_nodes: RingNodes<'w, 's>,
     tunables: Res<'w, Tunables>,
 }
 
 impl MarkerPaint<'_, '_> {
     /// Fades a marker's parts to `alpha`. A disc (`true_size` is `Some`)
     /// grown past its marker is first filled and loses its class detail
-    /// (MRK-07, MRK-11, MRK-13).
+    /// (MRK-07, MRK-11, MRK-13); its moon ring takes the same fill and
+    /// fades in and out on top of the marker's fade (GRP-10).
     fn paint(&mut self, marker: Entity, true_size: Option<bool>, alpha: f32) {
-        if let Some(true_size) = true_size {
-            if let Ok((mut tint, ..)) = self.parts.get_mut(marker) {
-                tint.color = body_fill(true_size, &self.tunables);
+        let Some(true_size) = true_size else {
+            fade_parts(marker, alpha, &self.children, &mut self.parts);
+            return;
+        };
+        let fill = body_fill(true_size, &self.tunables);
+        if let Ok((mut tint, ..)) = self.parts.get_mut(marker) {
+            tint.color = fill;
+        }
+        show_body_detail(marker, !true_size, &self.children, &mut self.details);
+        let ring = self.rings.get(marker).map_or(0.0, |ring| ring.t);
+        let ring_nodes: Vec<Entity> = self
+            .children
+            .iter_descendants(marker)
+            .filter(|&child| self.ring_nodes.contains(child))
+            .collect();
+        for &child in &ring_nodes {
+            if let Ok((mut tint, ..)) = self.parts.get_mut(child) {
+                tint.color = fill;
             }
-            show_body_detail(marker, !true_size, &self.children, &mut self.details);
         }
         fade_parts(marker, alpha, &self.children, &mut self.parts);
+        for child in ring_nodes {
+            let Ok((mut node, is_ring)) = self.ring_nodes.get_mut(child) else {
+                continue;
+            };
+            if is_ring {
+                let display = if ring > 0.0 {
+                    Display::Flex
+                } else {
+                    Display::None
+                };
+                if node.display != display {
+                    node.display = display;
+                }
+                fade_parts(child, alpha * ring, &self.children, &mut self.parts);
+            }
+        }
     }
 }
 

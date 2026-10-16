@@ -137,18 +137,20 @@ fn find_marker_spots(
             frames: back.and_then(|b| b.0).map(|b| (half, b)),
         });
     }
-    let half = tunables.ship_symbol_px / 2.0;
+    // A fold marker's pip is drawn small, but is hit at least
+    // `min_hit_radius_px` round its centre all the same (GRP-12).
     for (multi, node, back) in &multis {
-        let (Display::Flex, Val::Px(left), Val::Px(top), Some(back)) =
-            (node.display, node.left, node.top, back.0)
+        let (Display::Flex, Val::Px(left), Val::Px(top), Val::Px(width)) =
+            (node.display, node.left, node.top, node.width)
         else {
             continue;
         };
+        let half = width / 2.0;
         spots.0.push(HitSpot {
             target: multi.target,
             centre: Vec2::new(left + half, top + half),
             radius: hit_radius(half, tunables.min_hit_radius_px),
-            frames: Some((half, back)),
+            frames: Some((half, back.0.unwrap_or_default())),
         });
     }
 }

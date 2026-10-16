@@ -19,8 +19,9 @@ use crate::sim::track::ShipRecord;
 use crate::sim::tunables::SimTunables;
 use crate::view::bindings::Bindings;
 use crate::view::markers::MarkerDrawn;
-use crate::view::multi::{BackFrame, MultiKey, MultiMarker, MultiMarkers, OpenTray, TrayFor};
-use crate::view::multi_markers::draw::StationMarker;
+use crate::view::multi::{
+    BackFrame, MultiKey, MultiMarker, MultiMarkers, OpenTray, TrayFor, frames_rect,
+};
 use crate::view::multi_markers::order::TrayOrder;
 use crate::view::planner::state::PlannerState;
 use crate::view::rings::marks::{RingMarkFor, ring_things};
@@ -62,6 +63,9 @@ pub struct TrayContents {
     pub hint: String,
     /// The marker's box on screen (HOV-07), while it is drawn.
     pub anchor: Option<Rect>,
+    /// For a fold marker, its parent's box, which the tray never covers
+    /// (MUL-08).
+    pub parent: Option<Rect>,
 }
 
 impl TrayContents {
@@ -104,16 +108,27 @@ type Members<'w, 's> =
 #[derive(SystemParam)]
 pub struct Anchors<'w, 's> {
     multis: Res<'w, MultiMarkers>,
-    stations: Query<
+    markers: Query<
         'w,
         's,
-        (&'static MarkerFor, &'static MarkerDrawn, &'static BackFrame),
-        With<StationMarker>,
+        (
+            &'static MarkerFor,
+            &'static MarkerDrawn,
+            Option<&'static BackFrame>,
+        ),
     >,
     ring_marks: Query<'w, 's, (&'static RingMarkFor, &'static Node, &'static OrbitFor)>,
 }
 
 impl Anchors<'_, '_> {
+    /// Where a body's marker is drawn: its centre, half size and back
+    /// frame (a station marker's, or a moon ring, GRP-10).
+    fn drawn_marker(&self, body: Entity) -> Option<(Vec2, f32, Option<Vec2>)> {
+        let (_, drawn, back) = self.markers.iter().find(|(m, ..)| m.0 == body)?;
+        let (centre, half) = drawn.0?;
+        Some((centre, half, back.and_then(|b| b.0)))
+    }
+
     /// MUL-08 / HOV-07: the box of the marker a tray is for: `None` once
     /// the marker no longer exists; `Some(None)` while it exists but isn't
     /// drawn.
@@ -123,15 +138,9 @@ impl Anchors<'_, '_> {
         match tray {
             TrayFor::Marker(key) => {
                 self.multis.get(key)?;
-                let station_marker = |station: Entity| {
-                    let (_, drawn, back) = self
-                        .stations
-                        .iter()
-                        .find(|(marker_for, ..)| marker_for.0 == station)?;
-                    let (centre, half) = drawn.0?;
-                    Some((centre, half, back.0))
-                };
-                let rect = self.multis.frames_box(key, station_marker, tunables);
+                let rect = self
+                    .multis
+                    .frames_box(key, |station| self.drawn_marker(station));
                 Some(rect.map(inflate))
             }
             TrayFor::Orbit(orbit) => self
@@ -141,6 +150,16 @@ impl Anchors<'_, '_> {
                 .and_then(|(mark, ..)| mark.mark)
                 .map(|rect| Some(inflate(rect))),
         }
+    }
+
+    /// MUL-08 / HOV-07: for a fold marker's tray, its parent's box, with
+    /// its moon ring, which the tray must not cover.
+    fn parent(&self, tray: TrayFor, tunables: &Tunables) -> Option<Rect> {
+        let TrayFor::Marker(MultiKey::Fold(parent)) = tray else {
+            return None;
+        };
+        let (centre, half, back) = self.drawn_marker(parent)?;
+        Some(frames_rect(centre, half, back).inflate(tunables.bracket_margin_px))
     }
 }
 
@@ -384,6 +403,7 @@ pub fn gather_tray(
         hint: inputs.hint(&rows, state.cursor),
         lines: rows.iter().map(|&row| inputs.line(row, &state)).collect(),
         anchor,
+        parent: inputs.anchors.parent(tray, &inputs.tunables),
     };
     contents.set_if_neq(gathered);
 }

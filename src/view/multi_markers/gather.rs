@@ -1,6 +1,7 @@
-//! Which multi-markers there are this frame (MUL-03 to MUL-06, GRP-05):
+//! Which multi-markers there are this frame (MUL-03 to MUL-06, GRP-12):
 //! things together in one named orbit, symbols that overlap on screen,
-//! and the satellites folded into each parent. Writes `MultiMarkers` and
+//! and the ships, groups and stations folded into each parent, drawn as
+//! a pip or popped out as `pop.rs` says. Writes `MultiMarkers` and
 //! each thing's `JoinSlide` (`view/multi.rs`).
 //!
 //! **Together** comes from game state: ships, groups and stations whose
@@ -19,6 +20,7 @@ use bevy::prelude::*;
 
 use super::link::{OrbitSlot, OverlapLatch, Spot, overlap_clusters, together_sets};
 use super::look::MultiLook;
+use super::pop::{ObjectGeometry, ObjectPops, object_geometry};
 use crate::sim::body::{Affiliation, BodyClass};
 use crate::sim::named_orbit::{InNamedOrbit, NamedOrbit};
 use crate::sim::orbit::Orbit;
@@ -29,7 +31,7 @@ use crate::view::anim::{advance_towards, step_per_frame};
 use crate::view::fold::{FoldSummary, SatelliteFoldState};
 use crate::view::markers::{marker_alpha, marker_position, parent_clear_px, symbol_settings};
 use crate::view::motion_mode::MotionModeState;
-use crate::view::multi::{JoinSlide, MultiKey, MultiMarker, MultiMarkers};
+use crate::view::multi::{JoinSlide, MultiKey, MultiMarker, MultiMarkers, back_offset};
 use crate::view::screen::{MapView, ScreenPositions, snap_to_pixel};
 use crate::view::symbols::symbol_look;
 use crate::view::true_size::DiscRadii;
@@ -38,13 +40,6 @@ use crate::view::tunables::Tunables;
 /// Below this strength a symbol isn't drawn, so it can't overlap another
 /// (the markers' own cut-off).
 const MIN_VISIBLE_ALPHA: f32 = 0.02;
-
-/// MUL-06 / GRP-05: where a fold marker's front frame is centred: level
-/// with its parent's marker and beside it, its box (HOV-07) clear of the
-/// parent's box, which reaches `parent_clear` from the parent's centre.
-pub fn fold_marker_centre(parent: Vec2, parent_clear: f32, half: f32, margin: f32) -> Vec2 {
-    parent + Vec2::new(parent_clear + margin + half, 0.0)
-}
 
 /// MUL-06 / SYM-16: where an overlap cluster's marker is centred: the
 /// mean of its symbols' centres, on a whole physical pixel (`scale`
@@ -84,6 +79,7 @@ pub struct GatherInputs<'w, 's> {
     screen: Res<'w, ScreenPositions>,
     discs: Res<'w, DiscRadii>,
     folds: Res<'w, FoldSummary>,
+    pops: Res<'w, ObjectPops>,
     sim: Res<'w, SimTunables>,
     tunables: Res<'w, Tunables>,
     map: MapView<'w, 's>,
@@ -182,11 +178,13 @@ impl GatherInputs<'_, '_> {
     }
 
     /// MUL-02: the frames and count of a marker holding `things`. What is
-    /// docked at a station among them is listed under the station and,
-    /// like the count, the frames leave it out (MUL-04).
-    fn look(&self, things: &[Entity]) -> MultiLook {
+    /// docked at a station among them is listed under the station and not
+    /// counted (MUL-04), but counts for the frames, so a hostile ship
+    /// docked there still shows.
+    fn look(&self, things: &[Entity], docked: &[(Entity, Vec<Entity>)]) -> MultiLook {
         let looks: Vec<(BodyClass, Affiliation)> = things
             .iter()
+            .chain(docked.iter().flat_map(|(_, at)| at))
             .filter_map(|&t| self.class_and_affiliation(t))
             .collect();
         MultiLook::of_things(&looks, things.len(), symbol_settings(&self.tunables))
@@ -214,20 +212,26 @@ impl GatherInputs<'_, '_> {
         self.screen.in_viewport(pos)
     }
 
-    /// GRP-05 / MUL-06: where a parent's fold marker goes this frame, on
-    /// a whole pixel, while the parent is in the viewport.
-    fn fold_centre(&self, parent: Entity) -> Option<Vec2> {
+    /// GRP-12 / GRP-13 / MUL-06: where a parent's object marker holding
+    /// `count` things is drawn this frame and how big, as far as it has
+    /// popped out, its centre on a whole pixel; and how strongly: as its
+    /// parent's marker is (MOT-11), faded in as it appears (GRP-03). `None`
+    /// while the parent's marker isn't drawn.
+    fn fold_geometry(&self, parent: Entity, count: usize) -> Option<(ObjectGeometry, f32)> {
         let pos = self.screen.get(parent).filter(|p| self.in_viewport(*p))?;
-        let (_, class, _, record, ..) = self.things.get(parent).ok()?;
+        let (_, class, _, record, _, _, _, fold, motion, _) = self.things.get(parent).ok()?;
         let tunables = &self.tunables;
-        let clear = parent_clear_px(*class, record.is_some(), self.discs.get(parent), tunables);
-        let centre = fold_marker_centre(
-            pos,
-            clear,
-            tunables.ship_symbol_px / 2.0,
-            tunables.bracket_margin_px,
+        let parent_alpha = marker_alpha(
+            fold.map_or(1.0, |f| f.anim_t),
+            fold.is_some_and(|f| f.effective_hidden),
+            motion.map_or(1.0, MotionModeState::dot_alpha),
         );
-        Some(snap_to_pixel(centre, self.map.scale_factor()))
+        let h = parent_clear_px(*class, record.is_some(), self.discs.get(parent), tunables);
+        let pop = self.pops.of(parent);
+        let mut geometry = object_geometry(pos, h, (pop.t, count), tunables);
+        geometry.centre = snap_to_pixel(geometry.centre, self.map.scale_factor());
+        let alpha = parent_alpha * pop.shown;
+        (alpha > MIN_VISIBLE_ALPHA).then_some((geometry, alpha))
     }
 }
 
@@ -333,14 +337,18 @@ fn cluster_markers(
         };
         let look = match key {
             MultiKey::Station(station) => inputs.station_look(station, &docked[0].1),
-            _ => Some(inputs.look(&things)),
+            _ => Some(inputs.look(&things, &docked)),
         };
         let Some(look) = look else {
             continue;
         };
+        let tunables = &inputs.tunables;
         markers.push(MultiMarker {
             key,
             centre,
+            frame_px: tunables.ship_symbol_px,
+            back: Some(back_offset(tunables.back_frame_offset_px)),
+            count_shown: true,
             things,
             docked,
             look,
@@ -351,9 +359,10 @@ fn cluster_markers(
     markers
 }
 
-/// GRP-05 / MUL-04: each parent's fold marker, holding its folded
-/// satellites. A thing docked at a station folded with it is listed under
-/// the station and not counted.
+/// GRP-12 / MUL-04: each parent's fold marker, holding its folded ships,
+/// groups and stations; its folded natural bodies are its moon ring's. A
+/// thing docked at a station folded with it is listed under the station
+/// and not counted. It is drawn as a pip or popped out (GRP-13).
 fn fold_markers(inputs: &GatherInputs, sets: &[Vec<Entity>]) -> Vec<MultiMarker> {
     // Each thing together with a station, by that station's set.
     let mut station_of: HashMap<Entity, (Entity, &Vec<Entity>)> = HashMap::new();
@@ -371,7 +380,7 @@ fn fold_markers(inputs: &GatherInputs, sets: &[Vec<Entity>]) -> Vec<MultiMarker>
     parents.sort();
     let mut markers = Vec::new();
     for parent in parents {
-        let mut members = inputs.folds.0[&parent].members.clone();
+        let mut members = inputs.folds.0[&parent].objects.clone();
         if members.is_empty() {
             continue;
         }
@@ -396,16 +405,23 @@ fn fold_markers(inputs: &GatherInputs, sets: &[Vec<Entity>]) -> Vec<MultiMarker>
                 _ => things.push(member),
             }
         }
-        let centre = inputs.fold_centre(parent);
-        let look = inputs.look(&things);
+        let drawn = inputs.fold_geometry(parent, things.len());
+        let look = inputs.look(&things, &docked);
+        let geometry = drawn.map_or(
+            object_geometry(Vec2::ZERO, 0.0, (0.0, things.len()), &inputs.tunables),
+            |(geometry, _)| geometry,
+        );
         markers.push(MultiMarker {
             key: MultiKey::Fold(parent),
-            centre: centre.unwrap_or_default(),
+            centre: geometry.centre,
+            frame_px: geometry.frame_px,
+            back: geometry.back,
+            count_shown: geometry.count_shown,
             things,
             docked,
             look,
-            alpha: 1.0,
-            drawn: centre.is_some(),
+            alpha: drawn.map_or(0.0, |(_, alpha)| alpha),
+            drawn: drawn.is_some(),
         });
     }
     markers
@@ -605,23 +621,6 @@ mod tests {
         assert_eq!(overlap_centre(&three, 1.0), Vec2::new(3.0, 3.0));
     }
 
-    /// GRP-05 / MUL-06: a fold marker sits level with its parent and
-    /// beside it, its box clear of the parent's box.
-    #[test]
-    fn a_fold_marker_sits_beside_its_parent_clear_of_its_box() {
-        let t = Tunables::default();
-        let half = t.ship_symbol_px / 2.0;
-        let margin = t.bracket_margin_px;
-        let clear = 13.0;
-        let centre = fold_marker_centre(Vec2::new(100.0, 50.0), clear, half, margin);
-        assert_eq!(centre.y, 50.0);
-        assert_eq!(
-            centre.x - half - margin,
-            100.0 + clear,
-            "boxes touch, no overlap"
-        );
-    }
-
     /// MUL-05: a held thing slides into its marker a step at a time and
     /// back out when let go, from where the marker was; one seen for the
     /// first time, or still sliding with its fold, takes its state at
@@ -657,6 +656,9 @@ mod tests {
         let marker = |key, things: Vec<Entity>, docked| MultiMarker {
             key,
             centre: Vec2::ZERO,
+            frame_px: 22.0,
+            back: None,
+            count_shown: true,
             things,
             docked,
             look: crate::view::multi_markers::draw::blank_look(),

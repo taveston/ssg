@@ -33,10 +33,21 @@ impl Default for SatelliteFoldState {
     }
 }
 
-/// GRP-05: the satellites folded into one parent, for its fold marker.
-#[derive(Default)]
+/// GRP-05: the satellites folded into one parent, in two kinds that never
+/// affect each other: natural bodies, which its moon ring counts (GRP-10),
+/// and ships, groups and stations, which its object marker holds
+/// (GRP-12).
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct FoldedGroup {
-    pub members: Vec<Entity>,
+    pub bodies: Vec<Entity>,
+    pub objects: Vec<Entity>,
+}
+
+impl FoldedGroup {
+    /// Whether `satellite` is folded into this parent, of either kind.
+    pub fn contains(&self, satellite: Entity) -> bool {
+        self.bodies.contains(&satellite) || self.objects.contains(&satellite)
+    }
 }
 
 /// GRP-03: a satellite slides out to its true position when it unfolds and
