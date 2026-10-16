@@ -1,6 +1,6 @@
 # Orphan Worlds: Economy
 
-**In short:** a few concrete resources (water, metals, rare metals, components), one shared currency that allocates but doesn't create, and a private economy run by organisations that the player can see but not control directly. The state owns bases, gates and basic infrastructure; organisations own everything productive. The backbone arc is salvage first, then extraction, with gates as the main reason to be in space.
+**In short:** a few concrete resources (water, metals, rare metals, components), one shared currency that allocates but doesn't create, and a private economy run by organisations that the player can see but not control directly. The faction owns bases, gates and basic infrastructure; organisations own everything productive. The backbone arc is salvage first, then extraction, with gates as the main reason to be in space.
 
 *Status:* draft. Status tags as in the overview (**Decided**, **Direction**, **Candidate**). Companion documents: *Overview*, *Characters, Organisations & Events* (who runs organisations), *Salvage & Research*, *Gates*, *World Generator* (5.4, resources on bodies), *Drives & Transit* (carbon and hydrogen depot questions).
 
@@ -30,19 +30,19 @@ Few and concrete.
 
 - One shared currency; conversion is abstracted.
 - Money allocates but doesn't create, so scarcity stays physical. Influence is separate.
-- *Candidate model:* balances and flows, with no money supply or inflation. Local prices per system come from supply, demand and transport. Gate tolls are a point of taxation. Bids are priced in money. State debt may come later.
+- *Candidate model:* balances and flows, with no money supply or inflation. Local prices per system come from supply, demand and transport. Gate tolls are a point of taxation. Bids are priced in money. Faction debt may come later.
 
 ## 4. Private economy and ownership (direction)
 
 - Organisations produce, trade, hire and compete. The player can see this but not control it directly.
-- The state can own military bases and ships, gates, settlements and basic infrastructure.
-- Only organisations own shipyards, mines, refineries, foundries, factories, shipping and research institutes. An organisation may itself be state-owned.
-- Military assets are plain state assets under admirals. Their political weight comes through a defence portfolio or a military bloc.
+- The faction can own military bases and ships, gates, settlements and basic infrastructure.
+- Only organisations own shipyards, mines, refineries, foundries, factories, shipping and research institutes. An organisation may itself be faction-owned.
+- Military assets are plain faction assets under admirals. Their political weight comes through a defence portfolio or a military bloc.
 
 ## 5. Civilian shipbuilding (decided)
 
-- Yards have order books and finite capacity, so the state competes with private orders.
-- In emergencies the state can requisition, at a large cost in influence, reputation, relations or opinion (direction).
+- Yards have order books and finite capacity, so the faction competes with private orders.
+- In emergencies the faction can requisition, at a large cost in influence, reputation, relations or opinion (direction).
 - Licensing or forbidding armed haulers (candidate).
 - Later: organisations too big or distant to police, up to breaking away.
 
@@ -54,8 +54,8 @@ Few and concrete.
 
 ## 7. Open questions
 
-- State income and spending.
+- Faction income and spending.
 - How the player sees and influences the private economy.
-- Costs and benefits of state ownership.
+- Costs and benefits of faction ownership.
 - Bids for civilian designs (*Requirements & Bids*, 10.3).
 - How to measure influence, reputation and opinion.

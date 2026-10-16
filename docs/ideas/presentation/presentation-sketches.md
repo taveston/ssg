@@ -80,7 +80,7 @@ Principle: the image itself carries the player through the transition, rather th
 - **Body switcher chips** top left: Halden IV (active), Arden Highport, IVa, IVb, "IVc · inspect only". Bodies without a full planetary view open the inspection view instead.
 - **Layer toggles** bottom left: Settlements, Resources, Military, Ownership, Orbital.
 - **Settlement panel** on the right (Port Arden):
-  - "Capital · pressurised habitat · state-owned"; population 141k; stability Steady; local ideology Paternalist.
+  - "Capital · pressurised habitat · faction-owned"; population 141k; stability Steady; local ideology Paternalist.
   - Governor card: portrait placeholder, name, known traits (Cautious, Principled) plus a dashed "? not yet observed" trait, skills as ranges ("Administration 6–8 · Industry ~4"), and a link to the dossier.
   - Monthly flows: water ice +3.2 kt (quarry), metals +410 t (Varga Mining), components −18 units in orange (import shortfall).
   - Request card (orange border): Voss asks for funding for a second habitat dome, with actions "Review in Administration" and "Later". Requests link into the administration view rather than being resolved here.

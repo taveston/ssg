@@ -62,7 +62,7 @@ Bodies stay on circular, coplanar orbits (SCL-04). Ship trajectories are not cir
 
 - **Why.** The planner is unchanged by body eccentricity (Lambert takes two points, however the bodies move), so there is no simplification to be had on the maths side, but there is a lot of comprehensibility to lose. Concentric rings read at a glance; windows recur on a fixed period per pair of bodies, so the player learns them. Inclination is worse: a tilted orbit lies on a top-down map, and plane-change costs are the least intuitive part of orbital mechanics.
 - **Candidate for later:** mild eccentricity on a few bodies for flavour (captured moons, comets, salvage on stretched orbits), drawn as the ellipse they are, with the same Kepler evaluation the ships use. Never inclination for planets. Stations and ships in parking orbits are always circular.
-- **What the player feels instead.** The time–delta-v–waiting trade, the synodic rhythm of windows, and the difference between a ship that must wait and one that can leave now. That is enough orbital strategy for a game about running a state.
+- **What the player feels instead.** The time–delta-v–waiting trade, the synodic rhythm of windows, and the difference between a ship that must wait and one that can leave now. That is enough orbital strategy for a game about running a faction.
 
 - **Specced** (2026-10-14) as RAIL-01 to RAIL-09 and XFER-01 to XFER-12 in `docs/spec/transfers.md`: segments and their evaluation, collapsed planet legs with costs and approach days, two-burn Lambert crossings with burn time, Edelbaum spirals, bodies never bending a coast. Two choices the spec makes that this section left open: the departure and capture cost of a band is the escape cost from a circular orbit there, √(μ/r)(√2 − 1), with no Oberth credit, so the all-in figure for a trip between high orbits is a little above the tables in *Drives & Transit* 5; and the approach days of a band are the coast from the band to the Hill radius at escape speed.
 
@@ -109,7 +109,7 @@ The interface says Depart, Travel time, Arrive, Delta-v (with a km/s figure) and
 
 ### 3.4 Other people's ships **(Candidate)**
 
-The state knows a track, not an order. A foreign ship in flight is drawn with a *projection*: its known conic carried forward with no burns assumed, dashed in its affiliation colour, up to where it crosses something ("intercepts Halden IV in 12 d at 9.1 km/s"). Whether it will rendezvous or intercept is not knowable in advance and the map never pretends it is: the player reads intent from speed and class, which is a skill worth having. A weak track (SYM-01) widens into the uncertainty region the presentation already proposes, along the projection. An observed burn snaps the projection to the new conic and raises an alert ("K-3 changed course"). The inset can help without guessing: "Could rendezvous at Halden IV: needs 4.2 km/s" when the class's delta-v is known.
+The faction knows a track, not an order. A foreign ship in flight is drawn with a *projection*: its known conic carried forward with no burns assumed, dashed in its affiliation colour, up to where it crosses something ("intercepts Halden IV in 12 d at 9.1 km/s"). Whether it will rendezvous or intercept is not knowable in advance and the map never pretends it is: the player reads intent from speed and class, which is a skill worth having. A weak track (SYM-01) widens into the uncertainty region the presentation already proposes, along the projection. An observed burn snaps the projection to the new conic and raises an alert ("K-3 changed course"). The inset can help without guessing: "Could rendezvous at Halden IV: needs 4.2 km/s" when the class's delta-v is known.
 
 ### 3.5 Scheduled orders
 
@@ -125,8 +125,8 @@ The state knows a track, not an order. A foreign ship in flight is drawn with a 
   - Fastest is the earliest arrival that is affordable; Cheapest is the least delta-v; Next window is the first day whose best trip is within `window_margin_kms` of the best of the whole range.
   - Ghost labels rank below every other label.
   - The "In orbit" outline stays in the panel, so a folded moon or a ship in a band can be picked as a destination.
-  - Only the state's own ships draw paths. Other people's ships (3.4) wait.
-  - A ship in flight can't be picked as a destination, unless it is the state's own and coasting with no order. This keeps the planner from aiming at a path the player can't know, or one an order could change.
+  - Only the faction's own ships draw paths. Other people's ships (3.4) wait.
+  - A ship in flight can't be picked as a destination, unless it is the faction's own and coasting with no order. This keeps the planner from aiming at a path the player can't know, or one an order could change.
   - The planner opens for a ship parked in an orbit. A ship in flight or coasting can't be ordered until re-tasking (6) is specced.
   - The Delta-v tooltip shows on hover; showing it once on first use waits for remembered player settings.
   - Intercept is offered for a station, because a drive-by raid that doesn't spend delta-v matching the station's orbit is what an Intercept is for (section 7). The solver trims the pass to meet the station (PHAS-15) and the planner shows the trim; how a ship avoids hitting what it meets is for Conflict. A raid on a station in a Low band needs an Intercept through Low (2.6), which is not yet specced.

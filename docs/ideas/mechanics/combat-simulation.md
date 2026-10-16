@@ -160,7 +160,7 @@ A Rendezvous makes dwell open-ended, so guns matter. An Intercept makes it short
 
 ## 8. Forces and command
 
-- **Who commands:** the senior officer present commands every state-commanded ship on that side, merging forces for the fight. "Senior" is highest known Command skill, then longest in post, until rank is designed.
+- **Who commands:** the senior officer present commands every faction-commanded ship on that side, merging forces for the fight. "Senior" is highest known Command skill, then longest in post, until rank is designed.
 - **Orders stay with their force:** each force's own orders still bind its ships. A convoy ordered to evade never fires, even under an escort's commander.
 - **Own-flag civilian ships** (not commanded) follow the civilian rule: point defence if fitted, dodge, and open range at once. Requisitioned ships count as commanded.
 - **Allies** fight under their own commander with their own picture.

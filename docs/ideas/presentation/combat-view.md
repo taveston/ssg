@@ -4,7 +4,7 @@ This doc proposes how combat is shown: the engagement on the map while it runs, 
 
 - **The replay is a relative plot.** It is drawn in the own force's frame, where the enemy's coasting path is a straight line past you and the closest approach is obvious. It is the same vector display as the system view, on its own clock.
 - **No spoilers.** Nothing shows the outcome until the player watches or skips: not the map, the tray, the inset or the timeline.
-- **The replay shows what the state saw.** By default it shows the player's picture as it was, with weak tracks and unknown figures. A second mode adds what was learned afterwards. The true state is never shown.
+- **The replay shows what the faction saw.** By default it shows the player's picture as it was, with weak tracks and unknown figures. A second mode adds what was learned afterwards. The true state is never shown.
 - **The fight is decided before contact, so show it before contact.** The orders panel carries an estimate of the central contest: their salvo against our point defence.
 
 All **Candidate**. Mock-ups: `mockups/13-combat-replay.png` to `17-missile-symbols.png`, all from the worked example in *Combat, Raiders & Diplomacy* 1.7. Builds on *Presentation & Visual Style* (2), *Symbology*, *Interface Style* and *Combat Simulation*.
@@ -42,7 +42,7 @@ All **Candidate**. Mock-ups: `mockups/13-combat-replay.png` to `17-missile-symbo
 
 - Ships and forces as their symbols (SYM), with velocity leaders along the relative motion.
 - Each ship's path: solid behind, dashed ahead (as *Orbital Transfers* 3.3), in the relative frame.
-- Missiles as **salvos** (board 17): one small solid affiliation shape per salvo (own circle, hostile diamond, unknown quatrefoil, about 8 px, no frame or icon), so affiliation reads without colour and a missile never reads as a ship. A velocity leader shows direction and grows with speed (SYM-11). The count sits beside it, and the label says what the state knows: the design name when known ("Dart" for our own), otherwise "Missile". Speed and range to target show when selected or close.
+- Missiles as **salvos** (board 17): one small solid affiliation shape per salvo (own circle, hostile diamond, unknown quatrefoil, about 8 px, no frame or icon), so affiliation reads without colour and a missile never reads as a ship. A velocity leader shows direction and grows with speed (SYM-11). The count sits beside it, and the label says what the faction knows: the design name when known ("Dart" for our own), otherwise "Missile". Speed and range to target show when selected or close.
 - **A salvo never splits.** Its missiles are within a few km of each other, the same pixel at any zoom that shows point-defence range. The count drops as missiles are shot down (a small burst at the mark per kill) or decoyed. A decoyed missile gets its own mark only if its path visibly diverges.
 - **Spent salvos fade.** Once the viewing side could see a salvo is no longer a threat, it is drawn hollow and faint, with no leader or count, and drops out of the inbound figures. Spent means: moving away from every ship it could hit, burnt out on a path that misses by more than the track error, or seen to take a decoy. It is judged from what that side observed, never from the simulation's truth, so an enemy salvo isn't dimmed the moment its seeker is fooled. Unguided rounds follow the same rule. Spent marks fly on out of view.
 - Point-defence fire as short ticks from the mount towards the salvo mark. Decoys as faint dots.
@@ -63,9 +63,9 @@ All **Candidate**. Mock-ups: `mockups/13-combat-replay.png` to `17-missile-symbo
 
 **The sidebar.**
 
-- **Forces:** each side's symbol, name, commander, and the figures the state knew at that moment, in the certainty notation: "8 missiles launched · more ?", "PD ~1 mount", "Δv 3–7 km/s".
+- **Forces:** each side's symbol, name, commander, and the figures the faction knew at that moment, in the certainty notation: "8 missiles launched · more ?", "PD ~1 mount", "Δv 3–7 km/s".
 - **Log:** events up to the playhead only, with decision tags attached to the events they caused ("Marr held 75% of magazines").
-- **Picture:** As seen then (default) or As known now. The second adds what the state learned from the fight and since: the confirmed class, the observed loadout, a later inspection of the wreck. Neither mode shows the truth: an enemy figure nobody observed stays "?". This keeps the fog consistent with *Combat Simulation* 4, and lets a replay improve as intelligence arrives.
+- **Picture:** As seen then (default) or As known now. The second adds what the faction learned from the fight and since: the confirmed class, the observed loadout, a later inspection of the wreck. Neither mode shows the truth: an enemy figure nobody observed stays "?". This keeps the fog consistent with *Combat Simulation* 4, and lets a replay improve as intelligence arrives.
 
 **Keys:** Space pause, [ and ] previous and next event, . and , rate, F frame on the selection, Esc close. Mouse as the system view.
 
@@ -80,10 +80,10 @@ All **Candidate**. Mock-ups: `mockups/13-combat-replay.png` to `17-missile-symbo
 Board 15 shows the orders from *Combat Simulation* 10.
 
 - **Orders** are a section of the force's inset: objective, approach and standoff, weapons, target priority, emissions, and the reserves (return delta-v and magazines held back). Controls are segmented buttons; one choice is always set. Choices the simulation can't yet do (Capture) are shown and disabled.
-- **The commander** heads the panel with what the state knows: name, Command as a range, observed traits as chips and unobserved ones as a dashed chip. A line under the orders says how boldly to carry them out is the commander's call.
+- **The commander** heads the panel with what the faction knows: name, Command as a range, observed traits as chips and unobserved ones as a dashed chip. A line under the orders says how boldly to carry them out is the commander's call.
 - **Standing orders** are a list of trigger and response, checked in order. Triggers name places and threat levels ("armed hostile or unknown inside Halden IV High reach"). Responses are Intercept (with the orders), Hold, Evade or Alert me. The list shows when an order last fired.
 - **The estimate** is a card beside the orders against a chosen or likely target. One bar shows the central contest: their salvo (solid for the sure part, dashed for the range) against the number our point defence can stop from one side. Under it: closing speed, time in radar range, missile time in point-defence range, whether kinetics get a shot, their delta-v, and ours after the pass with the return need.
-  - It uses only what the state knows, in the certainty notation.
+  - It uses only what the faction knows, in the certainty notation.
   - It is the player's main tool for "the fight is decided before the shooting". Without it, the decisive choice (the intercept order days before) is made blind.
   - It is a guide, not a forecast: it doesn't predict the outcome and doesn't model the commander.
 
@@ -98,7 +98,7 @@ Board 16. It follows the report layout in *Interface Style* 7.
 - **Track plot:** a small relative plot with the tracks, the closest approach and where ships were hit. Coarse; the replay is the detail.
 - **What we learned:** knowledge updates, new salvage sites, and our own state.
 - **Actions:** the decisions the report asks for (divert the wreck, refit, resupply), then Show on map and Watch replay while the recording is kept.
-- **The commander's file** gains a dated line per engagement with the tags, and a combat record (engagements, kills, losses). The trait chip is the state's reading of those lines. Drift from experience (*Combat, Raiders & Diplomacy* 1.9) is never stated; the player sees it as a change in the tags over time.
+- **The commander's file** gains a dated line per engagement with the tags, and a combat record (engagements, kills, losses). The trait chip is the faction's reading of those lines. Drift from experience (*Combat, Raiders & Diplomacy* 1.9) is never stated; the player sees it as a change in the tags over time.
 - **Fights the player didn't see** produce no report (fog, 1.8). A lost own ship produces a short loss report from the last known contact, with no replay.
 
 ## 7. Open questions

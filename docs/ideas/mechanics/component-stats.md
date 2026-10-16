@@ -204,7 +204,7 @@ Formulas (thrust in kN and mass in t, so F / m is in m/s²):
 - *As-built version:* one per organisation and design, created when the organisation operationalises it. It holds the mean multipliers at the organisation's effective understanding at that time. When understanding later rises by a full point, re-operationalising creates v2.
 - *Instance:* each built unit draws its own multipliers around the version's means and keeps them for life, so two hulls from one yard differ.
 
-**Understanding scale.** 0 to 10 per organisation and component type, stored as a decimal and shown as a band: 0 None, 1–2 Rudimentary, 3–4 Basic, 5–6 Competent, 7–8 Advanced, 9–10 Mastery. Whether the player sees the exact value for organisations the state doesn't own is for the bids document.
+**Understanding scale.** 0 to 10 per organisation and component type, stored as a decimal and shown as a band: 0 None, 1–2 Rudimentary, 3–4 Basic, 5–6 Competent, 7–8 Advanced, 9–10 Mastery. Whether the player sees the exact value for organisations the faction doesn't own is for the bids document.
 
 **Documentation.** Effective understanding u_eff = u + offset, clamped to 0–10.
 
@@ -246,7 +246,7 @@ Quadratic means give large early gains (Basic 4 to Competent 6 more than halves 
 
 ## 7. Worked example: HR-1 bulk hauler **(Candidate)**
 
-**Requirement HR-1** (state, Corvane): 400 t of cargo Iver → Halden IV; Δv ≥ 10 km/s loaded (provisional); crew ≤ 12; budget 60.0 Mcr; deadline 400 days of build time (yard start to rollout; design and trials come on top).
+**Requirement HR-1** (faction, Corvane): 400 t of cargo Iver → Halden IV; Δv ≥ 10 km/s loaded (provisional); crew ≤ 12; budget 60.0 Mcr; deadline 400 days of build time (yard start to rollout; design and trials come on top).
 
 **Assumptions:**
 - Orbits are the working values from *Drives & Transit*: a star of 0.75 solar masses (luminosity 0.30), Iver at 0.50 AU, Halden IV at 0.80 AU. They're treated as circular and coplanar, ignoring planetary departure and capture.

@@ -4,7 +4,7 @@ This doc proposes how the interface around the map looks and behaves: panels, th
 
 - **One console register everywhere.** The same dark, quiet look as the map, in the spatial views and in Administration. Flavour comes from structure (signal headers, file stamps), not from a change of skin.
 - **Figures carry their certainty.** One notation for exact, estimated, ranged, unknown and stale values, used in every panel, report and table.
-- **Reports have authors.** Each comes from a named person or office, with the state's own figures underneath. Whether the prose carries the author's bias is a mechanics question, still open.
+- **Reports have authors.** Each comes from a named person or office, with the faction's own figures underneath. Whether the prose carries the author's bias is a mechanics question, still open.
 - **No free-floating windows.** Panels dock in fixed places, the inspection inset included.
 
 The console register is **decided** (2026-10-12); everything else is **candidate**. Mock-up: `mockups/8-ui-style.png` (source `mockups/8-ui-style.html`). Builds on *Presentation & Visual Style* (sections 2 and 4) and *Symbology*. Names, figures and the currency ("cr") in the mock-up are placeholders.
@@ -84,13 +84,13 @@ Every panel follows the same order (board 2):
 
 ## 8. Requests
 
-- A request names its author, a reply-by date and explicit options. Each option lists what the state can price (cost, time, who builds it) as figures, and what it can't as the author's claim ("Voss: not enough") or an estimate ("opinion ~ −10").
+- A request names its author, a reply-by date and explicit options. Each option lists what the faction can price (cost, time, who builds it) as figures, and what it can't as the author's claim ("Voss: not enough") or an estimate ("opinion ~ −10").
 - "Ask for advice" sends it to the relevant office for a second view, which may disagree with the author.
 - "Later" keeps it in traffic until the reply-by date; what happens after that is up to the author.
 
 ## 9. Dossiers
 
-- A person's file shows what the state knows: portrait, post, origin; traits seen as chips and traits not yet seen as dashed chips; skills as ranges; ideology label (*Factions & Ideology*, the ideology triangle) with its certainty; and a dated record of dealings with them.
+- A person's file shows what the faction knows: portrait, post, origin; traits seen as chips and traits not yet seen as dashed chips; skills as ranges; ideology label (*Factions & Ideology*, the ideology triangle) with its certainty; and a dated record of dealings with them.
 - Entries from old or second-hand sources are dimmed and name their source.
 - Organisations get the same file layout.
 

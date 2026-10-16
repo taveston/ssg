@@ -164,7 +164,7 @@ The senior officer present commands the force. A lone ship's captain commands th
 ## 2. Raiders (direction)
 
 - They arise from simulated conditions, not random spawns.
-- Possible origins: scavengers contesting salvage, failed organisations, state-sponsored privateers (most plausible early on), smugglers avoiding tolls.
+- Possible origins: scavengers contesting salvage, failed organisations, faction-sponsored privateers (most plausible early on), smugglers avoiding tolls.
 - Chokepoints and predictable trajectories invite interdiction.
 - Long delays make age-of-sail analogies apt: standing orders, convoys, blockades, chartered companies, privateers.
 

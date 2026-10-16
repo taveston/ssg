@@ -1,6 +1,6 @@
 # Orphan Worlds: Setting & Back Story
 
-**In short:** Earth, the hub of a gate network, is presumed destroyed. Scattered colonies formed successor states, and the game starts as they venture back into space. The cause of Earth's fall is a mystery uncovered through ruins, and an external threat looms as a possible end-game. This doc holds the settled core and room for back-story ideas.
+**In short:** Earth, the hub of a gate network, is presumed destroyed. Scattered colonies formed successor factions, and the game starts as they venture back into space. The cause of Earth's fall is a mystery uncovered through ruins, and an external threat looms as a possible end-game. This doc holds the settled core and room for back-story ideas.
 
 Status tags as in the overview; settled points are marked **Decided** in place.
 
@@ -11,7 +11,7 @@ Related: what gates are, why most have failed and how they're maintained in `../
 ## Core (decided)
 
 - **Tone:** hard sci-fi tilt, human-focused.
-- **Premise:** Earth, the heart of a galaxy-spanning gate network, is presumed destroyed. After major turmoil, scattered colonies forged successor states. Earth is back story only.
+- **Premise:** Earth, the heart of a galaxy-spanning gate network, is presumed destroyed. After major turmoil, scattered colonies forged successor factions. Earth is back story only.
 - **Timeline:** collapse, then turmoil, then social and political order restored on the ground, then game start. At game start factions are just venturing back into space. There are no interplanetary fleets or trade yet, and the orbital yards and stations from before the collapse sit dormant or barely maintained.
 - **Mystery:** the cause of Earth's destruction is uncovered through ruins and records. The truth is probably the same in every game; where the clues lie varies by map.
 - **Driver:** the main game is about human factions. Hints of a great external threat give a driver and a possible end-game.

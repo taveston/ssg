@@ -2,7 +2,7 @@
 
 *Hard sci-fi space strategy for PC.* *Status:* concept.
 
-**In short:** you lead a successor state after the fall of a gate-linked human civilisation. You rebuild and defend the failing gate network through ministers, officers and companies with their own agendas. Time runs continuously at about a day per second. Ships come from bids by organisations, and research means reverse engineering what the old age left. Combat is a small, mostly auto-resolved part of play.
+**In short:** you lead a successor faction after the fall of a gate-linked human civilisation. You rebuild and defend the failing gate network through ministers, officers and companies with their own agendas. Time runs continuously at about a day per second. Ships come from bids by organisations, and research means reverse engineering what the old age left. Combat is a small, mostly auto-resolved part of play.
 
 This is the overview. Each system has its own doc, listed in section 4; detail and open questions live there. What is committed for building is in `docs/spec/`.
 
@@ -12,10 +12,10 @@ Status tags, used in every idea doc: **Decided** = settled. **Direction** = sett
 
 ## 1. Vision
 
-- **Pitch (draft):** lead a successor state of a shattered human civilisation as it rebuilds and defends its gate network and institutions across a hard sci-fi cluster. Distance, orbits and the ambitions of your own people shape every decision.
+- **Pitch (draft):** lead a successor faction of a shattered human civilisation as it rebuilds and defends its gate network and institutions across a hard sci-fi cluster. Distance, orbits and the ambitions of your own people shape every decision.
 - **Elevator pitch (draft):** Earth's gate network once tied humanity together. Now Earth is gone, the network is failing and the shipyards are idle. You head a successor government with a few hostile worlds, some surviving institutions and the wreckage of a vanished age. You govern through ministers, officers and companies with their own agendas. You commission ships from bidders whose designs never turn out quite as planned. And you push through the gates to reclaim what was built before the collapse.
 - **Player role (decided):** always head of government; no election or legislature can remove them. Probably not an in-world character. Other factions are led by real characters.
-- **Player fantasy (draft):** the person at the top of a struggling state, not the hero in the cockpit. You decide what to rebuild, whom to trust and what to risk.
+- **Player fantasy (draft):** the person at the top of a struggling faction, not the hero in the cockpit. You decide what to rebuild, whom to trust and what to risk.
 - **Pillars (decided):**
   1. **Grounded space:** plausible technology. Orbital mechanics shape strategy, presented accessibly.
   2. **Rebuild a broken order:** salvage, re-open and defend what the old network left.
@@ -32,12 +32,12 @@ Status tags, used in every idea doc: **Decided** = settled. **Direction** = sett
 
 ## 3. Core loop (draft)
 
-Combat is a small part of play. Most time goes to running the state.
+Combat is a small part of play. Most time goes to running the faction.
 
 - **Moment to moment:** alerts arrive (reports, arrivals, bids, requests). You pause, review, give orders and resume.
 - **Session:** assess, then decide: commission designs, allocate scarce resources, appoint people, fund organisations, send expeditions, dispatch convoys and fleets, choose gates to re-open or defend. Wait weeks to months, see the consequences, adjust.
 - **Campaign arc:** stabilise the starter worlds and salvage stocks. Reactivate the dormant yards and build the extraction and industry to feed them. Re-open and secure gates and expand. Reverse engineer recovered tech. Uncover the Earth mystery and face hints of the external threat.
-- **Tension:** the decay clock, scarce components and people, long delays, uncertainty, the agendas of characters and organisations, rival states, the external threat.
+- **Tension:** the decay clock, scarce components and people, long delays, uncertainty, the agendas of characters and organisations, rival factions, the external threat.
 
 ## 4. Systems
 
@@ -45,7 +45,7 @@ One line per system and the doc that holds it. All paths are under `docs/ideas/`
 
 | System | In brief | Doc |
 |---|---|---|
-| Setting | Earth, hub of the gate network, is presumed destroyed; colonies formed successor states. The cause is a mystery; an external threat looms. | `world/setting.md` |
+| Setting | Earth, hub of the gate network, is presumed destroyed; colonies formed successor factions. The cause is a mystery; an external threat looms. | `world/setting.md` |
 | Economy | Few concrete resources, one currency that allocates but doesn't create, a private economy of organisations. Salvage first, then extraction. | `mechanics/economy.md` |
 | Characters, organisations and events | Skills and opposing traits, partly hidden. The player appoints senior posts only. No canned events. | `mechanics/people.md` |
 | Factions and ideology | Factions differ mechanically. A triangle of Cohesion, Authority and Autonomy, set by a three-phase history. | `mechanics/factions.md` |

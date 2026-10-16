@@ -1,6 +1,6 @@
 # Orphan Worlds: Salvage & Research
 
-**In short:** there is no tech tree and no research points. Salvage sites yield bulk material, discrete tech finds and lore. Progress means reverse engineering those finds: organisations and state labs build understanding per component type, and their reproductions start poor and improve with practice. Designs are objects with documentation levels, owners and lineages; capability is local and spreads by licensing or poaching, or is lost with an organisation.
+**In short:** there is no tech tree and no research points. Salvage sites yield bulk material, discrete tech finds and lore. Progress means reverse engineering those finds: organisations and faction labs build understanding per component type, and their reproductions start poor and improve with practice. Designs are objects with documentation levels, owners and lineages; capability is local and spreads by licensing or poaching, or is lost with an organisation.
 
 *Status:* draft. Status tags as in the overview (**Decided**, **Direction**, **Candidate**). Companion documents: *Overview* (pillar 2), *Component Catalogue*, *Component Stats & Ship Assembly* (section 6, the understanding scale), *Requirements & Bids* (1, the two design levels), *World Generator* (7, where sites are placed), *Characters, Organisations & Events*.
 
@@ -12,13 +12,13 @@
 - Yields: bulk material (a finite legacy stock), discrete tech finds, lore records, relics.
 - Surveys give rough estimates. Expeditions take weeks to months under a leader whose skills and traits matter.
 - Sites deplete. Richer sites lie further out or behind dark gates.
-- Organisations may salvage independently; the state can license, tax, claim or requisition.
+- Organisations may salvage independently; the faction can license, tax, claim or requisition.
 
 ## 2. Research by reverse engineering (direction)
 
 Populations are too small for frontier research, so progress means reverse engineering.
 
-- Organisations and state labs hold know-how per component type. They gain it by studying finds and through production and use.
+- Organisations and faction labs hold know-how per component type. They gain it by studying finds and through production and use.
 - A find can be studied (and may be destroyed doing so) or used. Documentation and tooling speed up reproduction.
 - Reproduction improves gradually: early copies are heavier, less efficient or less reliable, and get better with experience, samples, staff and materials.
 - Capability is local. It spreads by licensing or poaching, and can be lost with an organisation or its people.
@@ -48,8 +48,8 @@ Organisations turn staff, facilities and character skill into research output, w
 
 Three layers: documents (copyable), tooling (physical) and tacit know-how (stays with teams).
 
-- The state can fund research on terms that give it the data, classify results, license to several organisations, or keep state labs.
-- Sharing spreads capability but leaks. Secrecy concentrates know-how in organisations that can fail or hold the state to ransom.
+- The faction can fund research on terms that give it the data, classify results, license to several organisations, or keep faction labs.
+- Sharing spreads capability but leaks. Secrecy concentrates know-how in organisations that can fail or hold the faction to ransom.
 - Documentation projects turn tacit know-how into data, at a cost.
 
 ## 6. Later

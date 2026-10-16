@@ -32,12 +32,12 @@ Uses the NATO sea-surface frames. They are closed, compact shapes. The NATO spac
 
 - **Allies** use the neutral frame for now. The split that matters most to the player is "mine to command" versus "not mine". NATO itself puts allies in the friend frame. If allies later need to stand apart from neutrals, they need a cue other than the unfilled circle, which own-flag civilians use.
 - **Flag and command** are separate questions with separate cues:
-  - *Flag* (whose ship it is) sets the frame shape. Ships registered to the state's own organisations keep the circle; a foreign merchant has the square.
-  - *Command* (does the state give it orders) sets the fill. State ships have a solid tint (about 30 %). Own-flag civilians have no fill and a paler blue, so they read as "ours, but not under orders". Other affiliations have a faint tint (about 16 %).
-  - Requisitioning or chartering a civilian ship fills its frame in for as long as the state commands it, so the player sees the takeover on the map.
+  - *Flag* (whose ship it is) sets the frame shape. Ships registered to the faction's own organisations keep the circle; a foreign merchant has the square.
+  - *Command* (does the faction give it orders) sets the fill. Faction ships have a solid tint (about 30 %). Own-flag civilians have no fill and a paler blue, so they read as "ours, but not under orders". Other affiliations have a faint tint (about 16 %).
+  - Requisitioning or chartering a civilian ship fills its frame in for as long as the faction commands it, so the player sees the takeover on the map.
   - **Opaque insides (decided 2026-10-13, from F-123).** Fills are solid colours mixed into the ground, not transparency, and every frame covers what lies under it. See-through fills let orbit lines cross the icons and looked glassy, like a HUD rather than a plot. (Specced: SYM-03.)
   - **Sharp at screen size (decided 2026-10-13, from F-124).** Symbols are drawn as vectors on whole pixels; scaled bitmaps blurred beside the orbit lines. (Specced: SYM-16, SYM-17.)
-- **Open:** whether "hostile" means at war, or just "a faction we treat as a threat". It should follow the state's declared stance, not the AI's intent, so the player never learns hidden intent from a colour.
+- **Open:** whether "hostile" means at war, or just "a faction we treat as a threat". It should follow the faction's declared stance, not the AI's intent, so the player never learns hidden intent from a colour.
 
 ## 3. Icons: what it is
 
@@ -51,7 +51,7 @@ Drawn inside the frame. **Filled icon = armed; outline icon = unarmed.** That on
 | Troop transport | Unit box (the NATO land-unit frame) | The box contents and the echelon slot show the load (below). |
 | Class unknown | "?" | NATO leaves the frame empty. A "?" is clearer to players, and keeps "empty transport" distinct. |
 
-- **Troop transport load** follows what the state knows:
+- **Troop transport load** follows what the faction knows:
   - *Load unknown:* empty box with "?" in the echelon slot. The normal case for foreign transports, since you rarely know whether one is carrying troops.
   - *Known empty:* empty box, nothing above. Normal for own transports.
   - *Known embarked:* box with the infantry cross and an echelon mark (II battalion, III regiment, X brigade), or "?" if the size is unknown. With several formations aboard, the largest sets the mark.
@@ -100,7 +100,7 @@ How a contact firms up as tracking improves. Each step adds to the symbol rather
 4. **Identified:** the frame takes the owner's affiliation shape and colour.
 5. **Re-assessed:** the icon can still change, for example a hauler found to be armed.
 
-Steps can come in other orders (a ship's transponder may give the owner before the class). The rule is only that each part of the symbol reflects what the state knows about that part.
+Steps can come in other orders (a ship's transponder may give the owner before the class). The rule is only that each part of the symbol reflects what the faction knows about that part.
 
 ## 8. Labels and paths
 
@@ -119,7 +119,7 @@ Steps can come in other orders (a ship's transponder may give the owner before t
 - Warnings share orange with unknown contacts. Probably fine, since a new unknown contact usually is the warning.
 - How many icon types before they stop being learnable. Aim for under a dozen.
 - Whether the paler civilian blue is too close to the off-white used for bodies and text. Unfilled circle versus filled disc should still tell them apart.
-- Whether ships of state-owned organisations count as state or civilian. Probably civilian unless requisitioned: ownership isn't command.
+- Whether ships of faction-owned organisations count as faction or civilian. Probably civilian unless requisitioned: ownership isn't command.
 - Own-flag civilian stations (a privately owned yard) would follow the same rule: circle, no fill.
 
 ## Rendering the mock-up

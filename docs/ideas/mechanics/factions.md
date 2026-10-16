@@ -6,7 +6,7 @@
 
 **Timeline:** the old network collapses, then years of turmoil, then order is restored on the ground, then **game start**, when the faction is just venturing back into space. Recovery is political and social, not industrial: there are no interplanetary fleets or trade yet. Orbital yards and stations from before the collapse exist but sit dormant or barely maintained.
 
-*Terminology:* "organisation" is the mechanical term. In the setting, firms are corporations, guilds and institutes.
+*Terminology:* "organisation" is the mechanical term. In the setting, firms are corporations, guilds and institutes. A **faction** is a polity, the player's included. The docs don't call it a "state", which presumes a form of government. "State" is kept for technical senses (orbital state, track state, game state).
 
 ---
 
@@ -15,10 +15,10 @@
 - **Differentiation:** mechanical, not hand-crafted back story. Other possible differentiators (candidate): geography and gates, starting organisations, seeded designs and understanding, government form, leader traits.
 - **Popular ideology:** a position in a triangle of three forces: **Cohesion** (shared ownership and burdens), **Authority** (central direction) and **Autonomy** (private initiative). Representation, labels and events are in section 1 and section 8.
 - **Extra axes:** **Outlook** (Insular to Outward: contact, trade, diplomacy) and **Militancy** (Pacifist to Militant: readiness, mobilisation, willingness to use force, the military's political weight). Every position should be a different way to play, not a handicap.
-- **Possible effects (candidate):** Cohesion makes state ownership cheaper and state organisations stronger, but shrinks the private sector. Authority makes direct control cheaper, but strains organisations and raises unrest. Autonomy boosts the private economy, but makes direct control costlier and revenue weaker.
-- **Ideology is not government form or policy.** Government form is how decisions are made; policy is what the state does. A gap between ideology and policy causes friction. Ideology may vary by settlement and drift over time. Characters may hold positions in the same triangle (*Characters, Organisations & Events*).
+- **Possible effects (candidate):** Cohesion makes faction ownership cheaper and faction organisations stronger, but shrinks the private sector. Authority makes direct control cheaper, but strains organisations and raises unrest. Autonomy boosts the private economy, but makes direct control costlier and revenue weaker.
+- **Ideology is not government form or policy.** Government form is how decisions are made; policy is what the faction does. A gap between ideology and policy causes friction. Ideology may vary by settlement and drift over time. Characters may hold positions in the same triangle (*Characters, Organisations & Events*).
 - **History:** the player picks a history in three phases (sections 2 to 5) and the profile emerges from those choices. AI factions draw histories too, with weighted probabilities instead of strict balance.
-- **Shelved:** regional specialisation (each state missing something). It risks unbalancing factions.
+- **Shelved:** regional specialisation (each faction missing something). It risks unbalancing factions.
 - **Rejected:** Reverent/Pragmatic as a faction axis: a reverent faction would struggle in a salvage game.
 - **Later:** feudal-style government as an optional twist.
 
@@ -52,7 +52,7 @@ Design goals: readable at a glance, numbers of similar size to the rest of the p
 |---|---|---|---|---|---|---|---|
 | Frontier mining colony | 0 | 0 | 4 | −1 | 0 | Extraction organisations; metal and water stocks; mining designs | No yards; thin component base |
 | Shipyard hub | 0 | 1 | 3 | +1 | +1 | Dormant orbital yards; ship-design archive; some propulsion designs | Raw material always came from elsewhere |
-| Administrative centre | 1 | 3 | 0 | 0 | 0 | Strong institutions; bigger talent pool; more state-ownable infrastructure | Weak private sector; legacy distrust |
+| Administrative centre | 1 | 3 | 0 | 0 | 0 | Strong institutions; bigger talent pool; more faction-ownable infrastructure | Weak private sector; legacy distrust |
 | Research outpost | 3 | 0 | 1 | +1 | −1 | Research institutes; advanced but fragmentary designs; high understanding in a couple of types | Small population; thin industry |
 | Naval base | 0 | 4 | 0 | −1 | +2 | Officer tradition and ground forces; weapon designs; a mothballed orbital base | Weak civil economy |
 | Agricultural colony | 4 | 0 | 0 | −1 | −2 | Larger population and settlements; secure food and water | No orbital assets; low industry |
@@ -70,14 +70,14 @@ Design goals: readable at a glance, numbers of similar size to the rest of the p
 |---|---|---|---|---|---|---|---|
 | Isolation and self-reliance | 0 | 2 | 2 | −2 | 0 | Robust local infrastructure; self-sufficient settlements; capable local leaders | Lost contacts and designs; lower understanding |
 | Civil conflict | 0 | 4 | 0 | −1 | +2 | Veteran officers; strong local identities | Population loss; damaged infrastructure; low social trust |
-| Corporations rise | 0 | 0 | 4 | +1 | 0 | Large independent corporations; vibrant private economy | Weak state revenue; corporations may outgrow the state |
+| Corporations rise | 0 | 0 | 4 | +1 | 0 | Large independent corporations; vibrant private economy | Weak faction revenue; corporations may outgrow the faction |
 | Refugee influx | 4 | 0 | 0 | +2 | −1 | Larger, varied population; more skilled personnel | Resource strain; ideology varies by settlement |
-| Emergency rationing | 2 | 2 | 0 | −1 | +1 | Strong state control; state-owned emergency organisations | Public resentment; organisations distrust the state |
+| Emergency rationing | 2 | 2 | 0 | −1 | +1 | Strong faction control; faction-owned emergency organisations | Public resentment; organisations distrust the faction |
 | Survivor coalition | 2 | 0 | 2 | +1 | −1 | Strong local self-rule; elected local posts; legislature | Slow decisions; weaker centre |
 
 - **Isolation and self-reliance:** "The gates went quiet and the ships stopped coming. Every settlement learned to stand alone, and the people who could get things done ended up in charge."
 - **Civil conflict:** "We fought each other for the last scraps of the old order. Some of us never stopped."
-- **Corporations rise:** "When the state faltered, the firms stepped in. They kept the lights on, and they remember who paid."
+- **Corporations rise:** "When the faction faltered, the firms stepped in. They kept the lights on, and they remember who paid."
 - **Refugee influx:** "They came in their thousands on the last ships through the gates. We shared what little we had, and we are still working out what that made us."
 - **Emergency rationing:** "There was a winter when every kilogram had a name on it. Somebody had to decide, and everybody had to share."
 - **Survivor coalition:** "No one settlement could survive alone, so we agreed to survive together. The agreement is older than any of our governments."
@@ -88,9 +88,9 @@ Design goals: readable at a glance, numbers of similar size to the rest of the p
 |---|---|---|---|---|---|---|---|
 | Garrison peace | 0 | 4 | 0 | 0 | +2 | A garrison in every settlement; strong ground forces and mobilisation; military bloc | Strained relations with organisations; less efficient economy |
 | Many hands | 4 | 0 | 0 | +1 | −1 | Cooperatives and community organisations; strong solidarity | Slower private growth; less flexibility |
-| Market revival | 0 | 0 | 4 | +2 | −1 | Many organisations; busy trade between settlements; flexible economy | Low state revenue; independent organisations |
+| Market revival | 0 | 0 | 4 | +2 | −1 | Many organisations; busy trade between settlements; flexible economy | Low faction revenue; independent organisations |
 | Technocratic restoration | 0 | 2 | 2 | 0 | 0 | Higher research output; skilled administrators | Narrow political base; opinion gap |
-| Bureau of Provision | 2 | 2 | 0 | −1 | 0 | A bureau that allocates housing, work, and rations; loyal, well-provided population; state-owned organisations | High state spending; little personal choice; organisations chafe at oversight |
+| Bureau of Provision | 2 | 2 | 0 | −1 | 0 | A bureau that allocates housing, work, and rations; loyal, well-provided population; faction-owned organisations | High faction spending; little personal choice; organisations chafe at oversight |
 | Salvage boom | 2 | 0 | 2 | +1 | +1 | More early finds (surface caches, charted orbital wrecks); salvage organisations | Fewer well-documented designs; raider-like crews |
 
 - **Garrison peace:** "The soldiers who ended the fighting never went home. Every settlement has its garrison, every road its checkpoint, and nobody remembers the last riot."
@@ -114,7 +114,7 @@ Design goals: readable at a glance, numbers of similar size to the rest of the p
 | Research outpost / Survivor coalition / Salvage boom | 7 / 0 / 5 | +3 | −1 | Collectivist, strongly outward, pacifist-leaning |
 | Naval base / Emergency rationing / Bureau of Provision | 4 / 8 / 0 | −3 | +3 | Authoritarian, strongly insular, strongly militant |
 
-The first row as prose: a trading faction with dormant yards and a vibrant private economy, but little state revenue and corporations that could outgrow it.
+The first row as prose: a trading faction with dormant yards and a vibrant private economy, but little faction revenue and corporations that could outgrow it.
 
 ## 7. Whole-space check (216 combinations)
 
@@ -127,15 +127,15 @@ The first row as prose: a trading faction with dormant yards and a vibrant priva
 
 **Corner names:** Cohesion, Authority and Autonomy name the three forces (the axes of the triangle). They were chosen for neutrality. Rejected alternatives: Communal/Command/Enterprise, Stewardship/Authority/Initiative, Commons/Directorate/Market, Commonwealth/Directorate/Company, Shared/Directed/Free.
 
-**Region labels:** seven regions summarise a position. Each label works as an adjective for a state ("a Paternalist state") and as a noun for a person ("a paternalist"), so the same set can describe characters.
+**Region labels:** seven regions summarise a position. Each label works as an adjective for a faction ("a Paternalist faction") and as a noun for a person ("a paternalist"), so the same set can describe characters.
 
 | Region | Rule | Label | Character |
 |---|---|---|---|
 | Cohesion corner | Coh 7+ | **Collectivist** | Shared ownership and shared burdens above all |
 | Authority corner | Auth 7+ | **Authoritarian** | Central direction above all |
 | Autonomy corner | Auto 7+ | **Individualist** | Private initiative above all |
-| Cohesion + Authority edge | Auto 3 or less | **Paternalist** | The state directs shared resources for the common good (opposite Individualist) |
-| Authority + Autonomy edge | Coh 3 or less | **Meritocratic** | Free individuals striving within a firm order the state maintains (opposite Collectivist) |
+| Cohesion + Authority edge | Auto 3 or less | **Paternalist** | The faction directs shared resources for the common good (opposite Individualist) |
+| Authority + Autonomy edge | Coh 3 or less | **Meritocratic** | Free individuals striving within a firm order the faction maintains (opposite Collectivist) |
 | Cohesion + Autonomy edge | Auth 3 or less | **Mutualist** | Self-organising communities and cooperatives with a light centre (opposite Authoritarian) |
 | Centre | Otherwise | **Pluralist** | No dominant force; politics is a negotiation |
 

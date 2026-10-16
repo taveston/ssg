@@ -22,7 +22,7 @@
 | IDEO-10 | If any score is 7 or more (70 internally), the label is that corner's: Cohesion → **Collectivist**, Authority → **Authoritarian**, Autonomy → **Individualist**. |  |
 | IDEO-11 | Otherwise, if the lowest score is 3 or less (30 internally), the label is the edge opposite that score: Autonomy lowest → **Paternalist**, Cohesion lowest → **Meritocratic**, Authority lowest → **Mutualist**. If two scores tie for lowest at 3 or less, the lowest decides; an exact tie between two lowest scores is unspecified (see open points). |  |
 | IDEO-12 | Otherwise the label is **Pluralist**. |  |
-| IDEO-13 | Each label works as an adjective for a state ("a Paternalist state") and lower-case as a noun for a person ("a paternalist"). |  |
+| IDEO-13 | Each label works as an adjective for a faction ("a Paternalist faction") and lower-case as a noun for a person ("a paternalist"). |  |
 | IDEO-14 | Outlook and Militancy words: 0 → "neutral"; ±1 to ±2 → "outward-leaning" / "insular-leaning", "militant-leaning" / "pacifist-leaning"; ±3 or more → "strongly outward" / "strongly insular", "strongly militant" / "strongly pacifist". |  |
 | IDEO-15 | Summary line: label, then Outlook word, then Militancy word, comma-separated, e.g. "Meritocratic, outward-leaning, strongly militant". |  |
 

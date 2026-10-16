@@ -1,6 +1,6 @@
 # Orphan Worlds: Requirements & Bids
 
-**In short:** how the state gets ships. The player sets requirements from a role template; organisations decide whether to bid and generate bids from their understanding, capacity, people and traits; the state's technical office shows each claim with an honest 80% range; the player awards a contract; and the as-built figures, drawn once at design freeze, are revealed through yard reports, trials and service. Every difference between bids has a learnable cause, and every surprise has tells. Section 9 works through one tender (HR-1) end to end; section 11 is the MVP cut.
+**In short:** how the faction gets ships. The player sets requirements from a role template; organisations decide whether to bid and generate bids from their understanding, capacity, people and traits; the faction's technical office shows each claim with an honest 80% range; the player awards a contract; and the as-built figures, drawn once at design freeze, are revealed through yard reports, trials and service. Every difference between bids has a learnable cause, and every surprise has tells. Section 9 works through one tender (HR-1) end to end; section 11 is the MVP cut.
 
 *Status:* draft. Status tags as in the overview (**Decided**, **Direction**, **Candidate**). The HR-1 figures in section 9 come from `scripts/bids/hr1_bids.py`, which runs the bid rules here on the as-built distributions of *Component Stats & Ship Assembly* (CSA). Figures marked **[P: CSA]** or **[P: D&T]** (*Drives & Transit*) are open in those documents; plain **[P]** marks illustrative values for this document.
 
@@ -12,10 +12,10 @@ Companion documents: *Overview* (6, risks), *Salvage & Research*, *Component Cat
 
 ## 1. Purpose and principles
 
-- **Decided:** the player sets requirements (role, mass, delta-v, crew, budget, deadline), and affiliated organisations bid with concrete designs, as in Shadow Empire. Designs persist and can be upgraded. The alternative is for the state to design and produce through state-owned organisations, which costs capacity, management attention, variety and goodwill.
+- **Decided:** the player sets requirements (role, mass, delta-v, crew, budget, deadline), and affiliated organisations bid with concrete designs, as in Shadow Empire. Designs persist and can be upgraded. The alternative is for the faction to design and produce through faction-owned organisations, which costs capacity, management attention, variety and goodwill.
 - **Decided:** two design levels: component designs (mostly from before the collapse, or reverse engineered) and ship designs (assembled from components by organisations through bids). Every design has *rated* figures; each organisation's build of it has *as-built* figures.
 - **Candidate principles:**
-  - **Every difference has a learnable cause.** Two bids differ only because of understanding, documentation held, tooling and yard condition, capacity and order book, the people involved (traits, skills), relationship with the state, or contract terms. No unexplained dice.
+  - **Every difference has a learnable cause.** Two bids differ only because of understanding, documentation held, tooling and yard condition, capacity and order book, the people involved (traits, skills), relationship with the faction, or contract terms. No unexplained dice.
   - **Honest but uncertain.** Ranges shown to the player are calibrated: about 8 in 10 as-built figures land inside the shown 80% range. Bad assessors give wider ranges, never false ones. The rules are documented in the in-game encyclopedia. What is hidden is the draw and unobserved traits, never the rules.
   - **Drawn once, revealed gradually.** As-built figures are fixed at design freeze and revealed later; nothing is rolled at the moment of reveal. Every surprise has tells the player saw beforehand.
   - **A conversation, not a shop.** The player asks questions, negotiates terms, and lives with the institution afterwards (track record, opinion, grievances, debts).
@@ -27,7 +27,7 @@ At 1 day per second: 60 game days is about one real minute.
 
 | # | Stage | Duration (game days) | What happens |
 |---|---|---|---|
-| 1 | Requirement | 0 (player, paused); optional feasibility check 10 | Player fills a role template; the state technical office can check feasibility (3.4) |
+| 1 | Requirement | 0 (player, paused); optional feasibility check 10 | Player fills a role template; the faction technical office can check feasibility (3.4) |
 | 2 | Invitation | open 30 · invited 20 · sole source or direct assignment 10 | Window in which bids arrive; organisations reusing held designs bid early |
 | 3 | Bids | within the window | Each organisation decides whether to bid (4.2) and generates a bid (5) |
 | 4 | Evaluation and clarification | player-paced; each clarification 10; paid design study 30–60 | Bids stay valid 90 days; questions, revisions, best and final offer (6.4) |
@@ -48,7 +48,7 @@ At 1 day per second: 60 game days is about one real minute.
 Every field has a `status`:
 - **hard:** must be met; failing it is a declared deviation.
 - **target:** scored by weight.
-- **provisional:** the state is unsure. Deviations are invited and not penalised beyond their weight.
+- **provisional:** the faction is unsure. Deviations are invited and not penalised beyond their weight.
 - **open:** the bidder proposes.
 
 | Field | Unit | Default status | Notes |
@@ -65,7 +65,7 @@ Every field has a `status`:
 | `deadline_d` | days to first delivery | target | |
 | `quantity` | hulls | hard | May be split between bidders |
 | `delivery_point` | body or station | hard | |
-| `rights_wanted` | state / licence / shared | target | See 7.3; state rights cost more |
+| `rights_wanted` | faction / licence / shared | target | See 7.3; faction rights cost more |
 | `weights` | performance, cost, schedule, reliability, upkeep | sum 100 | Drives the default sort of the comparison view |
 
 ### 3.2 Templates by role
@@ -93,7 +93,7 @@ Each organisation tests its best configuration at its own median estimate (P50).
 
 ### 3.4 Feasibility check
 
-- Before issuing a requirement, the state technical office (a post led by a character; dependency: cabinet portfolios) can spend 10 days listing which drive families and organisations are likely to meet it, using what the state knows of their understanding bands. Accuracy follows the assessor's skill.
+- Before issuing a requirement, the faction technical office (a post led by a character; dependency: cabinet portfolios) can spend 10 days listing which drive families and organisations are likely to meet it, using what the faction knows of their understanding bands. Accuracy follows the assessor's skill.
 
 ## 4. Who bids and why
 
@@ -104,7 +104,7 @@ Each organisation tests its best configuration at its own median estimate (P50).
 | Open tender | Every affiliated organisation with sector match | 30 d | Most variety; competition trims margins (3 pts with 3+ bidders); surfaces unknown capability | Slowest; unknown bidders with no record; losers who designed from scratch lose a little opinion |
 | Invited tender | 2 to 5 chosen organisations | 20 d | Faster; focus on known bidders; invitees gain opinion | Uninvited capable organisations may take a grievance (more if Ambitious) |
 | Sole source | One private organisation | 10 d | Fast; builds the relationship | No competition (margin +5 pts); dependency on one supplier |
-| Direct assignment (**Decided** option) | State-owned organisation | 10 d | Cost-based price; state sets priorities; no private margin | Uses scarce state capacity (crowds out other state work); management attention [dependency: administration]; low variety; private sector goodwill erodes if habitual |
+| Direct assignment (**Decided** option) | Faction-owned organisation | 10 d | Cost-based price; faction sets priorities; no private margin | Uses scarce faction capacity (crowds out other faction work); management attention [dependency: administration]; low variety; private sector goodwill erodes if habitual |
 
 ### 4.2 Bid decision **(Candidate)**
 
@@ -113,8 +113,8 @@ An organisation bids when its interest passes its threshold. Inputs, in order of
 1. **Capability fit:** the best feasible configuration at P50 against the hard fields. The gap is measured in understanding levels.
 2. **Capacity:** free yard-days in the delivery window against what the build needs (order book, leased capacity, a dormant yard needing reactivation).
 3. **Agenda fit:** the organisation's own priorities: its sector, wanting rights to a design it can sell or use, wanting to raise understanding.
-4. **Value and prestige:** contract size relative to the organisation. State military work counts as prestige.
-5. **Relationship:** opinion of the state, grievances, debts owed either way.
+4. **Value and prestige:** contract size relative to the organisation. Faction military work counts as prestige.
+5. **Relationship:** opinion of the faction, grievances, debts owed either way.
 6. **Traits of the head:** adjust the threshold and the inputs (5.3).
 
 - Declining is information: the reason is shown ("No capacity until day 410", "Outside our sector").
@@ -241,15 +241,15 @@ Deviations           none declared
 | Type | Who carries the risk | Notes |
 |---|---|---|
 | Fixed price | Bidder | Price padded by contingency; overruns hurt the bidder, so problems surface as variation claims or renegotiation |
-| Cost-plus (fee 8% [P]) | State | Cheapest to start, open-ended; cost estimate shown as a range |
-| Milestone | Shared | Priced per phase (design, build, trials); the state can stop after each phase, paying for work done; higher price |
+| Cost-plus (fee 8% [P]) | Faction | Cheapest to start, open-ended; cost estimate shown as a range |
+| Milestone | Shared | Priced per phase (design, build, trials); the faction can stop after each phase, paying for work done; higher price |
 
 - **Penalties:**
   - Late delivery: 0.2% of the price per day, capped at 10%.
   - Performance: each figure has a tolerance (default 3% worse than the claim). Beyond it, the price drops 2% per 1%, capped at 15%.
 - **Incentives:** early delivery earns 0.1% per day, capped at 5%; figures beyond the claim earn a performance bonus.
-- **Variations:** the bidder prices changes the state requests (traits apply). Bidder claims arise from ambiguity or from delays the state caused (a late licence, late materials).
-- **Requisition (direction):** in emergencies the state takes yard capacity or a hull, at a large cost in influence, reputation, relations or opinion. This breaks the contract and records a grievance.
+- **Variations:** the bidder prices changes the faction requests (traits apply). Bidder claims arise from ambiguity or from delays the faction caused (a late licence, late materials).
+- **Requisition (direction):** in emergencies the faction takes yard capacity or a hull, at a large cost in influence, reputation, relations or opinion. This breaks the contract and records a grievance.
 
 ### 7.2 Traits and contract type
 
@@ -263,14 +263,14 @@ Deviations           none declared
 
 ### 7.3 Rights to the design
 
-| Option | Price effect | State can give it to another yard | Notes |
+| Option | Price effect | Faction can give it to another yard | Notes |
 |---|---|---|---|
-| State-owned design | +15% [P] | Yes; receiver must operationalise at its own understanding | Archive receives working documentation (complete if specified, extra cost) |
-| Bidder-owned, state licence to operate and maintain | none | No; refits and variants go to the bidder first | Cheapest; dependency on the bidder |
+| Faction-owned design | +15% [P] | Yes; receiver must operationalise at its own understanding | Archive receives working documentation (complete if specified, extra cost) |
+| Bidder-owned, faction licence to operate and maintain | none | No; refits and variants go to the bidder first | Cheapest; dependency on the bidder |
 | Shared | +7% [P] | Yes, with royalty to the bidder | Bidder may also sell to private buyers |
 
-- Giving a bidder-owned design to another yard anyway is theft: grievance, track record of the state as a client, and possible poaching of staff [dependency: knowledge sharing rules].
-- Direct assignment to a state-owned organisation always yields state rights.
+- Giving a bidder-owned design to another yard anyway is theft: grievance, track record of the faction as a client, and possible poaching of staff [dependency: knowledge sharing rules].
+- Direct assignment to a faction-owned organisation always yields faction rights.
 
 ## 8. Trials and surprises **(Candidate)**
 
@@ -301,16 +301,16 @@ Deviations           none declared
 | Option | Effect | Relationship and record |
 |---|---|---|
 | Accept | Ship enters service; contract reductions apply | Fair acceptance builds opinion; record notes the shortfall |
-| Demand rectification | Bidder fixes (its cost under fixed price, state's under cost-plus); 30–120 days; result redrawn within a narrower spread | Neutral if outside tolerance; seen as harsh inside it (Opportunistic and Ambitious heads take a grievance; Principled do not) |
+| Demand rectification | Bidder fixes (its cost under fixed price, the faction's under cost-plus); 30–120 days; result redrawn within a narrower spread | Neutral if outside tolerance; seen as harsh inside it (Opportunistic and Ambitious heads take a grievance; Principled do not) |
 | Renegotiate | Change price or requirement (relaxing a provisional field is cheap) | Small opinion gain for the bidder |
 | Reject | Refuse delivery; payments returned minus completed milestones; hull may go to the private market | Major grievance; record "rejected" |
-| Take over the design | State acquires the design (needs or buys rights) and moves it to a state-owned organisation | Costs attention and goodwill; receiver operationalises at its own understanding |
+| Take over the design | Faction acquires the design (needs or buys rights) and moves it to a faction-owned organisation | Costs attention and goodwill; receiver operationalises at its own understanding |
 
 - Every outcome updates the track record: each figure claimed against as-built, days late, cost against price, rectifications, and whether problems were reported early.
 
 ## 9. Worked example: HR-1 **(Candidate)**
 
-**Requirement HR-1:** a state bulk hauler for Corvane.
+**Requirement HR-1:** a faction bulk hauler for Corvane.
 - 400 t of cargo, Iver → Halden IV.
 - Delta-v loaded at least 10 km/s (**provisional**; a Hohmann hop needs 7.5 km/s, see *Drives & Transit*).
 - Crew at most 12 (hard). Quantity 2. Unit budget 60 Mcr.
@@ -326,7 +326,7 @@ Invited tender, 20 days. The office is led by Chief Engineer Ottilie Marsh (Scie
   - Bids three Kestrel NTRs on hydrogen, because a water NTR (v_e about 3.2 km/s) can't reach 10 km/s with 400 t (*Drives & Transit*).
   - Bold + Ambitious: quotes performance and schedule at optimism 0.85, with no contingency. Ambitious: bids although the yard is dormant.
   - Dependencies: cryogenic storage licensed from Arden Orbital Works, asteroid metal from Varga Mining for reactivation, and about 2.1 kt of LH2 per loaded trip.
-- **Arden Orbital Works** (state-owned; Works Director Margit Hollander, Cautious and Traditionalist; chief designer Piet Overbeek).
+- **Arden Orbital Works** (faction-owned; Works Director Margit Hollander, Cautious and Traditionalist; chief designer Piet Overbeek).
   - Chemical 7, NTR 4, on a working-level record.
   - Traditionalist prefers chemical, which can't reach 10 km/s with 400 t, so it falls back to two Tern NTRs (4 is the Traditionalist floor).
   - Its own median is 10.05 km/s. Quoting at optimism 0.35 puts the claim at 9.97, so it **declares a deviation**.
@@ -348,7 +348,7 @@ Invited tender, 20 days. The office is led by Chief Engineer Ottilie Marsh (Scie
 | First delivery, days (office 80%) | 276 (208–400) | 525 (447–551) | 456 (344–605) |
 | Unit price | 66.5 Mcr fixed, over budget | 64.3 Mcr fixed; about 51.5 at cost if directly assigned | 54.3 Mcr fixed |
 | Office cost estimate (P10–P90) | 58.1–62.9 | 48.0–54.7 | 49.6–53.6 |
-| Track record | NO RECORD since the collapse | 4 state deliveries (tugs, shuttles): 3 on time, 11 of 12 figures met | 2 refits of its own fleet observed: 1 late |
+| Track record | NO RECORD since the collapse | 4 faction deliveries (tugs, shuttles): 3 on time, 11 of 12 figures met | 2 refits of its own fleet observed: 1 late |
 | Head's traits shown | Ambitious · ? · ? | Cautious · Traditionalist | Innovative · ? · ? |
 | Flags (orange) | over budget; two dependencies; dormant yard | deviation: delta-v; slipway conflict | slow transit; no radiator margin; partial documentation; single reactor |
 
@@ -357,8 +357,8 @@ Invited tender, 20 days. The office is led by Chief Engineer Ottilie Marsh (Scie
 
 ### 9.3 Choices and trade-offs
 
-- **Iver Yard Company:** the fastest ship and the best claims, and reactivating Iver Yard gives the state a second large yard (Pillar 2). But it's 10.8% over budget, with the widest schedule range, no record, and a hydrogen appetite of about 18.6 kt of water per trip (about six months of Halden's ice quarry). It suits fixed price with a reactivation milestone and a late penalty, and only if the state also funds electrolysis.
-- **Arden Orbital Works:** honest and state-owned; direct assignment gives state rights at about 51.5 Mcr, with the state carrying overruns. But it misses the provisional 10 km/s at its own estimate, and blocks Arden's slipway (and Morrow's lease) for about a year and a half. Relaxing delta-v to 9.9 km/s costs only a day or two per trip with good phasing, but leaves less margin for poor phasing (*Drives & Transit* 5).
+- **Iver Yard Company:** the fastest ship and the best claims, and reactivating Iver Yard gives the faction a second large yard (Pillar 2). But it's 10.8% over budget, with the widest schedule range, no record, and a hydrogen appetite of about 18.6 kt of water per trip (about six months of Halden's ice quarry). It suits fixed price with a reactivation milestone and a late penalty, and only if the faction also funds electrolysis.
+- **Arden Orbital Works:** honest and faction-owned; direct assignment gives faction rights at about 51.5 Mcr, with the faction carrying overruns. But it misses the provisional 10 km/s at its own estimate, and blocks Arden's slipway (and Morrow's lease) for about a year and a half. Relaxing delta-v to 9.9 km/s costs only a day or two per trip with good phasing, but leaves less margin for poor phasing (*Drives & Transit* 5).
 - **Morrow Ice & Freight:** the only bid under budget, and frugal (about 200 t of water per trip against Iver's 18.6 kt). But a loaded leg takes most of a year, and as built the reactor derates and the chance of a clean trip falls to about 35% (CSA 7). Avoid cost-plus; use fixed price with a tight variation clause and a stated radiator margin.
 - **Split award** (one Iver, one Morrow): a fast ship for urgent cargo and a cheap one for bulk, at the cost of two learning curves and double the attention.
 
@@ -377,7 +377,7 @@ The player awards both hulls to Iver Yard Company on fixed price with milestones
 
 ### 10.1 Components
 
-- The state can tender component production (for example 20 NTR drives for its own yards) with the same lifecycle. The card shows the component stat block (CSA) instead of ship-level figures. Component *development* (raising understanding or documentation) belongs to research [dependency].
+- The faction can tender component production (for example 20 NTR drives for its own yards) with the same lifecycle. The card shows the component stat block (CSA) instead of ship-level figures. Component *development* (raising understanding or documentation) belongs to research [dependency].
 
 ### 10.2 Stations and ground equipment
 
@@ -386,11 +386,11 @@ The player awards both hulls to Iver Yard Company on fixed price with milestones
 
 ### 10.3 Civilian designs
 
-- Private organisations commission their own ships with the same bid generation and an automatic award; the state sees them in yards' order books. The state may sponsor a "standard design" tender and release the design to all yards, to grow civilian shipping [dependency: economy].
+- Private organisations commission their own ships with the same bid generation and an automatic award; the faction sees them in yards' order books. The faction may sponsor a "standard design" tender and release the design to all yards, to grow civilian shipping [dependency: economy].
 
 ### 10.4 AI factions and organisations
 
-- AI states run the same lifecycle: requirements from their strategic needs, awards by weighted score adjusted by their leader's traits, and the same trial draws. Organisations bid to AI states under the same rules. There are no AI shortcuts, so foreign fleets show the same variety. Foreign designs are known only as well as they've been observed (*Presentation & Visual Style*, inspection fidelity).
+- AI factions run the same lifecycle: requirements from their strategic needs, awards by weighted score adjusted by their leader's traits, and the same trial draws. Organisations bid to AI factions under the same rules. There are no AI shortcuts, so foreign fleets show the same variety. Foreign designs are known only as well as they've been observed (*Presentation & Visual Style*, inspection fidelity).
 
 ### 10.5 Upgrades, refits, variants, replacement
 
@@ -418,11 +418,11 @@ The smallest version that still delivers Pillar 4:
 - **Deferred:**
   - open tenders and sole source
   - cost-plus and milestone contracts
-  - rights options beyond state-owned
+  - rights options beyond faction-owned
   - clarification actions other than "ask for the basis of a claim"; design studies
   - variations; requisition; refits and variants
   - component, station and ground tenders; civilian standard designs
-  - AI states using the full pipeline (a simplified auto-award first)
+  - AI factions using the full pipeline (a simplified auto-award first)
   - photoreal renders (silhouettes from component blocks instead)
 
 ## 12. Open questions
@@ -430,10 +430,10 @@ The smallest version that still delivers Pillar 4:
 - Whether the chief designer's skill should scale variance here or in CSA. The size of `σ_prog` per risk type (only illustrative so far).
 - Is `optimism` per figure or one value per bid? (For now, one per category: performance, schedule, cost.)
 - How many deliveries before a track record is trusted? Does a reputation from before the collapse exist at game start?
-- Who leads the state technical office: a cabinet portfolio, a state lab, or an advisor?
+- Who leads the faction technical office: a cabinet portfolio, a faction lab, or an advisor?
 - How management attention is measured and spent [dependency: administration].
 - Should rejected hulls, cancelled designs and losing bids enter the private market or archives?
-- Can the player write a bid's design themselves (state design bureau), and at what cost?
-- Do organisations ever bid to rival states, and what does that do to secrecy?
+- Can the player write a bid's design themselves (faction design bureau), and at what cost?
+- Do organisations ever bid to rival factions, and what does that do to secrecy?
 - Is the performance tolerance a contract choice per figure or a fixed rule?
 - How often do bids need to happen to keep the system central without becoming busywork (target: a few per game year)?

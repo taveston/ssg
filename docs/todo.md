@@ -63,6 +63,8 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 - [ ] **Rename Stop and Pass to Rendezvous and Intercept in the code**
   - The specs and idea docs use the new names (2026-10-16). Rename `Arrival::Stop` and `Arrival::Pass`, the other uses in `src/sim/transfer/` and `src/headless_tests.rs`, and the comments, test names and messages that say "Stop" or "Pass" for an arrival mode (about 40 uses). No behaviour changes.
   - Do it before **Intercept through Low** and **Transfer planner**, so the new code starts with the new names.
+- [ ] **Rename "state" to "faction" in the code**
+  - The specs and idea docs call the player's main faction "the faction", not "the state" (2026-10-16). Rename the tunable `symbol_fill_state` to `symbol_fill_faction` (`view/tunables.rs`, `view/markers.rs`) and `fill_state` in `view/symbols.rs`. Reword the comments, test names and messages that use "state" for the faction (`sim/track.rs`, `sim/system.rs`, `view/symbols.rs`, `view/fold.rs`, `view/tunables.rs`), and the two content strings in `content/corvane.rs` ("chartered by the state", "the state has not yet surveyed"). Leave "state" where it means a state vector, UI state or track state. No behaviour changes.
 - [ ] **Bring older docs up to the writing style**
   - The rules are in `docs/README.md` (Writing). Do it one doc at a time, with no change of meaning.
   - The longest are the likeliest to need it: `ideas/mechanics/requirements-and-bids.md`, `ideas/mechanics/component-stats.md` and `ideas/mechanics/transfers.md`.
