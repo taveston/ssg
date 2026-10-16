@@ -238,11 +238,6 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** PLNR-106, PLNR-96 · **Type:** spec gap
 - **Disposition:** open. Accept, and add the sentence to PLNR-106.
 
-### F-233 · Two stations together
-- **Observation:** MUL-03 defines docking only for ships and groups. When two stations are together (PHAS-02), the build makes the first the lead and treats the other as docked at it: it is counted as docked and its own symbol is hidden. No content has this case yet.
-- **Affects:** MUL-03, MUL-05 · **Type:** spec gap
-- **Disposition:** open. Say what two stations together show.
-
 ### F-235 · A shared orbit's identity mark while the planner is open
 - **Observation:** MUL-12 says a click on any multi-marker other than a fold marker picks nothing. MOT-14 says the identity mark targets what its ring targets, and PLNR-11 says a shared ring picks that orbit's band. The build follows MOT-14 and PLNR-11: the mark picks the band and opens its tray.
 - **Affects:** MUL-12, MOT-14, PLNR-11, HOV-05 · **Type:** spec wrong
