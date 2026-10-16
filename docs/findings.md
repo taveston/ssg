@@ -64,7 +64,7 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Disposition:** open. Limit the rule to the half-turn case, or widen the tolerance.
 
 ### F-173 · Groups are together, but nothing forms them yet
-- **Observation:** PHAS-14 needs the ships of a group to be together, but nothing in play forms a group (F-159). The build adds the check only: `SystemTree::all_together` says whether ships could be one group (all parked in one orbit, every two together). Whatever forms or merges groups should call it. The departure wait, the arrival wait and docking all read phase, so ships that are together leave and arrive together.
+- **Observation:** PHAS-14 needs the ships of a group to be together. A group is now one body with one orbit and phase, and its ships have no place of their own (F-176), so they are together by construction. Only content makes groups (TEST-06); nothing in play forms or merges one (F-159). `SystemTree::all_together` says whether separate ships could become one group (all parked in one orbit, every two together); whatever forms or merges groups should call it.
 - **Affects:** PHAS-14 · **Type:** spec gap
 - **Disposition:** open. Use the check when group orders are specced.
 
@@ -87,6 +87,21 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** Under XFER-07, an arc from a planet's High band to its own Low band touches the band only at its periapsis. Faster than the Hohmann time, it passes its periapsis under the band before it arrives, so even a Rendezvous is refused. Slower, it arrives still heading down, so a Rendezvous is flown but an Intercept's coast would dip under the band. So an Intercept through the primary's own Low band is flown only at the Hohmann time, and only when the target sits half a turn ahead then. In the reference layout, no departure phase gave a feasible Intercept at the capital's Low band station. The same holds for leaving a Low band: an arc faster than the Hohmann time first dips under the band.
 - **Affects:** XFER-07, XFER-08, PLNR-30 · **Type:** spec gap
 - **Disposition:** open. Accept, or offer only Rendezvous for a Low band round the ship's own primary.
+
+### F-176 · How a group is held in the simulation
+- **Observation:** SYM-01 says a group holds its members, but not how. The build makes a group one body (class Ship, with a `ShipGroup` component) in its named orbit, at its own phase. Its ships are member entities holding a name and a ship record only: no orbit, phase, class marker or drive. So the view draws and folds the group as one body and never sees the members (SYM-09, GRP-09). The group's ship record is derived from the members' and kept in step each frame. The spec names class, armed status, load and condition; the build also chose: the track is the weakest member's (stale before weak, the older stale date), command is shared, and a group is requisitioned only if every member is. A group has no drive, so it can't be ordered anyway.
+- **Affects:** SYM-01, SYM-09, PHAS-14, TEST-10 · **Type:** spec gap
+- **Disposition:** open. Confirm, or say how members should be held once groups form and split in play.
+
+### F-177 · The words of a group's member count
+- **Observation:** SYM-13 gives "4 warships" as the only example. The build names the classes "warship", "troop transport", "supply ship", "cargo ship" and "unknown ship" (plural with "s"), lists them most significant first, and joins them with ", " inside the one " · " part: "2 warships, 1 supply ship". The outline (GRP-09) reads "TF-1 · 4", like an orbit row; its small symbol carries no count or bracket. The inset of a group still reads "Ship · own" with the group's description (F-159).
+- **Affects:** SYM-13, GRP-09 · **Type:** spec gap
+- **Disposition:** open. Confirm the words, or give the class names.
+
+### F-178 · Where a group's count and bracket sit
+- **Observation:** SYM-09 puts the count "just outside the frame's upper right" and the bracket above the frame. Drawn hard against the frame, as in mock-up 7, the selection and hover brackets covered both. The build starts them outside the brackets' box (`bracket_margin_px` + 1 px), as the condition bar already is: the count to the right of the box, level with the frame's top, and the bracket's feet just above the box (or above the echelon, if higher). Labels keep `label_gap_px` from this outer edge (SYM-13), and other labels keep off it too. The count's width is estimated from the data face's fixed advance.
+- **Affects:** SYM-09, SYM-13, HOV-07 · **Type:** spec gap
+- **Disposition:** open. Confirm, or set the offsets as tunables.
 
 ## Parked
 

@@ -31,7 +31,7 @@ use super::layers;
 use super::motion_mode::MotionModeState;
 use super::screen::ScreenPositions;
 use super::ship_groups::GroupFaces;
-use super::symbol_draw::{Tint, TintSlot, amplifier_reach, condition_bar_gap, spawn_symbol_parts};
+use super::symbol_draw::{Tint, TintSlot, amplifier_gap, amplifier_reach, spawn_symbol_parts};
 use super::symbol_shape::SymbolPart;
 use super::symbols::{GroupFace, SymbolSettings, label_second_line, symbol_look, with_group};
 use super::targets::MarkerFor;
@@ -342,11 +342,11 @@ fn spawn_shape(marker: &mut EntityCommands, assets: MarkerAssets, look: BodyLook
                     symbol_look(look.affiliation, record, symbol_settings(tunables)),
                     look.group,
                 );
-                let bar_gap = condition_bar_gap(tunables.bracket_margin_px);
+                let gap = amplifier_gap(tunables.bracket_margin_px);
                 // SYM-13: the label keeps clear of the amplifiers too.
-                marker.insert(amplifier_reach(&symbol, half * 2.0, bar_gap));
+                marker.insert(amplifier_reach(&symbol, half * 2.0, gap));
                 marker.with_children(|parent| {
-                    spawn_symbol_parts(parent, fonts, &symbol, half * 2.0, bar_gap);
+                    spawn_symbol_parts(parent, fonts, &symbol, half * 2.0, gap);
                 });
             }
         }

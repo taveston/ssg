@@ -54,11 +54,10 @@ const BAR_WIDTH: f32 = 0.3;
 const BAR_HEIGHT: f32 = 0.16;
 const BAR_OVERLAP: f32 = 0.05;
 /// A group's member count (SYM-09): its data-face size as a fraction of
-/// the symbol's size, its gap from the frame's right edge in pixels, and
-/// how far its text box rises above the frame's top, as a fraction of its
-/// font size, so the figure sits at the frame's upper right corner.
+/// the symbol's size, and how far its text box rises above the frame's
+/// top, as a fraction of its font size, so the figure sits level with the
+/// frame's upper right corner.
 const COUNT_SCALE: f32 = 0.5;
-const COUNT_GAP_PX: f32 = 1.0;
 const COUNT_RISE: f32 = 0.55;
 /// The data face is monospaced: each figure is this fraction of the font
 /// size wide (IBM Plex Mono's advance).
@@ -66,27 +65,28 @@ const MONO_ADVANCE: f32 = 0.6;
 /// A line of text is this many times its font size high.
 const LINE_HEIGHT: f32 = 1.2;
 /// The task-force bracket (SYM-09): its width and height as fractions of
-/// the symbol's size, its stroke and its gap above the frame or echelon,
-/// in pixels.
+/// the symbol's size, its stroke, and its gap above an echelon, in
+/// pixels.
 const BRACKET_WIDTH: f32 = 0.8;
 const BRACKET_HEIGHT: f32 = 0.2;
 const BRACKET_STROKE_PX: f32 = 1.5;
 const BRACKET_GAP_PX: f32 = 2.0;
 /// The condition bar's height in pixels (SYM-12).
 pub const CONDITION_BAR_HEIGHT_PX: f32 = 3.0;
-/// The space between the selection brackets' box and the condition bar
-/// below it, in pixels.
-const CONDITION_BAR_CLEARANCE_PX: f32 = 1.0;
+/// The space between the selection brackets' box and an amplifier
+/// outside it, in pixels.
+const AMPLIFIER_CLEARANCE_PX: f32 = 1.0;
 /// How much of the bar's colour is mixed into the ground for the empty
 /// part of the condition bar, so a part-full bar still shows its length.
 const CONDITION_TRACK_MIX: f32 = 0.25;
 
-/// SYM-12 / HOV-07: how far below the frame the condition bar starts. The
-/// selection and hover brackets are drawn inside a box that clears the
-/// frame by `bracket_margin_px`, so the bar starts just below that box and
-/// the two never overlap.
-pub fn condition_bar_gap(bracket_margin_px: f32) -> f32 {
-    bracket_margin_px + CONDITION_BAR_CLEARANCE_PX
+/// SYM-09 / SYM-12 / HOV-07: how far outside the frame the condition bar,
+/// a group's count and a task force's bracket start. The selection and
+/// hover brackets are drawn inside a box that clears the frame by
+/// `bracket_margin_px`, so these amplifiers start just outside that box
+/// and the brackets never cover them.
+pub fn amplifier_gap(bracket_margin_px: f32) -> f32 {
+    bracket_margin_px + AMPLIFIER_CLEARANCE_PX
 }
 
 /// How far a symbol's amplifiers reach beyond its square on each side, in
@@ -119,23 +119,35 @@ fn echelon_height(look: &SymbolLook, size: f32) -> f32 {
     }
 }
 
+/// SYM-09: how far above the frame a task force's bracket starts: above
+/// the echelon if there is one, and outside the brackets' box (`gap`,
+/// `amplifier_gap`) in any case.
+fn task_force_bracket_rise(look: &SymbolLook, size: f32, gap: f32) -> f32 {
+    let echelon = echelon_height(look, size);
+    if echelon > 0.0 {
+        (echelon + BRACKET_GAP_PX).max(gap)
+    } else {
+        gap
+    }
+}
+
 /// SYM-13: how far a symbol's amplifiers reach beyond its `size`-pixel
-/// square, so its label can be placed clear of them. `bar_gap` is the
-/// condition bar's gap below the frame.
-pub fn amplifier_reach(look: &SymbolLook, size: f32, bar_gap: f32) -> AmplifierReach {
+/// square, so its label can be placed clear of them. `gap` is how far
+/// outside the frame the amplifiers start (`amplifier_gap`).
+pub fn amplifier_reach(look: &SymbolLook, size: f32, gap: f32) -> AmplifierReach {
     let mut top = echelon_height(look, size);
     if look.task_force {
-        top += BRACKET_GAP_PX + size * BRACKET_HEIGHT;
+        top = task_force_bracket_rise(look, size, gap) + size * BRACKET_HEIGHT;
     }
     let mut right = 0.0;
     if let Some(count) = look.count {
         let font = size * COUNT_SCALE;
         let figures = count.to_string().len() as f32;
-        right = COUNT_GAP_PX + figures * MONO_ADVANCE * font;
+        right = gap + figures * MONO_ADVANCE * font;
         top = top.max(COUNT_RISE * font);
     }
     let bottom = if look.condition.is_some() {
-        bar_gap + CONDITION_BAR_HEIGHT_PX
+        gap + CONDITION_BAR_HEIGHT_PX
     } else {
         0.0
     };
@@ -184,15 +196,16 @@ fn full() -> Node {
     }
 }
 
-/// SYM-02 to SYM-07, SYM-12: the parts of a symbol, spawned under
-/// `parent`, which is the `size`-pixel square they fill; a condition bar
-/// sits `bar_gap` pixels below it.
+/// SYM-02 to SYM-09, SYM-12: the parts of a symbol, spawned under
+/// `parent`, which is the `size`-pixel square they fill; the condition
+/// bar, a group's count and a task force's bracket start `gap` pixels
+/// outside it (`amplifier_gap`).
 pub fn spawn_symbol_parts(
     parent: &mut ChildSpawnerCommands,
     fonts: &Fonts,
     look: &SymbolLook,
     size: f32,
-    bar_gap: f32,
+    gap: f32,
 ) {
     let color = look.color.with_alpha(look.alpha);
     let mut image = |mask: SymbolMask, tint: Color| {
@@ -262,29 +275,30 @@ pub fn spawn_symbol_parts(
         ));
     }
     if let Some(bar) = look.condition {
-        spawn_condition_bar(parent, bar, look.alpha, size, bar_gap);
+        spawn_condition_bar(parent, bar, look.alpha, size, gap);
     }
     if let Some(count) = look.count {
-        spawn_count(parent, fonts, count, color, size);
+        spawn_count(parent, fonts, count, color, (size, gap));
     }
     if look.task_force {
-        spawn_task_force_bracket(parent, color, size, echelon_height(look, size));
+        let rise = task_force_bracket_rise(look, size, gap);
+        spawn_task_force_bracket(parent, color, size, rise);
     }
 }
 
 /// SYM-09: a group's member count in the data face, just outside the
-/// frame's upper right.
+/// frame's upper right, `gap` pixels clear of the frame.
 fn spawn_count(
     parent: &mut ChildSpawnerCommands,
     fonts: &Fonts,
     count: usize,
     color: Color,
-    size: f32,
+    (size, gap): (f32, f32),
 ) {
     let font = size * COUNT_SCALE;
     let node = Node {
         position_type: PositionType::Absolute,
-        left: px(size + COUNT_GAP_PX),
+        left: px(size + gap),
         top: px(-COUNT_RISE * font),
         ..default()
     };
@@ -305,21 +319,15 @@ fn spawn_count(
 }
 
 /// SYM-09: the NATO task-force bracket: a line above the frame with its
-/// ends turned down, sitting above the echelon (`echelon_px` high) if
-/// there is one.
-fn spawn_task_force_bracket(
-    parent: &mut ChildSpawnerCommands,
-    color: Color,
-    size: f32,
-    echelon_px: f32,
-) {
+/// ends turned down, its feet `rise` pixels above the frame.
+fn spawn_task_force_bracket(parent: &mut ChildSpawnerCommands, color: Color, size: f32, rise: f32) {
     let width = size * BRACKET_WIDTH;
     parent.spawn((
         TaskForceBracket,
         Node {
             position_type: PositionType::Absolute,
             left: px((size - width) / 2.0),
-            bottom: px(size + echelon_px + BRACKET_GAP_PX),
+            bottom: px(size + rise),
             width: px(width),
             height: px(size * BRACKET_HEIGHT),
             border: UiRect {
@@ -418,17 +426,46 @@ mod tests {
         assert_eq!(icon_mask(Icon::None), None);
     }
 
-    /// SYM-12 / HOV-07: the condition bar starts below the brackets' box,
-    /// so the brackets round a symbol never cover it.
+    /// SYM-09 / SYM-12 / HOV-07: the condition bar starts below the
+    /// brackets' box, a group's count to its right and a task force's
+    /// bracket above it, so the brackets round a symbol never cover them.
     #[test]
-    fn the_condition_bar_clears_the_bracket_box() {
+    fn the_amplifiers_clear_the_bracket_box() {
         use super::super::brackets::BracketBox;
+        use super::super::symbols::FrameShape;
         use super::super::tunables::Tunables;
         let tunables = Tunables::default();
         let half = tunables.ship_symbol_px / 2.0;
         let bbox = BracketBox::around_square(Vec2::ZERO, half, tunables.bracket_margin_px);
-        let bar_top = half + condition_bar_gap(tunables.bracket_margin_px);
+        let gap = amplifier_gap(tunables.bracket_margin_px);
+        let bar_top = half + gap;
         assert!(bar_top > bbox.centre.y + bbox.half.y);
+        let count_left = half + gap;
+        assert!(count_left > bbox.centre.x + bbox.half.x);
+        let task_force = SymbolLook {
+            frame: FrameShape::Circle,
+            color: colors::OWN,
+            fill_mix: 0.3,
+            icon: Icon::Warship,
+            dashed: false,
+            alpha: 1.0,
+            echelon: None,
+            installation_bar: false,
+            condition: None,
+            count: Some(4),
+            task_force: true,
+        };
+        let size = half * 2.0;
+        let bracket_feet = half + task_force_bracket_rise(&task_force, size, gap);
+        assert!(bracket_feet > bbox.half.y - bbox.centre.y);
+        let with_echelon = SymbolLook {
+            echelon: Some("II"),
+            ..task_force
+        };
+        assert!(
+            task_force_bracket_rise(&with_echelon, size, gap)
+                >= echelon_height(&with_echelon, size)
+        );
     }
 
     /// SYM-13: a symbol's amplifiers reach above it (echelon, then the
@@ -466,7 +503,8 @@ mod tests {
         let reach = amplifier_reach(&group, size, 5.0);
         assert_eq!(reach.bottom, 5.0 + CONDITION_BAR_HEIGHT_PX);
         assert!(reach.right > 0.0);
-        assert!(reach.top >= size * BRACKET_HEIGHT + BRACKET_GAP_PX);
+        assert!(reach.top >= size * BRACKET_HEIGHT + 5.0);
+        assert!(reach.right > 5.0);
         let many = amplifier_reach(
             &SymbolLook {
                 count: Some(12),
