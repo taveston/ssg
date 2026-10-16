@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Moon count label weight</title>
+<!--
+  Orphan Worlds: how loud the moon count beside a planet with a stacked ring should be (F-244, option B of mock-up 21).
+  Candidate. Planet markers 12 px with a second ring offset 3 px up and right. A planet holding a ship, group or station
+  keeps the full 22 px multi-marker (Earth, own ships). Render at 1440 wide.
+-->
+<style>
+@font-face{font-family:"Plex Cond";src:url("../../../../assets/fonts/IBMPlexSansCondensed-Regular.ttf")}
+@font-face{font-family:"Plex Cond";font-weight:600;src:url("../../../../assets/fonts/IBMPlexSansCondensed-SemiBold.ttf")}
+@font-face{font-family:"Plex Mono";src:url("../../../../assets/fonts/IBMPlexMono-Regular.ttf")}
+:root{--ground:#070A0E;--text:#DCE6EC;--muted:#9FB6C4;--warn:#F0A040}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--ground);color:var(--text)}
+body{font-family:"Plex Cond",sans-serif;font-size:14px;width:1440px;padding:24px 32px 28px}
+h1{font-size:14px;font-weight:600;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin:0 0 6px;display:flex;gap:12px;align-items:center}
+.tag{font:11px "Plex Mono",monospace;color:var(--warn);border:1px solid var(--warn);border-radius:2px;padding:1px 6px;letter-spacing:.06em}
+.lede{color:var(--muted);margin:0 0 16px;font-size:13.5px;max-width:1180px;line-height:1.45}
+.grid{display:grid;grid-template-columns:678px 678px;gap:18px 20px;margin-bottom:22px}
+.board h2{font-size:12px;font-weight:600;color:var(--muted);margin:0 0 8px;letter-spacing:.06em;text-transform:uppercase}
+.frame{border:1px solid #1E2A35;border-radius:4px;overflow:hidden}
+.cap{color:var(--muted);font-size:12.5px;line-height:1.45;margin:8px 2px 0}
+.cap b{color:var(--text);font-weight:600}
+</style>
+</head>
+<body>
+<h1>Moon count label weight <span class="tag">CANDIDATE</span></h1>
+<p class="lede">The stacked ring says a planet has moons folded into it. The question is how loud the count beside it should be. Same Sol overview at real pixel size (judge at 100%); only the count changes. Earth holds own ships and keeps its full marker.</p>
+
+<div class="grid">
+  <section class="board"><h2>A · "N moons" on a second line (mock-up 21)</h2><div class="frame" id="a"></div>
+    <p class="cap"><b>Reference.</b> Every planet gets a second text line, so the overview reads as a table of counts.</p></section>
+  <section class="board"><h2>B · Number only, in the dimmest text colour</h2><div class="frame" id="b"></div>
+    <p class="cap"><b>The word goes.</b> A bare "5" at 9 px in the dim colour; the ring already says what it is. The second line is the first to drop when crowded (LBL-03).</p></section>
+  <section class="board"><h2>C · Number inline after the name, dim</h2><div class="frame" id="c"></div>
+    <p class="cap"><b>No second line.</b> The count follows the name in a smaller, dimmer face. It reads as part of the name, but sits right next to the planet.</p></section>
+  <section class="board"><h2>D · Ring only; the count on hover and selection</h2><div class="frame" id="d"></div>
+    <p class="cap"><b>Quietest.</b> At rest only the stacked ring shows. Saturn is hovered here: brackets, and "7 moons" on a second line. Selection does the same.</p></section>
+</div>
+
+<section class="board"><h2>Labels enlarged 3 times: Jupiter with 5 moons</h2><div class="frame" id="z"></div></section>
+
+<script>
+const C = {ground:'#070A0E', text:'#DCE6EC', muted:'#9FB6C4', dim:'#6F8696', own:'#5AA9E6'};
+const hex = h => [1,3,5].map(i => parseInt(h.slice(i,i+2),16));
+const mix = (a,b,t) => { const A=hex(a), B=hex(b); return '#'+A.map((v,i)=>Math.round(v*t+B[i]*(1-t)).toString(16).padStart(2,'0')).join(''); };
+const mono = (txt, x, y, size, col, anchor='middle') =>
+  `<text x="${x}" y="${y}" text-anchor="${anchor}" font-family="Plex Mono, monospace" font-size="${size}" fill="${col}" stroke="none">${txt}</text>`;
+const HALO = `stroke="${C.ground}" stroke-width="3" paint-order="stroke" stroke-linejoin="round"`;
+const name = (x, y, txt, anchor, extra='') =>
+  `<text x="${x}" y="${y}" text-anchor="${anchor}" font-family="Plex Cond, sans-serif" font-size="12" fill="${C.text}" ${HALO}>${txt}${extra}</text>`;
+const sub = (x, y, txt, size, col, anchor) =>
+  `<text x="${x}" y="${y}" text-anchor="${anchor}" font-family="Plex Mono, monospace" font-size="${size}" fill="${col}" ${HALO}>${txt}</text>`;
+
+const P = 12;
+const planetMark = (x, y) =>
+  `<circle cx="${x}" cy="${y}" r="${P/2 - .5}" fill="${C.ground}" stroke="${C.text}" stroke-width="1"/><circle cx="${x}" cy="${y}" r="1.5" fill="${C.text}"/>`;
+// Option B of mock-up 21: a second ring behind the planet, offset 3 px up and right.
+const stacked = (x, y) =>
+  `<circle cx="${x+3}" cy="${y-3}" r="${P/2 - .5}" fill="${C.ground}" stroke="${C.text}" stroke-width="1"/>` + planetMark(x, y);
+const starMark = (x, y, S) => {
+  let s = `<circle cx="${x}" cy="${y}" r="${S/2 - .5}" fill="${C.ground}" stroke="${C.text}" stroke-width="1"/>`;
+  for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4;
+    s += `<line x1="${x + S/2*Math.cos(a)}" y1="${y + S/2*Math.sin(a)}" x2="${x + (S/2+3)*Math.cos(a)}" y2="${y + (S/2+3)*Math.sin(a)}" stroke="${C.text}" stroke-width="1"/>`; }
+  return s;
+};
+function ownFold(x, y, n) {
+  const fill = mix(C.own, C.ground, .30);
+  return `<circle cx="${x+4}" cy="${y-4}" r="10.25" fill="${fill}" stroke="${C.own}" stroke-width="1.5"/>` +
+         `<circle cx="${x}" cy="${y}" r="10.25" fill="${fill}" stroke="${C.own}" stroke-width="1.5"/>` + mono(n, x, y + 3.6, 10.5, C.own);
+}
+// Hover brackets (HOV-06): four corner arms round the marker's box, which here includes the back ring.
+function brackets(x, y) {
+  const l = x - P/2 - 3, r = x + P/2 + 3 + 3, t = y - P/2 - 3 - 3, b = y + P/2 + 3, a = 4, col = 'rgba(255,255,255,.55)';
+  return `<path d="M${l},${t+a} V${t} H${l+a} M${r-a},${t} H${r} V${t+a} M${r},${b-a} V${b} H${r-a} M${l+a},${b} H${l} V${b-a}" fill="none" stroke="${col}" stroke-width="1.5"/>`;
+}
+
+// The label of a planet with moons, by weight. `hot` shows it as hovered or selected.
+function label(mode, x, y, nm, n, hot) {
+  const lx = x - P/2 - 6;
+  switch (mode) {
+    case 'a': return name(lx, y - 1, nm, 'end') + sub(lx, y + 11, n + ' moons', 10, C.muted, 'end');
+    case 'b': return name(lx, y - 1, nm, 'end') + sub(lx, y + 11, n, 9, C.dim, 'end');
+    case 'c': return name(lx, y + 4, nm, 'end', `<tspan dx="4" font-family="Plex Mono, monospace" font-size="9" fill="${C.dim}">${n}</tspan>`);
+    case 'd': return hot ? name(lx, y - 1, nm, 'end') + sub(lx, y + 11, n + ' moons', 10, C.muted, 'end') : name(lx, y + 4, nm, 'end');
+  }
+}
+
+const SOL = [
+  {name:'Earth',  rx:52,  a:40,  n:5, own:true},
+  {name:'Ceres',  rx:92,  a:-35, n:2},
+  {name:'Jupiter',rx:110, a:195, n:5},
+  {name:'Saturn', rx:178, a:150, n:7, hover:true},
+  {name:'Uranus', rx:262, a:25,  n:4}
+];
+function scene(el, mode) {
+  const W = 678, H = 270, cx = 338, cy = 135, k = 0.42, star = 16;
+  let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="${C.ground}"/>`;
+  SOL.forEach(b => s += `<ellipse cx="${cx}" cy="${cy}" rx="${b.rx}" ry="${b.rx*k}" fill="none" stroke="rgba(159,182,196,.28)" stroke-width="1"/>`);
+  s += starMark(cx, cy, star) + name(cx, cy - star/2 - 9, 'Sol', 'middle');
+  SOL.forEach(b => {
+    const t = b.a * Math.PI / 180, x = Math.round(cx + b.rx*Math.cos(t)), y = Math.round(cy + b.rx*k*Math.sin(t));
+    if (b.own) s += planetMark(x, y) + ownFold(x + P/2 + 11, y, b.n) + name(x - P/2 - 6, y + 4, b.name, 'end');
+    else s += stacked(x, y) + (mode === 'd' && b.hover ? brackets(x, y) : '') + label(mode, x, y, b.name, b.n, mode === 'd' && b.hover);
+  });
+  document.getElementById(el).innerHTML = s + '</svg>';
+}
+['a','b','c','d'].forEach(m => scene(m, m));
+
+(function () {
+  const Z = 3, cases = [
+    {t:'A · N moons', m:'a'}, {t:'B · number, dim', m:'b'}, {t:'C · inline, dim', m:'c'}, {t:'D · hovered', m:'d', hot:true}, {t:'D · at rest', m:'d'}
+  ];
+  const W = 1376, H = 150, colW = W / cases.length;
+  let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="${C.ground}"/>`;
+  cases.forEach((c, i) => {
+    const x0 = i * colW + colW/2 + 28, y0 = 78;
+    s += `<g transform="translate(${x0},${y0}) scale(${Z})">${stacked(0, 0)}${c.hot ? brackets(0, 0) : ''}${label(c.m, 0, 0, 'Jupiter', 5, c.hot)}</g>`;
+    s += mono(c.t, i*colW + colW/2, 22, 11, C.muted);
+    if (i) s += `<line x1="${i*colW}" y1="12" x2="${i*colW}" y2="${H-12}" stroke="rgba(159,182,196,.10)"/>`;
+  });
+  document.getElementById('z').innerHTML = s + '</svg>';
+})();
+</script>
+</body>
+</html>

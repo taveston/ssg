@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Resting pips for mixed objects</title>
+<!--
+  Orphan Worlds: the resting object pip on a planet when the things folded into it are of mixed affiliation (F-229, F-239).
+  Rule from MUL-02: front pip is the most pressing affiliation (hostile, unknown, neutral or allied, own); a back pip,
+  offset 2 px right and up, is own when any is own, otherwise a copy of the front; no back pip for a single object.
+  Candidate. Planet marker 12 px; render at 1440 wide.
+-->
+<style>
+@font-face{font-family:"Plex Cond";src:url("../../../../assets/fonts/IBMPlexSansCondensed-Regular.ttf")}
+@font-face{font-family:"Plex Cond";font-weight:600;src:url("../../../../assets/fonts/IBMPlexSansCondensed-SemiBold.ttf")}
+@font-face{font-family:"Plex Mono";src:url("../../../../assets/fonts/IBMPlexMono-Regular.ttf")}
+:root{--ground:#070A0E;--text:#DCE6EC;--muted:#9FB6C4;--warn:#F0A040}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--ground);color:var(--text)}
+body{font-family:"Plex Cond",sans-serif;font-size:14px;width:1440px;padding:24px 32px 28px}
+h1{font-size:14px;font-weight:600;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin:0 0 6px;display:flex;gap:12px;align-items:center}
+.tag{font:11px "Plex Mono",monospace;color:var(--warn);border:1px solid var(--warn);border-radius:2px;padding:1px 6px;letter-spacing:.06em}
+.lede{color:var(--muted);margin:0 0 16px;font-size:13.5px;max-width:1180px;line-height:1.45}
+.grid{display:grid;grid-template-columns:678px 678px;gap:18px 20px;margin-bottom:22px}
+.board h2{font-size:12px;font-weight:600;color:var(--muted);margin:0 0 8px;letter-spacing:.06em;text-transform:uppercase}
+.frame{border:1px solid #1E2A35;border-radius:4px;overflow:hidden}
+.cap{color:var(--muted);font-size:12.5px;line-height:1.45;margin:8px 2px 0}
+.cap b{color:var(--text);font-weight:600}
+</style>
+<body>
+<h1>Resting pips for mixed objects <span class="tag">CANDIDATE</span></h1>
+<p class="lede">The front pip takes the most pressing affiliation among the objects folded into the planet (hostile, unknown, neutral or allied, own). A back pip, 2 px right and up, is own when any object is own and otherwise a copy of the front; it is the "more than one" signal. A single object has no back pip. The moon ring is always neutral. Real pixel size on the first row; 5 times enlarged below; the last row shows each case popped out, where the front and back frames follow the same rule.</p>
+
+<div class="board"><h2>Real size</h2><div class="frame" id="r"></div></div>
+<div class="board" style="margin-top:18px"><h2>Enlarged 5 times</h2><div class="frame" id="z"></div></div>
+<div class="board" style="margin-top:18px"><h2>Popped out (pointer near or planet selected)</h2><div class="frame" id="p"></div>
+  <p class="cap">Allied plus own is the common case if organisation ships count as allied: a green square in front, the own circle behind it. The count is in the front frame.</p></div>
+
+<script>
+const C = {ground:'#070A0E', text:'#DCE6EC', muted:'#9FB6C4', dim:'#6F8696', own:'#5AA9E6', allied:'#8CCB8A', hostile:'#EE6A5F', unknown:'#F0A040', panel:'#0B1016', line:'rgba(159,182,196,.35)'};
+const hex = h => [1,3,5].map(i => parseInt(h.slice(i,i+2),16));
+const mix = (a,b,t) => { const A=hex(a), B=hex(b); return '#'+A.map((v,i)=>Math.round(v*t+B[i]*(1-t)).toString(16).padStart(2,'0')).join(''); };
+const mono = (txt, x, y, size, col, anchor='middle') =>
+  `<text x="${x}" y="${y}" text-anchor="${anchor}" font-family="Plex Mono, monospace" font-size="${size}" fill="${col}" stroke="none">${txt}</text>`;
+const HALO = `stroke="${C.ground}" stroke-width="3" paint-order="stroke" stroke-linejoin="round"`;
+const name = (x, y, txt, anchor) =>
+  `<text x="${x}" y="${y}" text-anchor="${anchor}" font-family="Plex Cond, sans-serif" font-size="12" fill="${C.text}" ${HALO}>${txt}</text>`;
+const sub = (x, y, txt, anchor) =>
+  `<text x="${x}" y="${y}" text-anchor="${anchor}" font-family="Plex Mono, monospace" font-size="9" fill="${C.dim}" ${HALO}>${txt}</text>`;
+
+const P = 12;
+const planetMark = (x, y) =>
+  `<circle cx="${x}" cy="${y}" r="${P/2 - .5}" fill="${C.ground}" stroke="${C.text}" stroke-width="1"/><circle cx="${x}" cy="${y}" r="1.5" fill="${C.text}"/>`;
+const starMark = (x, y, S) => {
+  let s = `<circle cx="${x}" cy="${y}" r="${S/2 - .5}" fill="${C.ground}" stroke="${C.text}" stroke-width="1"/>`;
+  for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4;
+    s += `<line x1="${x + S/2*Math.cos(a)}" y1="${y + S/2*Math.sin(a)}" x2="${x + (S/2+3)*Math.cos(a)}" y2="${y + (S/2+3)*Math.sin(a)}" stroke="${C.text}" stroke-width="1"/>`; }
+  return s;
+};
+
+const ring = (x, y) => `<circle cx="${x+3}" cy="${y-3}" r="5.5" fill="${C.ground}" stroke="${C.text}" stroke-width="1"/>`;
+const FRAME = {
+  own: '<circle r="10.25"/>', allied: '<rect x="-10.25" y="-10.25" width="20.5" height="20.5"/>',
+  hostile: '<path d="M0,-10.5 L10.5,0 L0,10.5 L-10.5,0 Z"/>',
+  unknown: '<path d="M-6.1,-6.1 A6.3,6.3 0 0 1 6.1,-6.1 A6.3,6.3 0 0 1 6.1,6.1 A6.3,6.3 0 0 1 -6.1,6.1 A6.3,6.3 0 0 1 -6.1,-6.1 Z"/>'
+};
+const PIP = {
+  own: '<circle r="2.8"/>', allied: '<rect x="-2.8" y="-2.8" width="5.6" height="5.6"/>',
+  hostile: '<path d="M0,-3.6 L3.6,0 L0,3.6 L-3.6,0 Z"/>',
+  unknown: '<path d="M-1.8,-1.8 A2,2 0 0 1 1.8,-1.8 A2,2 0 0 1 1.8,1.8 A2,2 0 0 1 -1.8,1.8 A2,2 0 0 1 -1.8,-1.8 Z"/>'
+};
+const ORDER = ['hostile', 'unknown', 'allied', 'own'];
+// Front affiliation: most pressing present; back: own when any own, else a copy of the front; none for one object.
+function split(list) {
+  const front = ORDER.find(a => list.includes(a)), back = list.length < 2 ? null : (list.includes('own') ? 'own' : front);
+  return {front, back};
+}
+const fillOf = a => mix(C[a], C.ground, a === 'own' ? .30 : .16);
+function pips(x, y, list) {
+  const {front, back} = split(list);
+  let s = '';
+  if (back) s += `<g transform="translate(${x+11},${y+5})" fill="${fillOf(back)}" stroke="${C[back]}" stroke-width="1.2" stroke-linejoin="round">${PIP[back]}</g>`;
+  return s + `<g transform="translate(${x+9},${y+7})" fill="${fillOf(front)}" stroke="${C[front]}" stroke-width="1.2" stroke-linejoin="round">${PIP[front]}</g>`;
+}
+function multi(x, y, list, n) {
+  const {front, back} = split(list), col = C[front];
+  return `<g transform="translate(${x},${y})" stroke-linejoin="round" stroke-width="1.5">` +
+    (back ? `<g transform="translate(4,-4)" fill="${fillOf(back)}" stroke="${C[back]}">${FRAME[back]}</g>` : '') +
+    `<g fill="${fillOf(front)}" stroke="${col}">${FRAME[front]}</g></g>` + mono(n, x, y + 3.6, 10.5, col);
+}
+const CASES = [
+  ['moons only', []], ['one allied', ['allied']], ['two allied', ['allied', 'allied']], ['allied + own', ['allied', 'own']],
+  ['two own', ['own', 'own']], ['hostile + own', ['hostile', 'own']], ['unknown + allied', ['unknown', 'allied']], ['hostile + unknown + own', ['hostile', 'unknown', 'own']]
+];
+function row(el, Z, H, y0, lab) {
+  const W = 1376, colW = W / CASES.length;
+  let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="${C.ground}"/>`;
+  CASES.forEach(([nm, list], i) => {
+    const x0 = i * colW + colW/2 - 5 * Z/2;
+    s += `<g transform="translate(${x0},${y0}) scale(${Z})">${ring(0, 0)}${planetMark(0, 0)}${list.length ? pips(0, 0, list) : ''}</g>`;
+    s += mono(nm, i*colW + colW/2, H - 14, 10, C.muted);
+  });
+  document.getElementById(el).innerHTML = s + '</svg>';
+}
+row('r', 1, 80, 34); row('z', 5, 150, 58);
+(function () {
+  const W = 1376, H = 130, cs = CASES.filter(c => c[1].length), colW = W / cs.length;
+  let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="${C.ground}"/>`;
+  cs.forEach(([nm, list], i) => {
+    const x = i * colW + colW/2 - 12;
+    s += ring(x, 34) + planetMark(x, 34) + multi(x, 34 + P/2 + 4 + 11, list, list.length);
+    s += mono(nm, i*colW + colW/2, H - 14, 10, C.muted);
+  });
+  document.getElementById('p').innerHTML = s + '</svg>';
+})();
+</script>
+</body>
+</html>

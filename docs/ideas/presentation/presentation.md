@@ -47,7 +47,7 @@ The first three are spatial layers, nested from cluster down to planet. Faction 
   - Tracked contacts carry an uncertainty region showing tracking quality: sensor coverage, the contact's emission control, time since a good detection.
   - Salvage contents, foreign designs and unsurveyed bodies are known only as well as they have been observed (see the inspection view above).
 - **Clutter (candidate):**
-  - Moons, stations and ships in orbit around a body fold into one count marker on that body (specced: GRP).
+  - Moons fold into a neutral ring behind a body's marker, with a dim "+N" on its label; ships, groups and stations fold into a small pip down and to the right, which pops out into a count marker near the pointer or when the body is selected (specced: GRP; decided 2026-10-16, from F-244, F-229 and F-239, reasoning in *Symbology* 4).
   - Asteroid belts and debris fields appear as density shading. Surveyed, claimed or active sites get individual markers.
   - Information layers can be switched on and off: ownership, resources, salvage, traffic, sensor coverage.
 - **Motion (candidate):** ship paths are drawn as their actual arcs, including burns: solid behind the ship, dashed ahead, and dashed from the departure point for a scheduled transfer. Transfer planning shows one live preview path with the arrival point on the target's ring, plus slider tracks coloured by delta-v; this replaces the earlier fan of labelled alternative paths (*Orbital Transfers* 3.3). How fast-orbiting objects are drawn is set by the motion rule (specced: MOT).

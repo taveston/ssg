@@ -233,16 +233,6 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** PLNR-106, PLNR-96 · **Type:** spec gap
 - **Disposition:** open. Accept, and add the sentence to PLNR-106.
 
-### F-229 · Where the fold marker sits
-- **Observation:** GRP-05 and MUL-06 say only that the fold marker sits beside its parent. The build puts its front frame level with the parent's centre, to its right, with the two boxes just touching, as mock-up 18 does. Labels take the right slot first, so planet labels now sit on the left. In Halden IV's own frame its label had no free slot and was hidden. The old pill sat lower right and left the right slot free.
-- **Affects:** GRP-05, MUL-06, LBL-01 · **Type:** spec gap
-- **Disposition:** open. Keep it level and to the right; move it below right like the pill (about 27 px down to clear a one-line label); or put it on the left.
-
-### F-230 · Do docked things colour a larger marker's frames?
-- **Observation:** MUL-04 says things docked at a station inside a larger marker sit under its row and aren't counted. MUL-02 doesn't say whether they count for the frames. The build leaves them out of the frames too, for fold markers, overlap clusters and shared-orbit identity marks. So Iver's fold marker reads as an own "1", not a neutral one. A hostile ship docked inside a larger marker then shows only in the tray.
-- **Affects:** MUL-02, MUL-04 · **Type:** spec gap
-- **Disposition:** open. Accept, or count docked things for the frames, at the cost of a "1" in another thing's colour.
-
 ### F-231 · The identity mark of an orbit holding one station with ships docked
 - **Observation:** MOT-14 gives a shared orbit a multi-marker. If the orbit's only thing is a station with ships docked at it (Iver's High band: Iver Yard, Corvid and the Pellam trader), MUL-04 would make that a plain multi-marker counting 1. The build draws the station's own station marker instead: its frame and bar, the docked count and a back frame.
 - **Affects:** MOT-14, MUL-03, MUL-04 · **Type:** spec gap
@@ -257,11 +247,6 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** MUL-03 defines docking only for ships and groups. When two stations are together (PHAS-02), the build makes the first the lead and treats the other as docked at it: it is counted as docked and its own symbol is hidden. No content has this case yet.
 - **Affects:** MUL-03, MUL-05 · **Type:** spec gap
 - **Disposition:** open. Say what two stations together show.
-
-### F-234 · Fold markers never fade
-- **Observation:** A fold marker is always drawn at full strength, even when its parent's dot has faded into the exposure ring (MOT-11). Other multi-markers fade with the strongest thing in them. The old pill behaved the same.
-- **Affects:** GRP-05, MOT-11 · **Type:** spec gap
-- **Disposition:** open. Accept, or fade the fold marker with its parent.
 
 ### F-235 · A shared orbit's identity mark while the planner is open
 - **Observation:** MUL-12 says a click on any multi-marker other than a fold marker picks nothing. MOT-14 says the identity mark targets what its ring targets, and PLNR-11 says a shared ring picks that orbit's band. The build follows MOT-14 and PLNR-11: the mark picks the band and opens its tray.
@@ -283,11 +268,6 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** HOV-05, MUL-08 · **Type:** spec gap
 - **Disposition:** open. Say what a shared ring's click opens in dot mode. A header such as "HIGH ORBIT · N THINGS" may read better.
 
-### F-239 · A fold marker's tray opening left covers its parent
-- **Observation:** The fold marker sits to the right of its parent. When its tray opens to the left (for example Morrow with the inset open), the tray covers the parent's marker and label.
-- **Affects:** MUL-08, GRP-05 · **Type:** spec wrong
-- **Disposition:** open. Keep it, or for a fold marker open the tray above or below instead of to the left. Bears on F-229.
-
 ### F-240 · The panel fill shows the map through the tray
 - **Observation:** The panel fill is 0.97 alpha, and blending happens in linear light, so bright labels and the belt under the tray show faintly through it (about 15% on a white label). The inset uses the same fill, but it seldom sits over the map.
 - **Affects:** MUL-08, INS-09 · **Type:** idea
@@ -297,11 +277,6 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** MUL-10 closes the tray when its marker stops existing. Together and overlap markers are known by their first thing, so if that thing leaves while the others stay, or a new thing joins ahead of it, the build treats the marker as gone and closes the tray, though most of its things are still on one marker.
 - **Affects:** MUL-10, MUL-05 · **Type:** spec gap
 - **Disposition:** open. Accept, or say the tray follows the marker that keeps most of its things.
-
-### F-244 · At system scale the fold marker dwarfs its planet
-- **Observation:** In play, the multi-marker looks fine on its own, but in the system overview a planet's fold marker looks massive next to the planet. The fold marker is a ship symbol's frame (`ship_symbol_px`, 22 px) with a back frame offset 4 px, so about 26 px across, sitting beside a planet marker of `planet_marker_px` (12 px). Every planet with satellites (Halden IV, Iver, Morrow) then reads as a small dot with a big badge, and the badge, not the planet, draws the eye. A fold marker holding only natural bodies (Morrow's "11") is the same size as one holding ships.
-- **Affects:** MUL-01, GRP-05, MRK-03 · **Type:** spec wrong
-- **Disposition:** open. Seen by the user in play. Options: a fold marker of its own size (a tunable near the planet marker's), or a smaller one only when it holds natural bodies alone. Bears on F-229 (where it sits).
 
 ### F-245 · The outline follows a selected ship that moves
 - **Observation:** INS-05 opens the path to the selection only when the selection changes. A selected ship that arrives at another body would then drop out of the outline, because its new parent and orbit row are still collapsed. The build also opens the new path (the parent entry and the named orbit's row) when the selected body's parent or named orbit changes, and scrolls it into view; other entries keep their state. That scroll can override where the player had scrolled the outline, on departure and on arrival.
