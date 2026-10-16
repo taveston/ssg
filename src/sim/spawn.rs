@@ -3,9 +3,11 @@
 //! (SCL-07), the belt and its salvage sites, and the gates.
 //!
 //! Every star, planet and moon gets its two bands as named orbits
-//! (BAND-01, PLAN-30), and every station, gate and salvage site a docking
-//! orbit of its own (BAND-02), so content never spells those out. A ship
-//! with propulsion gets its drive and delta-v account (PLAN-20).
+//! (BAND-01, PLAN-30), and every gate and salvage site a docking orbit of
+//! its own (BAND-02), so content never spells those out. A station sits in
+//! one of its parent's bands, as a parked ship does, and offers no orbit
+//! of its own. A ship with propulsion gets its drive and delta-v account
+//! (PLAN-20).
 //!
 //! Only simulation components go on here. A satellite is an `Orbit` with a
 //! `ChildOf` naming what it orbits; nothing else marks it out, so the view
@@ -139,8 +141,8 @@ fn spawn_gate(commands: &mut Commands, gate: GateBlueprint, star_mass_kg: f64, c
     spawn_docking_orbit(commands, entity, gate.name, context.star, &orbit);
 }
 
-/// BAND-02: the orbit a station, gate or salvage site offers a ship sent
-/// to it: its own, as a named orbit of what it orbits, named after it.
+/// BAND-02: the orbit a gate or salvage site offers a ship sent to it:
+/// its own, as a named orbit of what it orbits, named after it.
 fn spawn_docking_orbit(
     commands: &mut Commands,
     place: Entity,
@@ -216,14 +218,15 @@ struct Placements(Vec<Placed>);
 impl Placements {
     /// SCL-07: resolve each child's placement against the parent's named
     /// orbits: an own radius stands as it is; a named orbit gives its
-    /// radius. Content that names an orbit that isn't there is a content
-    /// error, reported where it is first used.
+    /// radius. Content that names an orbit that isn't there, or gives a
+    /// station an orbit of its own, is a content error, reported where it
+    /// is first used.
     fn round(children: &[BodyBlueprint], orbits: &[SpawnedOrbit]) -> Self {
         Self(
             children
                 .iter()
                 .map(|child| {
-                    resolve_placement(child.orbit, orbits)
+                    resolve_placement(child.class, child.orbit, orbits)
                         .unwrap_or_else(|error| panic!("{}: {error}", child.name))
                 })
                 .collect(),
@@ -239,12 +242,18 @@ impl IntoIterator for Placements {
     }
 }
 
-/// SCL-07: what a placement comes to among the parent's `orbits`.
+/// SCL-07: what a placement comes to among the parent's `orbits`. A
+/// station is placed in a named orbit exactly as a ship is, never in an
+/// orbit of its own.
 pub fn resolve_placement(
+    class: BodyClass,
     placement: OrbitPlacement,
     orbits: &[SpawnedOrbit],
 ) -> Result<Placed, String> {
     match placement {
+        OrbitPlacement::Own { .. } if class == BodyClass::Station => {
+            Err("a station sits in a named orbit, not one of its own".to_string())
+        }
         OrbitPlacement::Own { radius_km } => Ok(Placed {
             radius_km,
             named: None,
@@ -360,11 +369,13 @@ fn spawn_body(
                 commands, entity, radius_km, hill_km, mass_kg, context,
             ));
         }
-        BodyClass::Station | BodyClass::Gate | BodyClass::SalvageSite => {
+        BodyClass::Gate | BodyClass::SalvageSite => {
             let round = parent.unwrap_or(context.star);
             spawn_docking_orbit(commands, entity, name, round, &orbit);
         }
-        BodyClass::Ship => {}
+        // A station is a place in its parent's band, as a parked ship is
+        // (SCL-07, BAND-02): it offers no orbit of its own.
+        BodyClass::Station | BodyClass::Ship => {}
     }
     let placements = Placements::round(&children, &spawned);
     for (child, placed) in children.into_iter().zip(placements) {
@@ -386,20 +397,42 @@ mod tests {
         let mut world = World::new();
         let high = world.spawn_empty().id();
         let orbits = [("High", high, 20_000.0)];
+        let ship = BodyClass::Ship;
         assert_eq!(
-            resolve_placement(OrbitPlacement::Named("High"), &orbits),
+            resolve_placement(ship, OrbitPlacement::Named("High"), &orbits),
             Ok(Placed {
                 radius_km: 20_000.0,
                 named: Some(high)
             })
         );
         assert_eq!(
-            resolve_placement(OrbitPlacement::Own { radius_km: 500.0 }, &orbits),
+            resolve_placement(ship, OrbitPlacement::Own { radius_km: 500.0 }, &orbits),
             Ok(Placed {
                 radius_km: 500.0,
                 named: None
             })
         );
-        assert!(resolve_placement(OrbitPlacement::Named("Low"), &orbits).is_err());
+        assert!(resolve_placement(ship, OrbitPlacement::Named("Low"), &orbits).is_err());
+    }
+
+    /// SCL-07: a station is placed in a band exactly as a ship is, and can
+    /// be placed nowhere else: an orbit of its own is a content error.
+    #[test]
+    fn a_station_is_placed_only_in_a_named_orbit() {
+        let mut world = World::new();
+        let low = world.spawn_empty().id();
+        let orbits = [("Low", low, 7_200.0)];
+        let station = BodyClass::Station;
+        assert_eq!(
+            resolve_placement(station, OrbitPlacement::Named("Low"), &orbits),
+            Ok(Placed {
+                radius_km: 7_200.0,
+                named: Some(low)
+            })
+        );
+        let own = OrbitPlacement::Own {
+            radius_km: 45_000.0,
+        };
+        assert!(resolve_placement(station, own, &orbits).is_err());
     }
 }

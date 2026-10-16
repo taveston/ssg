@@ -208,15 +208,23 @@ impl OrbitRings<'_, '_> {
                 .iter()
                 .filter_map(|&body| self.member(body))
                 .collect();
-            if members.is_empty() {
-                return None;
-            }
+            let shared = match members.len() {
+                0 => return None,
+                n => n > 1,
+            };
+            // MOT-02 / HOV-05: a named orbit with one member is that
+            // member's ring, so it carries the member's name.
+            let name = if shared {
+                named.name.clone()
+            } else {
+                self.name_of(members[0].body)
+            };
             return Some(Ring {
                 owner,
                 centre: Some(named.parent),
                 radius_km: named.radius_km,
-                name: named.name.clone(),
-                shared: members.len() > 1,
+                name,
+                shared,
                 members,
             });
         }
@@ -228,14 +236,17 @@ impl OrbitRings<'_, '_> {
             owner,
             centre: child_of.map(ChildOf::parent),
             radius_km: orbit.radius_km,
-            name: self
-                .names
-                .get(owner)
-                .map(|n| n.0.clone())
-                .unwrap_or_default(),
+            name: self.name_of(owner),
             shared: false,
             members: vec![self.member(owner)?],
         })
+    }
+
+    fn name_of(&self, body: Entity) -> String {
+        self.names
+            .get(body)
+            .map(|n| n.0.clone())
+            .unwrap_or_default()
     }
 }
 

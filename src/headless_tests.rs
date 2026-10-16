@@ -206,15 +206,15 @@ fn orbital_positions_after_a_known_time() {
     }
 
     // And in absolute terms: Halden IV is on its 2 AU orbit, and Arden
-    // Highport (0.1 d) has gone round about 100 times but is still about
-    // 9,394 km from its planet; Orison sits on its named orbit "High"
-    // (SCL-07).
+    // Highport, in the Low band (TEST-02), has gone round about 150 times
+    // but is still 7,200 km from its planet; Orison sits on its named
+    // orbit "High" (SCL-07).
     let halden = body(&mut app, "Halden IV");
     let halden_km = app.world().get::<OrbitPositionKm>(halden).unwrap().0;
     assert!((halden_km.length() / KM_PER_AU - 2.0).abs() < 1e-9);
     let highport = body(&mut app, "Arden Highport");
     let highport_km = app.world().get::<OrbitPositionKm>(highport).unwrap().0;
-    assert!((highport_km.length() - 9_394.0).abs() < 1.0);
+    assert!((highport_km.length() - 7_200.0).abs() < 1e-6);
     let orison = body(&mut app, "Orison");
     let orison_km = app.world().get::<OrbitPositionKm>(orison).unwrap().0;
     let high = app.world().get::<InNamedOrbit>(orison).unwrap().0;
@@ -390,7 +390,8 @@ fn zoom_stops_come_from_corvanes_orbits() {
 
     for (planet, outermost_km) in [
         ("Halden IV", 726_432.0),
-        ("Iver", 45_000.0),
+        // Iver Yard, in Iver's High band of ten radii (BAND-01).
+        ("Iver", 58_000.0),
         ("Morrow", 6_619_046.0),
     ] {
         let entity = body(&mut app, planet);
@@ -2172,8 +2173,9 @@ fn the_scale_bar_fits_and_the_north_dial_follows_and_resets_the_heading() {
 /// sits in its named orbit "High" with no radius of its own, so they share
 /// one ring: the orbit is a ring owner and the ships are not, and the ring
 /// has one hit target standing for the orbit, traced at Halden IV's
-/// satellite fit. "Low" is empty and gets no ring. Arden Highport, with an
-/// orbit of its own, is its own ring.
+/// satellite fit. "Low" holds Arden Highport alone, so its ring is the
+/// station's (HOV-05); a body with no named orbit, such as K-3, is its own
+/// ring.
 #[test]
 fn ships_parked_in_one_named_orbit_share_one_ring() {
     use crate::view::ring_picking::{RingPaths, RingPickingPlugin, RingTarget};
@@ -2221,15 +2223,41 @@ fn ships_parked_in_one_named_orbit_share_one_ring() {
     let members: Vec<Entity> = ring.members.iter().map(|m| m.body).collect();
     assert_eq!(&members[..2], [orison, ardent]);
     assert!(members.len() >= 13 && members.contains(&body(&mut app, "Sennet")));
-    let low = {
+    let halden_orbits: Vec<(Entity, String)> = {
         let mut named = app.world_mut().query::<(Entity, &NamedOrbit)>();
         named
             .iter(app.world())
-            .find(|(_, o)| o.parent == halden && o.name == "Low")
-            .map(|(e, _)| e)
-            .expect("Halden IV offers Low")
+            .filter(|(_, o)| o.parent == halden)
+            .map(|(e, o)| (e, o.name.clone()))
+            .collect()
     };
-    assert!(!owners.contains(&low), "an empty named orbit has no ring");
+    let mut names: Vec<&str> = halden_orbits.iter().map(|(_, n)| n.as_str()).collect();
+    names.sort();
+    assert_eq!(names, ["High", "Low"], "exactly two named orbits (TEST-10)");
+    let low = halden_orbits
+        .iter()
+        .find(|(_, n)| n == "Low")
+        .map(|(e, _)| *e)
+        .unwrap();
+    // SCL-07: the station sits in the Low band with no radius of its own.
+    assert_eq!(app.world().get::<InNamedOrbit>(highport).unwrap().0, low);
+    let low_km = app.world().get::<NamedOrbit>(low).unwrap().radius_km;
+    assert_eq!(
+        app.world().get::<Orbit>(highport).unwrap().radius_km,
+        low_km
+    );
+    assert!(owners.contains(&low) && !owners.contains(&highport));
+    let ring = app
+        .world_mut()
+        .run_system_once(move |rings: OrbitRings| rings.ring(low).unwrap())
+        .unwrap();
+    assert!(!ring.shared);
+    assert_eq!(ring.members.len(), 1);
+    assert_eq!(ring.members[0].body, highport);
+    assert_eq!(
+        ring.name, "Arden Highport",
+        "a lone member's ring is its own"
+    );
 
     let mut targets = app
         .world_mut()
@@ -2250,7 +2278,7 @@ fn ships_parked_in_one_named_orbit_share_one_ring() {
     assert!(
         targets
             .iter()
-            .any(|t| t.3 == Some(highport) && t.2.is_none()),
+            .any(|t| t.1 == low && t.3 == Some(highport) && t.2.is_none()),
         "a lone member's orbit is that member's ring"
     );
 
@@ -2349,7 +2377,8 @@ fn an_exposure_ring_carries_an_identity_mark() {
         "the pill is labelled with the orbit's name"
     );
 
-    let (highport_mark, _, orbit_for, marker_for) = mark_of(&mut app, highport);
+    let low = app.world().get::<InNamedOrbit>(highport).unwrap().0;
+    let (highport_mark, _, orbit_for, marker_for) = mark_of(&mut app, low);
     assert_eq!((orbit_for, marker_for), (None, Some(highport)));
     assert!(
         descendants(&mut app, highport_mark)
@@ -3476,4 +3505,49 @@ fn the_debug_shot_sets_up_its_view_then_asks_for_a_capture() {
     assert!((rig.heading - 45f32.to_radians()).abs() < 1e-6);
     let mut shots = app.world_mut().query::<&Screenshot>();
     assert_eq!(shots.iter(app.world()).count(), 1);
+}
+
+/// BAND-02 / SCL-07 / TEST-02: Arden Highport is a place in Halden IV's
+/// Low band (period about 0.07 d) at its own phase, and offers no orbit of
+/// its own. An order to the station flies to that band, as an order to
+/// the band itself does.
+#[test]
+fn a_station_is_a_place_in_its_band_at_its_phase() {
+    use crate::sim::transfer::tree::{StationNode, TreeQuery};
+    use bevy::ecs::system::RunSystemOnce;
+
+    let mut app = sim_app();
+    let halden = body(&mut app, "Halden IV");
+    let orison = body(&mut app, "Orison");
+    let highport = body(&mut app, "Arden Highport");
+    let low = band_orbit(&mut app, halden, Band::Low);
+    let period = app.world().get::<NamedOrbit>(low).unwrap().period_days;
+    assert!((period - 0.067).abs() < 0.002, "{period} d");
+    let mut named = app.world_mut().query::<&NamedOrbit>();
+    assert!(
+        !named.iter(app.world()).any(|o| o.name == "Arden Highport"),
+        "a station has no docking orbit of its own"
+    );
+
+    let station = app
+        .world_mut()
+        .run_system_once(move |tree: TreeQuery| tree.snapshot(0.0).stations[&highport])
+        .unwrap();
+    assert_eq!(
+        station,
+        StationNode {
+            orbit: low,
+            phase0_rad: 2.4
+        }
+    );
+
+    let to_band = high_to_low(&mut app, halden, 1.0);
+    let to_station = Order {
+        destination: Place::Station { station: highport },
+        ..to_band
+    };
+    let leg = preview(&mut app, orison, to_station).unwrap();
+    assert!(matches!(leg.landing, Landing::Orbit { orbit, .. } if orbit == low));
+    let band_leg = preview(&mut app, orison, to_band).unwrap();
+    assert_eq!(leg.delta_v_kms, band_leg.delta_v_kms);
 }

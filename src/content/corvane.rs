@@ -59,10 +59,10 @@ const MORROW_IX_MASS_KG: f64 = 0.02 * EARTH_MASS_KG;
 /// Where Morrow IX sits among Morrow's moons.
 const MORROW_IX: usize = 8;
 
-/// TEST-02 / TEST-03: Halden IV's own-orbit satellites by period: Arden
-/// Highport (0.1 d) and K-3's slow orbit. The parked ships sit in the
-/// "High" band, whose radius BAND-01 derives.
-const HALDEN_HIGHPORT_DAYS: f64 = 0.1;
+/// TEST-03: K-3's slow orbit round Halden IV, by period: the one parked
+/// object there with an orbit of its own. Arden Highport sits in the "Low"
+/// band and the parked ships in the "High" band, whose radii BAND-01
+/// derives.
 const HALDEN_K3_DAYS: f64 = 45.0;
 
 fn surveyed_today() -> Knowledge {
@@ -171,7 +171,8 @@ fn pell() -> BodyBlueprint {
     }
 }
 
-/// TEST-01: Iver, with the station Iver Yard in an orbit of its own.
+/// TEST-01: Iver, with the station Iver Yard in its High band (SCL-07),
+/// the band nearest the yard's old 45,000 km orbit.
 fn iver() -> BodyBlueprint {
     BodyBlueprint {
         name: "Iver",
@@ -196,7 +197,7 @@ fn iver() -> BodyBlueprint {
             description: "A dormant pre-collapse shipyard, barely maintained.",
             key_facts: vec![("Status", "Dormant"), ("Owner", "Own")],
             knowledge: surveyed_today(),
-            orbit: own(45_000.0),
+            orbit: OrbitPlacement::Named("High"),
             radius_km: 1.0,
             phase0_rad: 0.9,
             mass_kg: 0.0,
@@ -299,7 +300,8 @@ fn halden_iv() -> BodyBlueprint {
                 description: "Halden IV's primary orbital station.",
                 key_facts: vec![("Status", "Active"), ("Owner", "Own")],
                 knowledge: surveyed_today(),
-                orbit: own(halden_orbit_km(HALDEN_HIGHPORT_DAYS)),
+                // TEST-02 / TEST-10: in the Low band, so about 0.07 d.
+                orbit: OrbitPlacement::Named("Low"),
                 radius_km: 1.0,
                 phase0_rad: 2.4,
                 mass_kg: 0.0,
@@ -586,7 +588,7 @@ fn morrow() -> BodyBlueprint {
 
 /// TEST-09: Morrow IX's one named orbit of its own, "Outer", for the
 /// parked trader (9 d, dot mode at 1 d/s); its bands sit closer in. The
-/// relay has an orbit of its own.
+/// relay sits in its Low band.
 fn morrow_ix_orbits() -> Vec<NamedOrbitBlueprint> {
     vec![NamedOrbitBlueprint {
         name: "Outer",
@@ -624,7 +626,7 @@ fn morrow_ix_satellites() -> Vec<BodyBlueprint> {
             Affiliation::Own,
             ShipRecord::new(ShipClass::Station, true),
             "A signal relay in low orbit round Morrow IX.",
-            own(orbit_km_for_period(MORROW_IX_MASS_KG, 0.3)),
+            OrbitPlacement::Named("Low"),
             0.4,
         )
     };
@@ -716,7 +718,7 @@ mod tests {
     fn halden_iv_satellite_periods() {
         let halden = planet("Halden IV");
         for (name, expected) in [
-            ("Arden Highport", 0.1),
+            ("Arden Highport", 0.067),
             ("Halden IVa", 1.5),
             ("Halden IVb", 4.2),
             ("Halden IVc", 31.0),
@@ -744,22 +746,27 @@ mod tests {
         assert!(satellite_period_days(&halden, "Halden IVd") >= 25.0);
     }
 
-    /// SCL-07 / TEST-10: every parked ship but K-3 sits in a named orbit
-    /// of its parent and carries no radius of its own; stations, K-3 and
-    /// every natural body have orbits of their own, and no two natural
-    /// bodies share a radius.
+    /// SCL-07 / TEST-10: every station and every parked ship but K-3 sits
+    /// in a named orbit of its parent and carries no radius of its own;
+    /// K-3 and every natural body have orbits of their own, and no two
+    /// natural bodies share a radius.
     #[test]
-    fn ships_sit_in_named_orbits_and_natural_bodies_apart() {
+    fn ships_and_stations_sit_in_named_orbits_and_natural_bodies_apart() {
         fn check(parent: &BodyBlueprint) {
             let mut natural_radii: Vec<f64> = Vec::new();
             for child in &parent.children {
                 match child.class {
+                    BodyClass::Station => assert!(
+                        matches!(child.orbit, OrbitPlacement::Named("Low" | "High")),
+                        "{} is not in a band",
+                        child.name
+                    ),
                     BodyClass::Ship if child.name != "K-3" => assert!(
                         matches!(child.orbit, OrbitPlacement::Named(_)),
                         "{} carries a radius of its own",
                         child.name
                     ),
-                    BodyClass::Ship | BodyClass::Station => assert!(
+                    BodyClass::Ship => assert!(
                         matches!(child.orbit, OrbitPlacement::Own { .. }),
                         "{} keeps an orbit of its own",
                         child.name
@@ -787,12 +794,12 @@ mod tests {
     }
 
     /// TEST-10 / TEST-20: Halden IV lists no orbits of its own, so its
-    /// named orbits are exactly its two bands, "Low" (empty) and "High";
-    /// "High" holds every parked ship - Orison (TEST-03), a second own
-    /// commanded warship, Ardent, and the TEST-05 ships - at distinct
-    /// phases, while Arden Highport and K-3 keep orbits of their own.
+    /// named orbits are exactly its two bands. "Low" holds Arden Highport
+    /// alone; "High" holds every parked ship - Orison (TEST-03), a second
+    /// own commanded warship, Ardent, and the TEST-05 ships - at distinct
+    /// phases, while K-3 keeps an orbit of its own.
     #[test]
-    fn halden_iv_high_orbit_holds_every_parked_ship() {
+    fn halden_iv_bands_hold_the_station_and_every_parked_ship() {
         let halden = planet("Halden IV");
         assert!(halden.orbits.is_empty());
         assert!(planet_bands(&halden).high_km.is_some());
@@ -804,12 +811,17 @@ mod tests {
         assert!(in_high.len() >= 13, "{} ships in High", in_high.len());
         let elsewhere: Vec<&str> = elsewhere.iter().map(|c| c.name).collect();
         assert_eq!(elsewhere, ["Arden Highport", "K-3"]);
-        assert!(
-            !halden
-                .children
-                .iter()
-                .any(|c| c.orbit == OrbitPlacement::Named("Low"))
-        );
+        let in_low: Vec<&str> = halden
+            .children
+            .iter()
+            .filter(|c| c.orbit == OrbitPlacement::Named("Low"))
+            .map(|c| c.name)
+            .collect();
+        assert_eq!(in_low, ["Arden Highport"]);
+        assert!(matches!(
+            child(&halden, "K-3").orbit,
+            OrbitPlacement::Own { .. }
+        ));
         for name in ["Orison", "Ardent"] {
             let ship = child(&halden, name);
             let record = ship.record.as_ref().unwrap();
@@ -914,9 +926,9 @@ mod tests {
         assert_eq!(ring, 6);
     }
 
-    /// TEST-09: Morrow IX holds its own station and trader, at periods of
-    /// about 0.3 d (ring mode at 1 d/s) and 9 d (dot mode), inside its Hill
-    /// sphere and clear of its surface.
+    /// TEST-09: Morrow IX holds its own station, in its Low band, and a
+    /// trader, at periods of about 0.13 d (ring mode at 1 d/s) and 9 d (dot
+    /// mode), inside its Hill sphere and clear of its surface.
     #[test]
     fn morrow_ix_has_two_satellites_of_its_own() {
         let morrow = planet("Morrow");
@@ -924,8 +936,9 @@ mod tests {
         assert_eq!(ix.name, "Morrow IX");
         let ix_orbit_km = orbit_radius_km(&morrow, ix);
         let hill_km = ix_orbit_km * (ix.mass_kg / (3.0 * morrow.mass_kg)).cbrt();
+        assert_eq!(child(ix, "Tern Relay").orbit, OrbitPlacement::Named("Low"));
         for (name, class, affiliation, expected) in [
-            ("Tern Relay", BodyClass::Station, Affiliation::Own, 0.3),
+            ("Tern Relay", BodyClass::Station, Affiliation::Own, 0.127),
             ("Kessel trader", BodyClass::Ship, Affiliation::Neutral, 9.0),
         ] {
             let satellite = child(ix, name);
@@ -941,7 +954,7 @@ mod tests {
             );
             let radius = orbit_radius_km(ix, satellite);
             assert!(radius < hill_km / 2.0, "{name} inside the Hill sphere");
-            assert!(radius > 2.0 * ix.radius_km, "{name} above the surface");
+            assert!(radius > ix.radius_km, "{name} above the surface");
         }
     }
 

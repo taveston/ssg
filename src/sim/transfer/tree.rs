@@ -36,7 +36,7 @@ pub struct BodyNode {
 }
 
 /// A named orbit: the body it circles, its radius and period, and what
-/// it stands for (a band, or a place's docking orbit).
+/// it stands for (a band, or a gate or site's docking orbit).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct OrbitNode {
     pub body: Entity,
@@ -68,12 +68,21 @@ pub enum ShipState {
     InFlight,
 }
 
+/// Where a station sits: a place in one of its parent's bands, at its
+/// own phase, as a parked ship's (SCL-07, BAND-02).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct StationNode {
+    pub orbit: Entity,
+    pub phase0_rad: f64,
+}
+
 /// The snapshot the transfer rules work on.
 #[derive(Debug, Clone, Default)]
 pub struct SystemTree {
     pub bodies: HashMap<Entity, BodyNode>,
     pub orbits: HashMap<Entity, OrbitNode>,
     pub ships: HashMap<Entity, ShipState>,
+    pub stations: HashMap<Entity, StationNode>,
 }
 
 impl SystemTree {
@@ -117,7 +126,16 @@ impl SystemTree {
             .map(|(&orbit, _)| orbit)
     }
 
-    /// The docking orbit a station, gate or site offers.
+    /// The station a ship parked in `orbit` at `phase0_rad` is docked at:
+    /// one in the same orbit at the same phase (BAND-02).
+    pub fn station_at(&self, orbit: Entity, phase0_rad: f64) -> Option<Entity> {
+        self.stations
+            .iter()
+            .find(|(_, node)| node.orbit == orbit && same_phase(node.phase0_rad, phase0_rad))
+            .map(|(&station, _)| station)
+    }
+
+    /// The docking orbit a gate or site offers.
     pub fn docking_orbit(&self, place: Entity) -> Option<Entity> {
         self.orbits
             .iter()
@@ -234,20 +252,38 @@ impl TreeQuery<'_, '_> {
             );
         }
         for (entity, in_orbit, orbit, rail) in &self.ships {
-            if !self.is_ship(entity) {
-                continue;
+            match self.class(entity) {
+                Some(BodyClass::Ship) => {
+                    tree.ships
+                        .insert(entity, ship_state(in_orbit, orbit, rail, day));
+                }
+                Some(BodyClass::Station) => {
+                    if let Some(in_orbit) = in_orbit {
+                        let phase0_rad = orbit.map_or(0.0, |o| o.phase0_rad);
+                        let node = StationNode {
+                            orbit: in_orbit.0,
+                            phase0_rad,
+                        };
+                        tree.stations.insert(entity, node);
+                    }
+                }
+                _ => {}
             }
-            tree.ships
-                .insert(entity, ship_state(in_orbit, orbit, rail, day));
         }
         tree
     }
 
-    fn is_ship(&self, entity: Entity) -> bool {
-        self.bodies
-            .get(entity)
-            .is_ok_and(|(_, class, ..)| *class == BodyClass::Ship)
+    fn class(&self, entity: Entity) -> Option<BodyClass> {
+        self.bodies.get(entity).ok().map(|(_, class, ..)| *class)
     }
+}
+
+/// Whether two start phases name the same place on a ring, whole turns
+/// apart or not. Content places a docked ship at its station's phase
+/// exactly, so the tolerance only absorbs rounding.
+fn same_phase(a: f64, b: f64) -> bool {
+    let gap = (a - b).rem_euclid(std::f64::consts::TAU);
+    gap.min(std::f64::consts::TAU - gap) < 1e-9
 }
 
 /// RAIL-09 / BAND-07: a ship is parked if it sits in a named orbit, and

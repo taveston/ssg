@@ -159,9 +159,15 @@ fn resolve(tree: &SystemTree, place: Place) -> Result<Target, Infeasible> {
             }
             tree.band_orbit(body, band).ok_or(Infeasible::NoHighBand)?
         }
-        Place::Station { station: place }
-        | Place::Gate { gate: place }
-        | Place::Site { site: place } => {
+        // SCL-07: a station is a place in a band; until arrivals are timed
+        // to meet it, a ship sent there arrives in that band.
+        Place::Station { station } => {
+            tree.stations
+                .get(&station)
+                .ok_or(Infeasible::UnknownPlace)?
+                .orbit
+        }
+        Place::Gate { gate: place } | Place::Site { site: place } => {
             tree.docking_orbit(place).ok_or(Infeasible::UnknownPlace)?
         }
         Place::Ship { ship } => {
@@ -203,16 +209,30 @@ fn place_of_orbit(orbit: Entity, node: &OrbitNode, tree: &SystemTree) -> Option<
         return None;
     }
     let owner = node.docking_for?;
-    let class = tree.bodies.get(&owner)?.class;
-    Some(match class {
-        crate::sim::body::BodyClass::Gate => Place::Gate { gate: owner },
-        crate::sim::body::BodyClass::SalvageSite => Place::Site { site: owner },
-        _ => Place::Station { station: owner },
-    })
+    match tree.bodies.get(&owner)?.class {
+        crate::sim::body::BodyClass::Gate => Some(Place::Gate { gate: owner }),
+        crate::sim::body::BodyClass::SalvageSite => Some(Place::Site { site: owner }),
+        _ => None,
+    }
+}
+
+/// PLAN-12 / BAND-02: the place a ship parked in `orbit` at `phase0_rad`
+/// sets out from: the station it is docked at, if it sits at a station's
+/// phase, and otherwise the place the orbit stands for.
+fn place_of_parked(
+    orbit: Entity,
+    phase0_rad: f64,
+    node: &OrbitNode,
+    tree: &SystemTree,
+) -> Option<Place> {
+    match tree.station_at(orbit, phase0_rad) {
+        Some(station) => Some(Place::Station { station }),
+        None => place_of_orbit(orbit, node, tree),
+    }
 }
 
 /// One end of a crossing: the thing in the system tree it is at (a body
-/// for a band, a station, gate or site for a docking orbit), the body
+/// for a band, a gate or site for a docking orbit), the body
 /// whose gravity charges for it, the orbit it sits in and how to read its
 /// own state on a day.
 #[derive(Clone, Copy)]
@@ -302,7 +322,7 @@ fn departure_end(
                     radius_km: Some(node.radius_km),
                     own: Own::Circular(node.path(phase0_rad)),
                 },
-                place_of_orbit(orbit, &node, tree),
+                place_of_parked(orbit, phase0_rad, &node, tree),
             ))
         }
         Departure::Coasting { primary, conic } => Ok((
@@ -732,7 +752,7 @@ mod tests {
     use super::*;
     use crate::sim::body::BodyClass;
     use crate::sim::transfer::places::{band_radii, hill_radius_km};
-    use crate::sim::transfer::tree::{BodyNode, OrbitNode};
+    use crate::sim::transfer::tree::{BodyNode, OrbitNode, StationNode};
     use crate::sim::units::{
         EARTH_MASS_KG, GRAVITATIONAL_CONSTANT, KM_PER_AU, M_PER_KM, SOLAR_MASS_KG,
         STANDARD_GRAVITY_M_PER_S2, gravitational_parameter_km3_per_day2,
@@ -741,8 +761,8 @@ mod tests {
 
     /// The reference layout of XFER-12: a star of 0.75 solar masses, a
     /// capital of radius 5,753 km and 0.82 g at 0.8 AU, an inner planet at
-    /// 0.5 AU, with their bands; a station round the capital and a gate
-    /// round the star for the docking cases.
+    /// 0.5 AU, with their bands; a station in the capital's Low band and a
+    /// gate round the star for the docking cases.
     struct Layout {
         tree: SystemTree,
         tunables: SimTunables,
@@ -750,11 +770,13 @@ mod tests {
         inner: Entity,
         capital: Entity,
         station: Entity,
-        station_orbit: Entity,
         gate: Entity,
         ntr: Drive,
         nep: Drive,
     }
+
+    /// The layout station's phase in the capital's Low band.
+    const STATION_PHASE: f64 = 0.5;
 
     fn capital_mass_kg() -> f64 {
         let radius_m = 5_753.0 * M_PER_KM;
@@ -764,15 +786,7 @@ mod tests {
     fn layout() -> Layout {
         let mut world = World::new();
         let mut spawn = || world.spawn_empty().id();
-        let [
-            star,
-            inner,
-            capital,
-            station,
-            gate,
-            station_orbit,
-            gate_orbit,
-        ] = [(); 7].map(|_| spawn());
+        let [star, inner, capital, station, gate, gate_orbit] = [(); 6].map(|_| spawn());
         let tunables = SimTunables::default();
         let star_mass = 0.75 * SOLAR_MASS_KG;
         let star_mu = gravitational_parameter_km3_per_day2(star_mass);
@@ -830,17 +844,6 @@ mod tests {
             Some(CircularOrbit::new(star_mu, 0.8 * KM_PER_AU, 1.0)),
             star_mass,
         );
-        let capital_mu = gravitational_parameter_km3_per_day2(capital_mass_kg());
-        body(
-            &mut tree,
-            station,
-            Some(capital),
-            BodyClass::Station,
-            0.0,
-            1.0,
-            Some(CircularOrbit::new(capital_mu, 20_000.0, 0.5)),
-            capital_mass_kg(),
-        );
         body(
             &mut tree,
             gate,
@@ -873,14 +876,25 @@ mod tests {
                 );
             }
         }
-        tree.orbits.insert(
-            station_orbit,
-            OrbitNode {
-                body: capital,
-                radius_km: 20_000.0,
-                period_days: circular_period(capital_mu, 20_000.0),
-                band: None,
-                docking_for: Some(station),
+        // SCL-07: the station is a place in the capital's Low band, at its
+        // own phase.
+        let low = tree.band_orbit(capital, Band::Low).unwrap();
+        let low_node = tree.orbits[&low];
+        body(
+            &mut tree,
+            station,
+            Some(capital),
+            BodyClass::Station,
+            0.0,
+            1.0,
+            Some(low_node.path(STATION_PHASE)),
+            capital_mass_kg(),
+        );
+        tree.stations.insert(
+            station,
+            StationNode {
+                orbit: low,
+                phase0_rad: STATION_PHASE,
             },
         );
         tree.orbits.insert(
@@ -900,7 +914,6 @@ mod tests {
             inner,
             capital,
             station,
-            station_orbit,
             gate,
             ntr: Drive::new(true, 9.0, 0.2 * STANDARD_GRAVITY_M_PER_S2),
             nep: Drive::new(false, 35.0, 0.048e-3 * STANDARD_GRAVITY_M_PER_S2),
@@ -1366,34 +1379,51 @@ mod tests {
         assert_eq!(l.solve(&from, &order, &l.ntr).unwrap(), leg);
     }
 
-    /// BAND-02 / PLAN-12: a station, gate or site is its docking orbit,
-    /// and a ship leaving one records it as its origin.
+    /// BAND-02 / SCL-07 / PLAN-12: a station is the band it occupies, so
+    /// a ship sent there arrives in that band; a ship docked at it sits at
+    /// its phase and records it as its origin, while a ship elsewhere in
+    /// the band sets out from the band. A gate or site is its docking
+    /// orbit.
     #[test]
-    fn docking_places_resolve_to_their_own_orbits() {
+    fn a_station_is_a_place_in_its_band() {
         let l = layout();
         let capital_mu = l.tree.bodies[&l.capital].mu;
-        let high = l.tree.orbits[&l.band(l.capital, Band::High)].radius_km;
+        let low = l.band(l.capital, Band::Low);
+        let high_km = l.tree.orbits[&l.band(l.capital, Band::High)].radius_km;
+        let low_km = l.tree.orbits[&low].radius_km;
         let order = Order {
             destination: Place::Station { station: l.station },
             ..rendezvous_with(
                 l.capital,
                 Band::High,
-                hohmann(capital_mu, high, 20_000.0).days,
+                hohmann(capital_mu, high_km, low_km).days,
             )
         };
         let leg = l
             .solve(&l.parked(l.capital, Band::High), &order, &l.ntr)
             .unwrap();
         assert_eq!(leg.primary, l.capital);
-        assert!(matches!(leg.landing, Landing::Orbit { orbit, .. } if orbit == l.station_orbit));
+        assert!(matches!(leg.landing, Landing::Orbit { orbit, .. } if orbit == low));
 
-        let from_station = Departure::Parked {
-            orbit: l.station_orbit,
-            phase0_rad: 0.0,
-        };
         let gate = Order {
             destination: Place::Gate { gate: l.gate },
             ..rendezvous_with(l.capital, Band::High, 200.0)
+        };
+        let elsewhere_in_low = Departure::Parked {
+            orbit: low,
+            phase0_rad: STATION_PHASE + 1.0,
+        };
+        let (_, leg) = l.cheapest(&elsewhere_in_low, gate, &l.ntr);
+        assert_eq!(
+            leg.origin,
+            Some(Place::Body {
+                body: l.capital,
+                band: Band::Low
+            })
+        );
+        let from_station = Departure::Parked {
+            orbit: low,
+            phase0_rad: STATION_PHASE + TAU,
         };
         let (_, leg) = l.cheapest(&from_station, gate, &l.ntr);
         assert_eq!(leg.origin, Some(Place::Station { station: l.station }));

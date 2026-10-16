@@ -56,7 +56,7 @@ impl BandRadii {
 pub enum Place {
     /// A band of a star, planet or moon.
     Body { body: Entity, band: Band },
-    /// A station's own orbit, co-moving with it.
+    /// The band a station occupies, at the station's phase (SCL-07).
     Station { station: Entity },
     /// A gate's own orbit.
     Gate { gate: Entity },

@@ -2,8 +2,9 @@
 //! round it, as simulation entities.
 //!
 //! A body record carries its named orbits, each a name and a radius in km.
-//! A ship or station in orbit references one of them, or the orbit of a
-//! station it is docked at, and carries no radius of its own: its `Orbit`
+//! A ship or station in orbit references one of them (a ship docked at a
+//! station is in the station's band, at its phase), and carries no radius
+//! of its own: its `Orbit`
 //! elements are derived from the named orbit at spawn, as a period is
 //! derived from a radius (`spawn.rs`). Natural bodies have orbits of their
 //! own and never share one. Several ships in one named orbit are what the
@@ -30,7 +31,7 @@ pub struct NamedOrbit {
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct InNamedOrbit(pub Entity);
 
-/// On the named orbit a station, gate or salvage site offers for docking
+/// On the named orbit a gate or salvage site offers for docking
 /// (BAND-02): the orbit a ship sent to that place arrives in. Names the
 /// place that offers it.
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]

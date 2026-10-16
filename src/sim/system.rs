@@ -11,8 +11,9 @@ use super::track::ShipRecord;
 
 /// SCL-07: where a record sits round what it orbits. A natural body has an
 /// orbit of its own; a ship or station references a named orbit and
-/// carries no radius. A ship docked at a station references the station's
-/// orbit.
+/// carries no radius. A station never has an orbit of its own. A ship
+/// docked at a station references the station's band, at the station's
+/// phase (BAND-02).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum OrbitPlacement {
     /// An orbit of its own at this radius: a natural body, or anything
