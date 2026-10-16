@@ -32,8 +32,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - CAM-25: the breadcrumb entry for the current frame is violet too.
   - Build after **Label halo**: the N uses it.
   - Tests can run through projected positions: where an arm starts and ends, tick spacing against the scale bar, the vertical axis shortening with tilt, and the draw order.
-- [ ] **Belt** · MRK-18
-  - Replaces the hard-edged band: soft edges and a seeded scatter of faint points.
 - [ ] **Exposure ring cues** · MOT-02, MOT-14
   - A period line under the ring's label and a direction chevron beside the identity mark. Mock-up 19, exposure rings board.
 - [ ] **Ideology profile** · IDEO-01 to IDEO-31

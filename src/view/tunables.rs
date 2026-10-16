@@ -60,6 +60,15 @@ pub struct Tunables {
     /// ...and is gone, not drawn at all, at this many times (MRK-14).
     pub orbit_fade_to: f32,
 
+    // --- Belt ---
+    /// The belt band's alpha along its centre line; it falls to nothing at
+    /// both edges (MRK-18).
+    pub belt_band_alpha: f32,
+    /// How many faint points make the belt's grain (MRK-18).
+    pub belt_speck_count: usize,
+    /// The alpha of each of the belt's grain points (MRK-18).
+    pub belt_speck_alpha: f32,
+
     // --- Zoom and navigation ---
     /// Each wheel notch multiplies the view scale by this factor.
     pub zoom_step_factor: f32,
@@ -271,6 +280,10 @@ impl Default for Tunables {
             orbit_highlight_width_px: 1.0,
             orbit_fade_from: 4.0,
             orbit_fade_to: 12.0,
+
+            belt_band_alpha: 0.10,
+            belt_speck_count: 1200,
+            belt_speck_alpha: 0.5,
 
             zoom_step_factor: 2.0,
             zoom_anim_ms: 200.0,
