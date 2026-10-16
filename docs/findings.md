@@ -192,7 +192,7 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 ### F-247 · A double-click with nothing selected misses its object
 - **Observation:** In play, with nothing selected, a double-click on an object doesn't work. The first click selects it and opens the inset (INS-01), and the map area narrows and slides (INS-07). That moves the object away from the pointer before the second click lands, so the second click falls elsewhere and ZOOM-16 never fires.
 - **Affects:** ZOOM-16, INS-07, INS-01 · **Type:** bug
-- **Disposition:** open. Seen by the user in play (build 776cc34). Options: treat the second click of a double-click as hitting what the first click hit, or hold the map still until the double-click time has passed.
+- **Disposition:** fix code (on todo.md). Seen by the user in play (build 776cc34). Options: treat the second click of a double-click as hitting what the first click hit, or hold the map still until the double-click time has passed.
 
 ### F-248 · A popped marker holding one thing looks like a group
 - **Observation:** In play, when the pip pops out into the fold marker, it shows a back frame (MUL-01) even when the parent holds only one thing, so a single ship reads as a group.

@@ -48,6 +48,10 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Fixes
 
+- [ ] **A double-click lands on what its first click hit** · F-247 · ZOOM-16
+  - With nothing selected, the first click selects and opens the inset, which narrows the map and moves the object before the second click (INS-07), so the double-click misses. Make the second click of a double-click act on what the first click hit, wherever the pointer now is over the map.
+  - Test: with nothing selected, a double-click on a planet frames it, though the inset opened between the clicks.
+
 ## Other
 
 - [ ] **Bring older docs up to the writing style**
