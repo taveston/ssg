@@ -41,6 +41,7 @@ pub mod inspect;
 pub mod labels;
 pub mod layers;
 pub mod leaders;
+pub mod marker_draw;
 pub mod marker_picking;
 pub mod markers;
 pub mod motion;

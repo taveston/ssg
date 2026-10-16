@@ -26,7 +26,7 @@ use super::colors;
 use super::fonts::Fonts;
 use super::frame::Frame;
 use super::hover::double_click;
-use super::markers::{BodyLook, MarkerAssets, spawn_list_icon};
+use super::marker_draw::{BodyLook, MarkerAssets, spawn_list_icon};
 use super::planner_state::{PickTarget, PlannerState};
 use super::selection::Selection;
 use super::tunables::Tunables;

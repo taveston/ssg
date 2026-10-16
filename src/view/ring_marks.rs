@@ -29,9 +29,8 @@ use super::colors;
 use super::fonts::Fonts;
 use super::hover;
 use super::layers;
-use super::markers::{
-    BodyLook, MarkersPlaced, TintedParts, fade_parts, marker_half_size, spawn_icon,
-};
+use super::marker_draw::{BodyLook, spawn_icon};
+use super::markers::{MarkersPlaced, TintedParts, fade_parts, marker_half_size};
 use super::motion_mode::MotionModeState;
 use super::node_box::node_size;
 use super::pills::{PILL_HALF_HEIGHT_PX, PillFace, pill_bundle, pill_node};
