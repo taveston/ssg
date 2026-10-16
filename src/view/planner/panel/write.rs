@@ -12,7 +12,7 @@ use super::{
 };
 use crate::view::buttons::ConsoleButton;
 use crate::view::colors;
-use crate::view::planner_state::{PlannerState, SliderKind};
+use crate::view::planner::state::{PlannerState, SliderKind};
 use crate::view::tunables::Tunables;
 
 /// The nodes `update_panel` writes into.

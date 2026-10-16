@@ -19,8 +19,10 @@ use crate::sim::transfer::places::{Band, BandRadii, Place};
 use crate::sim::transfer::plan::{Plan, Status};
 use crate::sim::transfer::search::Request;
 use crate::sim::tunables::SimTunables;
-use crate::view::planner_state::{PlannerSession, PlannerState};
-use crate::view::planner_words::{LegWords, at_place, band_place, coasting_place, place_and_drive};
+use crate::view::planner::state::{PlannerSession, PlannerState};
+use crate::view::planner::words::{
+    LegWords, at_place, band_place, coasting_place, place_and_drive,
+};
 use crate::view::selection::Selection;
 use crate::view::tunables::Tunables;
 
@@ -180,7 +182,7 @@ impl PanelFacts<'_, '_> {
             destination: &destination,
         };
         let gap = self.gap_km(ship, preview.place).map(|(km, ahead)| {
-            crate::view::planner_words::gap_line(km, ahead, tunables.distance_au_threshold_au)
+            crate::view::planner::words::gap_line(km, ahead, tunables.distance_au_threshold_au)
         });
         Some(hover_line(
             preview,

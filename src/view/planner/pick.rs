@@ -13,7 +13,7 @@ use crate::sim::ship::InFlight;
 use crate::sim::track::{ShipRecord, Track};
 use crate::sim::transfer::places::{Band, BandRadii, Place};
 use crate::sim::transfer::plan::{Plan, Status};
-use crate::view::planner_state::PickTarget;
+use crate::view::planner::state::PickTarget;
 
 /// What PLNR-11 reads of a body to decide what a click on it picks.
 #[derive(Debug, Clone, Copy, PartialEq)]

@@ -17,9 +17,12 @@
 //! - `input.rs`: the panel's buttons, sliders and keys, and scheduling
 //!   and changing orders (PLNR-50 to PLNR-53).
 //! - `tooltip.rs`: the labels' tooltips (PLNR-91, PLNR-94).
+//! - `words.rs`: every line of text the planner shows (PLNR-90 to
+//!   PLNR-94).
 //!
 //! The state they share with the rest of the view, the map's paths
-//! included, is `view/planner_state.rs`.
+//! included, is `state.rs`; the rest of the view reads it and the words
+//! without reaching into the panel (ARCH-03).
 
 use bevy::prelude::*;
 
@@ -31,7 +34,9 @@ pub mod model;
 pub mod panel;
 pub mod pick;
 pub mod slider;
+pub mod state;
 pub mod tooltip;
+pub mod words;
 
 /// The planner's systems have brought its state up to date for this
 /// frame; the map's paths are drawn after (`view/paths/`).

@@ -33,7 +33,7 @@ use crate::view::fonts::Fonts;
 use crate::view::frame::Frame;
 use crate::view::hover::double_click;
 use crate::view::markers::draw::{BodyLook, MarkerAssets, spawn_list_icon};
-use crate::view::planner_state::{PickTarget, PlannerState};
+use crate::view::planner::state::{PickTarget, PlannerState};
 use crate::view::selection::Selection;
 use crate::view::tunables::Tunables;
 

@@ -43,8 +43,6 @@ pub mod node_box;
 pub mod parent_tab;
 pub mod paths;
 pub mod planner;
-pub mod planner_state;
-pub mod planner_words;
 pub mod plot_marks;
 pub mod projection;
 pub mod readout;
@@ -70,7 +68,7 @@ impl Plugin for ViewPlugin {
         // and the inset's buttons, the frame by the camera, and both are
         // read across the view.
         app.init_resource::<selection::Selection>()
-            .init_resource::<planner_state::PlannerState>()
+            .init_resource::<planner::state::PlannerState>()
             .init_resource::<gesture::PressStart>()
             .add_plugins((
                 frame::FramePlugin,

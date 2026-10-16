@@ -16,8 +16,8 @@ use crate::view::buttons::{ButtonStyle, ConsoleButton, spawn_button};
 use crate::view::colors;
 use crate::view::fonts::Fonts;
 use crate::view::inset::inspect::{InsetPanel, spawn_spaced_capitals};
-use crate::view::planner_state::{PlannerState, SliderKind};
-use crate::view::planner_words::{
+use crate::view::planner::state::{PlannerState, SliderKind};
+use crate::view::planner::words::{
     CANCEL, CHANGE, CHEAPEST, CHOOSE_PROMPT, DELTA_V, DELTA_V_TOOLTIP, FASTEST, HEADING, HIGH,
     INTERCEPT, INTERCEPT_TOOLTIP, LOW, NEXT_WINDOW, RENDEZVOUS, RENDEZVOUS_TOOLTIP, SCHEDULE,
 };
@@ -289,7 +289,7 @@ fn spawn_travel(panel: &mut ChildSpawnerCommands, assets: Assets, track: bool, n
     spawn_row(
         panel,
         assets,
-        Ok(crate::view::planner_words::TRAVEL_TIME),
+        Ok(crate::view::planner::words::TRAVEL_TIME),
         Field::TravelValue,
         None,
     );

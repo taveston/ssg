@@ -22,8 +22,8 @@ use crate::sim::transfer::tree::{SystemTree, TreeQuery};
 use crate::sim::tunables::SimTunables;
 use crate::sim::units::KM_PER_AU;
 use crate::view::hovered::HoveredBodies;
-use crate::view::planner_state::{HoverOutcome, PlannerState};
-use crate::view::planner_words::{LegWords, coast_label};
+use crate::view::planner::state::{HoverOutcome, PlannerState};
+use crate::view::planner::words::{LegWords, coast_label};
 use crate::view::selection::Selection;
 
 /// A ghost to draw: the object it stands for, and its label (PLNR-63,

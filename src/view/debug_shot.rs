@@ -46,7 +46,7 @@ use super::camera::requests::FrameRequest;
 use super::camera::rules::clamp_tilt;
 use super::camera::state::{ActiveMove, CameraRig, MAX_DISTANCE, MIN_DISTANCE};
 use super::planner::input::order_to_schedule;
-use super::planner_state::{PickTarget, PlannerState};
+use super::planner::state::{PickTarget, PlannerState};
 use super::scale::km_to_render;
 use super::selection::Selection;
 use super::targets::{Hovered, MarkerFor};

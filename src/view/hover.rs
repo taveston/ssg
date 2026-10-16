@@ -17,7 +17,7 @@ use super::bindings::Bindings;
 use super::camera::requests::{FrameRequest, PlanetaryViewRequest};
 use super::frame::Frame;
 use super::gesture::{PressStart, was_click};
-use super::planner_state::{PickTarget, PlannerState};
+use super::planner::state::{PickTarget, PlannerState};
 use super::selection::Selection;
 use super::targets::{GroupPillFor, Hovered, MarkerFor, OrbitFor, PointerTargets};
 use super::tunables::Tunables;

@@ -17,7 +17,7 @@ use crate::sim::transfer::presets::Preset;
 use crate::sim::transfer::ranges::Slider;
 use crate::sim::transfer::search::Request;
 use crate::view::bindings::{Bindings, held, pressed};
-use crate::view::planner_state::{PlannerSession, PlannerState, SliderKind};
+use crate::view::planner::state::{PlannerSession, PlannerState, SliderKind};
 use crate::view::targets::PointerTargets;
 
 /// PLNR-02: the quiet Cancel ends the planner and drops its settings.
@@ -286,8 +286,8 @@ pub fn watch_changed_order(mut state: ResMut<PlannerState>, plans: Query<&Plan>)
     let status = plans.get(session.ship).map(|plan| plan.status).ok();
     let notice = match status {
         Some(Status::Scheduled) => return,
-        Some(Status::Failed) | None => crate::view::planner_words::ORDER_FAILED,
-        Some(_) => crate::view::planner_words::DEPARTED_WHILE_CHANGING,
+        Some(Status::Failed) | None => crate::view::planner::words::ORDER_FAILED,
+        Some(_) => crate::view::planner::words::DEPARTED_WHILE_CHANGING,
     };
     state.end();
     state.notice = Some(notice);

@@ -54,7 +54,7 @@ use crate::view::markers::pills::{PillsPlugin, parent_clear_px};
 use crate::view::markers::{BodyDetail, BodyRim, MarkerHalfSize, MarkersPlugin, body_fill};
 use crate::view::motion::MotionPlugin;
 use crate::view::motion_mode::MotionModeState;
-use crate::view::planner_state::PlannerState;
+use crate::view::planner::state::PlannerState;
 use crate::view::plot_marks::{NorthArrow, NorthDial, PlotMarksPlugin, ScaleBarLine};
 use crate::view::projection::ProjectionPlugin;
 use crate::view::scale::{km_to_render, km_to_render_vec3};

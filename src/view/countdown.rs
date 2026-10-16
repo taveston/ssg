@@ -2,12 +2,12 @@
 //! line (PLNR-66, SYM-13): "departs in 12 d" until the ship leaves its
 //! orbit, then how long until its leg ends, in the words of the leg's
 //! arrival. Shared, so the markers' labels read it without importing the
-//! planner (ARCH-03). The words are `planner_words.rs`'s.
+//! planner (ARCH-03). The words are `planner/words.rs`'s.
 
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
-use super::planner_words::LegWords;
+use super::planner::words::LegWords;
 use crate::sim::body::DisplayName;
 use crate::sim::clock::GameClock;
 use crate::sim::transfer::plan::Plan;

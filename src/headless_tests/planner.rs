@@ -14,9 +14,9 @@ use crate::view::inset::inspect::{FactLabel, FactValue, InspectPlugin, TransferB
 use crate::view::inset::outline::{OutlinePlugin, OutlineRow};
 use crate::view::planner::PlannerPlugin;
 use crate::view::planner::panel::{Choice, Field, NoticeLine, ScheduleButton};
+use crate::view::planner::state::{PickTarget, PlannerSession, SliderKind};
 use crate::view::planner::tooltip::{Tooltip, TooltipBox};
-use crate::view::planner_state::{PickTarget, PlannerSession, SliderKind};
-use crate::view::planner_words::{DELTA_V_TOOLTIP, INTERCEPT_TOOLTIP};
+use crate::view::planner::words::{DELTA_V_TOOLTIP, INTERCEPT_TOOLTIP};
 use crate::view::sidebar::SidebarPlugin;
 
 /// Corvane with the inset, its outline and the planner, paused.
@@ -217,7 +217,7 @@ fn the_transfer_button_opens_the_planner_in_the_inset() {
     let mut texts = app.world_mut().query::<(Entity, &Text)>();
     let prompt = texts
         .iter(app.world())
-        .find(|(_, t)| t.0 == crate::view::planner_words::CHOOSE_PROMPT)
+        .find(|(_, t)| t.0 == crate::view::planner::words::CHOOSE_PROMPT)
         .map(|(e, _)| e)
         .expect("the prompt");
     assert!(shown(&app, prompt));

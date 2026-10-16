@@ -25,7 +25,7 @@ use crate::sim::transfer::presets::Preset;
 use crate::view::buttons::ButtonLook;
 use crate::view::colors;
 use crate::view::fonts::Fonts;
-use crate::view::planner_state::SliderKind;
+use crate::view::planner::state::SliderKind;
 use crate::view::tunables::Tunables;
 
 mod facts;

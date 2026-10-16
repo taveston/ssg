@@ -17,7 +17,7 @@ use crate::view::paths::marks::{PathDot, PathGhost, PathLabel};
 use crate::view::paths::strokes::DrawnPaths;
 use crate::view::planner::PlannerPlugin;
 use crate::view::planner::input::order_to_schedule;
-use crate::view::planner_state::PickTarget;
+use crate::view::planner::state::PickTarget;
 use crate::view::world::ViewNow;
 
 /// Corvane in Halden IV's frame, with markers, labels, the planner and
@@ -119,7 +119,7 @@ fn schedule(app: &mut App, steps: i32) {
     if steps != 0 {
         crate::view::planner::input::step(
             &mut app.world_mut().resource_mut::<PlannerState>(),
-            crate::view::planner_state::SliderKind::Depart,
+            crate::view::planner::state::SliderKind::Depart,
             steps,
         );
         run(app, 4);

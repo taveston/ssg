@@ -15,7 +15,7 @@ use crate::sim::ship::{DeltaV, Drive};
 use crate::sim::track::ShipRecord;
 use crate::sim::transfer::plan::Status;
 use crate::sim::units::SOLAR_MASS_KG;
-use crate::view::planner_words::{DELTA_V, DRIVE, delta_v_fact};
+use crate::view::planner::words::{DELTA_V, DRIVE, delta_v_fact};
 use crate::view::readout::{format_distance, format_duration};
 use crate::view::symbols::ownership_text;
 use crate::view::tunables::Tunables;
