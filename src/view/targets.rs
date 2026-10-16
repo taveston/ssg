@@ -25,21 +25,27 @@ pub struct MapInputBlocker;
 
 /// What the mouse pointer is over, as far as the map's own input cares:
 /// a panel (top bar, inset), or anything pickable at all.
+///
+/// Bevy's picking also reports the window itself as hit wherever the
+/// pointer is on it, behind everything else. That hit is the empty map,
+/// not a target, so it is left out here.
 #[derive(SystemParam)]
 pub struct PointerTargets<'w, 's> {
     hover: Option<Res<'w, HoverMap>>,
     parents: Query<'w, 's, &'static ChildOf>,
     blockers: Query<'w, 's, (), With<MapInputBlocker>>,
+    windows: Query<'w, 's, (), With<Window>>,
 }
 
 impl PointerTargets<'_, '_> {
-    /// Everything the mouse is over this frame.
+    /// Everything the mouse is over this frame, other than the window.
     fn hits(&self) -> impl Iterator<Item = Entity> + '_ {
         self.hover
             .as_ref()
             .and_then(|map| map.0.get(&PointerId::Mouse))
             .into_iter()
             .flat_map(|hits| hits.keys().copied())
+            .filter(|&hit| !self.windows.contains(hit))
     }
 
     /// The panel under the mouse, if any: the `MapInputBlocker` that is, or

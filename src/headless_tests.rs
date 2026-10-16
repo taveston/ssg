@@ -1955,14 +1955,55 @@ fn click_at(app: &mut App, at: Vec2) {
     run(app, 2);
 }
 
+/// The mouse pointer's location for Bevy's picking, kept with the window's
+/// cursor, as the real input plugin would.
+fn follow_cursor_with_pointer(
+    windows: Query<(Entity, &Window)>,
+    mut pointers: Query<(
+        &bevy::picking::pointer::PointerId,
+        &mut bevy::picking::pointer::PointerLocation,
+    )>,
+) {
+    use bevy::camera::NormalizedRenderTarget;
+    use bevy::picking::pointer::{Location, PointerId};
+    let Ok((window, state)) = windows.single() else {
+        return;
+    };
+    for (id, mut location) in &mut pointers {
+        if *id == PointerId::Mouse {
+            location.location = state.cursor_position().map(|position| Location {
+                target: NormalizedRenderTarget::Window(
+                    bevy::window::WindowRef::Entity(window)
+                        .normalize(None)
+                        .unwrap(),
+                ),
+                position,
+            });
+        }
+    }
+}
+
 /// INS-03: a click on empty map space clears the selection; the release
-/// at the end of a pan doesn't.
+/// at the end of a pan doesn't. Bevy's own picking runs, so the window's
+/// catch-all hit behind everything is in play, as in the game.
 #[test]
 fn an_empty_click_clears_the_selection_and_a_pan_does_not() {
+    use bevy::picking::{InteractionPlugin, PickingPlugin, PickingSystems};
     let mut app = camera_app_with(|app| {
         app.insert_resource(placeholder_fonts())
-            .add_plugins(crate::view::hover::HoverPlugin);
+            .add_plugins((PickingPlugin, InteractionPlugin))
+            .add_plugins(crate::view::hover::HoverPlugin)
+            .add_systems(
+                PreUpdate,
+                follow_cursor_with_pointer.before(PickingSystems::ProcessInput),
+            );
     });
+    let window = the_window(&mut app);
+    app.world_mut()
+        .entity_mut(window)
+        .insert(bevy::window::PrimaryWindow);
+    app.world_mut()
+        .spawn(bevy::picking::pointer::PointerId::Mouse);
     let halden = body(&mut app, "Halden IV");
     let star = body(&mut app, "Corvane");
 
@@ -1970,7 +2011,15 @@ fn an_empty_click_clears_the_selection_and_a_pan_does_not() {
     drag_star(&mut app, star, Vec2::new(900.0, 500.0));
     assert_eq!(app.world().resource::<Selection>().selected, Some(halden));
 
-    click_at(&mut app, Vec2::new(300.0, 700.0));
+    let empty = Vec2::new(300.0, 700.0);
+    click_at(&mut app, empty);
+    let hits = app
+        .world()
+        .resource::<bevy::picking::hover::HoverMap>()
+        .0
+        .get(&bevy::picking::pointer::PointerId::Mouse)
+        .map_or(0, |hits| hits.len());
+    assert_eq!(hits, 1, "only the window is under the pointer");
     assert_eq!(app.world().resource::<Selection>().selected, None);
 }
 
