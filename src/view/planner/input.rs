@@ -1,21 +1,25 @@
 //! What the player does in the planner's panel (PLNR-02, PLNR-13,
-//! PLNR-14, PLNR-23, PLNR-29 to PLNR-31, PLNR-50, PLNR-53): end it, pick
-//! a band or an arrival mode, move a slider by pointer or key, apply a
-//! preset, schedule the order, and change one. Each action is a function
+//! PLNR-14, PLNR-23, PLNR-29 to PLNR-31, PLNR-33, PLNR-50, PLNR-53): end
+//! it, pick a band or an arrival mode, move a slider by pointer or key
+//! (never onto a setting the solver rejects), apply a preset, schedule
+//! the order, and change one. Each action is a function
 //! of the planner's state, so it can be tested apart from the pointer
 //! that triggers it; orders go to the simulation as messages (ARCH-14).
 
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
+use super::compute::solve_current;
 use super::panel::{Choice, Track};
-use super::slider::{FAST_STEPS, stepped, value_at};
+use super::rest::{advance_session, rest_of};
+use super::slider::{FAST_STEPS, value_at};
 use super::state::{PlannerSession, PlannerState, SliderKind};
+use crate::sim::clock::GameClock;
+use crate::sim::transfer::grid::Setting;
 use crate::sim::transfer::order::{Arrival, Order};
 use crate::sim::transfer::places::{Band, Place};
 use crate::sim::transfer::plan::{Plan, ShipOrder, Status};
 use crate::sim::transfer::presets::Preset;
-use crate::sim::transfer::ranges::Slider;
 use crate::sim::transfer::search::Request;
 use crate::view::bindings::{Bindings, held, pressed};
 use crate::view::targets::PointerTargets;
@@ -91,57 +95,82 @@ pub fn apply_preset(state: &mut PlannerState, preset: Preset) {
     }
 }
 
-/// PLNR-23: a slider set to `value`; the other slider keeps its setting
+/// How a thumb is being moved.
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum Move {
+    /// Sent to a point of its track, as a press or a drag does.
+    To(f32),
+    /// Stepped on (back when negative), as a key does.
+    By(i32),
+}
+
+/// PLNR-23 / PLNR-33: a thumb moved, coming to rest on the nearest
+/// setting the solver doesn't reject; with none there, it stays. A
+/// Depart move that leaves the travel time rejected on the new day moves
+/// that thumb too. Otherwise the other slider keeps its setting
 /// (PLNR-13).
-fn set_slider(session: &mut PlannerSession, kind: SliderKind, value: f64) {
-    if let Some(setting) = session.setting.as_mut() {
-        match kind {
-            SliderKind::Depart => setting.depart_day = value,
-            SliderKind::Travel => setting.travel_days = value,
-        }
-    }
-}
-
-/// The slider of `kind` in the current search, and its step limit.
-fn slider_of(session: &PlannerSession, kind: SliderKind) -> Option<(Slider, u32)> {
-    let found = session.found.as_ref()?;
-    let search = found.result.as_ref().ok()?;
-    let max_steps = found.context.as_ref()?.tunables.slider_max_steps;
-    let slider = match kind {
-        SliderKind::Depart => &search.sliders.depart,
-        SliderKind::Travel => &search.sliders.travel,
-    };
-    Some((slider.clone(), max_steps))
-}
-
-/// PLNR-23: a press or drag at `fraction` of a track sets that slider to
-/// the nearest setting there.
-pub fn slide(state: &mut PlannerState, kind: SliderKind, fraction: f32) {
-    let Some(session) = state.session.as_mut() else {
-        return;
-    };
-    if let Some((slider, max_steps)) = slider_of(session, kind) {
-        set_slider(session, kind, value_at(&slider, fraction, max_steps));
-    }
-}
-
-/// PLNR-23: Left and Right move the focused slider one step, ten with
-/// Shift.
-pub fn step(state: &mut PlannerState, kind: SliderKind, steps: i32) {
-    let Some(session) = state.session.as_mut() else {
-        return;
-    };
-    let Some((slider, max_steps)) = slider_of(session, kind) else {
-        return;
-    };
+fn move_thumb(session: &mut PlannerSession, kind: SliderKind, how: Move) {
     let Some(setting) = session.setting else {
         return;
     };
-    let value = match kind {
-        SliderKind::Depart => setting.depart_day,
-        SliderKind::Travel => setting.travel_days,
+    let Some(search) = session.search() else {
+        return;
     };
-    set_slider(session, kind, stepped(&slider, value, steps, max_steps));
+    let slider = match kind {
+        SliderKind::Depart => search.sliders.depart.clone(),
+        SliderKind::Travel => search.sliders.travel.clone(),
+    };
+    let Some(max_steps) = session
+        .found
+        .as_ref()
+        .and_then(|found| found.context.as_ref())
+        .map(|context| context.tunables.slider_max_steps)
+    else {
+        return;
+    };
+    let Some(mut rest) = rest_of(session) else {
+        return;
+    };
+    let moved = match (kind, how) {
+        (SliderKind::Depart, Move::To(at)) => rest.depart_at(value_at(&slider, at, max_steps)),
+        (SliderKind::Depart, Move::By(steps)) => rest.depart_step(setting.depart_day, steps),
+        (SliderKind::Travel, Move::To(at)) => {
+            rest.travel_at(setting.depart_day, value_at(&slider, at, max_steps))
+        }
+        (SliderKind::Travel, Move::By(steps)) => {
+            rest.travel_step(setting.depart_day, setting.travel_days, steps)
+        }
+    };
+    let Some(value) = moved else {
+        return;
+    };
+    let new = match kind {
+        SliderKind::Depart => rest.settle(Setting {
+            depart_day: value,
+            ..setting
+        }),
+        SliderKind::Travel => Setting {
+            travel_days: value,
+            ..setting
+        },
+    };
+    session.setting = Some(new);
+}
+
+/// PLNR-23 / PLNR-33: a press or drag at `fraction` of a track sets that
+/// slider to the nearest setting there that the solver accepts.
+pub fn slide(state: &mut PlannerState, kind: SliderKind, fraction: f32) {
+    if let Some(session) = state.session.as_mut() {
+        move_thumb(session, kind, Move::To(fraction));
+    }
+}
+
+/// PLNR-23 / PLNR-33: Left and Right move the focused slider one step,
+/// ten with Shift, and on past any settings the solver rejects.
+pub fn step(state: &mut PlannerState, kind: SliderKind, steps: i32) {
+    if let Some(session) = state.session.as_mut() {
+        move_thumb(session, kind, Move::By(steps));
+    }
 }
 
 /// What moving a slider by pointer needs: the planner and the tracks'
@@ -229,17 +258,34 @@ pub fn order_to_schedule(state: &PlannerState) -> Option<(Entity, Order, bool)> 
     ))
 }
 
+/// PLNR-50: the order Schedule gives at `now`. At Soonest the leg is
+/// first solved again from the clock: Soonest moves on to `now`, so the
+/// order departs the moment it is made. `None` when the leg is then
+/// rejected or over budget; the thumbs stay, and the reason line says
+/// why.
+pub fn schedule_order(state: &mut PlannerState, now: f64) -> Option<(Entity, Order, bool)> {
+    let session = state.session.as_mut()?;
+    let soonest = session.search()?.soonest();
+    let at_soonest = session.setting.is_some_and(|s| s.depart_day == soonest);
+    if at_soonest && soonest != now {
+        advance_session(session, now, false);
+        solve_current(session);
+    }
+    order_to_schedule(state)
+}
+
 /// PLNR-50 / PLNR-53: Schedule gives the ship its order, replacing the
 /// one being changed, and closes the planner.
 pub fn on_schedule(
     click: On<PointerClick>,
     mut state: ResMut<PlannerState>,
+    clock: Res<GameClock>,
     mut orders: MessageWriter<ShipOrder>,
 ) {
     if click.button != PointerButton::Primary {
         return;
     }
-    let Some((ship, order, changing)) = order_to_schedule(&state) else {
+    let Some((ship, order, changing)) = schedule_order(&mut state, clock.elapsed_days()) else {
         return;
     };
     if changing {

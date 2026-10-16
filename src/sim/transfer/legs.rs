@@ -1,14 +1,16 @@
 //! Solving one leg (XFER-01 to XFER-10, XFER-13, XFER-14, PHAS-03,
-//! PHAS-10, PHAS-11, PHAS-15): from where a ship is and the order it was
-//! given to the crossing it will fly, its timing, its trajectory and its delta-v, or
-//! the reason it can't be flown. Pure functions over the system snapshot
-//! (`tree.rs`) and plain values (ARCH-20, XFER-11); the maths is the
-//! `orbits` crate's.
+//! PHAS-10, PHAS-11, PHAS-15, PHAS-16): from where a ship is and the
+//! order it was given to the crossing it will fly, its timing, its
+//! trajectory and its delta-v, or the reason it can't be flown. Pure
+//! functions over the system snapshot (`tree.rs`) and plain values
+//! (ARCH-20, XFER-11); the maths is the `orbits` crate's.
 //!
 //! A crossing goes round one primary, the lowest body both ends sit
 //! under. The planet-sized legs at each end are not flown: they are a
 //! cost in km/s and a few days (`places.rs`), and phase there only sets a
-//! wait: for the exit point on leaving, for the target on arriving. An
+//! wait: for the exit point on leaving, for the target on arriving.
+//! Leaving a band of the primary itself for something whose windows come
+//! round more than once a day, the ship waits for its window. An
 //! impulsive drive gets a two-burn Lambert arc; a low-thrust drive gets a
 //! spiral whose length the drive fixes. A destination in the ship's own
 //! orbit is not a crossing at all (`phasing.rs`). An Intercept that skims
@@ -26,12 +28,17 @@ use super::order::{Arrival, Departure, Infeasible, LegBurns, Order, SolvedLeg, T
 use super::phase::{gap_rad, wait_days};
 use super::phasing::solve_in_own_orbit;
 use super::places::{Band, Place};
+use super::ranges::{end_orbit, window_wait_interval};
 use super::tree::{OrbitNode, SystemTree};
 use crate::sim::rail::{
     SegmentKind, ShipTrajectory, km_per_day_to_km_per_s, km_per_s_to_km_per_day,
 };
 use crate::sim::ship::Drive;
 use crate::sim::tunables::SimTunables;
+
+/// PHAS-16: a search for a window given a hint tries the start nearest
+/// it and this many starts either side, before it prices every start.
+const NEAR_WINDOW_STARTS: usize = 1;
 
 /// The crossing's fixed facts, gathered before the solve.
 pub(super) struct Setup<'a> {
@@ -50,6 +57,13 @@ pub(super) struct Setup<'a> {
     pub(super) depart: (f64, f64),
     /// Capture cost (km/s) and approach days; zero for an Intercept.
     pub(super) arrive: (f64, f64),
+    /// PHAS-16: the window interval, in days, of a leg from a band of the
+    /// primary whose windows come round more than once a day, so an
+    /// impulsive drive waits for its window; `None` for any other leg.
+    pub(super) window_interval: Option<f64>,
+    /// PHAS-16: the wait at which the leg's window is expected
+    /// (`solve_leg_near`).
+    pub(super) window_hint: Option<f64>,
 }
 
 /// A crossing solved round the primary: the states at its two ends and
@@ -87,7 +101,7 @@ impl Setup<'_> {
         tunables: &'a SimTunables,
         departure: &Departure,
         order: &Order,
-        target: Target,
+        (target, window_hint): (Target, Option<f64>),
     ) -> Result<(Setup<'a>, Option<Place>), Infeasible> {
         let (from, origin) = departure_end(tree, departure, tunables.together_km)?;
         let to = target_end(&target);
@@ -115,6 +129,11 @@ impl Setup<'_> {
         } else {
             (0.0, 0.0)
         };
+        let orbit = |end: &End| end_orbit(tree, primary, end, order.depart_day);
+        let window_interval = match (orbit(&from), orbit(&to)) {
+            (Some(a), Some(b)) => window_wait_interval(true, a, b),
+            _ => None,
+        };
         Ok((
             Setup {
                 tree,
@@ -128,6 +147,8 @@ impl Setup<'_> {
                 intercept_band,
                 depart,
                 arrive,
+                window_interval,
+                window_hint,
             },
             origin,
         ))
@@ -180,6 +201,28 @@ impl Setup<'_> {
         })
     }
 
+    /// PHAS-16: what the burns of the Lambert arc from `start_day` taking
+    /// `travel_days` come to, in km/day, as `burns_km_per_day` counts
+    /// them; without building its path, so many starts can be compared
+    /// cheaply.
+    fn lambert_burns(&self, start_day: f64, travel_days: f64) -> Option<f64> {
+        let (start, end) = self.ends(start_day, start_day + travel_days)?;
+        let arc = lambert(
+            self.mu,
+            start.position,
+            end.position,
+            travel_days,
+            Sense::Prograde,
+        )?;
+        let burn_1 = (arc.departure_velocity - start.velocity).length();
+        let burn_2 = (end.velocity - arc.arrival_velocity).length();
+        Some(if self.rendezvous {
+            burn_1 + burn_2
+        } else {
+            burn_1
+        })
+    }
+
     /// PHAS-03: an impulsive drive leaving an orbit of a body other than
     /// the primary waits until the ship reaches its exit point: the point
     /// of the orbit from which one burn sends it off along the crossing.
@@ -202,11 +245,91 @@ impl Setup<'_> {
         wait_days(path.angle_at(depart_day), exit, path.period_days)
     }
 
-    /// XFER-03 to XFER-05, PHAS-03: the two-burn crossing taking
-    /// `travel_days`. A first solve, with no wait and no burn days, gives
-    /// the exit point and burn 1, and so the wait and the burn days; the
-    /// crossing is then solved once more from the later start, and that
-    /// solve's burns are the leg's.
+    /// XFER-05: the days spent burning before a crossing whose first
+    /// solve, with no burn days, is `first`: the departure cost and burn
+    /// 1 over the drive's acceleration.
+    fn burn_days(&self, drive: &Drive, first: &Crossing) -> f64 {
+        let burn_1 = (first.path_start_velocity - first.start.velocity).length();
+        (km_per_s_to_km_per_day(self.depart.0) + burn_1) / drive.accel
+    }
+
+    /// PHAS-16: a leg whose windows come round more than once a day
+    /// leaves at its window: of `window_wait_samples` starts spread evenly
+    /// over one window interval from `earliest`, the one whose crossing
+    /// needs least delta-v. A start whose crossing, flown after its burn
+    /// days, would dip too close to the primary (XFER-07) is passed over
+    /// for the next cheapest: the cheapest crossing often just grazes the
+    /// Low band, and its burn days alone tip it under. If none can be
+    /// flown the cheapest is taken, and the leg is refused for it. Any
+    /// other leg leaves at `earliest`. Returns the wait, in days, and the
+    /// crossing solved from it with no burn days.
+    fn leave_at_window(
+        &self,
+        drive: &Drive,
+        earliest: f64,
+        travel_days: f64,
+    ) -> Result<(f64, Crossing), Infeasible> {
+        let first_at = |wait: f64| {
+            self.lambert_crossing(earliest + wait, travel_days)
+                .ok_or(Infeasible::NoPath)
+        };
+        let Some(interval) = self.window_interval else {
+            return Ok((0.0, first_at(0.0)?));
+        };
+        let samples = self.tunables.window_wait_samples.max(1);
+        let wait_of = |i: usize| interval * i as f64 / samples as f64;
+        // Each start is priced by its arc alone, once.
+        let mut prices: Vec<Option<Option<f64>>> = vec![None; samples];
+        let mut price = |i: usize| {
+            *prices[i].get_or_insert_with(|| self.lambert_burns(earliest + wait_of(i), travel_days))
+        };
+        let flies = |wait: f64| -> Result<Option<Crossing>, Infeasible> {
+            let first = first_at(wait)?;
+            let start = earliest + wait + self.burn_days(drive, &first);
+            let clear = self
+                .lambert_crossing(start, travel_days)
+                .is_some_and(|flown| self.check_periapsis(&flown).is_ok());
+            Ok(clear.then_some(first))
+        };
+        if let Some(hint) = self.window_hint {
+            // The start nearest the hint and its two neighbours, cheapest
+            // first.
+            let at = ((hint / interval * samples as f64).round() as usize) % samples;
+            let mut starts: Vec<usize> = (0..=NEAR_WINDOW_STARTS.min(samples / 2))
+                .flat_map(|d| [(at + d) % samples, (at + samples - d) % samples])
+                .collect();
+            starts.sort_unstable();
+            starts.dedup();
+            let mut near: Vec<(f64, usize)> = starts
+                .into_iter()
+                .filter_map(|i| Some((price(i)?, i)))
+                .collect();
+            near.sort_by(|a, b| a.0.total_cmp(&b.0));
+            for &(_, i) in &near {
+                if let Some(first) = flies(wait_of(i))? {
+                    return Ok((wait_of(i), first));
+                }
+            }
+        }
+        // Only the cheapest starts are flown in full, until one clears the
+        // primary.
+        let mut priced: Vec<(f64, usize)> =
+            (0..samples).filter_map(|i| Some((price(i)?, i))).collect();
+        priced.sort_by(|a, b| a.0.total_cmp(&b.0));
+        let cheapest = wait_of(priced.first().ok_or(Infeasible::NoPath)?.1);
+        for &(_, i) in &priced {
+            if let Some(first) = flies(wait_of(i))? {
+                return Ok((wait_of(i), first));
+            }
+        }
+        Ok((cheapest, first_at(cheapest)?))
+    }
+
+    /// XFER-03 to XFER-05, PHAS-03, PHAS-16: the two-burn crossing taking
+    /// `travel_days`. A first solve, with no burn days, gives the exit
+    /// point and burn 1, and so the wait and the burn days; the crossing
+    /// is then solved once more from the later start, and that solve's
+    /// burns are the leg's.
     fn impulsive(
         &self,
         order: &Order,
@@ -218,12 +341,9 @@ impl Setup<'_> {
             return Err(Infeasible::NoPath);
         }
         let earliest = order.depart_day + self.depart.1;
-        let first = self
-            .lambert_crossing(earliest, travel_days)
-            .ok_or(Infeasible::NoPath)?;
-        let departure_wait = self.departure_wait(departure, order.depart_day, &first);
-        let burn_1 = (first.path_start_velocity - first.start.velocity).length();
-        let burn_days = (km_per_s_to_km_per_day(self.depart.0) + burn_1) / drive.accel;
+        let (window_wait, first) = self.leave_at_window(drive, earliest, travel_days)?;
+        let departure_wait = window_wait + self.departure_wait(departure, order.depart_day, &first);
+        let burn_days = self.burn_days(drive, &first);
         let crossing = self
             .lambert_crossing(earliest + departure_wait + burn_days, travel_days)
             .ok_or(Infeasible::NoPath)?;
@@ -457,7 +577,7 @@ fn target_lock(target: &Target) -> Option<TargetLock> {
     }
 }
 
-/// XFER-01 to XFER-14, PHAS-04 to PHAS-15: the leg a ship with `drive`
+/// XFER-01 to XFER-14, PHAS-04 to PHAS-16: the leg a ship with `drive`
 /// and `budget_kms` of delta-v to spare flies for `order` from
 /// `departure`, or why it can't. A destination in the ship's own orbit is
 /// already reached or met by a phasing leg; anything else is a crossing.
@@ -468,6 +588,24 @@ pub fn solve_leg(
     order: &Order,
     drive: &Drive,
     budget_kms: f64,
+) -> Result<SolvedLeg, Infeasible> {
+    solve_leg_near(tree, tunables, departure, order, drive, budget_kms, None)
+}
+
+/// As `solve_leg`, for the planner's grid, which solves many settings
+/// side by side. A leg that waits for its window (PHAS-16) looks first at
+/// the start nearest `window_hint`, the wait at which its window is
+/// expected, and the starts either side, and takes the cheapest of those
+/// that can be flown, instead of pricing every start. Only where none of
+/// them can be flown is every start priced, as usual.
+pub fn solve_leg_near(
+    tree: &SystemTree,
+    tunables: &SimTunables,
+    departure: &Departure,
+    order: &Order,
+    drive: &Drive,
+    budget_kms: f64,
+    window_hint: Option<f64>,
 ) -> Result<SolvedLeg, Infeasible> {
     let target = resolve(tree, order.destination)?;
     if let Departure::Parked { orbit, phase0_rad } = *departure
@@ -483,7 +621,7 @@ pub fn solve_leg(
             budget_kms,
         );
     }
-    let (setup, origin) = Setup::new(tree, tunables, departure, order, target)?;
+    let (setup, origin) = Setup::new(tree, tunables, departure, order, (target, window_hint))?;
     let (flight, trim_days) = setup.fly_or_trim(order, drive, departure)?;
     let crossing = &flight.crossing;
     setup.check_periapsis(crossing)?;
@@ -875,7 +1013,10 @@ mod tests {
     /// the near side is flown.
     #[test]
     fn an_arc_to_a_low_band_station_on_the_far_side_of_the_planet_is_infeasible() {
-        let l = layout();
+        let mut l = layout();
+        // One start only: the ship leaves at once, not at its window
+        // (PHAS-16).
+        l.tunables.window_wait_samples = 1;
         let low_km = l.node(l.capital, Band::Low).radius_km;
         let order = Order {
             destination: Place::Station { station: l.station },
@@ -892,6 +1033,55 @@ mod tests {
             &l.ntr,
         );
         assert!(near.is_ok(), "{near:?}");
+    }
+
+    /// PHAS-16 / XFER-02: from the capital's High band to the station in
+    /// its Low band the windows come round in under two hours, so the
+    /// ship leaves at its window: of 24 starts over one window interval,
+    /// none it could fly costs less. The wait is under the interval, and
+    /// the crossing starts after it and the burn days. From the far side
+    /// of the planet, where leaving at once dips under the Low band, the
+    /// window is flown.
+    #[test]
+    fn a_leg_whose_windows_come_round_often_leaves_at_its_window() {
+        let l = layout();
+        let order = Order {
+            destination: Place::Station { station: l.station },
+            ..rendezvous_with(l.capital, Band::High, capital_hohmann_days(&l))
+        };
+        let from = l.parked_at(l.capital, Band::High, 0.0);
+        let leg = l.solve(&from, &order, &l.ntr).unwrap();
+        let high = l.node(l.capital, Band::High).period_days;
+        let low = l.node(l.capital, Band::Low).period_days;
+        let interval = orbits::synodic_period(high, low);
+        assert!(interval < 2.0 / 24.0, "{interval} d");
+        assert!(leg.departure_wait_days > 0.0 && leg.departure_wait_days < interval);
+        let burn_days = leg.crossing_start_day - order.depart_day - leg.departure_wait_days;
+        assert!(burn_days > 0.0 && burn_days < 0.01, "{burn_days} d");
+
+        let mut at_once = l.tunables.clone();
+        at_once.window_wait_samples = 1;
+        let samples = l.tunables.window_wait_samples;
+        let mut flown = 0;
+        for i in 0..samples {
+            let start = Order {
+                depart_day: order.depart_day + interval * i as f64 / samples as f64,
+                ..order
+            };
+            if let Ok(other) = solve_leg(&l.tree, &at_once, &from, &start, &l.ntr, 100.0) {
+                flown += 1;
+                assert!(leg.delta_v_kms <= other.delta_v_kms + 1e-9, "start {i}");
+            }
+        }
+        assert!(flown > 0);
+        assert!(solve_leg(&l.tree, &at_once, &from, &order, &l.ntr, 100.0).is_err());
+
+        // A planet's windows come round far more slowly: no wait.
+        let to_inner = rendezvous_with(l.inner, Band::High, 111.0);
+        let high_band = l.parked(l.capital, Band::High);
+        let leg = l.solve(&high_band, &to_inner, &l.ntr);
+        let exit_only = solve_leg(&l.tree, &at_once, &high_band, &to_inner, &l.ntr, 100.0);
+        assert_eq!(leg, exit_only);
     }
 
     /// XFER-07: a crossing may start or end exactly at its primary's Low

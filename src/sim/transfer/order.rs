@@ -162,8 +162,9 @@ pub struct SolvedLeg {
     /// XFER-13: how far an Intercept through another body's Low band
     /// turned the ship, in radians; `None` for any other leg.
     pub turn_rad: Option<f64>,
-    /// PHAS-03: days spent waiting in the departure orbit for the exit
-    /// point; the ship leaves its orbit on the depart day plus this.
+    /// PHAS-03 / PHAS-16: days spent waiting in the departure orbit for
+    /// the exit point, or for the window; the ship leaves its orbit on the
+    /// depart day plus this.
     pub departure_wait_days: f64,
     /// PHAS-10: days spent waiting in the destination orbit for the target
     /// to reach the capture point.

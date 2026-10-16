@@ -9,14 +9,18 @@
 //! - `compute.rs`: the search, the leg, the tracks and the hovered
 //!   place's preview, and when each is worked out again (PLNR-12,
 //!   PLNR-13, PLNR-24, PLNR-87).
+//! - `rest.rs`: where a thumb may come to rest, off the settings the
+//!   solver rejects, and the search moved on with the clock (PLNR-24,
+//!   PLNR-33).
 //! - `model.rs`: what the panel says, as plain values.
-//! - `slider.rs`: the sliders' rules and the tracks' colours (PLNR-23,
-//!   PLNR-28).
+//! - `slider.rs`: the sliders' rules, the tracks' colours and their
+//!   rejected stretches (PLNR-23, PLNR-28, PLNR-35).
 //! - `panel/`: the panel's nodes, rebuilt by shape and written each
 //!   frame; the order shown on a ship's inset (PLNR-51, PLNR-54).
 //! - `input.rs`: the panel's buttons, sliders and keys, and scheduling
 //!   and changing orders (PLNR-50 to PLNR-53).
-//! - `tooltip.rs`: the labels' tooltips (PLNR-91, PLNR-94).
+//! - `tooltip.rs`: the labels' tooltips and the tracks' (PLNR-35,
+//!   PLNR-91, PLNR-94).
 //! - `words.rs`: every line of text the planner shows (PLNR-90 to
 //!   PLNR-94).
 //!
@@ -33,6 +37,7 @@ pub mod input;
 pub mod model;
 pub mod panel;
 pub mod pick;
+pub mod rest;
 pub mod slider;
 pub mod state;
 pub mod tooltip;

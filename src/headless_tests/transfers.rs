@@ -686,7 +686,12 @@ fn the_planners_test_ships_search_from_haldens_high_band() {
     assert_eq!(context.drive.name, "NEP ion/Hall");
     let found = found.unwrap();
     assert!(!found.sliders.windows);
-    let Slider::Range { start, end } = found.sliders.depart else {
+    let Slider::Days {
+        soonest: start,
+        end,
+        ..
+    } = found.sliders.depart
+    else {
         panic!("a Depart range");
     };
     assert!((end - start - 180.0).abs() < 1e-9);

@@ -28,6 +28,9 @@ pub struct ConsoleButton {
     pub disabled: bool,
     /// Its action can't be undone, so its outline is orange (BTN-02).
     pub irreversible: bool,
+    /// Drawn as the selected option of a choice (PLNR-14), as a preset
+    /// the planner's sliders sit on is (PLNR-29).
+    pub selected: bool,
 }
 
 impl ConsoleButton {
@@ -36,6 +39,7 @@ impl ConsoleButton {
             style,
             disabled: false,
             irreversible: false,
+            selected: false,
         }
     }
 
@@ -102,6 +106,17 @@ pub fn button_look(button: ConsoleButton) -> ButtonLook {
     }
 }
 
+/// PLNR-14 / PLNR-29: the selected option of a choice: filled with the
+/// neutral colour mixed into the ground at `fill_mix`, with neutral text.
+pub fn selected_look(fill_mix: f32) -> ButtonLook {
+    let fill = colors::mix(colors::GROUND, colors::NEUTRAL, fill_mix);
+    ButtonLook {
+        background: fill,
+        border: fill,
+        text: colors::NEUTRAL,
+    }
+}
+
 /// Spawns a button with its label. Every style keeps the same border width,
 /// so switching style never shifts the layout.
 pub fn spawn_button<'a>(
@@ -140,7 +155,8 @@ impl Plugin for ButtonsPlugin {
 }
 
 /// Paints every button from its `ConsoleButton`, with the outline
-/// `button_stroke_px` wide (BTN-01).
+/// `button_stroke_px` wide (BTN-01); a selected one as the selected
+/// option of a choice (PLNR-14).
 pub fn apply_button_looks(
     tunables: Res<Tunables>,
     mut buttons: Query<(
@@ -154,7 +170,11 @@ pub fn apply_button_looks(
 ) {
     let border = UiRect::all(px(tunables.button_stroke_px));
     for (button, children, mut node, mut background, mut border_color) in &mut buttons {
-        let look = button_look(*button);
+        let look = if button.selected && !button.disabled {
+            selected_look(tunables.segment_fill_mix)
+        } else {
+            button_look(*button)
+        };
         if node.border != border {
             node.border = border;
         }

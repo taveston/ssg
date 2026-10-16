@@ -1,5 +1,6 @@
-//! The planner's working out (PLNR-11 to PLNR-13, PLNR-24, PLNR-87): what
-//! a click picks, the search for the request and when it is run again,
+//! The planner's working out (PLNR-11 to PLNR-13, PLNR-24, PLNR-30,
+//! PLNR-33, PLNR-34, PLNR-87): what a click picks, the search for the
+//! request, when it is run again and when it is moved on with the clock,
 //! the leg of the current setting, the Travel time track, and the
 //! preview of a hovered place. The rules are the simulation's
 //! (`sim/transfer/`, reached through `Planner`); these systems decide only
@@ -9,10 +10,11 @@
 use bevy::prelude::*;
 
 use super::pick::Pickables;
-use super::state::{Found, HoverOutcome, HoverPreview, PickTarget, PlannerState};
+use super::rest::{advance_session, rest_of, settle};
+use super::state::{Found, HoverOutcome, HoverPreview, PickTarget, PlannerSession, PlannerState};
 use crate::sim::clock::GameClock;
 use crate::sim::named_orbit::NamedOrbit;
-use crate::sim::transfer::grid::Setting;
+use crate::sim::transfer::grid::{Sample, Setting};
 use crate::sim::transfer::order::{Arrival, Infeasible};
 use crate::sim::transfer::places::Place;
 use crate::sim::transfer::plan::Planner;
@@ -47,31 +49,46 @@ pub fn resolve_clicks(mut state: ResMut<PlannerState>, pickables: Pickables) {
 }
 
 /// PLNR-87: the search's key for `request`: the request, the ship's drive
-/// and its available delta-v (with what an order being changed reserved)
-/// and the day. `None` for a ship with no drive.
+/// and its available delta-v (with what an order being changed
+/// reserved). `None` for a ship with no drive.
 fn search_key(
     planner: &Planner,
     ship: Entity,
     request: Request,
     changing: f64,
-    today: f64,
 ) -> Option<SearchKey> {
     let (drive, available) = planner.budget(ship)?;
-    Some(SearchKey::new(request, drive, available + changing, today))
+    Some(SearchKey::new(request, drive, available + changing))
+}
+
+/// PLNR-30: the request as it can be planned: an Intercept the
+/// destination doesn't offer is a Rendezvous.
+fn offered(context: &SearchContext, request: Request) -> Request {
+    if request.arrival.is_intercept() && !context.offers_intercept(request.destination) {
+        Request {
+            arrival: Arrival::Rendezvous,
+            ..request
+        }
+    } else {
+        request
+    }
 }
 
 /// PLNR-80 to PLNR-86: search for `request` from the system as it stands,
 /// counting what an order being changed reserved as available (PLNR-27).
+/// Returns the search and the request it was made for, which is a
+/// Rendezvous where the destination offers no Intercept (PLNR-30).
 fn run_search(
     planner: &Planner,
     ship: Entity,
     request: Request,
     changing: f64,
-    key: Option<SearchKey>,
-) -> Found {
+) -> (Found, Request) {
     match planner.search_context(ship) {
         Ok(mut context) => {
             context.available_kms += changing;
+            let request = offered(&context, request);
+            let key = search_key(planner, ship, request, changing);
             let result = context.search(request);
             let primary = crossing_orbits(
                 &context.tree,
@@ -82,19 +99,23 @@ fn run_search(
             )
             .ok()
             .map(|ends| ends.primary);
-            Found {
+            let found = Found {
                 key,
                 context: Some(context),
                 result,
                 primary,
-            }
+            };
+            (found, request)
         }
-        Err(reason) => Found {
-            key,
-            context: None,
-            result: Err(reason),
-            primary: None,
-        },
+        Err(reason) => {
+            let found = Found {
+                key: search_key(planner, ship, request, changing),
+                context: None,
+                result: Err(reason),
+                primary: None,
+            };
+            (found, request)
+        }
     }
 }
 
@@ -108,29 +129,34 @@ pub fn starting_setting(search: &Search, max_steps: u32) -> Setting {
     })
 }
 
-/// PLNR-13 / PLNR-24 / PLNR-40 / PLNR-22: a setting kept across a new
-/// search: within the ranges, on a meeting for a phasing leg, the fixed
-/// value where there is no slider, and never departing before today.
-pub fn fitted(setting: Setting, sliders: &Sliders, today: f64) -> Setting {
+/// PLNR-13 / PLNR-40 / PLNR-22: a setting kept across a new search: on
+/// the nearest Depart position, within the Travel range, on a meeting for
+/// a phasing leg, and the fixed value where there is no slider.
+pub fn fitted(setting: Setting, sliders: &Sliders, max_steps: u32) -> Setting {
     let fit = |slider: &Slider, value: f64| match slider {
         Slider::Range { start, end } => value.clamp(*start, end.max(*start)),
-        Slider::Fixed(fixed) => *fixed,
-        Slider::Positions(positions) => positions
-            .iter()
-            .copied()
-            .min_by(|a, b| (a - value).abs().total_cmp(&(b - value).abs()))
-            .unwrap_or(value),
+        _ => slider.snap(value, max_steps),
     };
     Setting {
-        depart_day: fit(&sliders.depart, setting.depart_day).max(today),
+        depart_day: fit(&sliders.depart, setting.depart_day),
         travel_days: fit(&sliders.travel, setting.travel_days),
     }
 }
 
+/// PLNR-87: whether the clock has moved into a later game day than the
+/// one the search was last moved on to.
+fn day_has_passed(session: &PlannerSession, now: f64) -> bool {
+    session
+        .search()
+        .is_some_and(|search| now.floor() > search.soonest().floor())
+}
+
 /// PLNR-87: the grid and presets are worked out again when the request,
-/// the ship's drive or available delta-v, or the game day changes; a
-/// slider move never does it. The setting is kept across a new search,
-/// or starts at its preset after a pick (PLNR-13).
+/// the ship's drive or its available delta-v changes; a slider move never
+/// does it, and nor does the clock, which only moves the search on, once
+/// a game day (PLNR-24). The setting is kept across a new search, with a
+/// thumb on a rejected setting moved off it (PLNR-33), or starts at its
+/// preset after a pick (PLNR-13).
 pub fn refresh_search(mut state: ResMut<PlannerState>, planner: Planner, clock: Res<GameClock>) {
     let Some(session) = state.session.as_mut() else {
         return;
@@ -138,33 +164,47 @@ pub fn refresh_search(mut state: ResMut<PlannerState>, planner: Planner, clock: 
     let Some(request) = session.request else {
         return;
     };
-    let today = clock.elapsed_days();
+    let now = clock.elapsed_days();
     let changing = session.changing.unwrap_or(0.0);
-    let key = search_key(&planner, session.ship, request, changing, today);
+    let key = search_key(&planner, session.ship, request, changing);
     if session.found.as_ref().is_some_and(|found| found.key == key) {
+        if day_has_passed(session, now) {
+            advance_session(session, now, true);
+        }
         return;
     }
-    let found = run_search(&planner, session.ship, request, changing, key);
+    let (found, request) = run_search(&planner, session.ship, request, changing);
+    session.request = Some(request);
+    let mut kept = false;
     if let (Ok(search), Some(context)) = (&found.result, &found.context) {
         let max_steps = context.tunables.slider_max_steps;
         session.setting = Some(match session.setting {
-            Some(setting) => fitted(setting, &search.sliders, today),
+            Some(setting) => {
+                kept = true;
+                fitted(setting, &search.sliders, max_steps)
+            }
             None => starting_setting(search, max_steps),
         });
     }
     session.found = Some(found);
     session.solved_for = None;
     session.travel_track_day = None;
+    session.tracks.clear();
+    if kept {
+        settle(session);
+    }
 }
 
-/// PLNR-24 / PLNR-87: the depart day never falls before today; the leg
-/// of the setting is solved when the setting changes, and the Travel time
-/// track when the depart day does.
-pub fn solve_setting(mut state: ResMut<PlannerState>, clock: Res<GameClock>) {
-    let today = clock.elapsed_days();
-    let Some(session) = state.session.as_mut() else {
-        return;
-    };
+/// PLNR-28 / PLNR-87: the Travel time track on `depart_day`: the grid's
+/// column there, or one solved for it.
+fn track_on(session: &mut PlannerSession, depart_day: f64) -> Vec<Sample> {
+    rest_of(session).map_or_else(Vec::new, |mut rest| rest.track_on(depart_day))
+}
+
+/// PLNR-87 / PLNR-34: the leg of the setting is solved when the setting
+/// changes, and the Travel time track when the depart day does. With
+/// nothing on the grid accepted there is no leg, only the grid's reason.
+pub fn solve_current(session: &mut PlannerSession) {
     let Some(found) = session.found.as_ref() else {
         return;
     };
@@ -172,24 +212,27 @@ pub fn solve_setting(mut state: ResMut<PlannerState>, clock: Res<GameClock>) {
         session.leg = found.result.as_ref().err().map(|why| Err(*why));
         return;
     };
-    let (Some(request), Some(mut setting)) = (session.request, session.setting) else {
+    let (Some(request), Some(setting)) = (session.request, session.setting) else {
         return;
     };
-    if setting.depart_day < today {
-        // The clock moving on is not a slider move: the track stays.
-        setting.depart_day = today;
-        session.setting = Some(setting);
-        if session.travel_track_day.is_some() {
-            session.travel_track_day = Some(today);
-        }
-    }
     if session.solved_for != Some(setting) {
-        session.leg = Some(context.solve(request, setting));
+        session.leg = Some(match search.grid.unplannable_reason() {
+            Some(why) => Err(why),
+            None => context.solve(request, setting),
+        });
         session.solved_for = Some(setting);
     }
     if session.travel_track_day != Some(setting.depart_day) {
-        session.travel_track = context.travel_track(request, &search.sliders, setting.depart_day);
+        session.travel_track = track_on(session, setting.depart_day);
         session.travel_track_day = Some(setting.depart_day);
+    }
+}
+
+/// PLNR-87: solves what the current setting needs, each frame it has
+/// changed.
+pub fn solve_setting(mut state: ResMut<PlannerState>) {
+    if let Some(session) = state.session.as_mut() {
+        solve_current(session);
     }
 }
 
@@ -286,12 +329,12 @@ pub fn preview_hover(
         destination: place,
         arrival: Arrival::Rendezvous,
     };
-    let today = clock.elapsed_days();
-    let key = search_key(&planner, session.ship, request, 0.0, today);
+    let key = search_key(&planner, session.ship, request, 0.0);
+    let day = clock.elapsed_days().floor() as i64;
     if session
         .hover
         .as_ref()
-        .is_some_and(|hover| hover.place == place && hover.key == key)
+        .is_some_and(|hover| hover.place == place && hover.key == key && hover.day == day)
     {
         return;
     }
@@ -302,6 +345,7 @@ pub fn preview_hover(
     session.hover = Some(HoverPreview {
         place,
         key,
+        day,
         outcome,
         available_kms,
     });
@@ -313,18 +357,19 @@ mod tests {
 
     fn sliders() -> Sliders {
         Sliders {
-            depart: Slider::Range {
-                start: 10.0,
-                end: 40.0,
+            depart: Slider::Days {
+                soonest: 10.5,
+                end: 40.5,
+                step: 1.0,
             },
             travel: Slider::Positions(vec![3.0, 7.0, 12.0]),
             windows: false,
         }
     }
 
-    /// PLNR-13 / PLNR-24 / PLNR-40: a setting kept across a new search
-    /// stays inside the ranges, lands on a meeting, and never departs
-    /// before today.
+    /// PLNR-13 / PLNR-23 / PLNR-40: a setting kept across a new search
+    /// lands on the nearest Depart position, on a meeting, or on the
+    /// fixed travel time.
     #[test]
     fn a_kept_setting_is_fitted_to_the_new_sliders() {
         let setting = Setting {
@@ -332,21 +377,21 @@ mod tests {
             travel_days: 8.0,
         };
         assert_eq!(
-            fitted(setting, &sliders(), 10.0),
+            fitted(setting, &sliders(), 400),
             Setting {
                 depart_day: 40.0,
                 travel_days: 7.0
             }
         );
         let early = Setting {
-            depart_day: 12.0,
+            depart_day: 10.6,
             travel_days: 1.0,
         };
-        assert_eq!(fitted(early, &sliders(), 15.5).depart_day, 15.5);
+        assert_eq!(fitted(early, &sliders(), 400).depart_day, 10.5);
         let fixed = Sliders {
             travel: Slider::Fixed(30.0),
             ..sliders()
         };
-        assert_eq!(fitted(early, &fixed, 10.0).travel_days, 30.0);
+        assert_eq!(fitted(early, &fixed, 400).travel_days, 30.0);
     }
 }

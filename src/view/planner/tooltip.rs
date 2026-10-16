@@ -1,13 +1,16 @@
-//! Label tooltips (PLNR-91, PLNR-94): a label that carries a `Tooltip`
-//! shows its text in a small box by the pointer once the pointer has
-//! rested on it for `tooltip_delay_ms`. These are labels' tooltips, not
-//! markers': nothing on the map has one (HOV-01).
+//! Label tooltips (PLNR-35, PLNR-91, PLNR-94): a label that carries a
+//! `Tooltip` shows its text in a small box by the pointer once the
+//! pointer has rested on it for `tooltip_delay_ms`. A node that carries
+//! `Stretches` (a slider's track) shows the text of the stretch under
+//! the pointer, and nothing between its stretches. These are labels'
+//! tooltips, not markers': nothing on the map has one (HOV-01).
 
 use bevy::ecs::system::SystemParam;
 use bevy::picking::hover::HoverMap;
 use bevy::picking::pointer::PointerId;
 use bevy::prelude::*;
 
+use super::slider::Stretch;
 use crate::view::colors;
 use crate::view::fonts::Fonts;
 use crate::view::layers;
@@ -17,14 +20,32 @@ use crate::view::tunables::Tunables;
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Tooltip(pub &'static str);
 
+/// PLNR-35: on a node: stretches of its width, each with the text its
+/// tooltip shows while the pointer is over it. Written as what the node
+/// shows changes; empty, it shows none.
+#[derive(Component, Debug, Clone, Default, PartialEq)]
+pub struct Stretches(pub Vec<Stretch>);
+
+impl Stretches {
+    /// The text of the stretch at `fraction` of the node's width (0 at
+    /// its left edge, 1 at its right), if any.
+    pub fn text_at(&self, fraction: f32) -> Option<&str> {
+        self.0
+            .iter()
+            .find(|s| (s.from..=s.to).contains(&fraction))
+            .map(|s| s.text.as_str())
+    }
+}
+
 /// The one tooltip box, shown by `show_tooltips`.
 #[derive(Component)]
 pub struct TooltipBox;
 
-/// Which label the pointer rests on, and since when (real seconds).
-#[derive(Resource, Debug, Default, Clone, Copy, PartialEq)]
+/// Which label the pointer rests on, the text it shows there, and since
+/// when (real seconds).
+#[derive(Resource, Debug, Default, Clone, PartialEq)]
 pub struct TooltipHover {
-    pub label: Option<(Entity, f32)>,
+    pub label: Option<(Entity, String, f32)>,
 }
 
 /// The tooltip box's width, and its offset below the pointer.
@@ -72,19 +93,29 @@ pub fn spawn_tooltip_box(mut commands: Commands, fonts: Res<Fonts>, tunables: Re
 pub struct TooltipLabels<'w, 's> {
     hover: Option<Res<'w, HoverMap>>,
     labels: Query<'w, 's, &'static Tooltip>,
+    stretches: Query<'w, 's, &'static Stretches>,
     parents: Query<'w, 's, &'static ChildOf>,
 }
 
 impl TooltipLabels<'_, '_> {
-    /// The label with a tooltip that the mouse is over, if any: the hit
-    /// itself or one of its ancestors.
-    fn hovered(&self) -> Option<Entity> {
+    /// The label with a tooltip that the mouse is over, if any, and its
+    /// text: the hit itself or one of its ancestors with a `Tooltip`, or
+    /// the hit itself with a stretch under the pointer.
+    fn hovered(&self) -> Option<(Entity, String)> {
         let hits = self.hover.as_deref()?.0.get(&PointerId::Mouse)?;
-        hits.keys().find_map(|&hit| {
+        hits.iter().find_map(|(&hit, data)| {
+            // The hit's position is relative to its node's centre, in
+            // node widths.
+            let fraction = data.position.map(|at| at.x + 0.5);
+            if let (Ok(stretches), Some(fraction)) = (self.stretches.get(hit), fraction)
+                && let Some(text) = stretches.text_at(fraction)
+            {
+                return Some((hit, text.to_string()));
+            }
             std::iter::successors(Some(hit), |&node| {
                 self.parents.get(node).ok().map(ChildOf::parent)
             })
-            .find(|&node| self.labels.contains(node))
+            .find_map(|node| Some((node, self.labels.get(node).ok()?.0.to_string())))
         })
     }
 }
@@ -96,8 +127,9 @@ pub struct TooltipBoxes<'w, 's> {
     texts: Query<'w, 's, &'static mut Text>,
 }
 
-/// PLNR-91 / PLNR-94: times how long the pointer rests on a label, and
-/// shows that label's tooltip by the pointer once it is due.
+/// PLNR-35 / PLNR-91 / PLNR-94: times how long the pointer rests on a
+/// label, or on one stretch of a track, and shows its tooltip by the
+/// pointer once it is due.
 pub fn show_tooltips(
     time: Res<Time<Real>>,
     tunables: Res<Tunables>,
@@ -108,12 +140,14 @@ pub fn show_tooltips(
 ) {
     let now = time.elapsed_secs();
     let label = labels.hovered();
-    if rest.label.map(|(entity, _)| entity) != label {
-        rest.label = label.map(|entity| (entity, now));
+    let resting_on = rest.label.as_ref().map(|(e, text, _)| (*e, text.clone()));
+    if resting_on != label {
+        rest.label = label.map(|(entity, text)| (entity, text, now));
     }
     let due = rest
         .label
-        .filter(|(_, since)| tooltip_due(now - since, tunables.tooltip_delay_ms));
+        .as_ref()
+        .filter(|(.., since)| tooltip_due(now - since, tunables.tooltip_delay_ms));
     // With no window (or no cursor in it) the box sits at the corner.
     let at = windows
         .single()
@@ -122,11 +156,8 @@ pub fn show_tooltips(
         .unwrap_or_default();
     let TooltipBoxes { boxes, texts } = &mut boxes;
     for (mut node, children) in boxes.iter_mut() {
-        let Some((entity, _)) = due else {
+        let Some((_, tooltip, _)) = due else {
             node.display = Display::None;
-            continue;
-        };
-        let Ok(tooltip) = labels.labels.get(entity) else {
             continue;
         };
         node.display = Display::Flex;
@@ -134,9 +165,9 @@ pub fn show_tooltips(
         node.top = px(at.y + BELOW_POINTER_PX);
         for child in children {
             if let Ok(mut text) = texts.get_mut(*child)
-                && text.0 != tooltip.0
+                && text.0 != *tooltip
             {
-                text.0 = tooltip.0.to_string();
+                text.0.clone_from(tooltip);
             }
         }
     }
@@ -145,6 +176,23 @@ pub fn show_tooltips(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// PLNR-35: a track's stretch shows its text over its own width
+    /// only.
+    #[test]
+    fn a_stretch_shows_its_text_over_its_own_width() {
+        let stretches = Stretches(vec![Stretch {
+            from: 0.2,
+            to: 0.4,
+            text: "Path passes too close to Halden IV".to_string(),
+        }]);
+        assert_eq!(stretches.text_at(0.1), None);
+        assert_eq!(
+            stretches.text_at(0.3),
+            Some("Path passes too close to Halden IV")
+        );
+        assert_eq!(stretches.text_at(0.5), None);
+    }
 
     /// PLNR-91 / PLNR-94: a tooltip is due only once the pointer has
     /// rested for `tooltip_delay_ms`.

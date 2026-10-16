@@ -8,20 +8,20 @@ use bevy::prelude::Color;
 
 use super::state::{HoverOutcome, HoverPreview};
 use super::words::{
-    DELTA_V, DEPART, DEPARTED, DEPARTS, LegWords, NOW, TRAVEL_FIXED, TRAVEL_TIME, cant_reach_line,
-    date, dated, delta_v_readout, fastest_line, gap_line, leave_readout, reason, travel_with_laps,
+    DELTA_V, DEPART, DEPARTED, DEPARTS, LegWords, TRAVEL_FIXED, TRAVEL_TIME, cant_reach_line, date,
+    dated, delta_v_readout, fastest_line, gap_line, leave_readout, reason, travel_with_laps,
     trim_line,
 };
-use crate::sim::transfer::grid::{Sample, Setting};
+use crate::sim::transfer::grid::{Sample, Setting, any_accepted, commonest_reason};
 use crate::sim::transfer::order::{Infeasible, SolvedLeg};
 use crate::sim::transfer::places::Band;
 use crate::sim::transfer::presets::Preset;
-use crate::sim::transfer::ranges::{Slider, Sliders};
+use crate::sim::transfer::ranges::Slider;
 use crate::sim::transfer::search::{Request, Search};
 use crate::view::readout::{format_duration, format_speed};
 use crate::view::tunables::Tunables;
 
-use super::slider::{fraction_of, track_stops};
+use super::slider::{Stretch, fraction_of, rejected_stretches, track_stops};
 
 /// The colour a line of text is drawn in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -65,11 +65,13 @@ impl Row {
     }
 }
 
-/// A slider's track: where its thumb sits (0 to 1) and its colours.
+/// A slider's track: where its thumb sits (0 to 1), its colours, and
+/// the stretches the solver rejects with the reason it gave (PLNR-35).
 #[derive(Debug, Clone, PartialEq)]
 pub struct TrackModel {
     pub thumb: f32,
     pub stops: Vec<(f32, Color)>,
+    pub stretches: Vec<Stretch>,
 }
 
 /// A slider's row: its readout, its track (none for a setting the drive
@@ -120,6 +122,8 @@ pub struct TuningModel {
     pub delta_v: Option<DeltaVModel>,
     /// PLNR-29: the presets shown, in order, and whether each is enabled.
     pub presets: Vec<(Preset, bool)>,
+    /// PLNR-29: the preset both sliders sit on, drawn selected.
+    pub selected_preset: Option<Preset>,
     /// PLNR-30: whether Intercept is selected, when the choice is shown.
     pub arrival_choice: Option<bool>,
     /// PLNR-31: whether Schedule is enabled, and why not.
@@ -164,11 +168,6 @@ impl TuningFacts<'_> {
     }
 }
 
-/// PLNR-40: a phasing leg leaves now and its travel times are meetings.
-pub fn is_phasing(sliders: &Sliders) -> bool {
-    matches!(sliders.travel, Slider::Positions(_))
-}
-
 /// PLNR-20 to PLNR-32, PLNR-40 to PLNR-42: the tuning panel for a
 /// request, from its search, its setting and the setting's leg.
 pub fn tuning_model(facts: &TuningFacts, tunables: &Tunables) -> TuningModel {
@@ -194,6 +193,7 @@ pub fn tuning_model(facts: &TuningFacts, tunables: &Tunables) -> TuningModel {
         speed: None,
         delta_v: None,
         presets: Vec::new(),
+        selected_preset: None,
         arrival_choice: None,
         schedule,
         reason,
@@ -201,7 +201,7 @@ pub fn tuning_model(facts: &TuningFacts, tunables: &Tunables) -> TuningModel {
     let (Some(search), Some(setting)) = (search, facts.setting) else {
         return model;
     };
-    let phasing = is_phasing(&search.sliders);
+    let phasing = search.sliders.phasing();
     model.depart = Some(depart_model(facts, search, setting, tunables));
     model.travel = Some(travel_model(facts, search, setting, tunables));
     if let Some(leg) = facts.leg() {
@@ -213,11 +213,13 @@ pub fn tuning_model(facts: &TuningFacts, tunables: &Tunables) -> TuningModel {
         model.delta_v = Some(delta_v_model(facts, leg));
     }
     model.presets = preset_buttons(search);
+    model.selected_preset = search.presets.sitting_on(setting);
     let offers_intercept = matches!(
         facts.kind,
         DestKind::Body { .. } | DestKind::Station | DestKind::Ship
     );
-    model.arrival_choice = (offers_intercept && !phasing).then(|| facts.words().intercept);
+    model.arrival_choice =
+        (offers_intercept && search.intercept_offered).then(|| facts.words().intercept);
     model
 }
 
@@ -230,15 +232,22 @@ fn schedule_state(facts: &TuningFacts) -> (bool, String) {
     }
 }
 
-/// PLNR-31 / PLNR-92: why a request's current setting can't be
-/// scheduled: the search found nothing, the leg can't be flown, or it
-/// needs more delta-v than `available_kms`. `None` when it can be, or
-/// while the search or the leg is still to come.
+/// PLNR-31 / PLNR-34 / PLNR-92: why a request's current setting can't
+/// be scheduled: the search found nothing, nothing on its grid is
+/// accepted, the leg can't be flown, or it needs more delta-v than
+/// `available_kms`. `None` when it can be, or while the search or the
+/// leg is still to come.
 pub fn blocking_reason(
     found: Option<&Result<Search, Infeasible>>,
     leg: Option<&Result<SolvedLeg, Infeasible>>,
     available_kms: f64,
 ) -> Option<Infeasible> {
+    let unplannable = found
+        .and_then(|found| found.as_ref().ok())
+        .and_then(|search| search.grid.unplannable_reason());
+    if unplannable.is_some() {
+        return unplannable;
+    }
     match (found, leg) {
         (Some(Err(why)), _) | (_, Some(Err(why))) => Some(*why),
         (_, Some(Ok(leg))) if leg.delta_v_kms > available_kms => Some(Infeasible::DeltaV {
@@ -249,8 +258,29 @@ pub fn blocking_reason(
     }
 }
 
-/// PLNR-21 / PLNR-40: the Depart row: the leave day, with a track over
-/// the Depart range, or "Departs now" for a phasing leg.
+/// PLNR-35 / PLNR-92: the rejected stretches of a track whose samples
+/// sit at the given values, each rejected one with the reason the solver
+/// gave there.
+fn stretches_of(
+    facts: &TuningFacts,
+    slider: &Slider,
+    samples: &[(f64, Option<Infeasible>)],
+) -> Vec<Stretch> {
+    let placed: Vec<(f32, Option<String>)> = samples
+        .iter()
+        .map(|(value, why)| {
+            (
+                fraction_of(slider, *value),
+                why.map(|why| reason(why, facts.primary, facts.destination)),
+            )
+        })
+        .collect();
+    rejected_stretches(&placed)
+}
+
+/// PLNR-21 / PLNR-28 / PLNR-40: the Depart row: the leave day, over a
+/// track coloured by each column's cheapest trip. A phasing leg's track
+/// is one colour, since every day costs the same.
 fn depart_model(
     facts: &TuningFacts,
     search: &Search,
@@ -258,31 +288,42 @@ fn depart_model(
     tunables: &Tunables,
 ) -> SliderModel {
     let wait = facts.leg().map_or(0.0, |leg| leg.departure_wait_days);
-    if is_phasing(&search.sliders) {
-        return SliderModel {
-            row: Row::new(DEPARTS, NOW),
-            track: None,
-            note: None,
-        };
-    }
     let slider = &search.sliders.depart;
     let least = search.grid.least_delta_v_kms().unwrap_or(0.0);
     let cheapest = search.grid.cheapest_per_day();
-    let samples: Vec<(f64, Option<&Sample>)> = search
+    let mut columns: Vec<(f64, Option<&Sample>, Option<Infeasible>)> = search
         .grid
         .rows
         .iter()
         .zip(&cheapest)
-        .filter_map(|(row, best)| Some((row.first()?.setting.depart_day, best.as_ref())))
+        .filter_map(|(row, best)| {
+            let why = (!any_accepted(row))
+                .then(|| commonest_reason(row.iter()))
+                .flatten();
+            Some((row.first()?.setting.depart_day, best.as_ref(), why))
+        })
         .collect();
+    if search.sliders.phasing()
+        && let Some(&(_, best, why)) = columns.first()
+    {
+        let (start, end) = match slider {
+            Slider::Days { soonest, end, .. } => (*soonest, *end),
+            _ => (setting.depart_day, setting.depart_day),
+        };
+        columns = vec![(start, best, why), (end, best, why)];
+    }
+    let samples: Vec<(f64, Option<&Sample>)> = columns.iter().map(|(d, b, _)| (*d, *b)).collect();
+    let reasons: Vec<(f64, Option<Infeasible>)> =
+        columns.iter().map(|(d, _, w)| (*d, *w)).collect();
     SliderModel {
         row: Row::new(
             DEPART,
             leave_readout(setting.depart_day + wait, facts.today),
         ),
-        track: matches!(slider, Slider::Range { .. }).then(|| TrackModel {
+        track: Some(TrackModel {
             thumb: fraction_of(slider, setting.depart_day),
             stops: track_stops(slider, &samples, least, facts.available_kms, tunables),
+            stretches: stretches_of(facts, slider, &reasons),
         }),
         note: None,
     }
@@ -310,9 +351,15 @@ fn travel_model(
         .iter()
         .map(|sample| (sample.setting.travel_days, Some(sample)))
         .collect();
+    let reasons: Vec<(f64, Option<Infeasible>)> = facts
+        .travel_track
+        .iter()
+        .map(|sample| (sample.setting.travel_days, sample.result.err()))
+        .collect();
     let track = (!matches!(slider, Slider::Fixed(_))).then(|| TrackModel {
         thumb: fraction_of(slider, setting.travel_days),
         stops: track_stops(slider, &samples, least, facts.available_kms, tunables),
+        stretches: stretches_of(facts, slider, &reasons),
     });
     let note = if matches!(slider, Slider::Fixed(_)) {
         Some(Line::new(TRAVEL_FIXED, Tone::Secondary))
@@ -458,6 +505,7 @@ mod tests {
     use crate::sim::transfer::order::{Arrival, Landing, LegBurns};
     use crate::sim::transfer::places::Place;
     use crate::sim::transfer::presets::Presets;
+    use crate::sim::transfer::ranges::Sliders;
     use bevy::prelude::*;
 
     fn sample(depart: f64, travel: f64, kms: f64) -> Sample {
@@ -494,13 +542,10 @@ mod tests {
         };
         Search {
             sliders: Sliders {
-                depart: if phasing {
-                    Slider::Fixed(10.0)
-                } else {
-                    Slider::Range {
-                        start: 10.0,
-                        end: 20.0,
-                    }
+                depart: Slider::Days {
+                    soonest: 10.0,
+                    end: 20.0,
+                    step: 1.0,
                 },
                 travel: if phasing {
                     Slider::Positions(vec![50.0, 100.0, 150.0])
@@ -518,6 +563,8 @@ mod tests {
                 cheapest: Some(fastest),
                 next_window: None,
             },
+            intercept_offered: !phasing,
+            windows: None,
         }
     }
 
@@ -632,6 +679,90 @@ mod tests {
         assert!(model.schedule && model.reason.is_empty());
     }
 
+    /// PLNR-29: the preset both sliders sit on is drawn selected; off it,
+    /// none is.
+    #[test]
+    fn the_preset_the_sliders_sit_on_is_selected() {
+        let found = Ok(search(false));
+        let leg = Ok(leg(7.5));
+        let mut facts = facts(&found, &leg, &[], Arrival::Rendezvous);
+        facts.setting = Some(Setting {
+            depart_day: 10.0,
+            travel_days: 50.0,
+        });
+        let tunables = Tunables::default();
+        assert_eq!(
+            tuning_model(&facts, &tunables).selected_preset,
+            Some(Preset::Fastest)
+        );
+        facts.setting = Some(Setting {
+            depart_day: 11.0,
+            travel_days: 50.0,
+        });
+        assert_eq!(tuning_model(&facts, &tunables).selected_preset, None);
+    }
+
+    /// PLNR-30: a destination that offers no Intercept shows no choice.
+    #[test]
+    fn no_choice_where_no_intercept_is_offered() {
+        let mut no_intercept = search(false);
+        no_intercept.intercept_offered = false;
+        let found = Ok(no_intercept);
+        let leg = Ok(leg(7.5));
+        let model = tuning_model(
+            &facts(&found, &leg, &[], Arrival::Rendezvous),
+            &Tunables::default(),
+        );
+        assert_eq!(model.arrival_choice, None);
+    }
+
+    /// PLNR-28 / PLNR-35 / PLNR-92: a rejected column of the Depart track
+    /// and a rejected travel time of the Travel time track are stretches
+    /// whose tooltip gives the solver's reason as a sentence.
+    #[test]
+    fn rejected_stretches_carry_the_solvers_reason() {
+        let mut rejecting = search(false);
+        for sample in &mut rejecting.grid.rows[2] {
+            sample.result = Err(Infeasible::Periapsis { periapsis_km: 1.0 });
+        }
+        let found = Ok(rejecting);
+        let leg = Ok(leg(7.5));
+        let mut track: Vec<Sample> = (0..3)
+            .map(|t| sample(10.0, 50.0 + 50.0 * t as f64, 5.0))
+            .collect();
+        track[0].result = Err(Infeasible::NoPath);
+        let model = tuning_model(
+            &facts(&found, &leg, &track, Arrival::Rendezvous),
+            &Tunables::default(),
+        );
+        let depart = model.depart.unwrap().track.unwrap().stretches;
+        assert_eq!(depart.len(), 1);
+        assert_eq!(depart[0].text, "Path passes too close to Corvane");
+        assert_eq!((depart[0].from, depart[0].to), (0.75, 1.0));
+        let travel = model.travel.unwrap().track.unwrap().stretches;
+        assert_eq!(travel.len(), 1);
+        assert_eq!(travel[0].text, "No path gets there in that time");
+        assert_eq!((travel[0].from, travel[0].to), (0.0, 0.25));
+    }
+
+    /// PLNR-34: with nothing on the grid accepted Schedule is disabled
+    /// and the reason line gives the grid's reason.
+    #[test]
+    fn nothing_accepted_gives_the_grids_reason() {
+        let mut rejecting = search(false);
+        for sample in rejecting.grid.rows.iter_mut().flatten() {
+            sample.result = Err(Infeasible::NoPath);
+        }
+        let found = Ok(rejecting);
+        let leg = Err(Infeasible::NoPath);
+        let model = tuning_model(
+            &facts(&found, &leg, &[], Arrival::Rendezvous),
+            &Tunables::default(),
+        );
+        assert!(!model.schedule);
+        assert_eq!(model.reason, "No path gets there in that time");
+    }
+
     /// PLNR-27 / PLNR-31: a leg over budget fills the bar in the warning
     /// colour, says by how much, and disables Schedule with the reason.
     #[test]
@@ -666,14 +797,17 @@ mod tests {
         assert_eq!(model.reason, "Already there");
     }
 
-    /// PLNR-40: a phasing leg departs now, its travel readout gives the
-    /// laps, it has no Rendezvous / Intercept choice and no speed row.
+    /// PLNR-21 / PLNR-40: a phasing leg has a Depart slider whose track
+    /// is one colour, and leaves today at Soonest; its travel readout
+    /// gives the laps, it has no Rendezvous / Intercept choice and no
+    /// speed row.
     #[test]
-    fn a_phasing_leg_departs_now_and_counts_its_laps() {
+    fn a_phasing_leg_has_one_colour_of_depart_and_counts_its_laps() {
         let found = Ok(search(true));
         let leg = Ok(SolvedLeg {
             phasing_laps: Some(3),
             arrival_speed_kms: None,
+            departure_wait_days: 0.0,
             ..leg(1.0)
         });
         let model = tuning_model(
@@ -683,9 +817,12 @@ mod tests {
         let depart = model.depart.unwrap();
         assert_eq!(
             (depart.row.label.as_str(), depart.row.value.as_str()),
-            ("Departs", "now")
+            ("Depart", "today")
         );
-        assert!(depart.track.is_none());
+        let track = depart.track.unwrap();
+        assert_eq!(track.stops.len(), 2);
+        assert_eq!(track.stops[0].1, track.stops[1].1, "one colour");
+        assert_eq!((track.stops[0].0, track.stops[1].0), (0.0, 1.0));
         assert_eq!(model.travel.unwrap().row.value, "100.0 d · 3 laps");
         assert_eq!(model.arrival_choice, None);
         assert_eq!(model.speed, None);

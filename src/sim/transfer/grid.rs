@@ -45,10 +45,44 @@ impl Sample {
         self.cost()
             .is_some_and(|cost| cost.delta_v_kms <= available_kms)
     }
+
+    /// PLNR-33: whether the solver accepts it. A setting over budget is
+    /// accepted: it can be chosen, though not scheduled.
+    pub fn accepted(&self) -> bool {
+        self.result.is_ok()
+    }
+}
+
+/// PLNR-33: whether any of `samples` is accepted: a depart day on which
+/// some travel time can be flown.
+pub fn any_accepted(samples: &[Sample]) -> bool {
+    samples.iter().any(Sample::accepted)
+}
+
+/// PLNR-92 / PLNR-35: the reason the solver gave most often among
+/// `samples`, the first given on a tie; `None` when it gave none.
+pub fn commonest_reason<'a>(samples: impl Iterator<Item = &'a Sample>) -> Option<Infeasible> {
+    // Reasons carry figures, so they are counted by their kind.
+    let mut counts: Vec<(Infeasible, usize)> = Vec::new();
+    for reason in samples.filter_map(|sample| sample.result.err()) {
+        let kind = discriminant(&reason);
+        match counts
+            .iter_mut()
+            .find(|(seen, _)| discriminant(seen) == kind)
+        {
+            Some((_, count)) => *count += 1,
+            None => counts.push((reason, 1)),
+        }
+    }
+    let most = counts.iter().map(|(_, n)| *n).max()?;
+    counts
+        .into_iter()
+        .find(|(_, n)| *n == most)
+        .map(|(reason, _)| reason)
 }
 
 /// PLNR-82: the solver's results over the sliders' samples, one row per
-/// sampled depart day, each holding every sampled travel time.
+/// depart column, each holding every sampled travel time.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Grid {
     pub rows: Vec<Vec<Sample>>,
@@ -58,6 +92,25 @@ impl Grid {
     /// Every sample, a row at a time.
     pub fn samples(&self) -> impl Iterator<Item = &Sample> + Clone {
         self.rows.iter().flatten()
+    }
+
+    /// The depart day of each column, in order.
+    pub fn depart_days(&self) -> Vec<f64> {
+        self.rows
+            .iter()
+            .filter_map(|row| row.first().map(|s| s.setting.depart_day))
+            .collect()
+    }
+
+    /// The column of `depart_day`, if the grid has one.
+    pub fn column(&self, depart_day: f64) -> Option<&[Sample]> {
+        self.rows
+            .iter()
+            .find(|row| {
+                row.first()
+                    .is_some_and(|s| s.setting.depart_day == depart_day)
+            })
+            .map(Vec::as_slice)
     }
 
     /// PLNR-28 / PLNR-85: for each sampled depart day, its cheapest trip
@@ -78,26 +131,10 @@ impl Grid {
     /// reason the solver gave most often, the first given on a tie.
     /// `None` when some setting can be planned, or the grid is empty.
     pub fn unplannable_reason(&self) -> Option<Infeasible> {
-        if self.samples().any(|sample| sample.result.is_ok()) {
+        if self.samples().any(Sample::accepted) {
             return None;
         }
-        // Reasons carry figures, so they are counted by their kind.
-        let mut counts: Vec<(Infeasible, usize)> = Vec::new();
-        for reason in self.samples().filter_map(|sample| sample.result.err()) {
-            let kind = discriminant(&reason);
-            match counts
-                .iter_mut()
-                .find(|(seen, _)| discriminant(seen) == kind)
-            {
-                Some((_, count)) => *count += 1,
-                None => counts.push((reason, 1)),
-            }
-        }
-        let most = counts.iter().map(|(_, n)| *n).max()?;
-        counts
-            .into_iter()
-            .find(|(_, n)| *n == most)
-            .map(|(reason, _)| reason)
+        commonest_reason(self.samples())
     }
 }
 

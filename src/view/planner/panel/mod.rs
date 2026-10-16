@@ -19,11 +19,10 @@
 use bevy::prelude::*;
 
 use super::model::{Line, OrderModel, Row, Tone, TuningModel};
-use super::slider::mix;
 use super::state::SliderKind;
 use crate::sim::transfer::places::Band;
 use crate::sim::transfer::presets::Preset;
-use crate::view::buttons::ButtonLook;
+use crate::view::buttons::{ButtonLook, selected_look};
 use crate::view::colors;
 use crate::view::fonts::Fonts;
 use crate::view::tunables::Tunables;
@@ -266,12 +265,7 @@ pub fn tone_colour(tone: Tone) -> Color {
 /// neutral text; the other outlined like a secondary button (BTN-01).
 pub fn segment_look(selected: bool, tunables: &Tunables) -> ButtonLook {
     if selected {
-        let fill = mix(colors::GROUND, colors::NEUTRAL, tunables.segment_fill_mix);
-        ButtonLook {
-            background: fill,
-            border: fill,
-            text: colors::NEUTRAL,
-        }
+        selected_look(tunables.segment_fill_mix)
     } else {
         ButtonLook {
             background: Color::NONE,
@@ -321,7 +315,7 @@ mod tests {
         let selected = segment_look(true, &tunables);
         assert_eq!(
             selected.background,
-            mix(colors::GROUND, colors::NEUTRAL, tunables.segment_fill_mix)
+            colors::mix(colors::GROUND, colors::NEUTRAL, tunables.segment_fill_mix)
         );
         assert_eq!(selected.text, colors::NEUTRAL);
         let other = segment_look(false, &tunables);

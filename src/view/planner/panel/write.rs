@@ -7,6 +7,7 @@ use bevy::prelude::*;
 
 use super::super::model::{TrackModel, TuningModel};
 use super::super::state::{PlannerState, SliderKind};
+use super::super::tooltip::Stretches;
 use super::{
     Choice, DeltaFill, Field, NoticeLine, PanelView, PresetButton, ScheduleButton, Segment, Thumb,
     Track, segment_look, tone_colour,
@@ -19,7 +20,15 @@ use crate::view::tunables::Tunables;
 #[derive(SystemParam)]
 pub struct PanelWrites<'w, 's> {
     texts: Query<'w, 's, (&'static Field, &'static mut Text, &'static mut TextColor)>,
-    tracks: Query<'w, 's, (&'static Track, &'static mut BackgroundGradient)>,
+    tracks: Query<
+        'w,
+        's,
+        (
+            &'static Track,
+            &'static mut BackgroundGradient,
+            &'static mut Stretches,
+        ),
+    >,
     thumbs: Query<'w, 's, (&'static Thumb, &'static mut Node), Without<DeltaFill>>,
     fills: Query<'w, 's, (&'static mut Node, &'static mut BackgroundColor), With<DeltaFill>>,
     presets:
@@ -62,6 +71,11 @@ impl PanelWrites<'_, '_> {
             if button.disabled == enabled {
                 button.disabled = !enabled;
             }
+            // PLNR-29: the preset the sliders sit on is drawn selected.
+            let selected = model.selected_preset == Some(preset.0);
+            if button.selected != selected {
+                button.selected = selected;
+            }
         }
         for mut button in &mut self.schedule {
             if button.disabled == model.schedule {
@@ -85,7 +99,7 @@ impl PanelWrites<'_, '_> {
                 SliderKind::Travel => model.travel.as_ref()?.track.as_ref(),
             }
         };
-        for (track, mut gradient) in &mut self.tracks {
+        for (track, mut gradient, mut stretches) in &mut self.tracks {
             if let Some(model) = track_of(track.0) {
                 let stops = model
                     .stops
@@ -95,6 +109,10 @@ impl PanelWrites<'_, '_> {
                 let new = BackgroundGradient(vec![LinearGradient::to_right(stops).into()]);
                 if *gradient != new {
                     *gradient = new;
+                }
+                // PLNR-35: the rejected stretches carry their reasons.
+                if stretches.0 != model.stretches {
+                    stretches.0.clone_from(&model.stretches);
                 }
             }
         }

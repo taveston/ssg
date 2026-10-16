@@ -8,6 +8,11 @@
 //! always holds the next window. A trip between two circular orbits needs
 //! least fuel on the half ellipse that touches both, so the Travel range
 //! is spread round that ellipse's travel time.
+//!
+//! Depart moves in whole days from Soonest, the moment the planner last
+//! looked at the clock. A day keeps its number as the clock runs, so the
+//! slider's positions, and the grid's columns on them, stay put while the
+//! range slides on.
 
 use std::f64::consts::PI;
 
@@ -20,8 +25,8 @@ use super::places::Place;
 use super::tree::SystemTree;
 use crate::sim::tunables::SimTunables;
 
-/// The round steps a slider may move in, in days, smallest first: 1 and
-/// 10 minutes, 1 and 6 hours, 1, 5 and 30 days (PLNR-23).
+/// The round steps the Travel time slider may move in, in days, smallest
+/// first: 1 and 10 minutes, 1 and 6 hours, 1, 5 and 30 days (PLNR-23).
 const SLIDER_STEPS_DAYS: [f64; 7] = [
     1.0 / 1440.0,
     10.0 / 1440.0,
@@ -32,6 +37,10 @@ const SLIDER_STEPS_DAYS: [f64; 7] = [
     30.0,
 ];
 
+/// The steps the Depart slider may move in: 1, 5 and 30 whole days
+/// (PLNR-23).
+const DEPART_STEPS_DAYS: [f64; 3] = [1.0, 5.0, 30.0];
+
 /// Room for rounding when a span is a whole number of steps, as a
 /// fraction of a step.
 const STEP_ROUNDING: f64 = 1e-9;
@@ -40,15 +49,63 @@ const STEP_ROUNDING: f64 = 1e-9;
 /// their orbits never line up differently, so there are no windows.
 const EQUAL_PERIOD_FRACTION: f64 = 1e-9;
 
+/// A leg whose windows come round more often than this, in days, waits
+/// for its window rather than offering it on the Depart slider (PHAS-16,
+/// PLNR-80).
+pub const WINDOW_WAIT_UNDER_DAYS: f64 = 1.0;
+
 /// PLNR-23: a slider's step: the smallest round duration that leaves at
 /// most `max_steps` steps along a range `span_days` long, or the largest
 /// if none does.
 pub fn slider_step_days(span_days: f64, max_steps: u32) -> f64 {
+    smallest_step(&SLIDER_STEPS_DAYS, span_days, max_steps)
+}
+
+/// PLNR-23: the Depart slider's step: the smallest of 1, 5 and 30 whole
+/// days that leaves at most `max_steps` steps along a range `span_days`
+/// long, or 30 days if none does.
+pub fn depart_step_days(span_days: f64, max_steps: u32) -> f64 {
+    smallest_step(&DEPART_STEPS_DAYS, span_days, max_steps)
+}
+
+/// The first of `steps` that leaves at most `max_steps` steps along
+/// `span_days`, or the last.
+fn smallest_step(steps: &[f64], span_days: f64, max_steps: u32) -> f64 {
     let max_steps = f64::from(max_steps.max(1));
-    SLIDER_STEPS_DAYS
-        .into_iter()
+    steps
+        .iter()
+        .copied()
         .find(|step| span_days / step <= max_steps * (1.0 + STEP_ROUNDING))
-        .unwrap_or(SLIDER_STEPS_DAYS[SLIDER_STEPS_DAYS.len() - 1])
+        .unwrap_or(steps[steps.len() - 1])
+}
+
+/// PLNR-23: the whole days after `after` and up to `end` whose day number
+/// is a multiple of `every` days, in order. Day numbers count from day 0,
+/// so a day keeps its place as `after` moves on (PLNR-24).
+fn whole_days(after: f64, end: f64, every: f64) -> Vec<f64> {
+    if !(every > 0.0 && end > after) {
+        return Vec::new();
+    }
+    let first = (after / every).floor() as i64 + 1;
+    let last = ((end + STEP_ROUNDING) / every).floor() as i64;
+    (first..=last).map(|k| k as f64 * every).collect()
+}
+
+/// PLNR-82: how many Depart positions apart the grid's columns are: the
+/// least whole number that keeps Soonest and the columns within
+/// `max_columns`, wherever the range sits on the day numbers. It depends
+/// on the span alone, so it stays the same as the clock runs.
+pub fn column_stride(span_days: f64, step_days: f64, max_columns: usize) -> u32 {
+    let mut stride = 1u32;
+    loop {
+        let every = step_days * f64::from(stride);
+        // Soonest, and at most one more multiple than the span holds.
+        let columns = (span_days / every + STEP_ROUNDING).floor() as usize + 2;
+        if columns <= max_columns.max(2) || every >= span_days {
+            return stride;
+        }
+        stride += 1;
+    }
 }
 
 /// One slider's settings, in days.
@@ -61,6 +118,10 @@ pub enum Slider {
     Fixed(f64),
     /// These settings only, in order: a phasing leg's meetings (PLNR-40).
     Positions(Vec<f64>),
+    /// The Depart slider (PLNR-21, PLNR-23): Soonest, the moment the
+    /// planner last solved it, then each whole day after it up to `end`
+    /// whose day number is a multiple of `step` days.
+    Days { soonest: f64, end: f64, step: f64 },
 }
 
 impl Slider {
@@ -77,24 +138,25 @@ impl Slider {
             },
             Slider::Fixed(value) => vec![*value],
             Slider::Positions(positions) => positions.clone(),
+            Slider::Days { soonest, end, step } => {
+                let stride = column_stride(end - soonest, *step, count);
+                let mut columns = vec![*soonest];
+                columns.extend(whole_days(*soonest, *end, step * f64::from(stride)));
+                columns
+            }
         }
     }
 
     /// The gap between neighbouring samples of a range sampled `count`
-    /// times (PLNR-86); zero for a slider that isn't a range.
+    /// times, or between the Depart slider's columns (PLNR-86); zero for
+    /// a slider that is neither.
     pub fn spacing(&self, count: usize) -> f64 {
         match self {
             Slider::Range { start, end } if count > 1 => (end - start) / (count - 1) as f64,
+            Slider::Days { soonest, end, step } => {
+                step * f64::from(column_stride(end - soonest, *step, count))
+            }
             _ => 0.0,
-        }
-    }
-
-    /// PLNR-23: the step a range moves in; `None` for a slider that isn't
-    /// a range.
-    pub fn step(&self, max_steps: u32) -> Option<f64> {
-        match self {
-            Slider::Range { start, end } => Some(slider_step_days(end - start, max_steps)),
-            _ => None,
         }
     }
 
@@ -117,6 +179,11 @@ impl Slider {
             }
             Slider::Fixed(value) => vec![*value],
             Slider::Positions(positions) => positions.clone(),
+            Slider::Days { soonest, end, step } => {
+                let mut settings = vec![*soonest];
+                settings.extend(whole_days(*soonest, *end, *step));
+                settings
+            }
         }
     }
 
@@ -156,6 +223,13 @@ pub struct Sliders {
     pub windows: bool,
 }
 
+impl Sliders {
+    /// PLNR-40: a phasing leg's travel times are its meetings.
+    pub fn phasing(&self) -> bool {
+        matches!(self.travel, Slider::Positions(_))
+    }
+}
+
 /// One end of a crossing as an orbit round the crossing's primary: its
 /// radius, and its period if it goes round at a steady rate with a phase
 /// of its own.
@@ -165,13 +239,49 @@ pub struct EndOrbit {
     /// `None` for a coasting ship, and for a whole ring of the primary,
     /// which any point of will do, so it has no phase to line up.
     pub period_days: Option<f64>,
+    /// Whether the end is in a band of the primary itself (BAND-01): a
+    /// ship or station in one, or the whole band.
+    pub in_band: bool,
 }
 
-/// PLNR-80: the Depart range, from `today`. For an impulsive drive whose
-/// two ends go round the primary with different periods it runs one
-/// window-to-window time, plus `depart_margin_fraction` of it, so the
-/// next window is always on the slider; otherwise `depart_range_days`.
-/// The flag says which it is (PLNR-85).
+impl EndOrbit {
+    /// A whole band of the primary: any point of it will do.
+    fn whole_band(&self) -> bool {
+        self.in_band && self.period_days.is_none()
+    }
+}
+
+/// The window-to-window time of two ends that go round the primary with
+/// different periods: 1 ÷ abs(1 ÷ P_a − 1 ÷ P_b), in days (PLNR-80,
+/// PHAS-16). `None` when either has no period, or the periods are equal.
+pub fn window_interval_days(from: EndOrbit, to: EndOrbit) -> Option<f64> {
+    match (from.period_days, to.period_days) {
+        (Some(a), Some(b)) if (a - b).abs() > EQUAL_PERIOD_FRACTION * a.max(b) => {
+            Some(synodic_period(a, b)).filter(|days| days.is_finite() && *days > 0.0)
+        }
+        _ => None,
+    }
+}
+
+/// PHAS-16: the window interval of a leg that leaves for its window
+/// rather than at once: an impulsive drive leaving a band of the primary
+/// (a ship or station in one) for a target with a position of its own
+/// round it, whose windows come round in under a day. `None` for any
+/// other leg. A phasing leg never reaches here: it is not a crossing.
+pub fn window_wait_interval(impulsive: bool, from: EndOrbit, to: EndOrbit) -> Option<f64> {
+    if !(impulsive && from.in_band) {
+        return None;
+    }
+    window_interval_days(from, to).filter(|days| *days < WINDOW_WAIT_UNDER_DAYS)
+}
+
+/// PLNR-80 / PLNR-23: the Depart slider, from Soonest at `today`. For an
+/// impulsive drive whose two ends go round the primary with different
+/// periods it runs one window-to-window time, plus
+/// `depart_margin_fraction` of it, so the next window is always on the
+/// slider; otherwise, and for windows that come round more than once a
+/// day (PHAS-16), `depart_range_days`. The flag says whether it holds a
+/// window (PLNR-85).
 pub fn depart_range(
     today: f64,
     impulsive: bool,
@@ -179,23 +289,23 @@ pub fn depart_range(
     to: EndOrbit,
     tunables: &SimTunables,
 ) -> (Slider, bool) {
-    let synodic = match (impulsive, from.period_days, to.period_days) {
-        (true, Some(a), Some(b)) if (a - b).abs() > EQUAL_PERIOD_FRACTION * a.max(b) => {
-            Some(synodic_period(a, b)).filter(|days| days.is_finite() && *days > 0.0)
-        }
-        _ => None,
-    };
-    let span = match synodic {
+    let window =
+        window_interval_days(from, to).filter(|days| impulsive && *days >= WINDOW_WAIT_UNDER_DAYS);
+    let span = match window {
         Some(days) => (1.0 + tunables.depart_margin_fraction) * days,
         None => tunables.depart_range_days,
     };
-    (
-        Slider::Range {
-            start: today,
-            end: today + span,
-        },
-        synodic.is_some(),
-    )
+    (days_slider(today, span, tunables), window.is_some())
+}
+
+/// PLNR-23 / PLNR-40: the Depart slider over `span_days` from Soonest at
+/// `today`, in its whole-day step.
+pub fn days_slider(today: f64, span_days: f64, tunables: &SimTunables) -> Slider {
+    Slider::Days {
+        soonest: today,
+        end: today + span_days,
+        step: depart_step_days(span_days, tunables.slider_max_steps),
+    }
 }
 
 /// PLNR-81: half the period of the ellipse that touches circles of
@@ -209,11 +319,18 @@ pub fn least_fuel_travel_days(mu: f64, from_km: f64, to_km: f64) -> f64 {
 
 /// PLNR-81: the Travel range of an impulsive drive, from
 /// `travel_min_factor` to `travel_max_factor` times the least-fuel travel
-/// time between the two ends' radii.
+/// time between the two ends' radii. From a band of the primary to a
+/// whole band of it the range starts at the least-fuel time itself: a
+/// quicker crossing dips under the Low band (XFER-07).
 pub fn travel_range(mu: f64, from: EndOrbit, to: EndOrbit, tunables: &SimTunables) -> Slider {
     let least_fuel = least_fuel_travel_days(mu, from.radius_km, to.radius_km);
+    let start = if from.in_band && to.whole_band() {
+        least_fuel
+    } else {
+        tunables.travel_min_factor * least_fuel
+    };
     Slider::Range {
-        start: tunables.travel_min_factor * least_fuel,
+        start,
         end: tunables.travel_max_factor * least_fuel,
     }
 }
@@ -254,29 +371,39 @@ pub fn crossing_orbits(
 }
 
 /// One end as an orbit round `primary` on `today`.
-fn end_orbit(tree: &SystemTree, primary: Entity, end: &End, today: f64) -> Option<EndOrbit> {
+pub(super) fn end_orbit(
+    tree: &SystemTree,
+    primary: Entity,
+    end: &End,
+    today: f64,
+) -> Option<EndOrbit> {
     if let Some(child) = tree.child_below(primary, end.at) {
         let orbit = tree.bodies.get(&child)?.orbit?;
         return Some(EndOrbit {
             radius_km: orbit.radius_km,
             period_days: Some(orbit.period_days),
+            in_band: false,
         });
     }
     if end.at != primary {
         return None;
     }
+    let in_band = end.band.is_some();
     Some(match end.own {
         Own::Circular(orbit) => EndOrbit {
             radius_km: orbit.radius_km,
             period_days: Some(orbit.period_days),
+            in_band,
         },
         Own::Ring(node) => EndOrbit {
             radius_km: node.radius_km,
             period_days: None,
+            in_band,
         },
         Own::Conic(conic) => EndOrbit {
             radius_km: conic.state_at(today).radius(),
             period_days: None,
+            in_band: false,
         },
     })
 }
@@ -317,7 +444,7 @@ mod tests {
             start: 10.0,
             end: 12.5,
         };
-        let step = slider.step(400).unwrap();
+        let step = slider_step_days(2.5, 400);
         assert_eq!(step, 10.0 / 1440.0);
         let settings = slider.settings(400);
         assert_eq!(settings.first(), Some(&10.0));
@@ -356,44 +483,134 @@ mod tests {
         assert_eq!(meetings.samples(36), vec![1.0, 3.0, 5.0]);
     }
 
-    /// PLNR-80: two orbits of different periods give a Depart range of
-    /// one window-to-window time and a tenth; a low-thrust drive, a coast
-    /// or a ring with no phase, and equal periods give 180 days.
+    fn orbit(radius_km: f64, period_days: Option<f64>, in_band: bool) -> EndOrbit {
+        EndOrbit {
+            radius_km,
+            period_days,
+            in_band,
+        }
+    }
+
+    /// PLNR-80 / PLNR-21: two orbits of different periods give a Depart
+    /// range from Soonest of one window-to-window time and a tenth; a
+    /// low-thrust drive, a coast or a whole band with no phase, equal
+    /// periods, and windows that come round more than once a day
+    /// (PHAS-16) give 180 days, with no window.
     #[test]
     fn the_depart_range_holds_the_next_window() {
         let t = tunables();
-        let a = EndOrbit {
-            radius_km: 1.0,
-            period_days: Some(365.25),
-        };
-        let b = EndOrbit {
-            radius_km: 2.0,
-            period_days: Some(687.0),
-        };
-        let (range, windows) = depart_range(100.0, true, a, b, &t);
+        let a = orbit(1.0, Some(365.25), false);
+        let b = orbit(2.0, Some(687.0), false);
+        let (range, windows) = depart_range(100.3, true, a, b, &t);
         let synodic = synodic_period(365.25, 687.0);
         assert!(windows);
+        let span = 1.1 * synodic;
         assert_eq!(
             range,
-            Slider::Range {
-                start: 100.0,
-                end: 100.0 + 1.1 * synodic
-            }
+            Slider::Days {
+                soonest: 100.3,
+                end: 100.3 + span,
+                step: 5.0,
+            },
+            "{span} days in at most 400 steps: 5-day steps"
         );
-        let fixed = Slider::Range {
-            start: 100.0,
-            end: 280.0,
+        let fixed = Slider::Days {
+            soonest: 100.3,
+            end: 280.3,
+            step: 1.0,
         };
-        assert_eq!(depart_range(100.0, false, a, b, &t), (fixed.clone(), false));
-        let coast = EndOrbit {
-            period_days: None,
-            ..b
-        };
+        assert_eq!(depart_range(100.3, false, a, b, &t), (fixed.clone(), false));
+        let whole_band = orbit(2.0, None, true);
         assert_eq!(
-            depart_range(100.0, true, a, coast, &t),
+            depart_range(100.3, true, a, whole_band, &t),
             (fixed.clone(), false)
         );
-        assert_eq!(depart_range(100.0, true, a, a, &t), (fixed, false));
+        assert_eq!(depart_range(100.3, true, a, a, &t), (fixed.clone(), false));
+        let low = orbit(1.0, Some(0.07), true);
+        let station = orbit(2.0, Some(1.95), true);
+        assert!(window_interval_days(low, station).unwrap() < 1.0);
+        assert_eq!(depart_range(100.3, true, low, station, &t), (fixed, false));
+    }
+
+    /// PLNR-23 / PLNR-24: the Depart slider's positions are Soonest and
+    /// every whole day after it whose day number is a multiple of the
+    /// step, so a position keeps its day as Soonest moves on; the step is
+    /// the smallest of 1, 5 and 30 days that keeps within 400 steps.
+    #[test]
+    fn depart_positions_are_soonest_and_whole_days() {
+        assert_eq!(depart_step_days(180.0, 400), 1.0);
+        assert_eq!(depart_step_days(401.0, 400), 5.0);
+        assert_eq!(depart_step_days(1e5, 400), 30.0);
+        let slider = Slider::Days {
+            soonest: 10.4,
+            end: 30.4,
+            step: 5.0,
+        };
+        assert_eq!(slider.settings(400), vec![10.4, 15.0, 20.0, 25.0, 30.0]);
+        let later = Slider::Days {
+            soonest: 15.0,
+            end: 35.0,
+            step: 5.0,
+        };
+        assert_eq!(later.settings(400), vec![15.0, 20.0, 25.0, 30.0, 35.0]);
+        assert_eq!(slider.snap(12.0, 400), 10.4);
+        assert_eq!(slider.snap(13.0, 400), 15.0);
+    }
+
+    /// PLNR-82: the grid's depart columns are Soonest and the positions
+    /// thinned to every nth, n the least that keeps within 60 columns,
+    /// counted from day 0: 180 daily positions give every 4th day, and a
+    /// column keeps its day a day later.
+    #[test]
+    fn depart_columns_are_thinned_by_day_number() {
+        assert_eq!(column_stride(180.0, 1.0, 60), 4);
+        assert_eq!(column_stride(30.0, 1.0, 60), 1);
+        let today = Slider::Days {
+            soonest: 10.4,
+            end: 190.4,
+            step: 1.0,
+        };
+        let columns = today.samples(60);
+        assert!(columns.len() <= 60, "{}", columns.len());
+        assert_eq!(&columns[..3], &[10.4, 12.0, 16.0]);
+        assert_eq!(*columns.last().unwrap(), 188.0);
+        assert!(columns[1..].iter().all(|day| day % 4.0 == 0.0));
+        assert_eq!(today.spacing(60), 4.0);
+        let tomorrow = Slider::Days {
+            soonest: 11.4,
+            end: 191.4,
+            step: 1.0,
+        };
+        assert_eq!(&tomorrow.samples(60)[1..], &columns[1..]);
+        let small = Slider::Days {
+            soonest: 0.5,
+            end: 5.5,
+            step: 1.0,
+        };
+        assert_eq!(small.samples(60), vec![0.5, 1.0, 2.0, 3.0, 4.0, 5.0]);
+    }
+
+    /// PHAS-16: a leg waits for its window when an impulsive drive leaves
+    /// a band of the primary for something with a position of its own,
+    /// and the window comes round more than once a day; not from a
+    /// planet's orbit, not for a whole band, not for a low-thrust drive,
+    /// and not when the window comes round more slowly.
+    #[test]
+    fn only_a_band_leg_with_sub_day_windows_waits_for_its_window() {
+        let high = orbit(57_530.0, Some(1.95), true);
+        let station = orbit(6_253.0, Some(0.0696), true);
+        let interval = window_wait_interval(true, high, station).unwrap();
+        assert!((interval - synodic_period(1.95, 0.0696)).abs() < 1e-12);
+        assert!(interval < 0.08);
+        assert_eq!(window_wait_interval(false, high, station), None);
+        let planet = orbit(57_530.0, Some(1.95), false);
+        assert_eq!(window_wait_interval(true, planet, station), None);
+        assert_eq!(
+            window_wait_interval(true, high, orbit(6_253.0, None, true)),
+            None
+        );
+        let moon = orbit(400_000.0, Some(30.0), false);
+        assert_eq!(window_wait_interval(true, high, moon), None, "2.1 days");
     }
 
     /// PLNR-81: the Travel range runs from 0.3 to 2 times the least-fuel
@@ -409,10 +626,7 @@ mod tests {
         within(days, 111.0, 0.03, "least-fuel travel");
         let reference = hohmann(mu, inner.radius_km, capital.radius_km).days;
         assert!((days - reference).abs() < 1e-9);
-        let end = |radius_km| EndOrbit {
-            radius_km,
-            period_days: None,
-        };
+        let end = |radius_km| orbit(radius_km, Some(1.0), false);
         let range = travel_range(
             mu,
             end(inner.radius_km),
@@ -426,6 +640,35 @@ mod tests {
                 end: 2.0 * days
             }
         );
+    }
+
+    /// PLNR-81: from a band of the primary to a whole band of it the
+    /// Travel range starts at the least-fuel time; to a station in the
+    /// band it starts at 0.3 times it, as elsewhere.
+    #[test]
+    fn band_to_band_travel_starts_at_the_least_fuel_time() {
+        let l = layout();
+        let from = l.parked(l.capital, Band::High);
+        let t = tunables();
+        let low_band = Place::Body {
+            body: l.capital,
+            band: Band::Low,
+        };
+        let ends = crossing_orbits(&l.tree, &from, low_band, 10.0, 0.0).unwrap();
+        let least = least_fuel_travel_days(ends.mu, ends.from.radius_km, ends.to.radius_km);
+        assert_eq!(
+            travel_range(ends.mu, ends.from, ends.to, &t),
+            Slider::Range {
+                start: least,
+                end: 2.0 * least
+            }
+        );
+        let station = Place::Station { station: l.station };
+        let ends = crossing_orbits(&l.tree, &from, station, 10.0, 0.0).unwrap();
+        let Slider::Range { start, .. } = travel_range(ends.mu, ends.from, ends.to, &t) else {
+            panic!("a range");
+        };
+        assert!((start - 0.3 * least).abs() < 1e-9);
     }
 
     /// XFER-01 / PLNR-80: from the capital's High band to the inner

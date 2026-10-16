@@ -57,7 +57,7 @@ use super::camera::rules::clamp_tilt;
 use super::camera::state::{ActiveMove, CameraRig, MAX_DISTANCE, MIN_DISTANCE};
 use super::inset::content::is_commanded_ship;
 use super::inset::inspect::{OrderableShip, may_take_order};
-use super::planner::input::order_to_schedule;
+use super::planner::input::{order_to_schedule, schedule_order};
 use super::planner::model::blocking_reason;
 use super::planner::state::{PickTarget, PlannerState};
 use super::planner::words::reason;
@@ -403,7 +403,12 @@ fn fly_order(
 ) {
     match shot.phase {
         ShotPhase::Scheduling => {
-            if let Some((ship, order, _)) = order_to_schedule(&planner) {
+            // Once the planner has an order, Schedule is pressed: at
+            // Soonest it is solved again from the clock (PLNR-50).
+            let now = clock.elapsed_days();
+            if order_to_schedule(&planner).is_some()
+                && let Some((ship, order, _)) = schedule_order(&mut planner, now)
+            {
                 orders.write(ShipOrder::Transfer { ship, order });
                 planner.end();
                 shot.phase = ShotPhase::Flying;

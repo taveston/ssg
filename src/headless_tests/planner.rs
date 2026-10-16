@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use bevy::input::mouse::AccumulatedMouseScroll;
 
 use super::*;
+use crate::sim::transfer::grid::Setting;
 use crate::view::buttons::ConsoleButton;
 use crate::view::camera::requests::PlanetaryViewRequest;
 use crate::view::inset::fidelity::FidelityImages;
@@ -390,95 +391,205 @@ fn the_band_choice_and_arrival_mode_retune_the_leg() {
     );
 }
 
-/// PLNR-23 / PLNR-24 / PLNR-87: a focused slider takes Left and Right a
-/// step at a time, ten with Shift. Moving it solves the leg but doesn't
-/// search again; the Travel time track follows the depart day. The
-/// search is redone once the day changes, and a depart day in the past
-/// moves to today.
+/// The search's snapshot.
+fn context(app: &App) -> &crate::sim::transfer::search::SearchContext {
+    session(app)
+        .found
+        .as_ref()
+        .and_then(|found| found.context.as_ref())
+        .expect("a search")
+}
+
+/// Whether the solver accepts `setting` for the open planner's request.
+fn accepted(app: &App, setting: Setting) -> bool {
+    context(app)
+        .solve(session(app).request.unwrap(), setting)
+        .is_ok()
+}
+
+/// Whether the preset button labelled `label` is drawn selected.
+fn preset_selected(app: &mut App, label: &str) -> bool {
+    let preset = button(app, label).expect("the preset");
+    app.world().get::<ConsoleButton>(preset).unwrap().selected
+}
+
+/// PLNR-23 / PLNR-29 / PLNR-33 / PLNR-87: a focused slider takes Left and
+/// Right a step at a time, ten with Shift, and never comes to rest on a
+/// setting the solver rejects; a press on a rejected stretch of the
+/// Travel time track lands on an accepted setting. Moving a slider solves
+/// the leg but doesn't search again, and the Travel time track follows
+/// the depart day. The preset the sliders start on is drawn selected
+/// until a slider moves off it.
 #[test]
-fn sliders_move_in_steps_and_the_search_waits_for_the_day() {
+fn sliders_step_and_never_rest_on_a_rejected_setting() {
     use crate::sim::transfer::ranges::Slider;
     let mut app = planner_app();
     plan_to_halden_iva(&mut app);
-    let searched_on = session(&app)
-        .found
-        .as_ref()
-        .unwrap()
-        .context
-        .as_ref()
-        .unwrap()
-        .today;
-    let (Slider::Range { start, end }, before) = (
-        session(&app).search().unwrap().sliders.travel.clone(),
-        session(&app).setting.unwrap(),
-    ) else {
+    assert!(preset_selected(&mut app, "Fastest"));
+    let searched = session(&app).found.as_ref().unwrap().key;
+    let Slider::Range { start, end } = session(&app).search().unwrap().sliders.travel.clone()
+    else {
         panic!("a travel range");
     };
     let step = crate::sim::transfer::ranges::slider_step_days(end - start, 400);
+    let before = session(&app).setting.unwrap();
 
     app.world_mut().resource_mut::<PlannerState>().slider_focus = Some(SliderKind::Travel);
     press(&mut app, &[KeyCode::ArrowRight]);
     settle(&mut app);
     let after = session(&app).setting.unwrap();
-    assert!((after.travel_days - before.travel_days - step).abs() < 1e-9);
+    assert!(after.travel_days >= before.travel_days + step - 1e-9);
+    assert!(accepted(&app, after));
+    let one_on = Setting {
+        travel_days: before.travel_days + step,
+        ..before
+    };
+    if accepted(&app, one_on) {
+        assert!((after.travel_days - one_on.travel_days).abs() < 1e-9);
+    }
+    assert!(
+        !preset_selected(&mut app, "Fastest"),
+        "moved off the preset"
+    );
     press(&mut app, &[KeyCode::ShiftLeft, KeyCode::ArrowRight]);
     settle(&mut app);
-    let back = session(&app).setting.unwrap();
-    assert!((back.travel_days - after.travel_days - 10.0 * step).abs() < 1e-9);
-    assert_eq!(session(&app).solved_for, Some(back), "the leg is solved");
-    let found = session(&app).found.as_ref().unwrap();
-    assert_eq!(
-        found.context.as_ref().unwrap().today,
-        searched_on,
-        "no new search"
+    let ten_on = session(&app).setting.unwrap();
+    assert!(ten_on.travel_days >= after.travel_days + 10.0 * step - 1e-9);
+    assert!(accepted(&app, ten_on));
+    assert_eq!(session(&app).solved_for, Some(ten_on), "the leg is solved");
+
+    // A press in the middle of a rejected stretch of the Travel time
+    // track.
+    let track = session(&app).travel_track.clone();
+    let rejected = track
+        .iter()
+        .find(|sample| sample.result.is_err())
+        .expect("Halden IVa has rejected travel times")
+        .setting;
+    let fraction = ((rejected.travel_days - start) / (end - start)) as f32;
+    crate::view::planner::input::slide(
+        &mut app.world_mut().resource_mut::<PlannerState>(),
+        SliderKind::Travel,
+        fraction,
     );
+    settle(&mut app);
+    let landed = session(&app).setting.unwrap();
+    assert_ne!(landed.travel_days, rejected.travel_days);
+    assert!(accepted(&app, landed), "{landed:?}");
+    assert!(session(&app).solved_leg().is_some());
 
     app.world_mut().resource_mut::<PlannerState>().slider_focus = Some(SliderKind::Depart);
     press(&mut app, &[KeyCode::ArrowRight]);
     settle(&mut app);
     let moved = session(&app).setting.unwrap();
-    assert!(moved.depart_day > back.depart_day);
+    assert_eq!(moved.depart_day, 1.0, "the next whole day");
+    assert!(accepted(&app, moved));
     assert_eq!(session(&app).travel_track_day, Some(moved.depart_day));
-
-    // Back to today, then let the clock run: the depart day keeps up.
-    crate::view::planner::input::step(
-        &mut app.world_mut().resource_mut::<PlannerState>(),
-        SliderKind::Depart,
-        -1,
-    );
-    settle(&mut app);
-    app.world_mut().resource_mut::<GameClock>().run_at(0.5);
-    run(&mut app, 10);
-    pause(&mut app);
-    run(&mut app, 2);
-    let today = day(&app);
-    assert!(today > searched_on);
-    assert!((session(&app).setting.unwrap().depart_day - today).abs() < 1e-9);
     assert_eq!(
-        session(&app)
-            .found
-            .as_ref()
-            .unwrap()
-            .context
-            .as_ref()
-            .unwrap()
-            .today,
-        searched_on,
-        "still the same day"
+        session(&app).found.as_ref().unwrap().key,
+        searched,
+        "no new search"
     );
-    app.world_mut().resource_mut::<GameClock>().run_at(5.0);
-    run(&mut app, 15);
+}
+
+/// PLNR-21 / PLNR-24 / PLNR-87: a depart day is a whole day, so as the
+/// clock runs a Depart position keeps its day: the search is not made
+/// again, Soonest moves on to the clock, and the grid keeps the columns
+/// it had for the days still to come. Once the clock reaches the thumb's
+/// day, the thumb moves to Soonest and the travel time stays.
+#[test]
+fn positions_keep_their_day_as_the_clock_runs() {
+    let mut app = planner_app();
+    let orison = body(&mut app, "Orison");
+    let iver = body(&mut app, "Iver");
+    select(&mut app, orison);
+    app.world_mut().resource_mut::<PlannerState>().open(orison);
+    run(&mut app, 1);
+    app.world_mut()
+        .resource_mut::<PlannerState>()
+        .pick(PickTarget::Body(iver));
+    settle(&mut app);
+    // Back to Soonest, then on to day 3.
+    for steps in [-1000, 3] {
+        crate::view::planner::input::step(
+            &mut app.world_mut().resource_mut::<PlannerState>(),
+            SliderKind::Depart,
+            steps,
+        );
+        settle(&mut app);
+    }
+    let setting = session(&app).setting.unwrap();
+    assert_eq!(setting.depart_day, 3.0);
+    let key = session(&app).found.as_ref().unwrap().key;
+    let grid = session(&app).search().unwrap().grid.clone();
+    assert!(day(&app) < 1.0);
+
+    run_until(&mut app, 1.0, 1.5);
     pause(&mut app);
     run(&mut app, 2);
-    let searched_again = session(&app)
-        .found
-        .as_ref()
-        .unwrap()
-        .context
-        .as_ref()
-        .unwrap()
-        .today;
-    assert!(searched_again.floor() > searched_on.floor(), "a new day");
+    let now = day(&app);
+    let search = session(&app).search().unwrap().clone();
+    assert_eq!(
+        session(&app).found.as_ref().unwrap().key,
+        key,
+        "no new search"
+    );
+    assert_eq!(
+        session(&app).setting.unwrap(),
+        setting,
+        "the thumb keeps its day"
+    );
+    assert!(search.soonest() >= 1.0 && search.soonest() <= now);
+    assert_eq!(context(&app).today, search.soonest());
+    let days = search.grid.depart_days();
+    assert!(
+        !days.contains(&grid.depart_days()[0]),
+        "the old Soonest left"
+    );
+    for day in days.iter().skip(1).filter(|d| grid.column(**d).is_some()) {
+        assert_eq!(
+            search.grid.column(*day),
+            grid.column(*day),
+            "day {day} kept"
+        );
+    }
+    let positions = search.sliders.depart.settings(400);
+    assert!(positions.contains(&3.0));
+    assert!(!positions.contains(&1.0), "day 1 has come");
+
+    run_until(&mut app, 1.0, 3.2);
+    pause(&mut app);
+    run(&mut app, 2);
+    let moved = session(&app).setting.unwrap();
+    let soonest = session(&app).search().unwrap().soonest();
+    assert!(soonest >= 3.0);
+    assert_eq!(moved.depart_day, soonest, "to Soonest");
+    assert_eq!(
+        moved.travel_days, setting.travel_days,
+        "the travel time stays"
+    );
+}
+
+/// PLNR-50: Schedule at Soonest solves the order again from the clock,
+/// so it departs the moment Schedule is pressed, not when the planner
+/// last solved Soonest.
+#[test]
+fn schedule_from_soonest_solves_from_the_clock() {
+    let mut app = planner_app();
+    let (orison, _) = plan_to_halden_iva(&mut app);
+    let soonest = session(&app).search().unwrap().soonest();
+    assert_eq!(session(&app).setting.unwrap().depart_day, soonest);
+    run_until(&mut app, 0.05, soonest + 0.2);
+    pause(&mut app);
+    run(&mut app, 1);
+    let pressed = day(&app);
+    assert!(pressed.floor() == soonest.floor() && pressed > soonest + 0.1);
+    let schedule = button(&mut app, "Schedule").expect("Schedule");
+    click_node(&mut app, schedule, 1);
+    settle(&mut app);
+    assert!(!planner(&app).is_open());
+    let leg = plan(&app, orison).leg();
+    assert_eq!(leg.depart_day, pressed);
 }
 
 /// PLNR-27 / PLNR-31: a Rendezvous at Iver is over Orison's budget, so
@@ -609,7 +720,8 @@ fn an_order_that_departs_while_changed_closes_the_planner() {
 }
 
 /// PLNR-40 / PLNR-41 / PLNR-42: Ardent shares Orison's band, so it is met
-/// by a phasing leg: it departs now, its travel time counts laps, there
+/// by a phasing leg: it leaves today at Soonest, its travel time counts
+/// laps, there
 /// is no Rendezvous / Intercept choice and only Fastest and Cheapest, and
 /// a Gap line says how far it is. Orison's own band is already reached.
 #[test]
@@ -625,8 +737,10 @@ fn a_target_in_the_ships_own_orbit_is_met_by_phasing() {
         .pick(PickTarget::Body(ardent));
     settle(&mut app);
     let texts = fields(&mut app);
-    assert_eq!(texts[&Field::DepartLabel], "Departs");
-    assert_eq!(texts[&Field::DepartValue], "now");
+    assert_eq!(texts[&Field::DepartLabel], "Depart");
+    assert_eq!(texts[&Field::DepartValue], "today");
+    let soonest = session(&app).search().unwrap().soonest();
+    assert_eq!(session(&app).setting.unwrap().depart_day, soonest);
     assert!(
         texts[&Field::TravelValue].contains(" lap"),
         "{}",
@@ -718,4 +832,60 @@ fn tooltips_show_after_the_delay() {
         run(&mut app, 2);
         assert_eq!(tooltip_box(&mut app).0, Display::None);
     }
+}
+
+/// PLNR-35 / PLNR-92: resting the pointer on a rejected stretch of the
+/// Travel time track shows, after `tooltip_delay_ms`, the solver's reason
+/// there as a sentence; on an accepted stretch it shows nothing.
+#[test]
+fn a_rejected_stretch_of_a_track_says_why() {
+    use crate::view::planner::panel::Track;
+    use crate::view::planner::tooltip::Stretches;
+    use bevy::picking::backend::HitData;
+    use bevy::picking::hover::HoverMap;
+    use bevy::picking::pointer::PointerId;
+
+    let mut app = planner_app();
+    plan_to_halden_iva(&mut app);
+    run(&mut app, 2);
+    let mut tracks = app.world_mut().query::<(Entity, &Track, &Stretches)>();
+    let (track, stretch) = tracks
+        .iter(app.world())
+        .find(|(_, t, _)| t.0 == SliderKind::Travel)
+        .map(|(e, _, s)| (e, s.0.first().cloned().expect("a rejected stretch")))
+        .unwrap();
+    assert_eq!(stretch.text, "Path passes too close to Halden IV");
+    let camera = app.world_mut().spawn_empty().id();
+    let hover_at = |app: &mut App, fraction: f32| {
+        let at = Vec3::new(fraction - 0.5, 0.0, 0.0);
+        let mut map = HoverMap::default();
+        map.0.insert(
+            PointerId::Mouse,
+            [(track, HitData::new(camera, 0.0, Some(at), None))]
+                .into_iter()
+                .collect(),
+        );
+        app.insert_resource(map);
+    };
+    let tooltip_box = |app: &mut App| {
+        let mut boxes = app
+            .world_mut()
+            .query_filtered::<(&Node, &Children), With<TooltipBox>>();
+        let (node, children) = boxes.single(app.world()).unwrap();
+        let text = app.world().get::<Text>(children[0]).unwrap().0.clone();
+        (node.display, text)
+    };
+    hover_at(&mut app, (stretch.from + stretch.to) / 2.0);
+    run(&mut app, 12);
+    assert_eq!(tooltip_box(&mut app).0, Display::None, "not yet");
+    run(&mut app, 20);
+    assert_eq!(tooltip_box(&mut app), (Display::Flex, stretch.text.clone()));
+    let thumb = session(&app).setting.unwrap().travel_days;
+    let search = session(&app).search().unwrap();
+    let crate::sim::transfer::ranges::Slider::Range { start, end } = search.sliders.travel else {
+        panic!("a travel range");
+    };
+    hover_at(&mut app, ((thumb - start) / (end - start)) as f32);
+    run(&mut app, 32);
+    assert_eq!(tooltip_box(&mut app).0, Display::None, "accepted there");
 }

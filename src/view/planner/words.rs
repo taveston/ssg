@@ -23,12 +23,13 @@ pub const CHOOSE_PROMPT: &str =
     "Choose a destination: click a place on the map or in the list below";
 /// The Depart slider's label (PLNR-21).
 pub const DEPART: &str = "Depart";
-/// The leave row of a phasing leg and of an order (PLNR-40, PLNR-51).
+/// The leave row of an order (PLNR-51).
 pub const DEPARTS: &str = "Departs";
 /// An order's leave row once its leave day has passed (PLNR-51).
 pub const DEPARTED: &str = "Departed";
-/// The leave readout when the ship leaves today (PLNR-21, PLNR-40).
-pub const NOW: &str = "now";
+/// The leave readout when the ship leaves within the current game day
+/// (PLNR-21, PLNR-51).
+pub const TODAY: &str = "today";
 /// The Travel time slider's label (PLNR-22).
 pub const TRAVEL_TIME: &str = "Travel time";
 /// The line under a low-thrust drive's fixed travel time (PLNR-22).
@@ -63,10 +64,6 @@ pub const DEPARTED_WHILE_CHANGING: &str = "Departed while you were changing it";
 /// The line when an order fails while it is being changed (PLNR-53).
 pub const ORDER_FAILED: &str = "The order failed";
 
-/// A leave day this close to now, in days, reads as now: it is under the
-/// half minute a duration would round away (UNIT-02).
-const NOW_DAYS: f64 = 0.5 / 1440.0;
-
 /// PLNR-93 / CLK-02: a day as the top bar shows it: "07 Mar 2341".
 pub fn date(day: f64) -> String {
     format_date(&date_from_elapsed_days(day))
@@ -82,11 +79,11 @@ pub fn dated(day: f64, today: f64) -> String {
     )
 }
 
-/// PLNR-21: the leave readout: "now" when the ship leaves today, else its
-/// date and how long until it.
+/// PLNR-21: the leave readout: "today" when the ship leaves within the
+/// current game day, else its date and how long until it.
 pub fn leave_readout(leave_day: f64, today: f64) -> String {
-    if leave_day - today < NOW_DAYS {
-        NOW.to_string()
+    if leave_day < today.floor() + 1.0 {
+        TODAY.to_string()
     } else {
         dated(leave_day, today)
     }
@@ -414,7 +411,7 @@ mod tests {
             DEPART,
             DEPARTS,
             DEPARTED,
-            NOW,
+            TODAY,
             TRAVEL_TIME,
             TRAVEL_FIXED,
             DELTA_V,
@@ -526,13 +523,15 @@ mod tests {
     }
 
     /// PLNR-93: dates read as the top bar's, durations as UNIT-02, speeds
-    /// as UNIT-04 and distances as UNIT-01; a leave day of today is now.
+    /// as UNIT-04 and distances as UNIT-01; a leave day within the current
+    /// game day is today.
     #[test]
     fn figures_read_as_everywhere_else() {
         assert_eq!(date(0.0), "14 Mar 2341");
         assert_eq!(dated(3.0, 0.5), "17 Mar 2341 (in 2.5 d)");
-        assert_eq!(leave_readout(10.0, 10.0), NOW);
-        assert_eq!(leave_readout(10.25, 10.0), "24 Mar 2341 (in 6.0 h)");
+        assert_eq!(leave_readout(10.0, 10.0), TODAY);
+        assert_eq!(leave_readout(10.95, 10.2), TODAY);
+        assert_eq!(leave_readout(11.5, 10.0), "25 Mar 2341 (in 1.5 d)");
         assert_eq!(delta_v_readout(3.24, 9.9), "3.2 of 9.9 km/s");
         assert_eq!(delta_v_readout(0.29, 9.9), "0.29 of 9.9 km/s");
         assert_eq!(gap_line(12_000.0, true, 0.1), "Gap 12,000 km ahead");

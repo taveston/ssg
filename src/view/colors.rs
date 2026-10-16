@@ -81,3 +81,15 @@ pub fn symbol_color(affiliation: Affiliation) -> Color {
         Affiliation::Unknown => UNKNOWN,
     }
 }
+
+/// `a` mixed with `b` at `m` (0 is all `a`, 1 all `b`), in sRGB.
+pub fn mix(a: Color, b: Color, m: f32) -> Color {
+    let (a, b) = (a.to_srgba(), b.to_srgba());
+    let lerp = |x: f32, y: f32| x + (y - x) * m;
+    Color::srgba(
+        lerp(a.red, b.red),
+        lerp(a.green, b.green),
+        lerp(a.blue, b.blue),
+        lerp(a.alpha, b.alpha),
+    )
+}

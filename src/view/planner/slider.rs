@@ -1,17 +1,20 @@
-//! The planner's sliders (PLNR-21 to PLNR-23, PLNR-28, PLNR-40): where a
-//! thumb sits on its track, what setting a point on the track or a key
-//! press gives, and the colour of each setting on the track. Plain
-//! functions (ARCH-20); `panel.rs` draws the slider and `input.rs` moves
-//! it.
+//! The planner's sliders (PLNR-21 to PLNR-23, PLNR-28, PLNR-33,
+//! PLNR-35, PLNR-40): where a thumb sits on its track, what setting a
+//! point on the track or a key press gives, where a thumb may come to
+//! rest, the colour of each setting on the track and the stretches the
+//! solver rejects. Plain functions (ARCH-20); `panel/` draws the slider
+//! and `input.rs` moves it.
 //!
-//! A range is laid out by value along the track. A phasing leg's
-//! meetings are laid out evenly, one position each, in order (PLNR-40).
+//! A range and the Depart slider's days are laid out by value along the
+//! track. A phasing leg's meetings are laid out evenly, one position
+//! each, in order (PLNR-40).
 
 use bevy::prelude::*;
 
 use crate::sim::transfer::grid::Sample;
 use crate::sim::transfer::ranges::Slider;
 use crate::view::colors;
+pub use crate::view::colors::mix;
 use crate::view::tunables::Tunables;
 
 /// PLNR-23: a slider's settings move ten steps at a time with Shift.
@@ -20,9 +23,12 @@ pub const FAST_STEPS: i32 = 10;
 /// Where along its track (0 at the start, 1 at the end) `value` sits.
 pub fn fraction_of(slider: &Slider, value: f64) -> f32 {
     match slider {
-        Slider::Range { start, end } if end > start => {
-            ((value - start) / (end - start)).clamp(0.0, 1.0) as f32
-        }
+        Slider::Range { start, end }
+        | Slider::Days {
+            soonest: start,
+            end,
+            ..
+        } if end > start => ((value - start) / (end - start)).clamp(0.0, 1.0) as f32,
         Slider::Positions(positions) if positions.len() > 1 => {
             nearest_index(positions, value) as f32 / (positions.len() - 1) as f32
         }
@@ -35,7 +41,12 @@ pub fn fraction_of(slider: &Slider, value: f64) -> f32 {
 pub fn value_at(slider: &Slider, fraction: f32, max_steps: u32) -> f64 {
     let fraction = f64::from(fraction.clamp(0.0, 1.0));
     match slider {
-        Slider::Range { start, end } => slider.snap(start + fraction * (end - start), max_steps),
+        Slider::Range { start, end }
+        | Slider::Days {
+            soonest: start,
+            end,
+            ..
+        } => slider.snap(start + fraction * (end - start), max_steps),
         Slider::Positions(positions) if !positions.is_empty() => {
             let index = (fraction * (positions.len() - 1) as f64).round() as usize;
             positions[index.min(positions.len() - 1)]
@@ -45,32 +56,63 @@ pub fn value_at(slider: &Slider, fraction: f32, max_steps: u32) -> f64 {
     }
 }
 
-/// PLNR-23: the setting `steps` steps on from `value` (back when
-/// negative), kept on the slider: whole steps of a range, or neighbouring
-/// positions.
-pub fn stepped(slider: &Slider, value: f64, steps: i32, max_steps: u32) -> f64 {
-    match slider {
-        Slider::Range { start, end } => {
-            let step = slider.step(max_steps).unwrap_or(0.0);
-            let moved = (value + step * f64::from(steps)).clamp(*start, *end);
-            slider.snap(moved, max_steps)
-        }
-        Slider::Positions(positions) if !positions.is_empty() => {
-            let index = nearest_index(positions, value) as i64 + i64::from(steps);
-            positions[index.clamp(0, positions.len() as i64 - 1) as usize]
-        }
-        Slider::Positions(_) => value,
-        Slider::Fixed(value) => *value,
-    }
-}
-
-/// The index of the position nearest `value`.
-fn nearest_index(positions: &[f64], value: f64) -> usize {
-    positions
+/// The index of the setting nearest `value`; the first on a tie.
+pub fn nearest_index(settings: &[f64], value: f64) -> usize {
+    settings
         .iter()
         .enumerate()
         .min_by(|(_, a), (_, b)| (*a - value).abs().total_cmp(&(*b - value).abs()))
         .map_or(0, |(i, _)| i)
+}
+
+/// PLNR-33: where a thumb sent to setting `index` of `count` comes to
+/// rest: there if it is accepted, else the nearest accepted setting, the
+/// earlier on a tie. `None` when no setting is accepted.
+pub fn nearest_accepted(
+    count: usize,
+    index: usize,
+    mut accepted: impl FnMut(usize) -> bool,
+) -> Option<usize> {
+    let index = index.min(count.checked_sub(1)?);
+    for distance in 0..count {
+        let below = index.checked_sub(distance);
+        let above = Some(index + distance).filter(|&i| i < count && distance > 0);
+        if below.is_none() && above.is_none() {
+            break;
+        }
+        for candidate in [below, above].into_iter().flatten() {
+            if accepted(candidate) {
+                return Some(candidate);
+            }
+        }
+    }
+    None
+}
+
+/// PLNR-33: a key step: `steps` settings on from `index` (back when
+/// negative), kept on the slider, then on in the same direction to the
+/// next accepted setting. `None` when there is none that way, so the
+/// thumb stays.
+pub fn step_accepted(
+    count: usize,
+    index: usize,
+    steps: i32,
+    mut accepted: impl FnMut(usize) -> bool,
+) -> Option<usize> {
+    let last = count.checked_sub(1)? as i64;
+    let target = (index as i64 + i64::from(steps)).clamp(0, last);
+    if target == index as i64 {
+        return None;
+    }
+    let direction = if steps < 0 { -1 } else { 1 };
+    let mut candidate = target;
+    while (0..=last).contains(&candidate) {
+        if accepted(candidate as usize) {
+            return Some(candidate as usize);
+        }
+        candidate += direction;
+    }
+    None
 }
 
 /// PLNR-28: the colour of one setting on a track. A setting the solver
@@ -102,20 +144,8 @@ pub fn track_colour(
     mix(empty, colors::OWN, dim + (1.0 - dim) * (1.0 - t))
 }
 
-/// `a` mixed with `b` at `m` (0 is all `a`, 1 all `b`), in sRGB.
-pub fn mix(a: Color, b: Color, m: f32) -> Color {
-    let (a, b) = (a.to_srgba(), b.to_srgba());
-    let lerp = |x: f32, y: f32| x + (y - x) * m;
-    Color::srgba(
-        lerp(a.red, b.red),
-        lerp(a.green, b.green),
-        lerp(a.blue, b.blue),
-        lerp(a.alpha, b.alpha),
-    )
-}
-
 /// PLNR-28: a track as colour stops, each at its fraction of the track:
-/// one per sample of `slider`, with `sample_of` giving each its result.
+/// one per sample of `slider`, with its result.
 pub fn track_stops(
     slider: &Slider,
     samples: &[(f64, Option<&Sample>)],
@@ -132,6 +162,45 @@ pub fn track_stops(
             )
         })
         .collect()
+}
+
+/// PLNR-35: a stretch of a track, from one fraction of it to another,
+/// where the solver rejects the setting, and the sentence that says why.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Stretch {
+    pub from: f32,
+    pub to: f32,
+    pub text: String,
+}
+
+/// PLNR-35: the rejected stretches of a track whose samples sit at the
+/// given fractions with the given reasons (`None` for an accepted
+/// sample). Each rejected sample covers the track from halfway to its
+/// neighbours, the ends to the ends of the track; neighbours with the
+/// same sentence make one stretch.
+pub fn rejected_stretches(samples: &[(f32, Option<String>)]) -> Vec<Stretch> {
+    let mut stretches: Vec<Stretch> = Vec::new();
+    for (i, (at, reason)) in samples.iter().enumerate() {
+        let Some(text) = reason else {
+            continue;
+        };
+        let from = match i.checked_sub(1) {
+            Some(before) => (samples[before].0 + at) / 2.0,
+            None => 0.0,
+        };
+        let to = samples
+            .get(i + 1)
+            .map_or(1.0, |(next, _)| (at + next) / 2.0);
+        match stretches.last_mut() {
+            Some(last) if last.to == from && last.text == *text => last.to = to,
+            _ => stretches.push(Stretch {
+                from,
+                to,
+                text: text.clone(),
+            }),
+        }
+    }
+    stretches
 }
 
 #[cfg(test)]
@@ -153,6 +222,14 @@ mod tests {
         }
     }
 
+    /// The setting `steps` on from `value` with every setting accepted,
+    /// or `value` where the thumb stays.
+    fn stepped(slider: &Slider, value: f64, steps: i32) -> f64 {
+        let settings = slider.settings(400);
+        let index = nearest_index(&settings, value);
+        step_accepted(settings.len(), index, steps, |_| true).map_or(value, |i| settings[i])
+    }
+
     /// PLNR-23: a range takes values in steps between its ends; a press
     /// at a point of the track takes the nearest step; keys move one step
     /// (ten with Shift) and stop at the ends.
@@ -166,11 +243,32 @@ mod tests {
         assert_eq!(value_at(&slider, 0.5, 400), 50.0);
         assert_eq!(value_at(&slider, 0.10001, 400), 10.0);
         assert_eq!(value_at(&slider, 2.0, 400), 100.0);
-        assert_eq!(stepped(&slider, 50.0, 1, 400), 50.25);
-        assert_eq!(stepped(&slider, 50.0, -FAST_STEPS, 400), 47.5);
-        assert_eq!(stepped(&slider, 99.9, FAST_STEPS, 400), 100.0);
+        assert_eq!(stepped(&slider, 50.0, 1), 50.25);
+        assert_eq!(stepped(&slider, 50.0, -FAST_STEPS), 47.5);
+        assert_eq!(stepped(&slider, 99.8, FAST_STEPS), 100.0);
+        assert_eq!(stepped(&slider, 100.0, FAST_STEPS), 100.0);
         assert_eq!(fraction_of(&slider, 25.0), 0.25);
         assert_eq!(fraction_of(&slider, -5.0), 0.0);
+    }
+
+    /// PLNR-21 / PLNR-23: the Depart slider is laid out by value from
+    /// Soonest to its end; a press takes the nearest of Soonest and the
+    /// whole days, and keys step from one position to the next.
+    #[test]
+    fn the_depart_slider_takes_soonest_or_a_whole_day() {
+        let slider = Slider::Days {
+            soonest: 10.4,
+            end: 20.4,
+            step: 1.0,
+        };
+        assert_eq!(fraction_of(&slider, 15.4), 0.5);
+        assert_eq!(value_at(&slider, 0.0, 400), 10.4);
+        assert_eq!(value_at(&slider, 0.02, 400), 10.4);
+        assert_eq!(value_at(&slider, 0.07, 400), 11.0);
+        assert_eq!(value_at(&slider, 1.0, 400), 20.0);
+        assert_eq!(stepped(&slider, 10.4, 1), 11.0);
+        assert_eq!(stepped(&slider, 11.0, -1), 10.4);
+        assert_eq!(stepped(&slider, 10.4, FAST_STEPS), 20.0);
     }
 
     /// PLNR-40: a phasing leg's slider has one position per meeting, laid
@@ -182,9 +280,53 @@ mod tests {
         assert_eq!(fraction_of(&slider, 11.0), 1.0);
         assert_eq!(value_at(&slider, 0.3, 400), 5.0);
         assert_eq!(value_at(&slider, 0.9, 400), 11.0);
-        assert_eq!(stepped(&slider, 2.0, 1, 400), 5.0);
-        assert_eq!(stepped(&slider, 5.0, FAST_STEPS, 400), 11.0);
-        assert_eq!(stepped(&slider, 5.0, -FAST_STEPS, 400), 2.0);
+        assert_eq!(stepped(&slider, 2.0, 1), 5.0);
+        assert_eq!(stepped(&slider, 5.0, FAST_STEPS), 11.0);
+        assert_eq!(stepped(&slider, 5.0, -FAST_STEPS), 2.0);
+    }
+
+    /// PLNR-33: a thumb sent onto a rejected setting rests on the nearest
+    /// accepted one, the earlier on a tie; a key step goes on past
+    /// rejected settings in its direction, and stays when there is none
+    /// that way; with nothing accepted there is nowhere to rest.
+    #[test]
+    fn a_thumb_never_rests_on_a_rejected_setting() {
+        let accepted = [true, false, false, false, true, true, false];
+        let ok = |i: usize| accepted[i];
+        assert_eq!(nearest_accepted(7, 0, ok), Some(0));
+        assert_eq!(nearest_accepted(7, 1, ok), Some(0));
+        assert_eq!(nearest_accepted(7, 2, ok), Some(0), "a tie goes earlier");
+        assert_eq!(nearest_accepted(7, 3, ok), Some(4));
+        assert_eq!(nearest_accepted(7, 6, ok), Some(5));
+        assert_eq!(nearest_accepted(7, 3, |_| false), None);
+        assert_eq!(step_accepted(7, 0, 1, ok), Some(4));
+        assert_eq!(step_accepted(7, 5, 1, ok), None, "nothing further on");
+        assert_eq!(step_accepted(7, 5, -1, ok), Some(4));
+        assert_eq!(step_accepted(7, 4, -2, ok), Some(0));
+        assert_eq!(step_accepted(7, 6, 1, ok), None, "at the end");
+    }
+
+    /// PLNR-35: each rejected sample covers the track halfway to its
+    /// neighbours, and neighbours with the same reason make one stretch.
+    #[test]
+    fn rejected_samples_make_stretches_with_their_reasons() {
+        let why = |text: &str| Some(text.to_string());
+        let samples = [
+            (0.0, why("a")),
+            (0.2, why("a")),
+            (0.4, None),
+            (0.6, why("b")),
+            (1.0, why("c")),
+        ];
+        let stretches = rejected_stretches(&samples);
+        let spans: Vec<(f32, f32, &str)> = stretches
+            .iter()
+            .map(|s| (s.from, s.to, s.text.as_str()))
+            .collect();
+        assert_eq!(
+            spans,
+            vec![(0.0, 0.3, "a"), (0.5, 0.8, "b"), (0.8, 1.0, "c")]
+        );
     }
 
     /// PLNR-28: rejected settings are the empty colour, settings over

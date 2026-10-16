@@ -39,7 +39,11 @@ pub struct SimTunables {
     /// most this many times before it counts as unable to line up
     /// (PHAS-15).
     pub trim_max_iterations: u32,
-    /// The planner's Depart range runs this many days from today when no
+    /// A leg whose windows come round more than once a day looks for its
+    /// cheapest moment to leave at this many evenly spaced starts within
+    /// one window interval (PHAS-16).
+    pub window_wait_samples: usize,
+    /// The planner's Depart range runs this many days from Soonest when no
     /// pair of orbit periods sets it (PLNR-80).
     pub depart_range_days: f64,
     /// When two orbit periods set the Depart range, it runs this fraction
@@ -51,8 +55,9 @@ pub struct SimTunables {
     pub travel_min_factor: f64,
     /// And ends at this multiple of it (PLNR-81).
     pub travel_max_factor: f64,
-    /// Depart days sampled across the Depart range, ends included, for the
-    /// planner's grid and its Depart track (PLNR-82).
+    /// The planner's grid and its Depart track have at most this many
+    /// depart columns: Soonest and the Depart positions, thinned to every
+    /// nth position when there are more (PLNR-82).
     pub track_depart_samples: usize,
     /// Travel times sampled across the Travel range, ends included, for
     /// the grid and the Travel time track (PLNR-82, PLNR-28).
@@ -81,6 +86,7 @@ impl Default for SimTunables {
             together_km: 10.0,
             max_phasing_laps: 50,
             trim_max_iterations: 8,
+            window_wait_samples: 24,
             depart_range_days: 180.0,
             depart_margin_fraction: 0.1,
             travel_min_factor: 0.3,

@@ -5,7 +5,7 @@ use bevy::prelude::*;
 
 use super::super::input;
 use super::super::state::{PlannerState, SliderKind};
-use super::super::tooltip::Tooltip;
+use super::super::tooltip::{Stretches, Tooltip};
 use super::super::words::{
     CANCEL, CHANGE, CHEAPEST, CHOOSE_PROMPT, DELTA_V, DELTA_V_TOOLTIP, FASTEST, HEADING, HIGH,
     INTERCEPT, INTERCEPT_TOOLTIP, LOW, NEXT_WINDOW, RENDEZVOUS, RENDEZVOUS_TOOLTIP, SCHEDULE,
@@ -269,7 +269,7 @@ fn spawn_band_choice(panel: &mut ChildSpawnerCommands, assets: Assets) {
     );
 }
 
-/// PLNR-21 / PLNR-23: the Depart row, and its track if it has one.
+/// PLNR-21 / PLNR-23: the Depart row and its track.
 fn spawn_depart(panel: &mut ChildSpawnerCommands, assets: Assets, track: bool) {
     spawn_row(
         panel,
@@ -362,7 +362,8 @@ fn spawn_choice(
     });
 }
 
-/// PLNR-23 / PLNR-28: a slider's track, with its thumb.
+/// PLNR-23 / PLNR-28 / PLNR-35: a slider's track, with its thumb, and
+/// the tooltips of its rejected stretches.
 fn spawn_track(panel: &mut ChildSpawnerCommands, (_, tunables): Assets, kind: SliderKind) {
     let margin = track_margin_px(tunables);
     panel
@@ -375,6 +376,7 @@ fn spawn_track(panel: &mut ChildSpawnerCommands, (_, tunables): Assets, kind: Sl
                 ..default()
             },
             BackgroundGradient(vec![]),
+            Stretches::default(),
         ))
         .with_children(|track| {
             track.spawn((

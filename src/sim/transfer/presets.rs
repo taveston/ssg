@@ -54,6 +54,43 @@ impl Presets {
     pub fn starting(&self) -> Option<Setting> {
         self.fastest.or(self.cheapest)
     }
+
+    /// PLNR-29: the first shown preset whose setting is `setting`: the one
+    /// the sliders sit on.
+    pub fn sitting_on(&self, setting: Setting) -> Option<Preset> {
+        self.shown()
+            .into_iter()
+            .find(|(_, at)| *at == setting)
+            .map(|(preset, _)| preset)
+    }
+
+    /// PLNR-24 / PLNR-87: the presets once Soonest has moved on from
+    /// `was_soonest` to `now`. They are not picked again: one at Soonest
+    /// stays at Soonest, and one whose depart day has come moves to
+    /// Soonest, as a thumb does.
+    pub fn moved_on(&self, was_soonest: f64, now: f64) -> Presets {
+        let moved = |setting: Option<Setting>| setting.map(|s| moved_on(s, was_soonest, now));
+        Presets {
+            fastest: moved(self.fastest),
+            cheapest: moved(self.cheapest),
+            next_window: moved(self.next_window),
+        }
+    }
+}
+
+/// PLNR-24: a setting once Soonest has moved on from `was_soonest` to
+/// `now`: at Soonest, or on a day the clock has reached, it departs at
+/// the new Soonest; on a later day it keeps its day. The travel time
+/// stays.
+pub fn moved_on(setting: Setting, was_soonest: f64, now: f64) -> Setting {
+    if setting.depart_day == was_soonest || setting.depart_day <= now {
+        Setting {
+            depart_day: now,
+            ..setting
+        }
+    } else {
+        setting
+    }
 }
 
 /// Earlier arrival first, then less delta-v.

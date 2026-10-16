@@ -69,6 +69,8 @@ pub enum HoverOutcome {
 pub struct HoverPreview {
     pub place: Place,
     pub key: Option<SearchKey>,
+    /// The game day it was worked out on: a new day works it out again.
+    pub day: i64,
     pub outcome: HoverOutcome,
     /// The ship's available delta-v the preview was judged against.
     pub available_kms: f64,
@@ -96,6 +98,10 @@ pub struct PlannerSession {
     /// depart day it was sampled on.
     pub travel_track: Vec<Sample>,
     pub travel_track_day: Option<f64>,
+    /// PLNR-33: the Travel time tracks solved on depart days that are not
+    /// the grid's columns, while finding where a thumb may rest; kept
+    /// until the search is made again or the day passes.
+    pub tracks: Vec<Vec<Sample>>,
     /// PLNR-12: the hovered place's preview, while choosing.
     pub hover: Option<HoverPreview>,
 }
@@ -113,6 +119,7 @@ impl PlannerSession {
             solved_for: None,
             travel_track: Vec::new(),
             travel_track_day: None,
+            tracks: Vec::new(),
             hover: None,
         }
     }
@@ -143,6 +150,7 @@ impl PlannerSession {
         self.solved_for = None;
         self.travel_track.clear();
         self.travel_track_day = None;
+        self.tracks.clear();
         self.hover = None;
     }
 

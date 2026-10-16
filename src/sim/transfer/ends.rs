@@ -13,7 +13,7 @@ use bevy::prelude::*;
 use orbits::{CircularOrbit, Conic, Rail, State};
 
 use super::order::{Departure, Infeasible, TargetLock};
-use super::places::{Place, approach_days, departure_cost_kms};
+use super::places::{Band, Place, approach_days, departure_cost_kms};
 use super::tree::{OrbitNode, ShipState, SystemTree};
 use crate::sim::body::BodyClass;
 
@@ -142,6 +142,8 @@ pub(super) struct End {
     pub(super) host: Entity,
     /// The radius of the orbit round `host` the end sits in, if any.
     pub(super) radius_km: Option<f64>,
+    /// The band of `host` the end sits in, if it is in one (BAND-01).
+    pub(super) band: Option<Band>,
     pub(super) own: Own,
 }
 
@@ -224,6 +226,7 @@ pub(super) fn departure_end(
                     at: node.docking_for.unwrap_or(node.body),
                     host: node.body,
                     radius_km: Some(node.radius_km),
+                    band: node.band,
                     own: Own::Circular(node.path(phase0_rad)),
                 },
                 place_of_parked(orbit, phase0_rad, tree, together_km),
@@ -234,6 +237,7 @@ pub(super) fn departure_end(
                 at: primary,
                 host: primary,
                 radius_km: None,
+                band: None,
                 own: Own::Conic(conic),
             },
             None,
@@ -249,6 +253,7 @@ pub(super) fn target_end(target: &Target) -> End {
             at: node.docking_for.unwrap_or(node.body),
             host: node.body,
             radius_km: Some(node.radius_km),
+            band: node.band,
             own: Own::Ring(node),
         },
         Target::Point {
@@ -257,12 +262,14 @@ pub(super) fn target_end(target: &Target) -> End {
             at: node.docking_for.unwrap_or(node.body),
             host: node.body,
             radius_km: Some(node.radius_km),
+            band: node.band,
             own: Own::Circular(node.path(phase0_rad)),
         },
         Target::Coasting { primary, conic } => End {
             at: primary,
             host: primary,
             radius_km: None,
+            band: None,
             own: Own::Conic(conic),
         },
     }
