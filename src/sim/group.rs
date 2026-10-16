@@ -89,11 +89,16 @@ fn group_track<'a>(members: impl IntoIterator<Item = &'a ShipRecord>) -> Track {
         .into_iter()
         .map(|member| member.track)
         .fold(Track::Firm, |worst, track| match (worst, track) {
-            (Track::Stale { last_observed_day: a }, Track::Stale { last_observed_day: b }) => {
+            (
                 Track::Stale {
-                    last_observed_day: a.min(b),
-                }
-            }
+                    last_observed_day: a,
+                },
+                Track::Stale {
+                    last_observed_day: b,
+                },
+            ) => Track::Stale {
+                last_observed_day: a.min(b),
+            },
             (Track::Stale { .. }, _) => worst,
             (_, Track::Stale { .. }) | (_, Track::Weak) => track,
             (Track::Weak, Track::Firm) => worst,

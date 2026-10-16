@@ -488,7 +488,10 @@ mod tests {
         let square = Rect::from_corners(Vec2::ZERO, Vec2::splat(size));
         let grown = reach.grow(square);
         assert_eq!(grown.min, Vec2::new(0.0, -reach.top));
-        assert_eq!(grown.max, Vec2::new(size + reach.right, size + reach.bottom));
+        assert_eq!(
+            grown.max,
+            Vec2::new(size + reach.right, size + reach.bottom)
+        );
     }
 
     /// SYM-03: every inside is opaque, even on a faded stale track; a

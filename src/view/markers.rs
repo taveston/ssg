@@ -31,9 +31,7 @@ use super::layers;
 use super::motion_mode::MotionModeState;
 use super::screen::ScreenPositions;
 use super::ship_groups::GroupFaces;
-use super::symbol_draw::{
-    Tint, TintSlot, amplifier_reach, condition_bar_gap, spawn_symbol_parts,
-};
+use super::symbol_draw::{Tint, TintSlot, amplifier_reach, condition_bar_gap, spawn_symbol_parts};
 use super::symbol_shape::SymbolPart;
 use super::symbols::{GroupFace, SymbolSettings, label_second_line, symbol_look, with_group};
 use super::targets::MarkerFor;
@@ -228,9 +226,8 @@ fn spawn_markers(
         let members = groups.member_classes(body);
         let label = MarkerText {
             name: &name.0,
-            second_line: record.and_then(|r| {
-                label_second_line(*affiliation, r, &members, clock.elapsed_days())
-            }),
+            second_line: record
+                .and_then(|r| label_second_line(*affiliation, r, &members, clock.elapsed_days())),
         };
         spawn_marker(&mut commands, assets, body, marker, label);
     }

@@ -16,8 +16,8 @@
 use crate::sim::body::{Affiliation, BodyClass, Knowledge};
 use crate::sim::ship::{Drive, Propulsion};
 use crate::sim::system::{
-    BeltBlueprint, BodyBlueprint, GateBlueprint, GroupBlueprint, MemberBlueprint, NamedOrbitBlueprint,
-    OrbitPlacement, SystemData,
+    BeltBlueprint, BodyBlueprint, GateBlueprint, GroupBlueprint, MemberBlueprint,
+    NamedOrbitBlueprint, OrbitPlacement, SystemData,
 };
 use crate::sim::track::{Echelon, Formation, ShipClass, ShipRecord, Track, TroopLoad};
 use crate::sim::units::{

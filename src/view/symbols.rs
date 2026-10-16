@@ -618,13 +618,8 @@ mod tests {
             echelon: Some(Echelon::Battalion),
         }]));
         assert_eq!(
-            label_second_line(
-                Affiliation::Own,
-                &embarked,
-                &[Warship, TroopTransport],
-                0.0
-            )
-            .as_deref(),
+            label_second_line(Affiliation::Own, &embarked, &[Warship, TroopTransport], 0.0)
+                .as_deref(),
             Some("1 warship, 1 troop transport · 1st Arden Guard")
         );
     }
