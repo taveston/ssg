@@ -8,6 +8,8 @@
 
 use bevy::prelude::*;
 
+use crate::view::screen::ray_inside;
+
 /// The fewest pixels between two ticks on an arm. Towards the plane's
 /// horizon the ticks crowd without end; past the first pair closer than
 /// this the rest would only read as a solid bar, so they are left off.
@@ -48,34 +50,6 @@ impl Stroke {
     }
 }
 
-/// A rectangle on screen, as its top-left and bottom-right corners.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct ScreenRect {
-    pub min: Vec2,
-    pub max: Vec2,
-}
-
-/// The stretch of the ray from `origin` along the unit vector `dir` that
-/// lies inside `rect`, as distances along the ray, or `None` if the ray
-/// misses it.
-pub fn ray_inside(origin: Vec2, dir: Vec2, rect: ScreenRect) -> Option<(f32, f32)> {
-    let (mut near, mut far) = (0.0_f32, f32::INFINITY);
-    for axis in 0..2 {
-        let (o, d) = (origin[axis], dir[axis]);
-        let (lo, hi) = (rect.min[axis], rect.max[axis]);
-        if d.abs() < 1e-9 {
-            if o < lo || o > hi {
-                return None;
-            }
-            continue;
-        }
-        let (a, b) = ((lo - o) / d, (hi - o) / d);
-        near = near.max(a.min(b));
-        far = far.min(a.max(b));
-    }
-    (near <= far).then_some((near, far))
-}
-
 /// REF-02 / REF-03: where an arm runs, as distances from the frame body's
 /// centre along its screen direction: from `start_px` (half the body's
 /// box plus the gap) to the edge of the map area, or to the plane's
@@ -86,7 +60,7 @@ pub fn arm_extent(
     dir: Vec2,
     start_px: f32,
     horizon_px: Option<f32>,
-    map: ScreenRect,
+    map: Rect,
 ) -> Option<(f32, f32)> {
     let (inside_from, inside_to) = ray_inside(centre, dir, map)?;
     let start = start_px.max(inside_from);
@@ -185,7 +159,7 @@ pub fn north_label_at(arm: &Stroke, inset_px: f32) -> Option<Vec2> {
 mod tests {
     use super::*;
 
-    const MAP: ScreenRect = ScreenRect {
+    const MAP: Rect = Rect {
         min: Vec2::new(0.0, 40.0),
         max: Vec2::new(800.0, 600.0),
     };

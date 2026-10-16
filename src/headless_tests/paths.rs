@@ -510,7 +510,7 @@ fn a_ship_in_flight_has_a_velocity_leader_the_way_it_moves() {
     use crate::sim::track::Track;
     use crate::sim::velocity::FlightVelocities;
     use crate::view::leaders::{LeadersPlugin, leader_length_px};
-    use crate::view::plot_marks::screen_angle;
+    use crate::view::screen::screen_angle;
 
     let mut app = symbols_app_with(|app| {
         app.add_plugins((PlannerPlugin, PathsPlugin, LeadersPlugin))

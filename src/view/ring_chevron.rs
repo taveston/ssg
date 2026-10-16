@@ -9,24 +9,17 @@
 
 use bevy::prelude::*;
 
+use super::screen::ray_inside;
+
 /// A small step round the ring, in radians, for the ring's direction.
 const TANGENT_STEP_RAD: f32 = 1e-3;
 /// Halvings when searching round the ring for the chevron's spot.
 const SEARCH_STEPS: u32 = 24;
 
-/// How far from `origin` a ray in direction `dir` (a unit vector) leaves
-/// `rect`, which contains `origin`.
+/// How far from the origin a ray in direction `dir` (a unit vector)
+/// leaves `rect`, which contains the origin.
 pub fn exit_distance(rect: Rect, dir: Vec2) -> f32 {
-    let axis = |d: f32, min: f32, max: f32| {
-        if d > f32::EPSILON {
-            max / d
-        } else if d < -f32::EPSILON {
-            min / d
-        } else {
-            f32::INFINITY
-        }
-    };
-    axis(dir.x, rect.min.x, rect.max.x).min(axis(dir.y, rect.min.y, rect.max.y))
+    ray_inside(Vec2::ZERO, dir, rect).map_or(0.0, |(_, far)| far)
 }
 
 /// The chevron's open arrowhead is half as long as it is wide, so its

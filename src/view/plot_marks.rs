@@ -14,7 +14,7 @@ use super::fonts::Fonts;
 use super::layers;
 use super::readout::format_distance;
 use super::scale::{km_to_render, render_to_km};
-use super::screen::{MapArea, MapView};
+use super::screen::{MapArea, MapView, screen_angle};
 use super::symbol_shape::{SymbolMask, SymbolPart};
 use super::targets::MapInputBlocker;
 use super::tunables::Tunables;
@@ -84,13 +84,6 @@ pub fn scale_bar_km(max_km: f64, au_threshold_au: f64) -> f64 {
         km = round_floor(km * (1.0 - 1e-6));
     }
     km
-}
-
-/// MRK-17: the clockwise angle from screen up to the direction from
-/// `from` to `to` (screen y grows downwards).
-pub fn screen_angle(from: Vec2, to: Vec2) -> f32 {
-    let d = to - from;
-    d.x.atan2(-d.y)
 }
 
 pub struct PlotMarksPlugin;
@@ -420,21 +413,5 @@ mod tests {
             assert!(at.length() - N_BOX_PX / 2.0 > dial / 2.0);
             assert!((screen_angle(Vec2::ZERO, at) - angle).abs() < 1e-4);
         }
-    }
-
-    /// MRK-17: angles are clockwise from screen up.
-    #[test]
-    fn screen_angles_run_clockwise_from_up() {
-        let o = Vec2::new(100.0, 100.0);
-        let close = |a: f32, b: f32| (a - b).abs() < 1e-5;
-        assert!(close(screen_angle(o, o + Vec2::NEG_Y), 0.0));
-        assert!(close(
-            screen_angle(o, o + Vec2::X),
-            std::f32::consts::FRAC_PI_2
-        ));
-        assert!(close(
-            screen_angle(o, o + Vec2::NEG_X),
-            -std::f32::consts::FRAC_PI_2
-        ));
     }
 }

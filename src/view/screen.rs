@@ -43,6 +43,35 @@ pub fn in_viewport(pos: Vec2, viewport: Vec2) -> bool {
     pos.x >= 0.0 && pos.y >= 0.0 && pos.x <= viewport.x && pos.y <= viewport.y
 }
 
+/// The clockwise angle from screen up to the direction from `from` to
+/// `to` (screen y grows downwards): what a node drawn pointing up is
+/// turned by to point that way (MRK-17, EDGE-01, SYM-11, MOT-14).
+pub fn screen_angle(from: Vec2, to: Vec2) -> f32 {
+    let d = to - from;
+    d.x.atan2(-d.y)
+}
+
+/// The stretch of the ray from `origin` along the unit vector `dir` that
+/// lies inside `rect`, as distances along the ray, or `None` if the ray
+/// misses it.
+pub fn ray_inside(origin: Vec2, dir: Vec2, rect: Rect) -> Option<(f32, f32)> {
+    let (mut near, mut far) = (0.0_f32, f32::INFINITY);
+    for axis in 0..2 {
+        let (o, d) = (origin[axis], dir[axis]);
+        let (lo, hi) = (rect.min[axis], rect.max[axis]);
+        if d.abs() < 1e-9 {
+            if o < lo || o > hi {
+                return None;
+            }
+            continue;
+        }
+        let (a, b) = ((lo - o) / d, (hi - o) / d);
+        near = near.max(a.min(b));
+        far = far.min(a.max(b));
+    }
+    (near <= far).then_some((near, far))
+}
+
 /// SYM-16: `pos` moved to the nearest whole physical pixel, so a marker,
 /// symbol or pill centred there draws its outlines as sharply as the
 /// orbit rings. `scale` is physical pixels per logical pixel.
@@ -64,6 +93,14 @@ impl MapArea {
         Self {
             offset,
             size: (viewport - offset).max(Vec2::ZERO),
+        }
+    }
+
+    /// The map area as a rectangle in window pixels.
+    pub fn rect(&self) -> Rect {
+        Rect {
+            min: self.offset,
+            max: self.offset + self.size,
         }
     }
 }
@@ -157,6 +194,22 @@ mod tests {
         assert_eq!(camera_viewport(window, 0.0), window);
         assert_eq!(camera_viewport(window, 320.0), Vec2::new(1280.0, 900.0));
         assert_eq!(camera_viewport(window, 5000.0).x, 1.0);
+    }
+
+    /// MRK-17: angles are clockwise from screen up.
+    #[test]
+    fn screen_angles_run_clockwise_from_up() {
+        let o = Vec2::new(100.0, 100.0);
+        let close = |a: f32, b: f32| (a - b).abs() < 1e-5;
+        assert!(close(screen_angle(o, o + Vec2::NEG_Y), 0.0));
+        assert!(close(
+            screen_angle(o, o + Vec2::X),
+            std::f32::consts::FRAC_PI_2
+        ));
+        assert!(close(
+            screen_angle(o, o + Vec2::NEG_X),
+            -std::f32::consts::FRAC_PI_2
+        ));
     }
 
     /// SYM-16: positions land on whole physical pixels, at any UI scale.

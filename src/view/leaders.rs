@@ -12,8 +12,8 @@
 use bevy::prelude::*;
 
 use super::markers::{MarkerShape, MarkersPlaced, symbol_settings};
-use super::plot_marks::screen_angle;
 use super::scale::km_to_render_vec3;
+use super::screen::screen_angle;
 use super::symbol_draw::{Tint, TintSlot};
 use super::symbols::{FrameShape, symbol_look};
 use super::targets::MarkerFor;

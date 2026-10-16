@@ -34,10 +34,9 @@ use super::markers::{
 };
 use super::motion_mode::MotionModeState;
 use super::pills::{PILL_HALF_HEIGHT_PX, PillFace, pill_bundle, pill_node};
-use super::plot_marks::screen_angle;
 use super::readout::format_duration;
 use super::ring_chevron::{ChevronFit, ChevronSpot, chevron_box, chevron_spot};
-use super::screen::{MapView, in_viewport, snap_to_pixel};
+use super::screen::{MapView, in_viewport, screen_angle, snap_to_pixel};
 use super::selection::Selection;
 use super::shared_orbit::{OrbitRings, Ring, ring_screen_point};
 use super::ship_groups::GroupFaces;

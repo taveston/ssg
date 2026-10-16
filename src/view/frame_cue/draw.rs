@@ -9,7 +9,7 @@
 use bevy::prelude::*;
 
 use super::geometry::{
-    ScreenRect, Stroke, StrokeStyle, VerticalLook, arm_extent, arm_ticks, normal_foreshortening,
+    Stroke, StrokeStyle, VerticalLook, arm_extent, arm_ticks, normal_foreshortening,
     north_label_at, vertical_halves,
 };
 use super::stroke::{CueStroke, stroke_node_box};
@@ -103,7 +103,7 @@ fn arm<P: Fn(Vec3) -> Option<Vec2>>(
     centre: Vec2,
     direction: Vec3,
     look: FrameBodyLook,
-    map: ScreenRect,
+    map: Rect,
     tick_render: f32,
     strength: f32,
     t: &Tunables,
@@ -182,7 +182,7 @@ pub fn cue_layout<P: Fn(Vec3) -> Option<Vec2>>(
     camera: &CueCamera<P>,
     body: Vec3,
     look: FrameBodyLook,
-    map: ScreenRect,
+    map: Rect,
     tick_render: f32,
     t: &Tunables,
 ) -> CueLayout {
@@ -360,10 +360,7 @@ pub fn draw_frame_cue(
                 forward: transform.forward().as_vec3(),
                 project: |p| view.project(p),
             };
-            let map = ScreenRect {
-                min: area.offset,
-                max: area.offset + area.size,
-            };
+            let map = area.rect();
             let look = frame_body_look(frame.body, &markers, &radii, &tunables);
             let tick_render = km_to_render(scale_km.0);
             cue_layout(&camera, body, look, map, tick_render, &tunables)

@@ -12,7 +12,8 @@ use crate::view::frame_cue::stroke::CueStroke;
 use crate::view::halo::TextHalo;
 use crate::view::layers;
 use crate::view::markers::{MarkerDrawn, MarkerShape, box_half};
-use crate::view::plot_marks::{ScaleBarKm, screen_angle};
+use crate::view::plot_marks::ScaleBarKm;
+use crate::view::screen::screen_angle;
 
 /// Corvane in the star's frame with markers, the plot furniture and the
 /// frame cue, paused.

@@ -11,8 +11,7 @@ use bevy::prelude::*;
 
 use super::edge_tab::{TabChevron, place_tab, spawn_tab, tab_label};
 use super::fonts::Fonts;
-use super::screen::MapArea;
-use super::screen::ScreenPositions;
+use super::screen::{MapArea, ScreenPositions, screen_angle};
 use super::tunables::Tunables;
 use super::world::ViewNow;
 use crate::sim::body::{BodyClass, GateDestination};
@@ -84,9 +83,7 @@ pub fn pin_direction_to_edge(direction: Vec2, viewport: Vec2, margin_px: f32) ->
 /// EDGE-01: the rotation that turns the arrowhead glyph - which points up
 /// when unrotated - towards the gate.
 pub fn edge_arrow_angle(edge_pos: Vec2, viewport: Vec2) -> f32 {
-    let dir = edge_pos - viewport / 2.0;
-    // Screen y grows downwards, so "up" is -y.
-    dir.x.atan2(-dir.y)
+    screen_angle(viewport / 2.0, edge_pos)
 }
 
 /// EDGE-01: where on the map area's edge, in window pixels, the arrow for
