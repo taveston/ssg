@@ -13,6 +13,10 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
+- [ ] **Drop velocity leaders from the system view** · SYM-11, PLNR-68
+  - SYM-11 is withdrawn: delete the leader's code and tests, and the four `leader_*` tunables. PLNR-68 no longer mentions the leader; only the wording changed, so its ✓ is cleared just so the build is checked against it.
+  - Why: the drawn trajectory shows what the leader did, and the leader measured velocity relative to the star, so in a planet's frame it pointed along the planet's motion (was F-208, F-243). A combat view may want a leader later; the deleted code is in git history.
+
 ## Fixes
 
 - [ ] **Orbit membership follows the ship** · F-242, F-201 · RAIL-09, SCL-07, HOV-04, INS-05, MRK-09, HOV-02

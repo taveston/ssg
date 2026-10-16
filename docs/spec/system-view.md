@@ -6,7 +6,7 @@
 
 *How to read it:* each requirement has a stable ID. **Built** is ✓ once the requirement is in the code. Numbers in `code` are tunables (table at the end), read from `src/view/tunables.rs`, never hard-coded.
 
-*Retired IDs* (never reuse): CAM-21, CLK-03, ZOOM-03, ZOOM-04, ZOOM-06, ZOOM-07, ZOOM-08, ZOOM-09, ZOOM-12, MAG-01 to MAG-08, MOT-03, MOT-05, MOT-06, MOT-09, CAM-09, CAM-22, GRP-06.
+*Retired IDs* (never reuse): CAM-21, CLK-03, ZOOM-03, ZOOM-04, ZOOM-06, ZOOM-07, ZOOM-08, ZOOM-09, ZOOM-12, MAG-01 to MAG-08, MOT-03, MOT-05, MOT-06, MOT-09, CAM-09, CAM-22, GRP-06, SYM-11.
 
 ---
 
@@ -83,7 +83,6 @@ Ships and stations are drawn as symbols adapted from NATO APP-6: the **frame** s
 | SYM-08 | Track state: a firm track has a solid frame; a weak track has a dashed frame; a stale track has a dashed frame, is drawn at `stale_symbol_alpha` opacity, and its label reads "last seen *N* d ago" in whole days of game time. Affiliation, class, load and track state each change the symbol independently as the faction learns more. | ✓ |
 | SYM-09 | A group is drawn as one symbol, and its members are not drawn individually. All members share the group's affiliation and command. A group's class, armed status, load and condition are not held by it: they come from its members. The icon is the most significant of the icons its members show (SYM-05): warship, then troop transport, then fleet supply, then cargo, then unknown. When that icon is the troop transport, SYM-06 reads the group's troop transports together: embarked if any is known to be embarked (the echelon is that of the largest formation among them), else unknown if the load of any is unknown, else known empty. The member count is shown in the data face to the right of the frame's box (HOV-07), level with the frame's top, `amplifier_gap_px` clear of the box. A **task force** (members under one commander) has a bracket above the frame, its feet `amplifier_gap_px` above the box, or above the echelon if that is higher. The count and the bracket sit outside the box so the selection and hover brackets never cover them. | ✓ |
 | SYM-10 | Two groups are never merged into one group, and a group is never split across markers. Two groups at the same position, or whose symbols would overlap, are drawn as one multi-marker holding both (MUL-05). | ✓ |
-| SYM-11 | A ship or group in transit has a velocity leader: a line from the edge of the frame in the on-screen direction of its velocity relative to the star. Its length rises with the logarithm of speed from `leader_min_px` at `leader_speed_min_kms` to `leader_max_px` at `leader_speed_max_kms`, clamped at both ends; below `leader_speed_min_kms`, and for stale tracks, there is no leader. Orbiting and parked ships have no leader. | ✓ |
 | SYM-12 | Own ships and own groups (commanded or civilian) have a condition bar under the frame, `ship_symbol_px` wide and 3 px high, starting `amplifier_gap_px` below the frame's box (HOV-07) so the selection and hover brackets never cross it. It is filled to their condition in the symbol's colour, or in orange below `condition_warn_fraction`; the unfilled part is drawn in the same colour mixed into the ground at `condition_track_mix`, so a part-full bar shows its whole length. A group shows the mean of its members. An own ship whose condition is not known has no bar. | ✓ |
 | SYM-13 | A symbol's label sits to the right of it, clear of its amplifiers (the count, the echelon, the bracket and the condition bar): `label_gap_px` (LBL-01) is measured from the outer edge of the frame's box (HOV-07) and its amplifiers, not from the frame alone, and other labels keep clear of the amplifiers too. The label is in the symbol's colour: the name in the label face, then a second line in the data face in the secondary text colour summarising the parts that apply, joined by " · ": a group's member count by class ("4 warships"); embarked formations ("1st Arden Guard"); "own flag · civilian" or "requisitioned"; a station's docked count ("3 docked", MUL-03); the stale age (SYM-08); and the countdown of the ship's order (PLNR-66). With none of these, there is no second line. | ✓ |
 | SYM-14 | Hover and click target a symbol through its `ship_symbol_px` square. The hover and selection brackets (HOV-06) enclose that square, not the amplifiers. | ✓ |
@@ -372,10 +371,6 @@ All in the `Tunables` resource (`src/view/tunables.rs`). Defaults are starting v
 | `symbol_fill_faction` | 0.30 | SYM-03 |
 | `symbol_fill_other` | 0.16 | SYM-03 |
 | `stale_symbol_alpha` | 0.55 | SYM-08 |
-| `leader_min_px` | 6 px | SYM-11 |
-| `leader_max_px` | 24 px | SYM-11 |
-| `leader_speed_min_kms` | 0.5 km/s | SYM-11 |
-| `leader_speed_max_kms` | 50 km/s | SYM-11 |
 | `condition_warn_fraction` | 0.5 | SYM-12, TEST-06 |
 | `cluster_join_px` | 24 px | MUL-05 |
 | `cluster_split_px` | 28 px | MUL-05 |

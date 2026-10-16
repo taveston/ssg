@@ -163,16 +163,6 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** LBL-01, HOV-07 · **Type:** spec gap
 - **Disposition:** open. Accept.
 
-### F-208 · In a planet's frame the leader can point away from the path
-- **Observation:** SYM-11 points the leader along the velocity relative to the star, as built. In a planet's frame the drawn path is relative to the planet, so a ship leaving Halden IV for Halden IVa has a leader along Halden IV's own orbital motion (at the 24 px cap) while its path runs the other way on screen. Every ship near that planet shows much the same leader.
-- **Affects:** SYM-11, PLNR-60 · **Type:** spec wrong
-- **Disposition:** open. Consider velocity relative to the frame body, so the leader agrees with the path drawn.
-
-### F-209 · Small choices on the velocity leader
-- **Observation:** The leader is `symbol_stroke_px` wide, in the symbol's colour, and fades with the symbol. It starts at the outer edge of the frame's outline in its direction, so off a diamond's side it starts nearer the centre than off a point. It is not a hover target, and labels don't keep clear of it. A ship moving straight along the line of sight has no leader, as it has no direction on screen.
-- **Affects:** SYM-11, LBL-01 · **Type:** spec gap
-- **Disposition:** open. Accept.
-
 ### F-210 · Ticks crowd into a bar near the horizon
 - **Observation:** REF-05 puts a tick at every multiple of the scale bar's distance. Towards the plane's horizon, seen near edge-on, they crowd without end. The build stops an arm's ticks at the first pair closer than 4 px, and at 64 per arm. At tilt 85° the last few still read as a short solid bar before the dots run on to the "N".
 - **Affects:** REF-05 · **Type:** spec gap
@@ -317,11 +307,6 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** In play, a ship sent from one body's band to another body's (for example Earth's Low band to the Moon's Low band) arrives, but its symbol isn't moved to the new body and the "In orbit" outline still lists it under the old one. A transfer between two bands of the same body works as expected. Likely the same root as F-201: what a ship orbits, and which orbit it belongs to, is fixed at spawn and only the band is updated on arrival.
 - **Affects:** XFER-01, SCL-07, INS-05, GRP-01 · **Type:** bug
 - **Disposition:** open. Seen by the user in play (build 907d98e).
-
-### F-243 · Velocity leaders in the system view
-- **Observation:** In play, a ship's velocity leader (SYM-11) doesn't seem to point the right way. SYM-11 measures the velocity relative to the star, so inside a planet's frame the leader mostly shows the planet's own motion round the star, not the ship's motion on screen. The user finds the leaders no longer useful: the drawn trajectory (PLNR-61, PLNR-68) shows everything they did.
-- **Affects:** SYM-11, PLNR-68 · **Type:** spec wrong
-- **Disposition:** user's direction: drop velocity leaders from the system view. They will be useful in the combat view, so the work may be reused there; the code can be found in git history once deleted. Withdraw SYM-11 and its `leader_*` tunables, and drop "with its velocity leader" from PLNR-68.
 
 ## Parked
 
