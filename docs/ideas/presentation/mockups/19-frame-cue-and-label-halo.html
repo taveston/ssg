@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Reference frame cue, exposure ring cues and label halo</title>
+<!--
+  Orphan Worlds: two candidates for the system view.
+  1. A dotted crosshair in the orbital plane, centred on the frame body, so north and the frame of reference stay
+     visible when orbit rings have faded. Flat (A) or with a vertical axis (B).
+  2. A halo behind labels so orbit rings do not run through the text.
+  Candidate (docs/ideas/presentation/presentation.md, plotting-instrument cues). Violet is a placeholder hue.
+  Geometry is a real perspective projection (map camera, MRK-05, CAM-01), bodies and labels follow Sol.
+  Render at 1440 wide with the page opened from the repo, so IBM Plex loads from assets/fonts/.
+-->
+<style>
+@font-face{font-family:"Plex Cond";src:url("../../../../assets/fonts/IBMPlexSansCondensed-Regular.ttf")}
+@font-face{font-family:"Plex Cond";font-weight:600;src:url("../../../../assets/fonts/IBMPlexSansCondensed-SemiBold.ttf")}
+@font-face{font-family:"Plex Mono";src:url("../../../../assets/fonts/IBMPlexMono-Regular.ttf")}
+:root{--ground:#070A0E;--line2:rgba(159,182,196,.10);--text:#DCE6EC;--muted:#9FB6C4;--warn:#F0A040;--ref:#9B8CE8}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--ground);color:var(--text)}
+body{font-family:"Plex Cond",sans-serif;font-size:14px;width:1440px;padding:24px 32px 32px}
+h1{font-size:14px;font-weight:600;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin:0 0 6px;display:flex;gap:12px;align-items:center}
+.tag{font:11px "Plex Mono",monospace;color:var(--warn);border:1px solid var(--warn);border-radius:2px;padding:1px 6px;letter-spacing:.06em}
+.lede{color:var(--muted);margin:0 0 18px;font-size:13.5px;max-width:1180px;line-height:1.45}
+.board{margin-bottom:26px}
+.board h2{font-size:12px;font-weight:600;color:var(--muted);margin:0 0 8px;letter-spacing:.06em;text-transform:uppercase}
+.row{display:flex;gap:20px}
+.cell h3{font-size:12.5px;font-weight:600;color:var(--text);margin:0 0 6px}
+.cell h3 i{font-style:normal;color:var(--ref)}
+.frame{border:1px solid #1E2A35;border-radius:4px;overflow:hidden;line-height:0}
+.cap{color:var(--muted);font-size:12.5px;line-height:1.45;margin:8px 2px 0}
+.cap b{color:var(--text);font-weight:600}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--ref);vertical-align:-1px;margin-right:4px}
+</style>
+</head>
+<body>
+<h1>Reference frame cue, exposure ring cues and label halo <span class="tag">CANDIDATE</span></h1>
+<p class="lede">Two candidates for the system view, drawn in Sol. First, a dotted crosshair in the orbital plane, centred on the frame body: it keeps north and the plane visible when the orbit rings have faded. It comes flat (A) or with a vertical axis (B). Second, a direction chevron and a period line for exposure rings. Third, a halo behind labels, so orbit rings stop running through the text. <span class="sw"></span>Violet is a placeholder for a new "reference" colour, free of the affiliation colours and the warning orange. The north dial and scale bar are as built (MRK-16, MRK-17).</p>
+
+<section class="board"><h2>Jupiter's frame, standard orientation (north up, tilt 60°)</h2>
+  <div class="row">
+    <div class="cell"><h3>Today</h3><div class="frame" id="a1"></div>
+      <p class="cap">Orbits give the plane, but nothing marks north or the frame itself.</p></div>
+    <div class="cell"><h3><i>A</i> · In-plane crosshair</h3><div class="frame" id="a2"></div>
+      <p class="cap">Two dotted axes through the frame body, running to the map edge and fading. The north arm is brighter and ends in an N. Ticks sit at the scale bar's distance and follow the plane's foreshortening. A gap round the marker keeps it from reading as a target reticle. Labels carry the halo from the last board, so the dots break where an axis crosses a name.</p></div>
+    <div class="cell"><h3><i>B</i> · With a vertical axis</h3><div class="frame" id="a3"></div>
+      <p class="cap">As A, plus a solid axis along the plane's normal: a longer half up with a small arrowhead, a shorter half down. Solid, so it never reads as a continuation of the dotted north arm, which lies on the same screen line at heading 0. It foreshortens with tilt.</p></div>
+  </div>
+</section>
+
+<section class="board"><h2>Close in: Callisto's frame, heading turned 40° anticlockwise</h2>
+  <div class="row">
+    <div class="cell"><h3>Today</h3><div class="frame" id="b1"></div>
+      <p class="cap">Every orbit ring has faded (MRK-14). A disc and an edge tab are all there is: no north, no plane.</p></div>
+    <div class="cell"><h3><i>A</i> · In-plane crosshair</h3><div class="frame" id="b2"></div>
+      <p class="cap">The axes pass behind the disc. The frame reads as a place in a plane, with north marked, and the dial agrees with the arm.</p></div>
+    <div class="cell"><h3><i>B</i> · With a vertical axis</h3><div class="frame" id="b3"></div>
+      <p class="cap">The upper half leaves the disc at its pole and runs over it. The lower half goes behind the disc and comes out beneath.</p></div>
+  </div>
+</section>
+
+<section class="board"><h2>B at four tilts (heading 20°)</h2>
+  <div class="row" id="strip"></div>
+  <p class="cap" style="max-width:1180px">The vertical axis is the tilt gauge. Straight down it points at the camera and vanishes, so B becomes A. Near the horizon it is at its longest. The tilt limit is 85° (CAM-01).</p>
+</section>
+
+<section class="board"><h2>Exposure rings: direction and period</h2>
+  <div class="row">
+    <div class="cell"><h3>Today</h3><div class="frame" id="e1"></div></div>
+    <div class="cell"><h3><i>Proposed</i> · chevron and period</h3><div class="frame" id="e2"></div></div>
+    <div style="width:430px;align-self:flex-end"><p class="cap" style="margin:0">A fast orbit reads as a thicker ring. The proposal adds an open chevron on the ring, just ahead of the identity mark, pointing the way the object circles (anticlockwise from above here), and the period as the label's second line (UNIT-02). The chevron is fixed to the mark, so it implies no position beyond the one the mark already holds. A label moves to the other side of its mark when the chevron would run under it, as Europa's does. Both panels carry the 2 px halo.</p></div>
+  </div>
+</section>
+
+<section class="board"><h2>Label halo (labels over orbit rings, as in the build at this zoom)</h2>
+  <div class="row">
+    <div class="cell"><h3>Today</h3><div class="frame" id="h1"></div></div>
+    <div class="cell"><h3>2 px halo</h3><div class="frame" id="h2"></div></div>
+    <div style="width:430px;align-self:flex-end"><p class="cap" style="margin:0">The halo is a ground-colour outline round the glyphs, drawn under the text and above the rings, so a ring breaks where a label crosses it and stays whole elsewhere. Lower, magnified: the same crossing at <b>2.4×</b> with each width, and a backing box for comparison.</p></div>
+  </div>
+  <div class="row" id="crops" style="margin-top:14px"></div>
+</section>
+
+<script>
+const NS = 'http://www.w3.org/2000/svg';
+const C = {ground:'#070A0E', text:'#DCE6EC', muted:'#9FB6C4', ref:'#9B8CE8'};
+const hx = h => [1,3,5].map(i => parseInt(h.slice(i,i+2),16));
+const mixc = (a,b,t) => '#' + hx(a).map((v,i) => Math.round(v + (hx(b)[i]-v)*t).toString(16).padStart(2,'0')).join('');
+const BODY_FILL = mixc(C.ground, C.text, .32);
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+function S(tag, attrs, parent){ const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+const fmt = n => n.toLocaleString('en-GB');
+
+// Sol, Jupiter's system. Units are 1000 km. Angles are the moons' places on their orbits.
+const JUP = {name:'Jupiter', R:69.9};
+const MOONS = [
+  {name:'Amalthea', r:181,  R:.084, ang:5,   exp:true,  side:'right', per:'12.0 h'},
+  {name:'Io',       r:422,  R:1.82, ang:90,  exp:true,  side:'right', per:'1.8 d'},
+  {name:'Europa',   r:671,  R:1.56, ang:270, exp:true,  side:'right', per:'3.6 d'},
+  {name:'Ganymede', r:1070, R:2.63, ang:150, exp:true,  side:'right', per:'7.2 d'},
+  {name:'Callisto', r:1883, R:2.41, ang:35,  exp:false, side:'below'},
+];
+const polar = (r,a) => [r*Math.cos(a*Math.PI/180), r*Math.sin(a*Math.PI/180)];
+
+function makeCam(o, cx, cy){
+  const e = (90 - o.tilt) * Math.PI/180, hd = o.heading * Math.PI/180;
+  const ce = Math.cos(e), se = Math.sin(e), ch = Math.cos(hd), sh = Math.sin(hd);
+  const D = 8 * (o.w/2) / o.s;                       // camera distance: mild perspective
+  const proj = (x, y, z = 0) => {
+    const xr = x*ch + y*sh, yr = -x*sh + y*ch;       // scene turns clockwise by the heading
+    const d = D + yr*ce - z*se, f = D/d;
+    return {x: cx + o.s*xr*f, y: cy - o.s*(yr*se + z*ce)*f, d: d/D, yr};
+  };
+  return {proj, s:o.s, D, ce, se, north:{x:sh, y:ch*se}};
+}
+
+function textW(parent, str, size, family){
+  const t = S('text', {x:-999, y:-999, 'font-size':size, 'font-family':family}, parent); t.textContent = str;
+  const w = t.getBBox().width; t.remove(); return w;
+}
+
+function label(g, x, y, str, side, o, size = 12){
+  if (o.noLabels) return {x:0, y:0, w:0, h:0};
+  const attrs = {'font-family':'Plex Cond', 'font-size':size, fill:C.text};
+  let tx = x, ty = y + size*0.35, anchor = 'start';
+  if (side === 'right') { anchor = 'start'; }
+  if (side === 'left') { anchor = 'end'; }
+  if (side === 'below') { anchor = 'middle'; ty = y + size*0.35; }
+  attrs['text-anchor'] = anchor;
+  const w = textW(g, str, size, 'Plex Cond');
+  const bx = anchor === 'start' ? tx : anchor === 'end' ? tx - w : tx - w/2;
+  if (o.box) S('rect', {x:bx-3, y:ty-size*.8, width:w+6, height:size*1.15, rx:2, fill:C.ground}, g);
+  if (o.halo) Object.assign(attrs, {stroke:C.ground, 'stroke-width':o.halo*2, 'stroke-linejoin':'round', 'paint-order':'stroke fill'});
+  const t = S('text', {...attrs, x:tx, y:ty}, g); t.textContent = str;
+  return {x:bx, y:ty - size*.8, w, h:size*1.15};
+}
+
+function bracket(g, x, y, box){
+  const half = box/2, arm = box*0.3, p = [];
+  for (const [sx,sy] of [[-1,-1],[1,-1],[1,1],[-1,1]]) {
+    const cx = x + sx*half, cy = y + sy*half;
+    p.push(`M${cx - sx*arm},${cy} L${cx},${cy} L${cx},${cy - sy*arm}`);
+  }
+  S('path', {d:p.join(' '), fill:'none', stroke:'#fff', 'stroke-width':2, 'stroke-linejoin':'miter'}, g);
+}
+
+function moonMarker(g, x, y){ S('circle', {cx:x, cy:y, r:4, fill:C.ground, stroke:C.text, 'stroke-width':1}, g); }
+function planetMarker(g, x, y){ S('circle', {cx:x, cy:y, r:6, fill:C.ground, stroke:C.text, 'stroke-width':1}, g); S('circle', {cx:x, cy:y, r:1.5, fill:C.text}, g); }
+function starMarker(g, x, y){
+  S('circle', {cx:x, cy:y, r:8, fill:C.ground, stroke:C.text, 'stroke-width':1}, g);
+  for (let i = 0; i < 8; i++) { const a = i*Math.PI/4; S('line', {x1:x+Math.cos(a)*8, y1:y+Math.sin(a)*8, x2:x+Math.cos(a)*11, y2:y+Math.sin(a)*11, stroke:C.text, 'stroke-width':1}, g); }
+}
+function disc(g, x, y, R){
+  S('circle', {cx:x, cy:y, r:R+3, fill:C.ground}, g);
+  S('circle', {cx:x, cy:y, r:R, fill:BODY_FILL, stroke:C.text, 'stroke-width':1}, g);
+}
+
+function ringPaths(cam, ox, oy, r){
+  const runs = []; let cur = null;
+  for (let a = 0; a <= 360; a++) {
+    const p = cam.proj(ox + r*Math.cos(a*Math.PI/180), oy + r*Math.sin(a*Math.PI/180));
+    const front = p.yr < 0;
+    if (!cur || cur.front !== front) { const prev = cur && cur.pts[cur.pts.length-1]; cur = {front, pts: prev ? [prev] : []}; runs.push(cur); }
+    cur.pts.push(p);
+  }
+  const d = f => runs.filter(r => r.front === f && r.pts.length > 1).map(r => 'M' + r.pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L')).join(' ');
+  return {back:d(false), front:d(true)};
+}
+
+function edgeTab(g, o, cx, cy, dir, name, kind){
+  const rect = {x0:8, y0:8, x1:o.w-8, y1:o.h-8};
+  const ux = dir[0], uy = -dir[1];                 // screen y points down
+  let t = 1e9;
+  if (ux < 0) t = Math.min(t, (rect.x0 - cx)/ux); if (ux > 0) t = Math.min(t, (rect.x1 - cx)/ux);
+  if (uy < 0) t = Math.min(t, (rect.y0 - cy)/uy); if (uy > 0) t = Math.min(t, (rect.y1 - cy)/uy);
+  const px = cx + ux*t, py = cy + uy*t;
+  const tw = textW(g, name, 12, 'Plex Cond') + 44, th = 24;
+  const horiz = Math.abs(ux) > Math.abs(uy);
+  let tx = horiz ? (ux < 0 ? rect.x0 + 14 : rect.x1 - 14 - tw) : clamp(px - tw/2, rect.x0 + 14, rect.x1 - 14 - tw);
+  let ty = horiz ? clamp(py - th/2, rect.y0 + 14, rect.y1 - 14 - th) : (uy < 0 ? rect.y0 + 14 : rect.y1 - 14 - th);
+  S('rect', {x:tx, y:ty, width:tw, height:th, fill:C.ground, stroke:C.text, 'stroke-width':1}, g);
+  (kind === 'star' ? starMarker : planetMarker)(g, tx + 16, ty + th/2);
+  const tl = S('text', {x:tx + 30, y:ty + th/2 + 4.2, 'font-family':'Plex Cond', 'font-size':12, fill:C.text}, g); tl.textContent = name;
+  // chevron on the edge side
+  const mx = horiz ? (ux < 0 ? tx - 9 : tx + tw + 9) : tx + tw/2, my = horiz ? ty + th/2 : (uy < 0 ? ty - 9 : ty + th + 9);
+  const pts = horiz ? (ux < 0 ? [[3,-4],[-1,0],[3,4]] : [[-3,-4],[1,0],[-3,4]]) : (uy < 0 ? [[-4,3],[0,-1],[4,3]] : [[-4,-3],[0,1],[4,-3]]);
+  S('polyline', {points:pts.map(p => `${mx+p[0]},${my+p[1]}`).join(' '), fill:'none', stroke:C.text, 'stroke-width':1.2}, g);
+}
+
+function dial(g, o, cam){
+  const r = 17, cx = o.w - 24 - r, cy = 24 + r;
+  S('circle', {cx, cy, r, fill:'none', stroke:C.muted, 'stroke-width':1}, g);
+  const ang = Math.atan2(cam.north.x, cam.north.y);          // clockwise from screen up
+  const dx = Math.sin(ang), dy = -Math.cos(ang), px = -dy, py = dx;
+  const tip = [cx + dx*r, cy + dy*r], bx = cx + dx*(r - 10), by = cy + dy*(r - 10);
+  S('polygon', {points:`${tip[0]},${tip[1]} ${bx + px*4},${by + py*4} ${bx - px*4},${by - py*4}`, fill:C.text}, g);
+  const t = S('text', {x:cx + dx*(r + 9), y:cy + dy*(r + 9) + 3.5, 'text-anchor':'middle', 'font-family':'Plex Mono', 'font-size':10, fill:C.text}, g); t.textContent = 'N';
+}
+
+function scaleBar(g, o, len, str){
+  const x = 24, y = o.h - 24, L = len*o.s;
+  S('path', {d:`M${x},${y} H${x+L} M${x},${y-4} V${y+4} M${x+L/2},${y-3} V${y+3} M${x+L},${y-4} V${y+4}`, stroke:C.text, 'stroke-width':1, fill:'none'}, g);
+  const mk = (tx, s, a) => { const t = S('text', {x:tx, y:y+16, 'text-anchor':a, 'font-family':'Plex Mono', 'font-size':10, fill:C.muted}, g); t.textContent = s; };
+  mk(x, '0', 'middle'); mk(x+L, str, 'start');
+}
+
+// The reference cue: axes in the orbital plane through the frame body, ticks at the scale bar's distance, and optionally a vertical axis.
+function drawCue(o, cam, gLow, gUp, rect){
+  const c0 = cam.proj(0, 0, 0), col = C.ref;
+  let gid = 0;
+  const grad = (p, q, a0, a1) => {
+    const id = 'g' + Math.random().toString(36).slice(2, 8) + (gid++);
+    const lg = S('linearGradient', {id, gradientUnits:'userSpaceOnUse', x1:p.x, y1:p.y, x2:q.x, y2:q.y}, gLow.ownerSVGElement.querySelector('defs'));
+    S('stop', {offset:0, 'stop-color':col, 'stop-opacity':a0}, lg); S('stop', {offset:1, 'stop-color':col, 'stop-opacity':a1}, lg);
+    return `url(#${id})`;
+  };
+  const dist = (p, q) => Math.hypot(p.x - q.x, p.y - q.y);
+  const inside = p => p.d > 0.05 && p.x >= rect.x0 && p.x <= rect.x1 && p.y >= rect.y0 && p.y <= rect.y1;
+  const arms = [{v:[0,1], k:1, n:true}, {v:[1,0], k:.6}, {v:[0,-1], k:.6}, {v:[-1,0], k:.6}];
+  for (const a of arms) {
+    const P = t => cam.proj(a.v[0]*t, a.v[1]*t, 0);
+    let lo = 0, hi = 1; while (dist(P(hi), c0) < o.gapPx) hi *= 2;
+    for (let i = 0; i < 40; i++) { const m = (lo+hi)/2; if (dist(P(m), c0) < o.gapPx) lo = m; else hi = m; }
+    const d0 = hi;
+    let t = d0, inc = 40/cam.s; while (inside(P(t)) && t < 1e7) { t += inc; inc *= 1.25; }
+    lo = t - inc/1.25; hi = t; for (let i = 0; i < 40; i++) { const m = (lo+hi)/2; if (inside(P(m))) lo = m; else hi = m; }
+    const d1 = lo, p0 = P(d0), p1 = P(d1);
+    const a0 = 1*a.k, a1 = .45*a.k;
+    S('line', {x1:p0.x, y1:p0.y, x2:p1.x, y2:p1.y, stroke:grad(p0, p1, a0, a1), 'stroke-width':2.2, 'stroke-linecap':'round', 'stroke-dasharray':'0.1 4.6'}, gLow);
+    for (let k = 1; k < 400; k++) {                                    // ticks at round distances
+      const tt = k*o.tickStep; if (tt > d1) break; if (tt < d0) continue;
+      const p = P(tt), q = P(tt + 1/cam.s), L = Math.hypot(q.x - p.x, q.y - p.y) || 1, nx = -(q.y - p.y)/L, ny = (q.x - p.x)/L;
+      const f = dist(p, p0)/dist(p1, p0), al = (a0 + (a1 - a0)*f);
+      S('line', {x1:p.x - nx*4.5, y1:p.y - ny*4.5, x2:p.x + nx*4.5, y2:p.y + ny*4.5, stroke:col, 'stroke-opacity':al, 'stroke-width':1.2}, gLow);
+    }
+    if (a.n) {                                                         // the N on the north arm
+      const L = dist(p0, p1) || 1, ux = (p1.x - p0.x)/L, uy = (p1.y - p0.y)/L;
+      const t2 = S('text', {x:p1.x - ux*13, y:p1.y - uy*13 + 4, 'text-anchor':'middle', 'font-family':'Plex Mono', 'font-size':11, fill:col, stroke:C.ground, 'stroke-width':4, 'stroke-linejoin':'round', 'paint-order':'stroke fill'}, gLow);
+      t2.textContent = 'N';
+    }
+  }
+  if (o.mode === '3d') {
+    const up = o.upPx, dn = o.upPx*.7;
+    const zTop = up/cam.s, zBot = -dn/cam.s;
+    let zs;
+    if (o.poleZ) zs = o.poleZ; else { let lo = 0, hi = 1/cam.s; while (dist(cam.proj(0,0,hi), c0) < o.gapPx*.8) hi *= 2; for (let i = 0; i < 40; i++) { const m = (lo+hi)/2; if (dist(cam.proj(0,0,m), c0) < o.gapPx*.8) lo = m; else hi = m; } zs = hi; }
+    const pT = cam.proj(0, 0, zTop), pS = cam.proj(0, 0, zs), pB = cam.proj(0, 0, zBot);
+    if (dist(pT, c0) > 10) {
+      S('line', {x1:pS.x, y1:pS.y, x2:pT.x, y2:pT.y, stroke:grad(pS, pT, 1, .55), 'stroke-width':1.4}, gUp);
+      const ang = Math.atan2(pT.y - pS.y, pT.x - pS.x), ux = Math.cos(ang), uy = Math.sin(ang);
+      S('polygon', {points:`${pT.x + ux*8},${pT.y + uy*8} ${pT.x - uy*4.5},${pT.y + ux*4.5} ${pT.x + uy*4.5},${pT.y - ux*4.5}`, fill:col, 'fill-opacity':.8}, gUp);
+      S('line', {x1:c0.x, y1:c0.y, x2:pB.x, y2:pB.y, stroke:grad(c0, pB, .9, .45), 'stroke-width':1.4}, gLow);
+    }
+  }
+}
+
+function scene(host, o){
+  const w = o.w, h = o.h, cx = w/2, cy = h/2 + (o.dy || 0);
+  const svg = S('svg', {width:o.vw || w, height:o.vh || h, viewBox:o.view || `0 0 ${w} ${h}`}, host);
+  svg.style.display = 'block';
+  S('defs', {}, svg); S('rect', {x:0, y:0, width:w, height:h, fill:C.ground}, svg);
+  const cam = makeCam(o, cx, cy);
+  const g = n => S('g', {id:n}, svg);
+  const gLow = g('low'), gRB = g('ringBack'), gBody = g('body'), gRF = g('ringFront'), gMoon = g('moons'), gUp = g('up'), gBr = g('brackets'), gLb = g('labels'), gUi = g('ui');
+  const fp = o.frame === 'callisto' ? polar(MOONS[4].r, o.frameAng) : [0, 0];
+  const rect = {x0:6, y0:6, x1:w-6, y1:h-6};
+  const halfDiag = Math.hypot(w, h)/2;
+  const out = {};
+
+  // frame body size
+  const frameR = o.frame === 'callisto' ? MOONS[4].R : JUP.R;
+  const framePx = frameR*o.s;
+  const asDisc = framePx*2 > (o.frame === 'callisto' ? 8 : 12);
+
+  if (o.mode !== 'none') {
+    drawCue({...o, gapPx:o.gapPx, tickStep:o.tickStep, poleZ: (asDisc && o.mode === '3d') ? frameR : 0}, cam, gLow, gUp, rect);
+  }
+
+  // orbit rings of Jupiter's moons (faded by MRK-14)
+  MOONS.forEach(m => {
+    const room = cam.D - m.r*cam.ce;
+    const near = room > 0 ? m.r*o.s*cam.D/room : Infinity;
+    const fade = clamp(1 - (near/halfDiag - 4)/(12 - 4), 0, 1);
+    if (fade <= 0) return;
+    const rp = ringPaths(cam, -fp[0], -fp[1], m.r);
+    const st = m.exp ? {stroke:C.text, 'stroke-opacity':.5*fade, 'stroke-width':3} : {stroke:C.muted, 'stroke-opacity':.35*fade, 'stroke-width':1};
+    S('path', {d:rp.back, fill:'none', ...st}, gRB);
+    S('path', {d:rp.front, fill:'none', ...st}, gRF);
+  });
+
+  // Jupiter
+  if (o.frame === 'jupiter') {
+    const p = cam.proj(0, 0, 0);
+    if (asDisc) disc(gBody, p.x, p.y, framePx); else planetMarker(gBody, p.x, p.y);
+    const boxPx = Math.max(framePx*2, 12) + 8;
+    if (o.selected) bracket(gBr, p.x, p.y, boxPx + 2);
+    const half = Math.max(framePx, 6) + 1;
+    const edge = o.selected ? boxPx/2 + 1 : half;
+    out.jupiter = label(gLb, p.x - (edge + (o.selected ? 2 : 6)), p.y, 'Jupiter', 'left', o);
+  }
+  // moons
+  MOONS.forEach(m => {
+    const pos = polar(m.r, m.ang);
+    const rel = [pos[0] - fp[0], pos[1] - fp[1]];
+    const near = m.r*o.s*cam.D/(cam.D - m.r*cam.ce);
+    const vis = o.frame === 'jupiter' || (m.name === 'Callisto');
+    if (!vis) return;
+    if (o.frame === 'callisto' && m.name === 'Callisto') {
+      const p = cam.proj(0, 0, 0);
+      disc(gBody, p.x, p.y, framePx);
+      out.callisto = label(gLb, p.x + framePx + 3 + 8, p.y, 'Callisto', 'right', o);
+      return;
+    }
+    const p = cam.proj(rel[0], rel[1], 0);
+    moonMarker(gMoon, p.x, p.y);
+    let side = m.side;
+    if (o.chev && m.exp) {                               // direction chevron, ahead of the mark along the ring
+      const da = 15/(m.r*o.s), A = m.ang*Math.PI/180 + da;
+      const pt = k => cam.proj(m.r*Math.cos(A + k) - fp[0], m.r*Math.sin(A + k) - fp[1], 0);
+      const c0 = pt(0), c1 = pt(.01), c2 = pt(-.01), L = Math.hypot(c1.x - c2.x, c1.y - c2.y) || 1;
+      const tx = (c1.x - c2.x)/L, ty = (c1.y - c2.y)/L, nx = -ty, ny = tx;
+      const tip = [c0.x + tx*4, c0.y + ty*4], w1 = [c0.x - tx*3 + nx*4.5, c0.y - ty*3 + ny*4.5], w2 = [c0.x - tx*3 - nx*4.5, c0.y - ty*3 - ny*4.5];
+      S('polyline', {points:`${w1} ${tip} ${w2}`, fill:'none', stroke:C.text, 'stroke-width':1.5, 'stroke-linejoin':'round', 'stroke-linecap':'round'}, gMoon);
+      if (tx > .3) side = 'left';
+    }
+    if (side === 'right' || side === 'left') {
+      const dir = side === 'right' ? 1 : -1;
+      out[m.name] = label(gLb, p.x + dir*(4 + 6), p.y, m.name, side, o);
+      if (o.chev && m.exp) {
+        const a = {x:p.x + dir*(4 + 6), y:p.y + 12 + 4, 'text-anchor':side === 'right' ? 'start' : 'end', 'font-family':'Plex Mono', 'font-size':10, fill:C.muted};
+        if (o.halo) Object.assign(a, {stroke:C.ground, 'stroke-width':o.halo*2, 'stroke-linejoin':'round', 'paint-order':'stroke fill'});
+        const t2 = S('text', a, gLb); t2.textContent = m.per;
+      }
+    }
+    if (side === 'below') out[m.name] = label(gLb, p.x, p.y + 4 + 6 + 5, m.name, 'below', o);
+  });
+
+  // edge tabs: Sol from Jupiter, Jupiter from Callisto
+  if (o.frame === 'jupiter') edgeTab(gUi, o, cx, cy, [-1, .34], 'Sol', 'star');
+  else {
+    const back = [-fp[0], -fp[1]], xr = back[0]*Math.cos(o.heading*Math.PI/180) + back[1]*Math.sin(o.heading*Math.PI/180), yr = -back[0]*Math.sin(o.heading*Math.PI/180) + back[1]*Math.cos(o.heading*Math.PI/180);
+    edgeTab(gUi, o, cx, cy, [xr, yr*cam.se], 'Jupiter', 'planet');
+  }
+  dial(gUi, o, cam);
+  scaleBar(gUi, o, o.barLen, o.barStr);
+  return out;
+}
+
+const W = 442, H = 340;
+const row1 = {w:W, h:H, s:.108, tilt:60, heading:0, frame:'jupiter', selected:true, gapPx:20, tickStep:1000, upPx:100, barLen:1000, barStr:'1,000,000 km', dy:8};
+const row2 = {w:W, h:H, s:31.1, tilt:60, heading:-40, frame:'callisto', frameAng:109, selected:false, gapPx:90, tickStep:5, upPx:170, barLen:5, barStr:'5,000 km', dy:0};
+
+function build(){
+  scene(document.getElementById('a1'), {...row1, mode:'none'});
+  scene(document.getElementById('a2'), {...row1, mode:'2d', halo:2});
+  scene(document.getElementById('a3'), {...row1, mode:'3d', halo:2});
+  scene(document.getElementById('b1'), {...row2, mode:'none'});
+  scene(document.getElementById('b2'), {...row2, mode:'2d'});
+  scene(document.getElementById('b3'), {...row2, mode:'3d'});
+
+  // tilt strip
+  const strip = document.getElementById('strip');
+  [0, 30, 60, 85].forEach(t => {
+    const cell = document.createElement('div'); cell.className = 'cell';
+    cell.innerHTML = `<h3>Tilt ${t}°</h3><div class="frame"></div>`; strip.appendChild(cell);
+    scene(cell.querySelector('.frame'), {w:330, h:250, s:.075, tilt:t, heading:20, frame:'jupiter', selected:false, mode:'3d', noLabels:true, gapPx:18, tickStep:1000, upPx:90, barLen:1000, barStr:'1,000,000 km', dy:6});
+  });
+
+  // exposure rings board
+  const ev = {w:900, h:620, s:.24, tilt:60, heading:0, frame:'jupiter', selected:true, mode:'none', barLen:500, barStr:'500,000 km', dy:0, halo:2};
+  scene(document.getElementById('e1'), {...ev, view:'230 170 440 300', vw:440, vh:300});
+  scene(document.getElementById('e2'), {...ev, chev:true, view:'230 170 440 300', vw:440, vh:300});
+
+  // halo board: the same view as the build's screenshot (about 0.24 px per 1000 km)
+  const hv = {w:900, h:620, s:.24, tilt:60, heading:0, frame:'jupiter', selected:true, mode:'none', barLen:500, barStr:'500,000 km', dy:0};
+  const crop = (host, o, view, vw, vh) => scene(host, {...hv, ...o, view, vw, vh});
+  crop(document.getElementById('h1'), {}, '230 170 440 300', 440, 300);
+  crop(document.getElementById('h2'), {halo:2}, '230 170 440 300', 440, 300);
+  const ph = document.createElement('div'); ph.style.cssText = 'position:absolute;left:-9999px;top:0'; document.body.appendChild(ph);
+  const probe = scene(ph, hv); ph.remove();
+  const am = probe.Europa;
+  const cxm = am.x + am.w/2, cym = am.y + am.h/2;
+  const cw = 108, ch = 60, sc = 2.4;
+  [['Today', {}], ['1 px halo', {halo:1}], ['2 px halo', {halo:2}], ['3 px halo', {halo:3}], ['Backing box', {box:true}]].forEach(([name, o]) => {
+    const cell = document.createElement('div'); cell.className = 'cell';
+    cell.innerHTML = `<h3>${name}</h3><div class="frame"></div>`; document.getElementById('crops').appendChild(cell);
+    crop(cell.querySelector('.frame'), o, `${cxm - cw/2} ${cym - ch/2} ${cw} ${ch}`, cw*sc, ch*sc);
+  });
+  window.__done = true;
+}
+document.fonts.load('12px "Plex Cond"').then(() => document.fonts.load('10px "Plex Mono"')).then(() => document.fonts.ready).then(build);
+</script>
+</body>
+</html>

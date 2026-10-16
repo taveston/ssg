@@ -117,6 +117,7 @@ Stations use the affiliation frames with the NATO installation bar on top and no
 Placed around the frame, never inside it, so the core symbol always reads the same.
 
 - **Velocity leader:** a line from the frame in the direction of motion (NATO direction-of-movement indicator). Its length grows with the logarithm of speed, since transit speeds vary widely. Waits for ships in transit.
+- **Offsets (decided 2026-10-16):** the condition bar and the group count start a small gap outside the selection box (HOV-07), not against the frame, so the brackets never touch them. An empty part of the bar is drawn dim; a ship with no known condition has no bar. (Specced: SYM-09, SYM-12.)
 - **Condition bar** under the frame: own ships only; it turns orange below half. A group shows its mean.
 - **Dashed frame:** the position is estimated, not a current observation (NATO uses dashed for anticipated).
 - **Stale track:** dashed and dimmed; the age goes in the label.
