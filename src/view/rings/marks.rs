@@ -44,7 +44,7 @@ use crate::view::markers::{
 use crate::view::motion_mode::MotionModeState;
 use crate::view::multi::{BackFrame, back_offset, frames_rect};
 use crate::view::multi_markers::draw::{spawn_back_frame, spawn_count, spawn_multi_parts};
-use crate::view::multi_markers::gather::{OrbitSlot, together_sets};
+use crate::view::multi_markers::link::{OrbitSlot, together_sets};
 use crate::view::multi_markers::look::MultiLook;
 use crate::view::readout::format_duration;
 use crate::view::screen::{MapView, in_viewport, screen_angle, snap_to_pixel};

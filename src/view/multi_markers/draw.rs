@@ -10,6 +10,8 @@
 //! start, shown while something is docked (MUL-03). An exposure ring's
 //! identity mark builds its multi-marker from the same parts (MOT-14).
 
+use std::collections::HashMap;
+
 use bevy::prelude::*;
 
 use super::look::{FrameLook, MultiLook};
@@ -294,17 +296,23 @@ pub fn assign_slots(
     shown: &[Option<MultiKey>],
     wanted: &[MultiKey],
 ) -> (Vec<Option<usize>>, usize) {
+    let index: HashMap<MultiKey, usize> = wanted.iter().enumerate().map(|(i, &k)| (k, i)).collect();
     let mut slots: Vec<Option<usize>> = shown
         .iter()
-        .map(|key| wanted.iter().position(|w| Some(*w) == *key))
+        .map(|key| key.and_then(|key| index.get(&key).copied()))
         .collect();
+    let mut placed = vec![false; wanted.len()];
+    for &i in slots.iter().flatten() {
+        placed[i] = true;
+    }
+    let mut free = (0..slots.len())
+        .filter(|&n| slots[n].is_none())
+        .collect::<Vec<_>>()
+        .into_iter();
     let mut short = 0;
-    for index in 0..wanted.len() {
-        if slots.contains(&Some(index)) {
-            continue;
-        }
-        match slots.iter_mut().find(|slot| slot.is_none()) {
-            Some(free) => *free = Some(index),
+    for index in (0..wanted.len()).filter(|&i| !placed[i]) {
+        match free.next() {
+            Some(node) => slots[node] = Some(index),
             None => short += 1,
         }
     }

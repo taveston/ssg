@@ -76,6 +76,7 @@ impl MultiMarker {
 }
 
 /// Every multi-marker this frame, and the joined things each holds.
+/// Written whole each frame with `set`, which indexes the markers by key.
 #[derive(Resource, Default, Debug)]
 pub struct MultiMarkers {
     pub markers: Vec<MultiMarker>,
@@ -83,11 +84,24 @@ pub struct MultiMarkers {
     /// joined into a together or overlap marker, or docked into its
     /// station's. Folded satellites are in `FoldSummary` instead.
     pub joined: HashMap<Entity, MultiKey>,
+    /// Where each marker is in `markers`, by its key.
+    index: HashMap<MultiKey, usize>,
 }
 
 impl MultiMarkers {
+    /// This frame's markers and joined things, in place of last frame's.
+    pub fn set(&mut self, markers: Vec<MultiMarker>, joined: HashMap<Entity, MultiKey>) {
+        self.index = markers
+            .iter()
+            .enumerate()
+            .map(|(i, m)| (m.key, i))
+            .collect();
+        self.markers = markers;
+        self.joined = joined;
+    }
+
     pub fn get(&self, key: MultiKey) -> Option<&MultiMarker> {
-        self.markers.iter().find(|m| m.key == key)
+        self.markers.get(*self.index.get(&key)?)
     }
 
     /// HOV-07: the box marker `key`'s two frames take on screen, before

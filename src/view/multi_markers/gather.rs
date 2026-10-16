@@ -9,21 +9,21 @@
 //! **Overlap** comes from the screen: two symbols closer than
 //! `cluster_join_px` join, and part only beyond `cluster_split_px`, so a
 //! pair at the edge doesn't flicker. **Fold** comes from `grouping.rs`.
-//! The rules are plain functions here, tested without a camera; the
-//! system gathers what they need.
+//! The rules are plain functions, tested without a camera (`link.rs`
+//! links things and symbols); the system gathers what they need.
 
 use std::collections::{HashMap, HashSet};
 
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
+use super::link::{OrbitSlot, OverlapLatch, Spot, overlap_clusters, together_sets};
 use super::look::MultiLook;
 use crate::sim::body::{Affiliation, BodyClass};
 use crate::sim::named_orbit::{InNamedOrbit, NamedOrbit};
 use crate::sim::orbit::Orbit;
 use crate::sim::ship::InFlight;
 use crate::sim::track::ShipRecord;
-use crate::sim::transfer::phase::{gap_rad, together};
 use crate::sim::tunables::SimTunables;
 use crate::view::anim::{advance_towards, step_per_frame};
 use crate::view::fold::{FoldSummary, SatelliteFoldState};
@@ -38,125 +38,6 @@ use crate::view::tunables::Tunables;
 /// Below this strength a symbol isn't drawn, so it can't overlap another
 /// (the markers' own cut-off).
 const MIN_VISIBLE_ALPHA: f32 = 0.02;
-
-/// A thing in a named orbit, for finding what is together (PHAS-02).
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct OrbitSlot {
-    pub thing: Entity,
-    pub orbit: Entity,
-    pub radius_km: f64,
-    pub phase_rad: f64,
-}
-
-/// The root of `i` in a union-find forest, flattening as it goes.
-fn root(parents: &mut [usize], mut i: usize) -> usize {
-    while parents[i] != i {
-        parents[i] = parents[parents[i]];
-        i = parents[i];
-    }
-    i
-}
-
-/// Groups `count` items by a pairwise link: every item linked to another
-/// by a chain of links is in one group. Groups and their items keep the
-/// items' order.
-fn link_groups(count: usize, linked: impl Fn(usize, usize) -> bool) -> Vec<Vec<usize>> {
-    let mut parents: Vec<usize> = (0..count).collect();
-    for a in 0..count {
-        for b in a + 1..count {
-            if linked(a, b) {
-                let (ra, rb) = (root(&mut parents, a), root(&mut parents, b));
-                parents[ra.max(rb)] = ra.min(rb);
-            }
-        }
-    }
-    let mut groups: Vec<Vec<usize>> = Vec::new();
-    let mut group_of: HashMap<usize, usize> = HashMap::new();
-    for i in 0..count {
-        let r = root(&mut parents, i);
-        let index = *group_of.entry(r).or_insert_with(|| {
-            groups.push(Vec::new());
-            groups.len() - 1
-        });
-        groups[index].push(i);
-    }
-    groups
-}
-
-/// MUL-05 / PHAS-02: the sets of two or more things together in one named
-/// orbit: each thing closer than `together_km` to another of the set, in
-/// a chain. Things keep their order within a set.
-pub fn together_sets(slots: &[OrbitSlot], together_km: f64) -> Vec<Vec<Entity>> {
-    link_groups(slots.len(), |a, b| {
-        let (a, b) = (slots[a], slots[b]);
-        a.orbit == b.orbit
-            && together(
-                a.radius_km,
-                gap_rad(a.phase_rad, b.phase_rad).min(gap_rad(b.phase_rad, a.phase_rad)),
-                together_km,
-            )
-    })
-    .into_iter()
-    .filter(|set| set.len() > 1)
-    .map(|set| set.into_iter().map(|i| slots[i].thing).collect())
-    .collect()
-}
-
-/// MUL-05: whether two symbols `distance` pixels apart are joined: below
-/// `join_px` they join, above `split_px` they part, and between the two
-/// they keep `was_joined`.
-pub fn next_joined(distance: f32, was_joined: bool, join_px: f32, split_px: f32) -> bool {
-    if distance < join_px {
-        true
-    } else if distance > split_px {
-        false
-    } else {
-        was_joined
-    }
-}
-
-/// A pair of things, in a fixed order, for the overlap latch.
-fn pair(a: Entity, b: Entity) -> (Entity, Entity) {
-    if a < b { (a, b) } else { (b, a) }
-}
-
-/// MUL-05: whether any thing of `a` was joined to any thing of `b` last
-/// frame.
-fn were_joined(a: &[Entity], b: &[Entity], latch: &HashSet<(Entity, Entity)>) -> bool {
-    a.iter()
-        .any(|&x| b.iter().any(|&y| latch.contains(&pair(x, y))))
-}
-
-/// MUL-05: the overlap clusters among symbols at `units` (each given by
-/// every thing it stands for): every symbol joined to another by a chain
-/// of joined pairs, with the hysteresis of `next_joined` read from
-/// `latch`, last frame's joined pairs of things. The latch is kept per
-/// thing, not per symbol, so two symbols stay joined while one of them
-/// gains or loses a thing. Returns the clusters, as indices into `units`
-/// (lone symbols as clusters of one), and this frame's joined pairs.
-pub fn overlap_clusters(
-    units: &[(Vec<Entity>, Vec2)],
-    latch: &HashSet<(Entity, Entity)>,
-    join_px: f32,
-    split_px: f32,
-) -> (Vec<Vec<usize>>, HashSet<(Entity, Entity)>) {
-    let mut joined = HashSet::new();
-    let mut linked = HashSet::new();
-    for a in 0..units.len() {
-        for b in a + 1..units.len() {
-            let ((things_a, pos_a), (things_b, pos_b)) = (&units[a], &units[b]);
-            let was = were_joined(things_a, things_b, latch);
-            if next_joined(pos_a.distance(*pos_b), was, join_px, split_px) {
-                linked.insert((a, b));
-                for &x in things_a {
-                    joined.extend(things_b.iter().map(|&y| pair(x, y)));
-                }
-            }
-        }
-    }
-    let clusters = link_groups(units.len(), |a, b| linked.contains(&(a, b)));
-    (clusters, joined)
-}
 
 /// MUL-06 / GRP-05: where a fold marker's front frame is centred: level
 /// with its parent's marker and beside it, its box (HOV-07) clear of the
@@ -173,9 +54,9 @@ pub fn overlap_centre(centres: &[Vec2], scale: f32) -> Vec2 {
     snap_to_pixel(mean, scale)
 }
 
-/// Last frame's joined pairs of things whose symbols overlap (MUL-05).
+/// Last frame's overlaps, for the hysteresis (MUL-05).
 #[derive(Resource, Default, Debug)]
-pub struct ClusterLatch(pub HashSet<(Entity, Entity)>);
+pub struct ClusterLatch(pub OverlapLatch);
 
 /// What the gathering reads of each thing.
 type ThingQuery<'w, 's> = Query<
@@ -476,15 +357,18 @@ fn cluster_markers(
 /// satellites. A thing docked at a station folded with it is listed under
 /// the station and not counted.
 fn fold_markers(inputs: &GatherInputs, sets: &[Vec<Entity>]) -> Vec<MultiMarker> {
-    let station_of = |thing: Entity| -> Option<(Entity, &Vec<Entity>)> {
-        let set = sets.iter().find(|set| set.contains(&thing))?;
+    // Each thing together with a station, by that station's set.
+    let mut station_of: HashMap<Entity, (Entity, &Vec<Entity>)> = HashMap::new();
+    for set in sets {
         let station = set.iter().copied().find(|&t| {
             inputs
                 .class_and_affiliation(t)
                 .is_some_and(|(class, _)| class == BodyClass::Station)
-        })?;
-        Some((station, set))
-    };
+        });
+        if let Some(station) = station {
+            station_of.extend(set.iter().map(|&t| (t, (station, set))));
+        }
+    }
     let mut parents: Vec<Entity> = inputs.folds.0.keys().copied().collect();
     parents.sort();
     let mut markers = Vec::new();
@@ -494,17 +378,18 @@ fn fold_markers(inputs: &GatherInputs, sets: &[Vec<Entity>]) -> Vec<MultiMarker>
             continue;
         }
         members.sort();
+        let folded: HashSet<Entity> = members.iter().copied().collect();
         let mut things = Vec::new();
         let mut docked: Vec<(Entity, Vec<Entity>)> = Vec::new();
         for &member in &members {
-            match station_of(member) {
-                Some((station, _)) if station != member && members.contains(&station) => {}
-                Some((station, set)) if station == member => {
+            match station_of.get(&member) {
+                Some(&(station, _)) if station != member && folded.contains(&station) => {}
+                Some(&(station, set)) if station == member => {
                     things.push(member);
                     let at: Vec<Entity> = set
                         .iter()
                         .copied()
-                        .filter(|&t| t != station && members.contains(&t))
+                        .filter(|&t| t != station && folded.contains(&t))
                         .collect();
                     if !at.is_empty() {
                         docked.push((station, at));
@@ -529,29 +414,28 @@ fn fold_markers(inputs: &GatherInputs, sets: &[Vec<Entity>]) -> Vec<MultiMarker>
 }
 
 /// MUL-05: each unit's cluster: the units drawn on screen clustered by
-/// overlap, with `latch` (last frame's joined pairs) updated; units off
+/// overlap, with `latch` (last frame's overlaps) updated; units off
 /// screen or faded out each alone.
-fn clusters_of(
-    units: &[Unit],
-    latch: &mut HashSet<(Entity, Entity)>,
-    tunables: &Tunables,
-) -> Vec<Vec<usize>> {
+fn clusters_of(units: &[Unit], latch: &mut OverlapLatch, tunables: &Tunables) -> Vec<Vec<usize>> {
     let visible: Vec<usize> = (0..units.len()).filter(|&i| units[i].visible).collect();
-    let spots: Vec<(Vec<Entity>, Vec2)> = visible
+    let spots: Vec<Spot> = visible
         .iter()
         .map(|&i| {
             let unit = &units[i];
-            let things = unit.things.iter().chain(&unit.docked).copied().collect();
-            (things, unit.pos)
+            Spot {
+                lead: unit.lead,
+                things: unit.things.iter().chain(&unit.docked).copied().collect(),
+                pos: unit.pos,
+            }
         })
         .collect();
-    let (clusters, joined) = overlap_clusters(
+    let (clusters, next) = overlap_clusters(
         &spots,
         latch,
         tunables.cluster_join_px,
         tunables.cluster_split_px,
     );
-    *latch = joined;
+    *latch = next;
     let mut all: Vec<Vec<usize>> = clusters
         .into_iter()
         .map(|c| c.into_iter().map(|i| visible[i]).collect())
@@ -614,14 +498,15 @@ pub fn next_slide(
 fn slide_things(
     commands: &mut Commands,
     symbols: &[Symbol],
-    (markers, joined): (&[MultiMarker], &HashMap<Entity, MultiKey>),
+    multis: &MultiMarkers,
     step: f32,
     slides: &mut Query<&mut JoinSlide>,
 ) {
     for symbol in symbols {
-        let holder = joined
+        let holder = multis
+            .joined
             .get(&symbol.thing)
-            .and_then(|key| markers.iter().find(|m| m.key == *key));
+            .and_then(|key| multis.get(*key));
         // A thing with no place on screen keeps its offset, but is held.
         let offset = holder.map(|m| symbol.pos.map_or(Vec2::ZERO, |pos| m.centre - pos));
         match slides.get_mut(symbol.thing) {
@@ -654,16 +539,9 @@ pub fn gather_multi_markers(
     let mut markers = cluster_markers(&units, &clusters, &inputs);
     markers.extend(fold_markers(&inputs, &sets));
     let joined = joined_things(&markers);
+    multis.set(markers, joined);
     let step = step_per_frame(time.delta_secs(), inputs.tunables.fold_unfold_anim_ms);
-    slide_things(
-        &mut commands,
-        &symbols,
-        (&markers, &joined),
-        step,
-        &mut slides,
-    );
-    multis.markers = markers;
-    multis.joined = joined;
+    slide_things(&mut commands, &symbols, &multis, step, &mut slides);
 }
 
 #[cfg(test)]
@@ -673,77 +551,6 @@ mod tests {
     fn entities(n: usize) -> Vec<Entity> {
         let mut world = World::new();
         (0..n).map(|_| world.spawn_empty().id()).collect()
-    }
-
-    /// MUL-05 / PHAS-02: things in one orbit closer than `together_km` are
-    /// together, in a chain; another orbit at the same phase is not.
-    #[test]
-    fn things_within_together_km_in_one_orbit_are_one_set() {
-        let e = entities(6);
-        let slot = |thing, orbit, phase_rad| OrbitSlot {
-            thing,
-            orbit,
-            radius_km: 40_000.0,
-            phase_rad,
-        };
-        // 10 km is 2.5e-4 rad at 40,000 km.
-        let slots = [
-            slot(e[0], e[5], 1.0),
-            slot(e[1], e[5], 1.0 + 1.5e-4),
-            slot(e[2], e[5], 1.0 + 3.0e-4),
-            slot(e[3], e[4], 1.0),
-            slot(e[4], e[5], 2.0),
-        ];
-        assert_eq!(together_sets(&slots, 10.0), vec![vec![e[0], e[1], e[2]]]);
-        // Across the zero angle, either way round.
-        let wrap = [
-            slot(e[0], e[5], 0.0),
-            slot(e[1], e[5], std::f64::consts::TAU - 1e-5),
-        ];
-        assert_eq!(together_sets(&wrap, 10.0).len(), 1);
-    }
-
-    /// MUL-05: symbols join below `cluster_join_px`, part only above
-    /// `cluster_split_px`, and keep their state between the two.
-    #[test]
-    fn two_symbols_join_below_the_join_distance_and_part_above_the_split() {
-        let t = Tunables::default();
-        let (join, split) = (t.cluster_join_px, t.cluster_split_px);
-        assert!(join < split);
-        assert!(next_joined(join - 0.1, false, join, split));
-        assert!(!next_joined(split + 0.1, true, join, split));
-        let between = (join + split) / 2.0;
-        assert!(next_joined(between, true, join, split));
-        assert!(!next_joined(between, false, join, split));
-
-        let e = entities(2);
-        let at = |d: f32| [(vec![e[0]], Vec2::ZERO), (vec![e[1]], Vec2::new(d, 0.0))];
-        let mut latch = HashSet::new();
-        let mut clusters_at = |d: f32| {
-            let (clusters, joined) = overlap_clusters(&at(d), &latch, join, split);
-            latch = joined;
-            clusters.len()
-        };
-        assert_eq!(clusters_at(between), 2, "apart, and not yet joined");
-        assert_eq!(clusters_at(join - 1.0), 1, "joined");
-        assert_eq!(clusters_at(between), 1, "stays joined in the band");
-        assert_eq!(clusters_at(split + 1.0), 2, "parted");
-        assert_eq!(clusters_at(between), 2, "stays parted in the band");
-    }
-
-    /// MUL-05: a cluster is every symbol joined to another by a chain of
-    /// joined pairs, so three in a row 20 px apart are one.
-    #[test]
-    fn a_chain_of_joined_pairs_is_one_cluster() {
-        let e = entities(4);
-        let units = [
-            (vec![e[0]], Vec2::new(0.0, 0.0)),
-            (vec![e[1]], Vec2::new(20.0, 0.0)),
-            (vec![e[2]], Vec2::new(40.0, 0.0)),
-            (vec![e[3]], Vec2::new(200.0, 0.0)),
-        ];
-        let (clusters, _) = overlap_clusters(&units, &HashSet::new(), 24.0, 28.0);
-        assert_eq!(clusters, vec![vec![0, 1, 2], vec![3]]);
     }
 
     /// MUL-05: two joined symbols stay joined inside the hysteresis band
@@ -764,7 +571,7 @@ mod tests {
             alpha: 1.0,
             visible: true,
         };
-        let mut latch = HashSet::new();
+        let mut latch = OverlapLatch::default();
         let near = [
             unit(ship, vec![ship], vec![], 0.0),
             unit(other, vec![other], vec![], t.cluster_join_px - 1.0),

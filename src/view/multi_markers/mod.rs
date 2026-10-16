@@ -5,8 +5,8 @@
 //! GRP-05), ships docked at a station (the station marker), ships
 //! together in one phase, and symbols that merely overlap.
 //!
-//! `gather.rs` decides which markers there are and what each holds,
-//! `look.rs` how each looks, `draw.rs` draws them, `order.rs` lists a
+//! `gather.rs` decides which markers there are and what each holds, by
+//! the rules in `link.rs`; `look.rs` how each looks, `draw.rs` draws them, `order.rs` lists a
 //! marker's things in order and `click.rs` handles a click on one. What
 //! they produce is shared state in `view/multi.rs`.
 
@@ -19,6 +19,7 @@ use crate::{Boot, Stage};
 pub mod click;
 pub mod draw;
 pub mod gather;
+pub mod link;
 pub mod look;
 pub mod order;
 
