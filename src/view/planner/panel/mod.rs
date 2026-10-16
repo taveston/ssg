@@ -75,6 +75,7 @@ pub enum Field {
 /// the view, since it changes with the leg (PLNR-104 to PLNR-106).
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SliderLabel(pub SliderKind);
+
 /// A slider's track, coloured by cost (PLNR-28).
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Track(pub SliderKind);

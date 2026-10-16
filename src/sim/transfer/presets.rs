@@ -143,13 +143,26 @@ pub fn cheapest<'a>(
 /// cheapest trip, is the next window. It may be over budget.
 pub fn next_window(grid: &Grid, margin_kms: f64) -> Option<Sample> {
     let per_day = grid.cheapest_per_day();
-    let best_kms = |sample: &Option<Sample>| sample.and_then(|s| s.cost()).map(|c| c.delta_v_kms);
+    let in_window = window_test(&per_day, margin_kms)?;
+    per_day.iter().find(|day| in_window(day)).copied().flatten()
+}
+
+/// The delta-v of a day's cheapest trip, in km/s; `None` for a day with
+/// no trip.
+fn best_kms(day: &Option<Sample>) -> Option<f64> {
+    day.and_then(|sample| sample.cost())
+        .map(|cost| cost.delta_v_kms)
+}
+
+/// PLNR-85: given each depart day's cheapest trip, a test of whether a
+/// day is in a window: its best is within `margin_kms` of the best of
+/// all. `None` when no day has a trip.
+fn window_test(
+    per_day: &[Option<Sample>],
+    margin_kms: f64,
+) -> Option<impl Fn(&Option<Sample>) -> bool> {
     let overall = per_day.iter().filter_map(best_kms).min_by(f64::total_cmp)?;
-    per_day
-        .iter()
-        .find(|day| best_kms(day).is_some_and(|kms| kms <= overall + margin_kms))
-        .copied()
-        .flatten()
+    Some(move |day: &Option<Sample>| best_kms(day).is_some_and(|kms| kms <= overall + margin_kms))
 }
 
 /// PLNR-106: whether every sampled depart day is in a window, as
@@ -157,17 +170,8 @@ pub fn next_window(grid: &Grid, margin_kms: f64) -> Option<Sample> {
 /// `margin_kms` of the best of all. A day with no trip at all is not, nor
 /// is an empty grid.
 pub fn every_day_in_window(grid: &Grid, margin_kms: f64) -> bool {
-    let per_day: Vec<Option<f64>> = grid
-        .cheapest_per_day()
-        .iter()
-        .map(|day| day.and_then(|s| s.cost()).map(|c| c.delta_v_kms))
-        .collect();
-    let Some(overall) = per_day.iter().flatten().copied().min_by(f64::total_cmp) else {
-        return false;
-    };
-    per_day
-        .iter()
-        .all(|kms| kms.is_some_and(|kms| kms <= overall + margin_kms))
+    let per_day = grid.cheapest_per_day();
+    window_test(&per_day, margin_kms).is_some_and(|in_window| per_day.iter().all(in_window))
 }
 
 /// What refining a preset picks among the settings near it (PLNR-86).

@@ -72,14 +72,19 @@ pub const TRAVEL_FIXED_TOOLTIP: &str =
     "This drive pushes gently the whole way, so its travel time is set by the drive.";
 /// The tooltip on the Travel time label for a phasing leg (PLNR-105).
 pub const TRAVEL_LAPS_TOOLTIP: &str = "More laps take longer but cost less delta-v.";
-/// The tooltips on the band choice (PLNR-98, PLNR-99).
+/// The tooltip on High (PLNR-98).
 pub const HIGH_TOOLTIP: &str = "A wide orbit far above the surface. It costs less delta-v to reach and to leave, so ships park here cheaply.";
+/// The tooltip on Low (PLNR-99).
 pub const LOW_TOOLTIP: &str = "A tight orbit close above the surface. It costs more delta-v to get into and out of than a high orbit.";
-/// The tooltips on the presets (PLNR-100 to PLNR-103).
+/// The tooltip on Fastest (PLNR-100).
 pub const FASTEST_TOOLTIP: &str =
     "Sets both sliders to the trip that gets there soonest with the delta-v your ship has.";
+/// The tooltip on Fastest while no trip is affordable, so it is
+/// disabled (PLNR-103).
 pub const FASTEST_DISABLED_TOOLTIP: &str = "Your ship doesn't have enough delta-v for any trip here. Cheapest shows the least it would need.";
+/// The tooltip on Cheapest (PLNR-101).
 pub const CHEAPEST_TOOLTIP: &str = "Sets both sliders to the trip that uses the least delta-v. It may take longer. If even this shows in orange, the ship can't afford to go.";
+/// The tooltip on Next window (PLNR-102).
 pub const NEXT_WINDOW_TOOLTIP: &str = "Sets both sliders to the first cheap day to leave. Windows come when two places are well placed for the trip, so waiting for one saves delta-v.";
 
 /// PLNR-100 to PLNR-103: a preset button's tooltip; a disabled Fastest

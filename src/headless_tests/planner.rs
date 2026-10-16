@@ -893,10 +893,11 @@ fn assert_tooltip(app: &mut App, control: Entity, text: &str) {
     assert_eq!(after, (Display::Flex, text.to_string()));
 }
 
-/// PLNR-91 / PLNR-94 / PLNR-95 / PLNR-97 to PLNR-102 / PLNR-106: resting the pointer on the Depart and
-/// Travel time labels, the Delta-v label, High, Low, each preset shown,
-/// Rendezvous and Intercept shows that control's tooltip once
-/// `tooltip_delay_ms` has passed, and not before.
+/// PLNR-91 / PLNR-94 / PLNR-95 / PLNR-97 to PLNR-102 / PLNR-106:
+/// resting the pointer on the Depart and Travel time labels, the Delta-v
+/// label, High, Low, each preset shown, Rendezvous and Intercept shows
+/// that control's tooltip once `tooltip_delay_ms` has passed, and not
+/// before.
 #[test]
 fn each_control_shows_its_tooltip_after_the_delay() {
     let mut app = planner_app();
