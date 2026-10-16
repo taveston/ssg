@@ -413,6 +413,59 @@ fn a_ship_in_flight_shows_its_path_and_is_drawn_as_a_dot() {
     assert!(node_centre(&node).distance(screen) < 0.5);
 }
 
+/// PLNR-68 / MRK-09: a ship in flight has no orbit ring or tail. A ring
+/// draws tails only for its members, so: parked, Orison is a member of
+/// Halden IV's High ring; once it has left, no ring carries it and it has
+/// no ring of its own, while the High ring stays for the ships still
+/// parked there.
+#[test]
+fn a_ship_in_flight_has_no_orbit_ring_or_tail() {
+    use crate::view::shared_orbit::OrbitRings;
+    use bevy::ecs::system::RunSystemOnce;
+
+    /// Every ring's owner, with its members.
+    fn rings_and_members(app: &mut App) -> Vec<(Entity, Vec<Entity>)> {
+        app.world_mut()
+            .run_system_once(|rings: OrbitRings| -> Vec<(Entity, Vec<Entity>)> {
+                rings
+                    .owners()
+                    .into_iter()
+                    .filter_map(|owner| rings.ring(owner))
+                    .map(|ring| {
+                        let members: Vec<Entity> = ring.members.iter().map(|m| m.body).collect();
+                        (ring.owner, members)
+                    })
+                    .collect()
+            })
+            .unwrap()
+    }
+
+    let mut app = symbols_app_with(|app| {
+        app.add_plugins((PlannerPlugin, PathsPlugin, SharedOrbitPlugin))
+            .init_resource::<crate::view::camera::requests::PlanetaryViewRequest>();
+    });
+    let orison = plan_orison_to_intercept_iver(&mut app);
+    let high = app.world().get::<InNamedOrbit>(orison).unwrap().0;
+    let parked = rings_and_members(&mut app);
+    let (_, members) = parked.iter().find(|(owner, _)| *owner == high).unwrap();
+    assert!(members.contains(&orison), "parked, it is on the ring");
+
+    schedule(&mut app, 0);
+    let leg = app.world().get::<Plan>(orison).unwrap().leg().clone();
+    let (leave, crossing) = (leg.leave_day(), leg.crossing_end_day);
+    let today = app.world().resource::<GameClock>().elapsed_days();
+    skip_days(&mut app, (leave - today) + (crossing - leave) * 0.4);
+    assert!(app.world().get::<InFlight>(orison).is_some());
+    run(&mut app, 3);
+
+    let flying = rings_and_members(&mut app);
+    assert!(flying.iter().any(|(owner, _)| *owner == high));
+    for (owner, members) in &flying {
+        assert_ne!(*owner, orison, "no ring of its own");
+        assert!(!members.contains(&orison), "no tail on {owner:?}");
+    }
+}
+
 /// PLNR-62: a ship in flight's path is full while it is hovered, and
 /// gains its arrival ghost while it is selected.
 #[test]
