@@ -235,12 +235,22 @@ impl TreeQuery<'_, '_> {
     /// The system as it stands: bodies with their gravity and orbits,
     /// named orbits, and each ship's state on `day`.
     pub fn snapshot(&self, day: f64) -> SystemTree {
+        let mut tree = SystemTree::default();
+        self.add_bodies(&mut tree);
+        set_hill_radii(&mut tree);
+        self.add_orbits(&mut tree);
+        self.add_ships_and_stations(&mut tree, day);
+        tree
+    }
+
+    /// Every body but the ships, with its gravity, size and orbit. A body
+    /// with no parent but the star orbits the star.
+    fn add_bodies(&self, tree: &mut SystemTree) {
         let star = self
             .bodies
             .iter()
             .find(|(_, class, ..)| **class == BodyClass::Star)
             .map(|(entity, ..)| entity);
-        let mut tree = SystemTree::default();
         for (entity, class, child_of, radius, mass, orbit) in &self.bodies {
             if *class == BodyClass::Ship {
                 continue;
@@ -264,19 +274,10 @@ impl TreeQuery<'_, '_> {
                 },
             );
         }
-        let parent_masses: HashMap<Entity, f64> = tree
-            .bodies
-            .iter()
-            .filter_map(|(&body, node)| {
-                let parent = node.parent?;
-                Some((body, tree.bodies.get(&parent)?.mass_kg))
-            })
-            .collect();
-        for (body, node) in &mut tree.bodies {
-            if let (Some(orbit), Some(&parent_mass)) = (node.orbit, parent_masses.get(body)) {
-                node.hill_km = hill_radius_km(orbit.radius_km, node.mass_kg, parent_mass);
-            }
-        }
+    }
+
+    /// Every named orbit: its body, size, period, band and docking.
+    fn add_orbits(&self, tree: &mut SystemTree) {
         for (entity, named, band, docking) in &self.orbits {
             tree.orbits.insert(
                 entity,
@@ -289,6 +290,11 @@ impl TreeQuery<'_, '_> {
                 },
             );
         }
+    }
+
+    /// Each ship's state on `day`, and each station's place in its named
+    /// orbit.
+    fn add_ships_and_stations(&self, tree: &mut SystemTree, day: f64) {
         for (entity, in_orbit, orbit, rail) in &self.ships {
             match self.class(entity) {
                 Some(BodyClass::Ship) => {
@@ -308,11 +314,28 @@ impl TreeQuery<'_, '_> {
                 _ => {}
             }
         }
-        tree
     }
 
     fn class(&self, entity: Entity) -> Option<BodyClass> {
         self.bodies.get(entity).ok().map(|(_, class, ..)| *class)
+    }
+}
+
+/// Each orbiting body's Hill radius, from its orbit and its parent's
+/// mass.
+fn set_hill_radii(tree: &mut SystemTree) {
+    let parent_masses: HashMap<Entity, f64> = tree
+        .bodies
+        .iter()
+        .filter_map(|(&body, node)| {
+            let parent = node.parent?;
+            Some((body, tree.bodies.get(&parent)?.mass_kg))
+        })
+        .collect();
+    for (body, node) in &mut tree.bodies {
+        if let (Some(orbit), Some(&parent_mass)) = (node.orbit, parent_masses.get(body)) {
+            node.hill_km = hill_radius_km(orbit.radius_km, node.mass_kg, parent_mass);
+        }
     }
 }
 

@@ -298,13 +298,69 @@ fn spawn_named_orbits(
         .collect()
 }
 
+/// Spawns a body, its group's member ships, its named orbits, bands or
+/// docking orbit, and then its children round it.
 fn spawn_body(
     commands: &mut Commands,
-    blueprint: BodyBlueprint,
+    mut blueprint: BodyBlueprint,
     placed: Placed,
     parent: Option<Entity>,
     central_mass_kg: f64,
     context: &Context,
+) -> Entity {
+    let orbit = Orbit {
+        radius_km: placed.radius_km,
+        period_days: kepler_period_days(placed.radius_km, central_mass_kg),
+        phase0_rad: blueprint.phase0_rad,
+    };
+    let (name, class, radius_km, mass_kg) = (
+        blueprint.name,
+        blueprint.class,
+        blueprint.radius_km,
+        blueprint.mass_kg,
+    );
+    let orbits = std::mem::take(&mut blueprint.orbits);
+    let children = std::mem::take(&mut blueprint.children);
+    let group = blueprint.group.take();
+    let entity = spawn_body_entity(commands, blueprint, orbit, placed.named, parent);
+    if let Some(group) = group {
+        // SYM-09: a group's ships, and its record derived from theirs.
+        spawn_members(commands, entity, group);
+    }
+
+    let mut spawned = spawn_named_orbits(commands, entity, &orbits, mass_kg);
+    match class {
+        BodyClass::Star | BodyClass::Planet | BodyClass::Moon => {
+            let hill_km = hill_radius_km(placed.radius_km, mass_kg, central_mass_kg);
+            spawned.extend(spawn_bands(
+                commands, entity, radius_km, hill_km, mass_kg, context,
+            ));
+        }
+        BodyClass::Gate | BodyClass::SalvageSite => {
+            let round = parent.unwrap_or(context.star);
+            spawn_docking_orbit(commands, entity, name, round, &orbit);
+        }
+        // A station is a place in its parent's band, as a parked ship is
+        // (SCL-07, BAND-02): it offers no orbit of its own.
+        BodyClass::Station | BodyClass::Ship => {}
+    }
+    let placements = Placements::round(&children, &spawned);
+    for (child, placed) in children.into_iter().zip(placements) {
+        spawn_body(commands, child, placed, Some(entity), mass_kg, context);
+    }
+
+    entity
+}
+
+/// Spawns the body itself, on `orbit`: its names, facts, class, size,
+/// mass, affiliation and knowledge; a ship's record and drive; what it
+/// orbits, and the named orbit it sits in, if any.
+fn spawn_body_entity(
+    commands: &mut Commands,
+    blueprint: BodyBlueprint,
+    orbit: Orbit,
+    named: Option<Entity>,
+    parent: Option<Entity>,
 ) -> Entity {
     let BodyBlueprint {
         name,
@@ -312,24 +368,13 @@ fn spawn_body(
         affiliation,
         record,
         propulsion,
-        group,
         description,
         key_facts,
         knowledge,
-        orbit: _,
         radius_km,
-        phase0_rad,
         mass_kg,
-        orbits,
-        children,
+        ..
     } = blueprint;
-
-    let orbit = Orbit {
-        radius_km: placed.radius_km,
-        period_days: kepler_period_days(placed.radius_km, central_mass_kg),
-        phase0_rad,
-    };
-
     let mut entity_commands = commands.spawn((
         Name::new(name),
         DisplayName(name.to_string()),
@@ -358,38 +403,11 @@ fn spawn_body(
         // What it orbits: positions are relative to this body (ARCH-10).
         entity_commands.insert(ChildOf(parent));
     }
-    if let Some(named) = placed.named {
+    if let Some(named) = named {
         // SCL-07: the orbit it shares with whatever else sits there.
         entity_commands.insert(InNamedOrbit(named));
     }
-    let entity = entity_commands.id();
-    if let Some(group) = group {
-        // SYM-09: a group's ships, and its record derived from theirs.
-        spawn_members(commands, entity, group);
-    }
-
-    let mut spawned = spawn_named_orbits(commands, entity, &orbits, mass_kg);
-    match class {
-        BodyClass::Star | BodyClass::Planet | BodyClass::Moon => {
-            let hill_km = hill_radius_km(placed.radius_km, mass_kg, central_mass_kg);
-            spawned.extend(spawn_bands(
-                commands, entity, radius_km, hill_km, mass_kg, context,
-            ));
-        }
-        BodyClass::Gate | BodyClass::SalvageSite => {
-            let round = parent.unwrap_or(context.star);
-            spawn_docking_orbit(commands, entity, name, round, &orbit);
-        }
-        // A station is a place in its parent's band, as a parked ship is
-        // (SCL-07, BAND-02): it offers no orbit of its own.
-        BodyClass::Station | BodyClass::Ship => {}
-    }
-    let placements = Placements::round(&children, &spawned);
-    for (child, placed) in children.into_iter().zip(placements) {
-        spawn_body(commands, child, placed, Some(entity), mass_kg, context);
-    }
-
-    entity
+    entity_commands.id()
 }
 
 #[cfg(test)]
