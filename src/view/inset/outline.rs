@@ -355,6 +355,12 @@ impl OutlineBodies<'_, '_> {
         tree
     }
 
+    /// Where `body` sits in the tree, if it is a body.
+    pub fn place(&self, body: Entity) -> Option<TreePlace> {
+        let (entity, _, _, _, _, _, child_of, in_orbit, _) = self.bodies.get(body).ok()?;
+        Some((entity, child_of.map(ChildOf::parent), in_orbit.map(|o| o.0)))
+    }
+
     /// INS-05: every body as an outline node. The star is the root;
     /// anything else with no parent orbits the star.
     pub fn nodes(&self) -> Vec<OutlineNode> {
@@ -411,14 +417,20 @@ impl Plugin for OutlinePlugin {
 }
 
 /// INS-05 / HOV-05: a new selection opens the path to it and its own
-/// satellites, and the orbit a ring click came through.
+/// satellites, and the orbit a ring click came through. A selected ship
+/// that moves to another orbit or body has its new path opened too, so
+/// its row stays in view (F-NEW-1).
 fn reveal_on_selection(
     selection: Res<Selection>,
     bodies: OutlineBodies,
     mut expanded: ResMut<Expanded>,
     mut scroll: ResMut<ScrollToSelection>,
+    mut selected_place: Local<Option<TreePlace>>,
 ) {
-    if !selection.is_changed() {
+    let place = selection.selected.and_then(|s| bodies.place(s));
+    let moved = *selected_place != place;
+    *selected_place = place;
+    if !selection.is_changed() && !moved {
         return;
     }
     let Some(selected) = selection.selected else {

@@ -73,7 +73,8 @@ fn skip_days(app: &mut App, days: f64) {
 
 /// Sends Marlin through the planner on a Rendezvous in the Moon's Low
 /// band, as soon as it can leave, then moves the clock past its arrival.
-fn fly_marlin_to_the_moon(app: &mut App, marlin: Entity, moon: Entity) {
+/// Marlin stays selected if `keep_selected`; otherwise nothing is.
+fn fly_marlin_to_the_moon(app: &mut App, marlin: Entity, moon: Entity, keep_selected: bool) {
     app.world_mut().resource_mut::<Selection>().select(marlin);
     app.world_mut().resource_mut::<PlannerState>().open(marlin);
     run(app, 1);
@@ -95,7 +96,9 @@ fn fly_marlin_to_the_moon(app: &mut App, marlin: Entity, moon: Entity) {
     app.world_mut()
         .write_message(ShipOrder::Transfer { ship, order });
     app.world_mut().resource_mut::<PlannerState>().end();
-    app.world_mut().resource_mut::<Selection>().clear();
+    if !keep_selected {
+        app.world_mut().resource_mut::<Selection>().clear();
+    }
     run(app, 3);
     let arrival = plan(app, marlin).leg().arrival_day;
     skip_days(app, arrival - day(app) + 0.5);
@@ -171,7 +174,7 @@ fn a_ship_sent_to_the_moon_is_drawn_and_listed_there() {
     );
     assert!(ring_members(&mut app)[&earth_low].contains(&marlin));
 
-    fly_marlin_to_the_moon(&mut app, marlin, moon);
+    fly_marlin_to_the_moon(&mut app, marlin, moon, false);
     let members = app.world().resource::<OrbitMembers>().0.clone();
     assert_eq!(members[&moon_low], [marlin]);
     assert_eq!(members[&earth_low], others);
@@ -245,7 +248,7 @@ fn a_ship_arriving_in_an_empty_orbit_gets_a_ring_that_reaches_it() {
         "Earth's Low orbit is shared"
     );
 
-    fly_marlin_to_the_moon(&mut app, marlin, moon);
+    fly_marlin_to_the_moon(&mut app, marlin, moon, false);
     let targets = ring_targets(&mut app);
     let on_moon: Vec<_> = targets.iter().filter(|t| t.1 == moon_low).collect();
     assert_eq!(on_moon.len(), 1);
@@ -283,4 +286,23 @@ fn a_ship_arriving_in_an_empty_orbit_gets_a_ring_that_reaches_it() {
     click_node(&mut app, target, 1);
     run(&mut app, 1);
     assert_eq!(app.world().resource::<Selection>().selected, Some(marlin));
+}
+
+/// INS-05 / RAIL-09: Marlin stays selected while it flies to the Moon.
+/// The outline had opened its path at Earth; once it arrives, its new
+/// path through the Moon and its Low orbit is opened too, so its row is
+/// still listed.
+#[test]
+fn a_selected_ship_that_arrives_elsewhere_keeps_its_row_in_view() {
+    let mut app = sol_app();
+    let moon = body(&mut app, "Moon");
+    let marlin = body(&mut app, "Marlin");
+    let moon_low = band_orbit(&mut app, moon, Band::Low);
+    fly_marlin_to_the_moon(&mut app, marlin, moon, true);
+    assert_eq!(app.world().resource::<Selection>().selected, Some(marlin));
+    let expanded = app.world().resource::<Expanded>();
+    assert!(expanded.entries.contains(&moon) && expanded.orbits.contains(&moon_low));
+    let rows = outline_rows(&mut app);
+    let at = |e: Entity| rows.iter().position(|&r| r == e);
+    assert!(at(moon) < at(moon_low) && at(moon_low) < at(marlin));
 }
