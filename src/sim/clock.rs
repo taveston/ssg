@@ -3,7 +3,7 @@
 //! The clock owns its own state: its fields are private and every change
 //! goes through a method on it (ARCH-14), so no view module can set a rate
 //! or a pause flag behind its back. The readout, the rate buttons and the
-//! keys live in `view/topbar.rs`.
+//! keys live in `view/topbar/mod.rs`.
 
 use bevy::prelude::*;
 

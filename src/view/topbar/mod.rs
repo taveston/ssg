@@ -1,5 +1,5 @@
 //! The top bar and the clock controls (CLK-02, CLK-05): the breadcrumb's
-//! slot (filled by `breadcrumb.rs`), the date, the Pause, 1 d/s and 5 d/s
+//! slot (filled by `topbar/breadcrumb.rs`), the date, the Pause, 1 d/s and 5 d/s
 //! buttons with the active rate highlighted, and the clock keys (CLK-05:
 //! Space, `.` and `,`). Every change goes through the clock's own API
 //! (ARCH-14). A debug frames-per-second readout sits at the end,
@@ -12,12 +12,14 @@ use super::layers;
 
 use crate::sim::clock::GameClock;
 use crate::view::bindings::{Bindings, pressed};
-use crate::view::breadcrumb::spawn_breadcrumb_root;
 use crate::view::buttons::{ButtonStyle, ConsoleButton, spawn_button};
 use crate::view::colors;
 use crate::view::date::{date_from_elapsed_days, format_date};
 use crate::view::fonts::Fonts;
 use crate::view::targets::MapInputBlocker;
+use crate::view::topbar::breadcrumb::spawn_breadcrumb_root;
+
+pub mod breadcrumb;
 
 #[derive(Component)]
 struct DateText;
@@ -212,7 +214,7 @@ mod tests {
     use bevy::ecs::system::RunSystemOnce;
 
     use super::*;
-    use crate::view::breadcrumb::BreadcrumbRoot;
+    use crate::view::topbar::breadcrumb::BreadcrumbRoot;
 
     fn fps_display(world: &mut World) -> Display {
         let mut readouts = world.query_filtered::<&Node, With<FpsText>>();

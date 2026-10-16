@@ -9,11 +9,11 @@
 
 use bevy::prelude::*;
 
-use super::camera::requests::{FrameRequest, RecentreRequest};
-use super::colors;
-use super::fonts::Fonts;
-use super::frame::{Frame, ancestors};
 use crate::sim::body::DisplayName;
+use crate::view::camera::requests::{FrameRequest, RecentreRequest};
+use crate::view::colors;
+use crate::view::fonts::Fonts;
+use crate::view::frame::{Frame, ancestors};
 
 /// The cluster entry's text. It does nothing until the cluster view exists.
 const CLUSTER: &str = "Cluster";

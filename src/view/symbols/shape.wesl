@@ -2,7 +2,7 @@
 // geometry, evaluated per screen pixel at the size it is drawn (SYM-17).
 // Shapes are signed distances in logical pixels from the node's centre
 // (y down): negative inside. The part's coverage is antialiased over one
-// physical pixel. Mirrors `SymbolMask` in `symbol_shape.rs`.
+// physical pixel. Mirrors `SymbolMask` in `shape.rs`.
 
 import bevy_ui_render::ui_vertex_output::UiVertexOutput;
 

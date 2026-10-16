@@ -6,17 +6,24 @@
 //!
 //! The view reads the simulation and changes it only through its API
 //! (ARCH-14). State that several view modules share lives in its own small
-//! module - `selection`, `fold`, `motion_mode`, `targets`, `screen`,
-//! `shared_orbit`, `sidebar`, `planner_state` - so no two feature modules
-//! import each other (ARCH-03). The transfer planner's panel is
-//! `planner/`; transfers drawn on the map are `paths/`.
+//! module at this level - `selection`, `fold`, `motion_mode`, `targets`,
+//! `screen`, `shared_orbit`, `sidebar` and others - or, for the planner,
+//! `planner/state.rs`, so no two feature modules import each other
+//! (ARCH-03).
+//!
+//! Features with several modules have a folder each: `camera/`, `markers/`
+//! (markers, their picking, labels, pills and brackets), `rings/` (orbit
+//! rings, their marks, picking and near arcs), `symbols/` (ship symbols,
+//! their drawing, shader and leaders), `edge/` (edge arrows and tabs),
+//! `inset/` (the inspection sidebar's contents), `topbar/`, `frame_cue/`,
+//! `planner/` (the transfer planner) and `paths/` (transfers drawn on the
+//! map).
 
 use bevy::prelude::*;
 
 pub mod anim;
 pub mod belt;
 pub mod bindings;
-pub mod breadcrumb;
 pub mod buttons;
 pub mod camera;
 pub mod colors;
@@ -79,7 +86,7 @@ impl Plugin for ViewPlugin {
                 projection::ProjectionPlugin,
                 belt::BeltPlugin,
                 camera::CameraPlugin,
-                breadcrumb::BreadcrumbPlugin,
+                topbar::breadcrumb::BreadcrumbPlugin,
                 buttons::ButtonsPlugin,
                 plot_marks::PlotMarksPlugin,
                 markers::picking::MarkerPickingPlugin,
