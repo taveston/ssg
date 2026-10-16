@@ -1,7 +1,8 @@
 //! Hover and click on markers (MRK-08): a small picking backend that hits
 //! a marker anywhere within `min_hit_radius_px` of its centre (or its drawn
-//! size, if larger), so small markers stay easy to click. Where hit areas
-//! overlap, the marker whose centre is nearest the pointer wins.
+//! size, if larger, so a true-size disc is hit anywhere on it), so small
+//! markers stay easy to click. Where hit areas overlap, the marker whose
+//! centre is nearest the pointer wins.
 //!
 //! Each body with a marker gets one invisible target entity carrying
 //! `MarkerFor` and the ordinary marker observers. The drawn marker node
@@ -113,9 +114,11 @@ fn find_marker_spots(
 }
 
 /// The backend: report a hit on the nearest marker for each pointer.
+/// Hits are reported against the overlay's camera, which draws the
+/// markers, as the rings' and the UI's are, so the orderings compare.
 fn pick_markers(
     pointers: Query<(&PointerId, &PointerLocation)>,
-    camera_q: Query<(Entity, &Camera)>,
+    camera_q: Query<(Entity, &Camera), With<IsDefaultUiCamera>>,
     spots: Res<MarkerSpots>,
     mut output: MessageWriter<PointerHits>,
 ) {
@@ -180,5 +183,63 @@ mod tests {
                 Some(b.target)
             );
         }
+    }
+
+    /// MRK-08 / MRK-07: with the game's two cameras (map and overlay), a
+    /// body drawn as an 80 px true-size disc is hit anywhere on the disc,
+    /// 30 px from its centre, and the hit sits above the overlay camera's
+    /// rings and below its UI.
+    #[test]
+    fn a_true_size_disc_is_hit_anywhere_on_it() {
+        use bevy::camera::NormalizedRenderTarget;
+        use bevy::ecs::system::RunSystemOnce;
+        use bevy::picking::pointer::{Location, PointerMap};
+
+        let mut app = App::new();
+        app.add_message::<PointerHits>()
+            .init_resource::<PointerMap>()
+            .init_resource::<MarkerSpots>()
+            .init_resource::<Tunables>();
+        let world = app.world_mut();
+        world
+            .run_system_once(crate::view::camera::rig::spawn_camera)
+            .unwrap();
+        let body = world.spawn_empty().id();
+        let target = world.spawn((MarkerTarget, MarkerFor(body))).id();
+        let centre = Vec2::new(400.0, 300.0);
+        world.spawn((
+            MarkerFor(body),
+            MarkerHalfSize(Vec2::splat(6.0)),
+            Node {
+                display: Display::Flex,
+                left: px(centre.x - 40.0),
+                top: px(centre.y - 40.0),
+                width: px(80.0),
+                height: px(80.0),
+                ..default()
+            },
+        ));
+        world.spawn((
+            PointerId::Mouse,
+            PointerLocation::new(Location {
+                target: NormalizedRenderTarget::None {
+                    width: 1600,
+                    height: 900,
+                },
+                position: centre + Vec2::new(30.0, 0.0),
+            }),
+        ));
+        world.run_system_once(find_marker_spots).unwrap();
+        world.run_system_once(pick_markers).unwrap();
+
+        let hits: Vec<PointerHits> = world
+            .resource_mut::<Messages<PointerHits>>()
+            .drain()
+            .collect();
+        assert_eq!(hits.len(), 1, "one hit for the one pointer");
+        assert_eq!(hits[0].picks[0].0, target);
+        let mut ui = world.query_filtered::<&Camera, With<IsDefaultUiCamera>>();
+        let ui_order = ui.single(world).unwrap().order as f32;
+        assert!(hits[0].order > ui_order && hits[0].order < ui_order + 0.5);
     }
 }
