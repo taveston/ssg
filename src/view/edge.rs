@@ -1,6 +1,6 @@
 //! Gate edge indicators (EDGE-01 to EDGE-03): a gate outside the viewport
-//! shows as an arrow pinned to the screen edge in its direction, in a tab
-//! with its destination's name (`edge_tab.rs`).
+//! shows as an arrow pinned to the screen edge in its direction, beside a
+//! tab with its destination's name (`edge_tab.rs`).
 //!
 //! `GateEdgeTargets` says which gates are pinned this frame and where; the
 //! marker overlay reads it to hide those gates' ordinary markers.
@@ -171,7 +171,6 @@ fn update_edge_targets(
 /// area.
 fn place_edge_tabs(
     screen: Res<ScreenPositions>,
-    tunables: Res<Tunables>,
     targets: Res<GateEdgeTargets>,
     mut tabs: Query<(&EdgeTabFor, &mut Node, &ComputedNode, &Children)>,
     mut chevrons: Query<&mut UiTransform, With<TabChevron>>,
@@ -182,7 +181,7 @@ fn place_edge_tabs(
             node.display = Display::None;
             continue;
         };
-        place_tab(&mut node, computed, at, tunables.button_stroke_px, &area);
+        place_tab(&mut node, computed, at, &area);
         let angle = edge_arrow_angle(at - area.offset, area.size);
         for &child in children {
             if let Ok(mut transform) = chevrons.get_mut(child) {

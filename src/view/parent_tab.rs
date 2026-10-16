@@ -45,8 +45,8 @@ impl Plugin for ParentTabPlugin {
     }
 }
 
-/// MRK-15 / EDGE-03: an edge tab holding the chevron, the marker and the
-/// name.
+/// MRK-15 / EDGE-03: an edge tab with the chevron beside it and the
+/// marker and the name inside it.
 fn spawn_parent_tab(mut commands: Commands, fonts: Res<Fonts>, tunables: Res<Tunables>) {
     spawn_tab(
         &mut commands,
@@ -137,7 +137,6 @@ fn place_parent_tab(
     frame: Res<Frame>,
     screen: Res<ScreenPositions>,
     parents: Query<&ChildOf>,
-    tunables: Res<Tunables>,
     mut tabs: Query<(&mut Node, &ComputedNode, &Children), With<ParentTab>>,
     mut chevrons: Query<&mut UiTransform, With<TabChevron>>,
 ) {
@@ -156,7 +155,7 @@ fn place_parent_tab(
             node.display = Display::None;
             continue;
         };
-        place_tab(&mut node, computed, at, tunables.button_stroke_px, &area);
+        place_tab(&mut node, computed, at, &area);
         let angle = edge_arrow_angle(at - area.offset, area.size);
         for &child in children {
             if let Ok(mut transform) = chevrons.get_mut(child) {

@@ -12,9 +12,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **Edge-tab arrow outside the tab** · EDGE-03, MRK-15
-  - Changes EDGE-03 and MRK-15 (their ✓ is cleared): the arrow leaves the tab. It sits at the pinned point on the map area's edge and the tab beside it on the inner side, so the arrow is outside the tab's outline. The parent's tab keeps its marker and name inside.
-  - One change in `view/edge_tab.rs`, shared by the gates (`view/edge.rs`) and the parent (`view/parent_tab.rs`): take the chevron out of the tab node, and move it with the tab as `tab_origin` slides the tab along the edge, so arrow and tab together stay whole inside the map area. Gates and the parent keep the same look.
 - [ ] **Orbit rows in the outline** · INS-05
   - Changes INS-05 (its ✓ is cleared). In `view/outline.rs`: drop the step in `children_of` that turns a one-member orbit back into a plain entry, so every named orbit with members gets its row. Name the row "High orbit · 14" (the orbit's name, "orbit", the member count) instead of "Halden IV · High · 14". An orbit with no members still gets no row.
   - Tests: Halden IV's outline has "Low orbit · 1" (Arden Highport) and "High orbit" with its ships; a body with empty bands has no orbit rows; selecting a lone member opens its row.
