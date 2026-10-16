@@ -2495,6 +2495,133 @@ fn an_exposure_ring_carries_an_identity_mark() {
     assert_eq!(centre, centre.round(), "centred on a whole pixel");
 }
 
+/// MOT-02 / MOT-14 / LBL-01 / LBL-03: an exposure ring's label is placed
+/// like any other label: `label_gap_px` from its mark's box, clear of
+/// the mark's chevron. Walled in so that only a one-line label fits, it
+/// drops its period line, which is its second line.
+#[test]
+fn an_exposure_ring_label_is_placed_like_any_label() {
+    use crate::view::labels::{LabelState, LabelsPlugin, Slot, label_rect, overlaps};
+    use crate::view::ring_marks::{PeriodLine, RingLabelBox, RingMarkFor, RingMarksPlugin};
+    use crate::view::targets::GroupPillFor;
+
+    const FULL: Vec2 = Vec2::new(60.0, 26.0);
+    const PERIOD: Vec2 = Vec2::new(60.0, 12.0);
+    fn size_ring_labels(app: &mut App) {
+        let mut boxes = app
+            .world_mut()
+            .query_filtered::<&mut ComputedNode, With<RingLabelBox>>();
+        for mut computed in boxes.iter_mut(app.world_mut()) {
+            computed.size = FULL;
+        }
+        let mut periods = app
+            .world_mut()
+            .query_filtered::<&mut ComputedNode, With<PeriodLine>>();
+        for mut computed in periods.iter_mut(app.world_mut()) {
+            computed.size = PERIOD;
+        }
+    }
+
+    let mut app = camera_app_with(|app| {
+        app.insert_resource(placeholder_fonts()).add_plugins((
+            GroupingPlugin,
+            MotionPlugin,
+            HoveredPlugin,
+            SharedOrbitPlugin,
+            RingMarksPlugin,
+            LabelsPlugin,
+        ));
+    });
+    let halden = body(&mut app, "Halden IV");
+    let iva = body(&mut app, "Halden IVa");
+    let mut clock = app.world_mut().resource_mut::<GameClock>();
+    clock.toggle_pause();
+    clock.run_at(0.2);
+    app.world_mut().resource_mut::<FrameRequest>().0 = Some(halden);
+    run(&mut app, 60 + eased_frames());
+    size_ring_labels(&mut app);
+    run(&mut app, 30);
+
+    let tunables = Tunables::default();
+    let mark = {
+        let mut marks = app.world_mut().query::<(Entity, &RingMarkFor)>();
+        marks
+            .iter(app.world())
+            .find(|(_, m)| m.owner == iva)
+            .map(|(e, _)| e)
+            .unwrap()
+    };
+    let label = descendants(&mut app, mark)
+        .into_iter()
+        .find(|&e| app.world().get::<RingLabelBox>(e).is_some())
+        .unwrap();
+    let period = descendants(&mut app, mark)
+        .into_iter()
+        .find(|&e| app.world().get::<PeriodLine>(e).is_some())
+        .unwrap();
+    let px_of = |app: &App, e: Entity| {
+        let node = app.world().get::<Node>(e).unwrap();
+        let (Val::Px(left), Val::Px(top)) = (node.left, node.top) else {
+            panic!("not placed in pixels");
+        };
+        Vec2::new(left, top)
+    };
+    let ring_mark = app.world().get::<RingMarkFor>(mark).unwrap();
+    let bbox = ring_mark.mark.unwrap().inflate(tunables.bracket_margin_px);
+    let chevron = ring_mark.chevron;
+    let state = *app.world().get::<LabelState>(label).unwrap();
+    let placement = state.shown.expect("the ring's label is shown");
+    assert!(placement.full, "with room, the period line shows");
+    let min = px_of(&app, mark) + px_of(&app, label);
+    let rect = Rect::from_corners(min, min + FULL);
+    let want = label_rect(bbox, FULL, placement.slot, tunables.label_gap_px);
+    assert!(
+        (rect.min - want.min).length() < 1e-3,
+        "label at {}, want {}",
+        rect.min,
+        want.min
+    );
+    assert!(!overlaps(rect, bbox));
+    if let Some(chevron) = chevron {
+        assert!(!overlaps(rect, chevron), "the label runs over the chevron");
+    }
+
+    // Walls left, right, above and below the mark's box, with room above
+    // and below for the name alone.
+    let inner = tunables.label_gap_px + (FULL.y - PERIOD.y) + 3.0;
+    let side = 30.0;
+    let far = 4000.0;
+    let walls = [
+        Rect::new(-far, -far, far, bbox.min.y - inner),
+        Rect::new(-far, bbox.max.y + inner, far, far),
+        Rect::new(-far, -far, bbox.min.x - side, far),
+        Rect::new(bbox.max.x + side, -far, far, far),
+    ];
+    for wall in walls {
+        app.world_mut().spawn((
+            GroupPillFor(halden),
+            Node {
+                left: px(wall.min.x),
+                top: px(wall.min.y),
+                ..default()
+            },
+            ComputedNode {
+                size: wall.size(),
+                ..default()
+            },
+        ));
+    }
+    run(&mut app, 30);
+    let state = *app.world().get::<LabelState>(label).unwrap();
+    let placement = state.shown.expect("still shown, on one line");
+    assert!(!placement.full, "the period line goes first");
+    assert!(matches!(placement.slot, Slot::Above | Slot::Below));
+    assert_eq!(
+        app.world().get::<Node>(period).unwrap().display,
+        Display::None
+    );
+}
+
 /// MOT-02 / MOT-14: at 0.2 d/s in Halden IV's frame IVa's ring is an
 /// exposure ring. Its label's second line is the orbit's period, and its
 /// direction chevron shows on the ring, `chevron_gap_px` beyond the mark's

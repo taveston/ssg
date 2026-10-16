@@ -17,6 +17,10 @@
 //! label keeps its position while it stays free, and any change fades
 //! over `label_fade_ms`.
 //!
+//! An exposure ring's label is placed the same way beside the ring's
+//! identity mark, whose direction chevron counts as part of the mark
+//! (MOT-02, MOT-14); its period line is its second line.
+//!
 //! The placement is a pure function of the candidates and the obstacles
 //! (`place_labels`); the system gathers them from the markers and pills
 //! laid out this frame and writes the result back to the label nodes.
@@ -28,11 +32,12 @@ use super::frame::Frame;
 use super::hovered::HoveredBodies;
 use super::markers::{MarkerHalfSize, MarkerLabel, MarkersPlaced, SecondLineFor};
 use super::paths::marks::PathLabel;
-use super::ring_marks::RingMarkFor;
+use super::ring_marks::{PeriodLine, RingLabelBox, RingMarkFor};
 use super::selection::Selection;
+use super::shared_orbit::OrbitMembers;
 use super::symbol_draw::AmplifierReach;
 use super::symbols::own_flag_civilian;
-use super::targets::{GroupPillFor, MarkerFor};
+use super::targets::{GroupPillFor, MarkerFor, OrbitFor};
 use super::tunables::Tunables;
 use super::world::ViewNow;
 use crate::Stage;
@@ -239,9 +244,10 @@ impl Plugin for LabelsPlugin {
 /// (whose ranks run to 10), so they give way to all of them.
 pub const PATH_LABEL_RANK: u8 = 11;
 
-/// Labels, of markers or of paths, that have no placement state yet.
+/// Labels, of markers, paths or exposure rings, that have no placement
+/// state yet.
 type UnplacedLabels = (
-    Or<(With<MarkerLabel>, With<PathLabel>)>,
+    Or<(With<MarkerLabel>, With<PathLabel>, With<RingLabelBox>)>,
     Without<LabelState>,
 );
 
@@ -344,11 +350,34 @@ type PathLabels<'w, 's> = Query<
         Without<SecondLineFor>,
         Without<GroupPillFor>,
         Without<RingMarkFor>,
+        Without<RingLabelBox>,
+        Without<PeriodLine>,
     ),
 >;
 
-/// A label's second line: its node, for showing or hiding it, and its
-/// size.
+/// The exposure rings' labels (MOT-02), each under its ring's mark.
+type RingLabels<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static ChildOf,
+        &'static ComputedNode,
+        &'static mut Node,
+        &'static mut LabelState,
+        &'static mut Visibility,
+    ),
+    (
+        With<RingLabelBox>,
+        Without<MarkerLabel>,
+        Without<MarkerHalfSize>,
+        Without<GroupPillFor>,
+        Without<RingMarkFor>,
+    ),
+>;
+
+/// A label's second line (a symbol's, or a ring's period line): its
+/// node, for showing or hiding it, and its size.
 type SecondLines<'w, 's> = Query<
     'w,
     's,
@@ -359,9 +388,12 @@ type SecondLines<'w, 's> = Query<
         &'static Text,
     ),
     (
-        With<SecondLineFor>,
+        Or<(With<SecondLineFor>, With<PeriodLine>)>,
         Without<MarkerLabel>,
         Without<MarkerHalfSize>,
+        Without<RingLabelBox>,
+        Without<GroupPillFor>,
+        Without<RingMarkFor>,
     ),
 >;
 
@@ -377,13 +409,22 @@ type Obstacles<'w, 's> = (
             Without<SecondLineFor>,
         ),
     >,
-    Query<
-        'w,
-        's,
-        (&'static Node, &'static RingMarkFor),
-        (Without<MarkerLabel>, Without<SecondLineFor>),
-    >,
+    RingMarkNodes<'w, 's>,
 );
+
+/// The exposure rings' marks, with the body or shared orbit each stands
+/// for.
+type RingMarkNodes<'w, 's> = Query<
+    'w,
+    's,
+    (
+        &'static Node,
+        &'static RingMarkFor,
+        Option<&'static MarkerFor>,
+        Option<&'static OrbitFor>,
+    ),
+    (Without<MarkerLabel>, Without<SecondLineFor>),
+>;
 
 /// What decides a label's rank this frame.
 #[derive(bevy::ecs::system::SystemParam)]
@@ -393,6 +434,7 @@ struct Ranking<'w, 's> {
     frame: Res<'w, Frame>,
     view: ViewNow<'w, 's>,
     bodies: RankedBodies<'w, 's>,
+    members: Option<Res<'w, OrbitMembers>>,
 }
 
 impl Ranking<'_, '_> {
@@ -416,33 +458,45 @@ impl Ranking<'_, '_> {
         };
         Some((rank, depth, selected || hovered))
     }
+
+    /// LBL-02 / HOV-05: a shared orbit's label ranks as the highest of its
+    /// members, or as hovered while the orbit itself is, and is pinned
+    /// while any of them is (LBL-03).
+    fn of_orbit(&self, orbit: Entity) -> Option<(u8, f32, bool)> {
+        let members = self.members.as_ref()?.0.get(&orbit)?;
+        let (mut rank, depth, mut pinned) = members
+            .iter()
+            .filter_map(|&member| self.of(member))
+            .reduce(|a, b| (a.0.min(b.0), a.1.min(b.1), a.2 || b.2))?;
+        if self.hovered.contains(orbit) {
+            rank = rank.min(1);
+            pinned = true;
+        }
+        Some((rank, depth, pinned))
+    }
 }
 
-/// LBL-01: the boxes every marker, pill and ring mark takes this frame.
-fn gather_obstacles(markers: &[MarkerBox], (pills, ring_marks): &Obstacles) -> Vec<Rect> {
+/// LBL-01: the boxes every marker, pill and ring mark takes this frame;
+/// a ring mark's is its box (HOV-07, `margin` round it).
+fn gather_obstacles(
+    markers: &[MarkerBox],
+    (pills, ring_marks): &Obstacles,
+    margin: f32,
+) -> Vec<Rect> {
     let mut obstacles: Vec<Rect> = markers.iter().map(|&(_, _, rect, _)| rect).collect();
     obstacles.extend(
         pills
             .iter()
             .filter_map(|(node, computed)| node_rect(node, computed)),
     );
-    obstacles.extend(ring_marks.iter().filter_map(|(node, mark)| {
-        let (Val::Px(left), Val::Px(top)) = (node.left, node.top) else {
-            return None;
-        };
-        (node.display != Display::None).then(|| {
-            Rect::from_corners(
-                Vec2::new(left, top),
-                Vec2::new(left, top) + Vec2::splat(mark.half * 2.0),
-            )
-        })
-    }));
-    // MOT-14: a ring's direction chevron counts as part of its mark.
-    obstacles.extend(
-        ring_marks
-            .iter()
-            .filter_map(|(node, mark)| mark.chevron.filter(|_| node.display != Display::None)),
-    );
+    for (node, mark, ..) in ring_marks {
+        if node.display == Display::None {
+            continue;
+        }
+        obstacles.extend(mark.mark.map(|rect| rect.inflate(margin)));
+        // MOT-14: a ring's direction chevron counts as part of its mark.
+        obstacles.extend(mark.chevron);
+    }
     obstacles
 }
 
@@ -453,7 +507,7 @@ fn place_marker_labels(
     (time, tunables): (Res<Time>, Res<Tunables>),
     ranking: Ranking,
     markers: Markers,
-    (mut labels, mut path_labels): (Labels, PathLabels),
+    (mut labels, mut path_labels, mut ring_labels): (Labels, PathLabels, RingLabels),
     mut second_lines: SecondLines,
     obstacles: Obstacles,
     mut colors: Query<(&ChildOf, &mut TextColor)>,
@@ -469,7 +523,8 @@ fn place_marker_labels(
             Some((entity, marker_for.0, rect, shift))
         })
         .collect();
-    let obstacles = gather_obstacles(&marker_rects, &obstacles);
+    let margin = tunables.bracket_margin_px;
+    let obstacle_rects = gather_obstacles(&marker_rects, &obstacles, margin);
 
     // Each shown marker's label is a candidate; its sizes are last
     // frame's layout, in logical pixels.
@@ -483,11 +538,7 @@ fn place_marker_labels(
         let Some((rank, depth, pinned)) = ranking.of(body) else {
             continue;
         };
-        let full_size = computed.size * computed.inverse_scale_factor;
-        let second = second_lines
-            .iter()
-            .find(|(line_of, ..)| line_of.parent() == label)
-            .map_or(0.0, |(_, c, ..)| c.size.y * c.inverse_scale_factor);
+        let (full_size, second) = label_sizes(label, computed, &second_lines);
         entries.push((
             label,
             Candidate {
@@ -503,19 +554,28 @@ fn place_marker_labels(
             shift,
         ));
     }
+    entries.extend(ring_label_entries(
+        (&ring_labels, &second_lines),
+        &obstacles.1,
+        &ranking,
+        margin,
+    ));
     entries.extend(path_label_entries(&path_labels));
     let candidates: Vec<Candidate> = entries.iter().map(|(_, c, _)| *c).collect();
-    let placements = place_labels(&candidates, &obstacles, tunables.label_gap_px);
+    let placements = place_labels(&candidates, &obstacle_rects, tunables.label_gap_px);
     let step = step_per_frame(time.delta_secs(), tunables.label_fade_ms);
     hide_unused_path_labels(&mut path_labels);
 
     for ((label, candidate, shift), wanted) in entries.into_iter().zip(placements) {
-        let found = match labels.get_mut(label) {
-            Ok((_, _, _, node, state, visibility)) => Some((node, state, visibility)),
-            Err(_) => path_labels
+        let found = if let Ok((.., node, state, visibility)) = labels.get_mut(label) {
+            Some((node, state, visibility))
+        } else if let Ok((.., node, state, visibility)) = ring_labels.get_mut(label) {
+            Some((node, state, visibility))
+        } else {
+            path_labels
                 .get_mut(label)
                 .ok()
-                .map(|(_, _, _, node, state, visibility)| (node, state, visibility)),
+                .map(|(.., node, state, visibility)| (node, state, visibility))
         };
         let Some((mut node, mut state, mut visibility)) = found else {
             continue;
@@ -569,6 +629,66 @@ fn place_marker_labels(
             }
         }
     }
+}
+
+/// The size of a label laid out last frame, and of its second line, in
+/// logical pixels; zero for a label with no second line.
+fn label_sizes(label: Entity, computed: &ComputedNode, second_lines: &SecondLines) -> (Vec2, f32) {
+    let second = second_lines
+        .iter()
+        .find(|(line_of, ..)| line_of.parent() == label)
+        .map_or(0.0, |(_, c, ..)| c.size.y * c.inverse_scale_factor);
+    (computed.size * computed.inverse_scale_factor, second)
+}
+
+/// MOT-02 / MOT-14: each shown exposure ring's label as a candidate
+/// beside its mark's box (`margin` round the mark, HOV-07), ranked as the
+/// body or shared orbit the ring stands for, with its period line as its
+/// second line. Its node sits under the mark's node, so its offset is
+/// measured from that node's corner.
+fn ring_label_entries(
+    (ring_labels, second_lines): (&RingLabels, &SecondLines),
+    ring_marks: &RingMarkNodes,
+    ranking: &Ranking,
+    margin: f32,
+) -> Vec<(Entity, Candidate, Vec2)> {
+    let mut entries = Vec::new();
+    for (label, child_of, computed, _, state, _) in ring_labels {
+        let Ok((node, mark, body, orbit)) = ring_marks.get(child_of.parent()) else {
+            continue;
+        };
+        let (Some(drawn), Val::Px(left), Val::Px(top)) = (mark.mark, node.left, node.top) else {
+            continue;
+        };
+        if node.display == Display::None {
+            continue;
+        }
+        let ranked = match (body, orbit) {
+            (Some(body), _) => ranking.of(body.0),
+            (None, Some(orbit)) => ranking.of_orbit(orbit.0),
+            (None, None) => None,
+        };
+        let Some((rank, depth, pinned)) = ranked else {
+            continue;
+        };
+        let (full_size, second) = label_sizes(label, computed, second_lines);
+        let bbox = drawn.inflate(margin);
+        entries.push((
+            label,
+            Candidate {
+                body: mark.owner,
+                rank,
+                depth,
+                marker: bbox,
+                full_size,
+                name_size: full_size - Vec2::new(0.0, second),
+                pinned,
+                previous: state.shown,
+            },
+            bbox.min - Vec2::new(left, top),
+        ));
+    }
+    entries
 }
 
 /// PLNR-65 / PLNR-67: each used path label as a candidate after every

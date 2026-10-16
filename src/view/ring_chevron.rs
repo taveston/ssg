@@ -3,9 +3,9 @@
 //! ring's bodies circle, turned along the ring there. Fixed to the mark,
 //! it says which way the orbit runs without implying a position.
 //!
-//! Also which side of the mark the ring's label takes, so the chevron
-//! never runs under it. Plain geometry in screen pixels (y down), tested
-//! without a camera; `ring_marks.rs` draws the result.
+//! Plain geometry in screen pixels (y down), tested without a camera;
+//! `ring_marks.rs` draws the result, and `labels.rs` keeps the ring's
+//! label off the chevron's box.
 
 use bevy::prelude::*;
 
@@ -94,40 +94,6 @@ pub fn chevron_box(spot: ChevronSpot, chevron_px: f32) -> Rect {
     Rect::from_center_size(spot.centre, Vec2::splat(chevron_px))
 }
 
-/// Which side of its mark a ring's label sits.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LabelSide {
-    Right,
-    Left,
-}
-
-/// The box a ring's label of `size` takes on `side` of the mark (both
-/// relative to the ring point), `gap_px` from its edge, with its first
-/// line centred on the ring point (`first_line_px` high).
-pub fn label_box(mark: Rect, size: Vec2, side: LabelSide, gap_px: f32, first_line_px: f32) -> Rect {
-    let top = -first_line_px / 2.0;
-    let left = match side {
-        LabelSide::Right => mark.max.x + gap_px,
-        LabelSide::Left => mark.min.x - gap_px - size.x,
-    };
-    Rect::new(left, top, left + size.x, top + size.y)
-}
-
-/// MOT-14: the label sits right of its mark, and moves to the left when
-/// the chevron (its box relative to the ring point) would run under it.
-pub fn label_side(
-    mark: Rect,
-    label_size: Vec2,
-    chevron: Option<Rect>,
-    (gap_px, first_line_px): (f32, f32),
-) -> LabelSide {
-    let right = label_box(mark, label_size, LabelSide::Right, gap_px, first_line_px);
-    match chevron {
-        Some(chevron) if !chevron.intersect(right).is_empty() => LabelSide::Left,
-        _ => LabelSide::Right,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -185,25 +151,5 @@ mod tests {
     fn a_ring_smaller_than_the_mark_has_no_chevron() {
         let tiny = |angle: f32| Some(Vec2::new(angle.cos(), angle.sin()) * 5.0);
         assert_eq!(chevron_spot(tiny, 0.0, 1.0, fit()), None);
-    }
-
-    /// MOT-14: the label sits right of its mark, and moves left when the
-    /// chevron would run under it, but not when the chevron is above or
-    /// to the left.
-    #[test]
-    fn the_label_moves_left_when_the_chevron_would_run_under_it() {
-        let fit = fit();
-        let label = Vec2::new(40.0, 25.0);
-        let spacing = (4.0, 13.0);
-        let at = |centre: Vec2| Some(Rect::from_center_size(centre, Vec2::splat(8.0)));
-        let side = |chevron| label_side(fit.mark, label, chevron, spacing);
-        assert_eq!(side(at(Vec2::new(16.0, 0.0))), LabelSide::Left);
-        assert_eq!(side(at(Vec2::new(-16.0, 0.0))), LabelSide::Right);
-        assert_eq!(side(at(Vec2::new(0.0, -16.0))), LabelSide::Right);
-        assert_eq!(side(None), LabelSide::Right);
-        // On the left the label ends the gap before the mark.
-        let left = label_box(fit.mark, label, LabelSide::Left, 4.0, 13.0);
-        assert_eq!(left.max.x, -8.0);
-        assert_eq!(left.min.y, -6.5);
     }
 }

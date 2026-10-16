@@ -11,8 +11,11 @@
 //! Under the name, a second line gives the orbit's period, so the ring
 //! says it is a fast orbit. Beside the mark, a direction chevron on the
 //! ring points the way the bodies circle (`ring_chevron.rs` places it);
-//! it fades with the mark, and the label moves to the mark's left when the
-//! chevron would run under it.
+//! it fades with the mark. The label is placed beside the mark like any
+//! other label (`labels.rs`, LBL-01 to LBL-04): the chevron is part of the
+//! mark there, so the label takes another side when the chevron would run
+//! under it, and the period line is the first part to go when there is no
+//! room.
 //!
 //! The mark is placed with its centre on a whole pixel (SYM-16) and is a
 //! target for the same thing the ring is: the body, or the shared orbit
@@ -33,9 +36,7 @@ use super::motion_mode::MotionModeState;
 use super::pills::{PILL_HALF_HEIGHT_PX, PillFace, pill_bundle, pill_node};
 use super::plot_marks::screen_angle;
 use super::readout::format_duration;
-use super::ring_chevron::{
-    ChevronFit, ChevronSpot, LabelSide, chevron_box, chevron_spot, label_side,
-};
+use super::ring_chevron::{ChevronFit, ChevronSpot, chevron_box, chevron_spot};
 use super::screen::{MapView, in_viewport, snap_to_pixel};
 use super::selection::Selection;
 use super::shared_orbit::{OrbitRings, Ring, ring_screen_point};
@@ -51,31 +52,27 @@ use crate::{Boot, Stage};
 
 /// Below this much fade a ring's mark and label aren't drawn.
 const MIN_MARK_ALPHA: f32 = 0.05;
-/// Gap between the mark and its label, which sits to its right.
-const LABEL_GAP_PX: f32 = 4.0;
 const LABEL_FONT_PX: f32 = 11.0;
 /// The period line under the name, in the data face (MOT-02).
 const PERIOD_FONT_PX: f32 = 10.0;
-/// A line of text is this many times its font size high.
-const LINE_HEIGHT: f32 = 1.2;
-/// The name's line, which is centred on the ring point.
-const NAME_LINE_PX: f32 = LABEL_FONT_PX * LINE_HEIGHT;
 
 /// A ring's mark and label, for the body or named orbit the ring stands
 /// for; `half` is how far the mark reaches from the ring point, so the
 /// node can be placed with the mark centred there. `shown` is how far it
-/// has faded in, 0 to 1. `chevron` is the box the direction chevron
-/// takes on screen this frame, if it is drawn, for the labels to keep
-/// clear of (LBL-01).
+/// has faded in, 0 to 1. `mark` and `chevron` are the boxes the mark and
+/// its direction chevron take on screen this frame, while they are drawn,
+/// for the labels to be placed beside and keep clear of (LBL-01).
 #[derive(Component)]
 pub struct RingMarkFor {
     pub owner: Entity,
     pub half: f32,
     pub shown: f32,
+    pub mark: Option<Rect>,
     pub chevron: Option<Rect>,
 }
 
-/// The box holding a ring's name and period, beside its mark.
+/// The box holding a ring's name and period, beside its mark, placed by
+/// `labels.rs` (LBL-01).
 #[derive(Component)]
 pub struct RingLabelBox;
 
@@ -189,6 +186,7 @@ fn mark_root(owner: Entity, half: f32) -> impl Bundle {
             owner,
             half,
             shown: 0.0,
+            mark: None,
             chevron: None,
         },
         GlobalZIndex(layers::LABELS),
@@ -212,10 +210,9 @@ fn mark_root_node(half: f32) -> Node {
     }
 }
 
-/// MOT-02: the label beside a mark: the name in its colour, centred on
-/// the ring point, and under it the orbit's period in the data face in
-/// the secondary colour. `place_ring_marks` puts it on the mark's right or
-/// left.
+/// MOT-02: the label beside a mark: the name in its colour, and under it
+/// the orbit's period in the data face in the secondary colour.
+/// `labels.rs` places it beside the mark (LBL-01).
 fn spawn_label(root: &mut ChildSpawnerCommands, fonts: &Fonts, ring: &Ring, color: Color) {
     root.spawn((
         RingLabelBox,
@@ -224,6 +221,8 @@ fn spawn_label(root: &mut ChildSpawnerCommands, fonts: &Fonts, ring: &Ring, colo
             flex_direction: FlexDirection::Column,
             ..default()
         },
+        // Hidden until `labels.rs` has placed it.
+        Visibility::Hidden,
     ))
     .with_children(|label| {
         label.spawn((
@@ -347,28 +346,12 @@ fn colour_ring_labels(
     }
 }
 
-/// A mark's label box, placed beside it each frame.
-type LabelBoxes<'w, 's> = Query<
-    'w,
-    's,
-    (&'static mut Node, &'static ComputedNode),
-    (
-        With<RingLabelBox>,
-        Without<RingMarkFor>,
-        Without<RingChevron>,
-    ),
->;
-
 /// A mark's chevron, placed and turned each frame.
 type Chevrons<'w, 's> = Query<
     'w,
     's,
     (&'static mut Node, &'static mut UiTransform),
-    (
-        With<RingChevron>,
-        Without<RingMarkFor>,
-        Without<RingLabelBox>,
-    ),
+    (With<RingChevron>, Without<RingMarkFor>),
 >;
 
 /// The parts of a mark that are placed beside it each frame.
@@ -376,7 +359,6 @@ type Chevrons<'w, 's> = Query<
 struct MarkParts<'w, 's> {
     children: Query<'w, 's, &'static Children>,
     pills: Query<'w, 's, &'static ComputedNode, With<IdentityPill>>,
-    labels: LabelBoxes<'w, 's>,
     chevrons: Chevrons<'w, 's>,
 }
 
@@ -396,39 +378,6 @@ impl MarkParts<'_, '_> {
             .find_map(|part| self.pills.get(part).ok())
             .map_or(2.0 * half, |pill| node_size(pill).x.max(2.0 * half));
         Rect::new(-half, -half, width - half, half)
-    }
-
-    /// The size of the mark's label box, as last laid out.
-    fn label_size(&self, root: Entity) -> Vec2 {
-        self.children
-            .iter_descendants(root)
-            .find_map(|part| self.labels.get(part).ok())
-            .map_or(Vec2::ZERO, |(_, computed)| node_size(computed))
-    }
-
-    /// MOT-02 / MOT-14: put the label on `side` of the mark, its name
-    /// centred on the ring point and the period under it, aligned to the
-    /// mark's side.
-    fn place_label(&mut self, root: Entity, half: f32, side: LabelSide) {
-        let Some(part) = self
-            .children
-            .iter_descendants(root)
-            .find(|&part| self.labels.contains(part))
-        else {
-            return;
-        };
-        let Ok((mut node, _)) = self.labels.get_mut(part) else {
-            return;
-        };
-        node.top = px(half - NAME_LINE_PX / 2.0);
-        let (left, right, align) = match side {
-            LabelSide::Right => (percent(100), Val::Auto, AlignItems::FlexStart),
-            LabelSide::Left => (Val::Auto, percent(100), AlignItems::FlexEnd),
-        };
-        node.left = left;
-        node.right = right;
-        node.align_items = align;
-        node.margin = UiRect::horizontal(px(LABEL_GAP_PX));
     }
 
     /// MOT-14: place and turn the chevron (its centre and direction on
@@ -463,8 +412,8 @@ impl MarkParts<'_, '_> {
 /// ring at the label spot, on a whole pixel, fading it in once the ring
 /// has closed and out when it opens. A pill's node is as tall as the pill,
 /// so its left edge sits half a pill-height before the ring point. The
-/// chevron goes on the ring ahead of the mark, and the label on whichever
-/// side of the mark the chevron leaves free.
+/// chevron goes on the ring ahead of the mark; the boxes of both are kept
+/// for the labels, which are placed after (LBL-01).
 fn place_ring_marks(
     (view, time, tunables): (ViewNow, Res<Time>, Res<Tunables>),
     map: MapView,
@@ -494,6 +443,7 @@ fn place_ring_marks(
         });
         let Some((ring, pos)) = placed else {
             node.display = Display::None;
+            mark.mark = None;
             mark.chevron = None;
             continue;
         };
@@ -514,18 +464,11 @@ fn place_ring_marks(
             ring.sense(),
             fit,
         );
-        mark.chevron = spot.map(|spot| chevron_box(spot, tunables.chevron_px));
-        let around_point = mark.chevron.map(|r| Rect {
-            min: r.min - pos,
-            max: r.max - pos,
+        mark.mark = Some(Rect {
+            min: mark_box.min + pos,
+            max: mark_box.max + pos,
         });
-        let side = label_side(
-            mark_box,
-            mark_parts.label_size(entity),
-            around_point,
-            (LABEL_GAP_PX, NAME_LINE_PX),
-        );
-        mark_parts.place_label(entity, half, side);
+        mark.chevron = spot.map(|spot| chevron_box(spot, tunables.chevron_px));
         mark_parts.place_chevron(entity, pos - Vec2::splat(half), spot, tunables.chevron_px);
         fade_parts(entity, alpha, &mark_parts.children, &mut parts);
     }
