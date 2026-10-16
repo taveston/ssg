@@ -2,7 +2,7 @@
 
 Open observations from building and playing the prototype. Each one is waiting for a decision. Once it's settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings take the next free number from F-160.
+Format and types are in `docs/README.md`. New findings take the next free number from F-161.
 
 ---
 
@@ -85,3 +85,8 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Observation:** SYM-09 draws a group, but nothing says what selecting one shows. The inset (INS-02) has no form for a group. The outline (INS-05) lists a group by name and count (GRP-09), with no way to list its members or reach one by one, for their Delta-v and Drive (PLNR-05). "Commander" means a person in SYM-09 and in mock-up 7 ("Cdr Ilse Marr"), but "command" means the faction giving orders in SYM-03. How groups form, merge and split is not specced either: no order creates a group, and merge and detach orders are not specced (PHAS-14). So groups exist only as test content (TEST-06) for now. The planner already refuses them (PLNR-01, PLNR-11). The combat ideas (candidate) detach and rejoin ships and call every group a force, which would be the first source of groups in play.
 - **Affects:** SYM-09, SYM-10, INS-02, INS-05, GRP-09, PLNR-01, PLNR-05 · **Type:** spec gap
 - **Disposition:** open. Safe to defer: the player can't form groups yet. Specify the group inset, member access and the meaning of "commander" together with the orders that form and split groups.
+
+### F-160 · The selection ring looks like a marker
+- **Observation:** Raised in a design session. A solid white ring round a selected object reads as one more circle on the map. Round a planet it looks like a satellite marker (MRK-13). Round an own ship's circle frame it looks like a second frame, which is how the candidate "several" idiom is drawn (*Symbology* 4). The frame body's four corner brackets (CAM-22) say "selected" better than the ring, and showing which body holds the frame matters less than showing the selection.
+- **Affects:** MRK-01, SYM-14, HOV-01, GRP-07, INS-06, CAM-22 · **Type:** spec wrong
+- **Disposition:** open. Option: the selection is drawn as four corner brackets (white, sized to the symbol's square as now), and CAM-22's frame brackets are withdrawn, with nothing marking the frame body. Open: what hover looks like (the ring, or the same brackets dimmer), and how a pill or a cluster marker is bracketed.
