@@ -729,7 +729,7 @@ pub fn fade_parts(root: Entity, alpha: f32, children: &Query<&Children>, parts: 
 
 /// MRK-03 / MRK-07: place, fade and colour every marker for this frame.
 #[allow(clippy::too_many_arguments)]
-pub fn update_markers(
+fn update_markers(
     (screen, edges, discs): (Res<ScreenPositions>, Res<GateEdgeTargets>, Res<DiscRadii>),
     bodies: MarkerBodies,
     mut markers: MarkerNodes,

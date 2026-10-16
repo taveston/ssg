@@ -73,6 +73,10 @@ pub struct DrawnRings(pub std::collections::HashMap<Entity, DrawnRing>);
 #[derive(Component)]
 pub struct RingStrokeFor(pub Entity);
 
+/// The rings have been drawn for this frame and `DrawnRings` is current.
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct RingsDrawn;
+
 pub struct RingsPlugin;
 
 impl Plugin for RingsPlugin {
@@ -81,7 +85,10 @@ impl Plugin for RingsPlugin {
             .add_systems(Startup, spawn_ring_strokes.in_set(Boot::Overlay))
             // Drawn with the rest of the overlay, once grouping and motion
             // have decided what shows.
-            .add_systems(Update, draw_orbit_rings.in_set(Stage::Overlay));
+            .add_systems(
+                Update,
+                draw_orbit_rings.in_set(RingsDrawn).in_set(Stage::Overlay),
+            );
     }
 }
 
@@ -307,7 +314,7 @@ impl RingColors {
 /// body's tail (or all round in ring mode), as wide as its closing makes
 /// it, and faded by its size on screen.
 #[allow(clippy::too_many_arguments)]
-pub fn draw_orbit_rings(
+fn draw_orbit_rings(
     screen: Res<ScreenPositions>,
     selection: Res<Selection>,
     hovered: Res<HoveredBodies>,

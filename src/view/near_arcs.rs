@@ -12,8 +12,8 @@ use bevy::prelude::*;
 use bevy::render::render_resource::{AsBindGroup, ShaderType};
 use bevy::shader::ShaderRef;
 
-use super::markers::{MarkerHalfSize, MarkerShape, update_markers};
-use super::rings::{DrawnRings, RingLine, draw_orbit_rings};
+use super::markers::{MarkerHalfSize, MarkerShape, MarkersPlaced};
+use super::rings::{DrawnRings, RingLine, RingsDrawn};
 use super::targets::MarkerFor;
 use super::world::ViewNow;
 use crate::Stage;
@@ -93,8 +93,8 @@ impl Plugin for NearArcsPlugin {
             .add_systems(
                 Update,
                 draw_near_arcs
-                    .after(draw_orbit_rings)
-                    .after(update_markers)
+                    .after(RingsDrawn)
+                    .after(MarkersPlaced)
                     .in_set(Stage::Overlay),
             );
     }
