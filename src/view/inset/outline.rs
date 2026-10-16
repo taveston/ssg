@@ -262,8 +262,8 @@ pub fn outline_rows(
     rows
 }
 
-/// INS-05 / MUL-09: each body's place in the outline with every entry
-/// and orbit row open, so other lists can follow its order.
+/// INS-05 / MUL-09: each body's place among the outline's entries with
+/// every entry and orbit row open, so other lists can follow its order.
 pub fn outline_positions(nodes: &[OutlineNode]) -> HashMap<Entity, usize> {
     let open = Expanded {
         entries: nodes.iter().map(|n| n.body).collect(),
@@ -749,6 +749,28 @@ mod tests {
             moon_far, star, outer, highport, ship_a, inner, moon_near, ship_b,
         ];
         (nodes, high)
+    }
+
+    /// MUL-09: with everything open, each body's place among the entries
+    /// is the outline's order: the star, then inside out, a named orbit's
+    /// members under its row at the orbit's radius.
+    #[test]
+    fn outline_positions_follow_the_fully_open_outline() {
+        let mut world = World::new();
+        let (nodes, _) = system(&mut world);
+        let places = outline_positions(&nodes);
+        let mut by_place: Vec<(usize, &str)> = nodes
+            .iter()
+            .map(|n| (places[&n.body], n.name.as_str()))
+            .collect();
+        by_place.sort();
+        let order: Vec<&str> = by_place.into_iter().map(|(_, name)| name).collect();
+        assert_eq!(
+            order,
+            [
+                "Vey", "Pell", "Halden", "Highport", "Orison", "Ardent", "IVa", "IVd"
+            ]
+        );
     }
 
     fn names(rows: &[Row], nodes: &[OutlineNode]) -> Vec<(String, usize)> {

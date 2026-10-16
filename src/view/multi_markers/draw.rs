@@ -16,7 +16,9 @@ use super::look::{FrameLook, MultiLook};
 use crate::view::fonts::Fonts;
 use crate::view::hover;
 use crate::view::layers;
-use crate::view::multi::{BackFrame, MultiKey, MultiMarkers, MultiNode, MultiTarget, back_offset};
+use crate::view::multi::{
+    BackFrame, MultiKey, MultiMarker, MultiMarkers, MultiNode, MultiTarget, back_offset,
+};
 use crate::view::symbols::FrameShape;
 use crate::view::symbols::draw::{Tint, TintSlot};
 use crate::view::symbols::shape::{SymbolMask, SymbolPart};
@@ -284,57 +286,70 @@ type PoolNodes<'w, 's> = Query<
     Without<MarkerFor>,
 >;
 
+/// Which wanted marker each pool node draws this frame, given the key
+/// each showed last frame: a marker keeps its node, so a hover on it stays
+/// put, and new markers take free nodes in order. Returns, per node, the
+/// index of the marker it draws, and how many more nodes are needed.
+pub fn assign_slots(
+    shown: &[Option<MultiKey>],
+    wanted: &[MultiKey],
+) -> (Vec<Option<usize>>, usize) {
+    let mut slots: Vec<Option<usize>> = shown
+        .iter()
+        .map(|key| wanted.iter().position(|w| Some(*w) == *key))
+        .collect();
+    let mut short = 0;
+    for index in 0..wanted.len() {
+        if slots.contains(&Some(index)) {
+            continue;
+        }
+        match slots.iter_mut().find(|slot| slot.is_none()) {
+            Some(free) => *free = Some(index),
+            None => short += 1,
+        }
+    }
+    (slots, short)
+}
+
 /// MUL-01 / MUL-06 / SYM-16: draw this frame's fold, together and
 /// overlap markers with the pool, each on the node it had last frame
 /// where it can, centred on its whole-pixel centre and faded with its
-/// things; hide the rest. A station marker is its station's own marker.
-#[allow(clippy::too_many_arguments)]
+/// things; hide the rest, and grow the pool when it is short. A station
+/// marker is its station's own marker.
 pub fn place_multi_markers(
     mut commands: Commands,
     (fonts, tunables): (Res<Fonts>, Res<Tunables>),
     multis: Res<MultiMarkers>,
-    mut pool: PoolNodes,
-    mut targets: Query<&mut MultiTarget>,
+    (mut pool, mut targets): (PoolNodes, Query<&mut MultiTarget>),
     children: Query<&Children>,
     mut parts: (FrameParts, CountParts),
 ) {
-    let wanted: Vec<_> = multis
+    let wanted: Vec<&MultiMarker> = multis
         .markers
         .iter()
         .filter(|m| m.drawn && !matches!(m.key, MultiKey::Station(_)))
         .collect();
-    let key_of = |target: Entity, targets: &Query<&mut MultiTarget>| {
-        targets.get(target).ok().and_then(|t| t.0)
-    };
     let mut nodes: Vec<(Entity, Entity)> = pool.iter().map(|(e, n, ..)| (e, n.target)).collect();
     nodes.sort_by_key(|(e, _)| *e);
-    // Keep each marker on its node; free nodes take the new ones.
-    let mut assigned: Vec<(Entity, Option<usize>)> = nodes
+    let shown: Vec<Option<MultiKey>> = nodes
         .iter()
-        .map(|&(node, target)| {
-            let key = key_of(target, &targets);
-            (node, wanted.iter().position(|m| Some(m.key) == key))
-        })
+        .map(|&(_, target)| targets.get(target).ok().and_then(|t| t.0))
         .collect();
-    for index in 0..wanted.len() {
-        if assigned.iter().any(|(_, a)| *a == Some(index)) {
-            continue;
-        }
-        match assigned.iter_mut().find(|(_, a)| a.is_none()) {
-            Some(free) => free.1 = Some(index),
-            None => spawn_pool_node(&mut commands, (&fonts, &tunables)),
-        }
+    let keys: Vec<MultiKey> = wanted.iter().map(|m| m.key).collect();
+    let (slots, short) = assign_slots(&shown, &keys);
+    for _ in 0..short {
+        spawn_pool_node(&mut commands, (&fonts, &tunables));
     }
     let half = tunables.ship_symbol_px / 2.0;
     let back = back_offset(tunables.back_frame_offset_px);
-    for (node_entity, slot) in assigned {
-        let Ok((_, multi_node, mut node, mut back_frame)) = pool.get_mut(node_entity) else {
-            continue;
-        };
+    for ((node_entity, target), slot) in nodes.into_iter().zip(slots) {
         let marker = slot.map(|i| wanted[i]);
-        if let Ok(mut target) = targets.get_mut(multi_node.target) {
+        if let Ok(mut target) = targets.get_mut(target) {
             target.set_if_neq(MultiTarget(marker.map(|m| m.key)));
         }
+        let Ok((_, _, mut node, mut back_frame)) = pool.get_mut(node_entity) else {
+            continue;
+        };
         let Some(marker) = marker else {
             node.display = Display::None;
             back_frame.set_if_neq(BackFrame(None));
@@ -344,10 +359,11 @@ pub fn place_multi_markers(
         node.left = px(marker.centre.x - half);
         node.top = px(marker.centre.y - half);
         back_frame.set_if_neq(BackFrame(Some(back)));
+        let alpha = marker.alpha;
         write_look(
             node_entity,
             &marker.look,
-            marker.alpha,
+            alpha,
             &children,
             (&mut parts.0, &mut parts.1),
         );
@@ -397,5 +413,64 @@ pub fn show_station_markers(
                 (&mut parts.0, &mut parts.1),
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// MUL-01: a marker keeps the pool node it had, so a hover on it
+    /// stays put; new markers take free nodes in order, and the pool says
+    /// how many more nodes it needs.
+    #[test]
+    fn markers_keep_their_pool_nodes() {
+        let mut world = World::new();
+        let [a, b, c, d] = [(); 4].map(|_| MultiKey::Overlap(world.spawn_empty().id()));
+        let shown = [Some(a), None, Some(b)];
+        assert_eq!(
+            assign_slots(&shown, &[b, c, a]),
+            (vec![Some(2), Some(1), Some(0)], 0)
+        );
+        assert_eq!(
+            assign_slots(&shown, &[d, c]),
+            (vec![Some(0), Some(1), None], 0)
+        );
+        assert_eq!(assign_slots(&[None], &[a, b, c]).1, 2);
+    }
+
+    /// MUL-01: the back and front frames are drawn as the look's shapes,
+    /// solid, each with its opaque inside.
+    #[test]
+    fn parts_follow_the_look() {
+        use crate::view::multi_markers::look::affiliation_frame;
+        use crate::view::symbols::SymbolSettings;
+        let settings = SymbolSettings {
+            fill_faction: 0.3,
+            fill_other: 0.16,
+            stale_alpha: 0.55,
+            condition_warn: 0.5,
+        };
+        let look = MultiLook {
+            front: affiliation_frame(crate::sim::body::Affiliation::Hostile, settings),
+            back: affiliation_frame(crate::sim::body::Affiliation::Own, settings),
+            count: "3".to_string(),
+        };
+        let frame = |shape| SymbolMask::Frame {
+            shape,
+            dashed: false,
+        };
+        assert_eq!(
+            part_look(MultiPart::FrontFrame, &look),
+            (frame(FrameShape::Diamond), look.front.color)
+        );
+        assert_eq!(
+            part_look(MultiPart::BackFrame, &look),
+            (frame(FrameShape::Circle), look.back.color)
+        );
+        assert_eq!(
+            part_look(MultiPart::FrontFill, &look),
+            (SymbolMask::Fill(FrameShape::Diamond), look.front.fill())
+        );
     }
 }

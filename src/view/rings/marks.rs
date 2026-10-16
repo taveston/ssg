@@ -329,8 +329,8 @@ fn spawn_chevron(root: &mut ChildSpawnerCommands, tunables: &Tunables) {
 }
 
 /// MOT-14 / MUL-02 / MUL-03: what a shared orbit's multi-marker shows:
-/// the frames over its members and the count of its things (MUL-04), or
-/// the station marker of a station that is its only thing.
+/// the frames and count of its things (MUL-04), or the station marker of
+/// a station that is its only thing.
 fn identity_multi(
     ring: &Ring,
     together_km: f64,
@@ -359,12 +359,9 @@ fn identity_multi(
         };
         return (IdentityFront::Station(symbol), look);
     }
-    let all: Vec<_> = ring
-        .members
-        .iter()
-        .map(|m| (m.class, m.affiliation))
-        .collect();
-    let (front, back) = multi_frames(&all, settings);
+    // Docked members are left out of the frames as of the count.
+    let thing_looks: Vec<_> = things.iter().filter_map(|&b| look_of(b)).collect();
+    let (front, back) = multi_frames(&thing_looks, settings);
     let look = MultiLook {
         front,
         back,
@@ -651,5 +648,38 @@ mod tests {
             Some(IdentityMark::Body(a.body))
         );
         assert_eq!(identity_mark(&ring(&mut world, vec![])), None);
+    }
+
+    /// MUL-04 / MOT-14: a shared orbit's multi-marker counts a station
+    /// and the ships apart from it; ships at the station's phase are
+    /// docked, listed under it and not counted.
+    #[test]
+    fn docked_members_are_not_counted_on_the_identity_mark() {
+        let mut world = World::new();
+        let at = |world: &mut World, class, phase0| Member {
+            body: world.spawn_empty().id(),
+            class,
+            affiliation: Affiliation::Own,
+            angle: 0.0,
+            phase0,
+            period_days: 1.0,
+            hidden: false,
+            joined: false,
+            mode: MotionModeState::default(),
+        };
+        let station = at(&mut world, BodyClass::Station, 1.0);
+        let docked = at(&mut world, BodyClass::Ship, 1.0);
+        let apart = at(&mut world, BodyClass::Ship, 2.0);
+        let ring = Ring {
+            owner: world.spawn_empty().id(),
+            centre: None,
+            radius_km: 40_000.0,
+            name: "High".to_string(),
+            shared: true,
+            members: vec![station, docked, apart],
+        };
+        let (things, at_station) = ring_things(&ring, 10.0);
+        assert_eq!(things, [station.body, apart.body]);
+        assert_eq!(at_station, [(station.body, vec![docked.body])]);
     }
 }

@@ -283,19 +283,19 @@ impl GatherInputs<'_, '_> {
         Some((*class, *affiliation))
     }
 
-    /// MUL-02: the frames and count of a marker holding `things`, with
-    /// `docked` listed under their stations.
-    fn look(&self, things: &[Entity], docked: &[(Entity, Vec<Entity>)], count: usize) -> MultiLook {
-        let all: Vec<(BodyClass, Affiliation)> = things
+    /// MUL-02: the frames and count of a marker holding `things`. What is
+    /// docked at a station among them is listed under the station and,
+    /// like the count, the frames leave it out (MUL-04).
+    fn look(&self, things: &[Entity]) -> MultiLook {
+        let looks: Vec<(BodyClass, Affiliation)> = things
             .iter()
-            .chain(docked.iter().flat_map(|(_, d)| d.iter()))
             .filter_map(|&t| self.class_and_affiliation(t))
             .collect();
-        let (front, back) = multi_frames(&all, symbol_settings(&self.tunables));
+        let (front, back) = multi_frames(&looks, symbol_settings(&self.tunables));
         MultiLook {
             front,
             back,
-            count: count_text(count),
+            count: count_text(things.len()),
         }
     }
 
@@ -439,7 +439,7 @@ fn cluster_markers(
         };
         let look = match key {
             MultiKey::Station(station) => inputs.station_look(station, &docked[0].1),
-            _ => Some(inputs.look(&things, &docked, things.len())),
+            _ => Some(inputs.look(&things)),
         };
         let Some(look) = look else {
             continue;
@@ -499,7 +499,7 @@ fn fold_markers(inputs: &GatherInputs, sets: &[Vec<Entity>]) -> Vec<MultiMarker>
             }
         }
         let centre = inputs.fold_centre(parent);
-        let look = inputs.look(&things, &docked, things.len());
+        let look = inputs.look(&things);
         markers.push(MultiMarker {
             key: MultiKey::Fold(parent),
             centre: centre.unwrap_or_default(),
@@ -513,10 +513,113 @@ fn fold_markers(inputs: &GatherInputs, sets: &[Vec<Entity>]) -> Vec<MultiMarker>
     markers
 }
 
-/// MUL-03 to MUL-06 / GRP-05: gather this frame's multi-markers, and
-/// slide each thing towards the marker that holds it or back out to its
-/// own place over `fold_unfold_anim_ms`. A thing whose fold is still
-/// sliding takes its join state at once, so it doesn't slide two ways.
+/// MUL-05: each unit's cluster: the units drawn on screen clustered by
+/// overlap, with `latch` (last frame's joined pairs) updated; units off
+/// screen or faded out each alone.
+fn clusters_of(
+    units: &[Unit],
+    latch: &mut HashSet<(Entity, Entity)>,
+    tunables: &Tunables,
+) -> Vec<Vec<usize>> {
+    let visible: Vec<usize> = (0..units.len()).filter(|&i| units[i].visible).collect();
+    let spots: Vec<(Entity, Vec2)> = visible
+        .iter()
+        .map(|&i| (units[i].lead, units[i].pos))
+        .collect();
+    let (clusters, joined) = overlap_clusters(
+        &spots,
+        latch,
+        tunables.cluster_join_px,
+        tunables.cluster_split_px,
+    );
+    *latch = joined;
+    let mut all: Vec<Vec<usize>> = clusters
+        .into_iter()
+        .map(|c| c.into_iter().map(|i| visible[i]).collect())
+        .collect();
+    all.extend(
+        (0..units.len())
+            .filter(|i| !units[*i].visible)
+            .map(|i| vec![i]),
+    );
+    all
+}
+
+/// MUL-05: the things drawn into a marker rather than as their own
+/// symbols: everything in a together or overlap marker, and what is
+/// docked at a station marker's station. A station marker's station is
+/// its own marker, and folded satellites are the fold's business.
+pub fn joined_things(markers: &[MultiMarker]) -> HashMap<Entity, MultiKey> {
+    let mut joined = HashMap::new();
+    for marker in markers {
+        match marker.key {
+            MultiKey::Fold(_) => {}
+            MultiKey::Station(_) => {
+                joined.extend(marker.all_things().skip(1).map(|t| (t, marker.key)));
+            }
+            _ => joined.extend(marker.all_things().map(|t| (t, marker.key))),
+        }
+    }
+    joined
+}
+
+/// MUL-05: a thing's slide after one frame of `step`: towards the marker
+/// that holds it, `offset` from its own place, or back out when nothing
+/// does. A thing seen for the first time (`slide` is `None`), or whose
+/// fold is still sliding (`settled` false), takes its state at once, so
+/// it never slides two ways.
+pub fn next_slide(
+    slide: Option<JoinSlide>,
+    offset: Option<Vec2>,
+    settled: bool,
+    step: f32,
+) -> JoinSlide {
+    let held = offset.is_some();
+    let target = if held { 1.0 } else { 0.0 };
+    match slide {
+        Some(slide) if settled => JoinSlide {
+            t: advance_towards(slide.t, target, step),
+            offset: offset.unwrap_or(slide.offset),
+            held,
+        },
+        _ => JoinSlide {
+            t: target,
+            offset: offset.or(slide.map(|s| s.offset)).unwrap_or_default(),
+            held,
+        },
+    }
+}
+
+/// MUL-05: slide each ship, group and station towards the marker that
+/// holds it, or back out, over `fold_unfold_anim_ms`.
+fn slide_things(
+    commands: &mut Commands,
+    symbols: &[Symbol],
+    (markers, joined): (&[MultiMarker], &HashMap<Entity, MultiKey>),
+    step: f32,
+    slides: &mut Query<&mut JoinSlide>,
+) {
+    for symbol in symbols {
+        let holder = joined
+            .get(&symbol.thing)
+            .and_then(|key| markers.iter().find(|m| m.key == *key));
+        // A thing with no place on screen keeps its offset, but is held.
+        let offset = holder.map(|m| symbol.pos.map_or(Vec2::ZERO, |pos| m.centre - pos));
+        match slides.get_mut(symbol.thing) {
+            Ok(mut slide) => {
+                let next = next_slide(Some(*slide), offset, symbol.settled, step);
+                slide.set_if_neq(next);
+            }
+            Err(_) => {
+                let next = next_slide(None, offset, symbol.settled, step);
+                commands.entity(symbol.thing).insert(next);
+            }
+        }
+    }
+}
+
+/// MUL-03 to MUL-06 / GRP-05: gather this frame's multi-markers and slide
+/// each thing into or out of the marker that holds it.
 pub fn gather_multi_markers(
     mut commands: Commands,
     time: Res<Time>,
@@ -525,78 +628,23 @@ pub fn gather_multi_markers(
     mut multis: ResMut<MultiMarkers>,
     mut slides: Query<&mut JoinSlide>,
 ) {
-    let tunables = &inputs.tunables;
     let symbols = inputs.symbols();
     let sets = inputs.together();
     let units = units(&symbols, &sets, |pos| inputs.in_viewport(pos));
-    let visible: Vec<usize> = (0..units.len()).filter(|&i| units[i].visible).collect();
-    let spots: Vec<(Entity, Vec2)> = visible
-        .iter()
-        .map(|&i| (units[i].lead, units[i].pos))
-        .collect();
-    let (clusters, joined) = overlap_clusters(
-        &spots,
-        &latch.0,
-        tunables.cluster_join_px,
-        tunables.cluster_split_px,
-    );
-    latch.0 = joined;
-    // Units off screen or faded out are clusters of their own.
-    let mut all_clusters: Vec<Vec<usize>> = clusters
-        .into_iter()
-        .map(|c| c.into_iter().map(|i| visible[i]).collect())
-        .collect();
-    all_clusters.extend(
-        (0..units.len())
-            .filter(|i| !units[*i].visible)
-            .map(|i| vec![i]),
-    );
-
-    let mut markers = cluster_markers(&units, &all_clusters, &inputs);
+    let clusters = clusters_of(&units, &mut latch.0, &inputs.tunables);
+    let mut markers = cluster_markers(&units, &clusters, &inputs);
     markers.extend(fold_markers(&inputs, &sets));
-    let mut held: HashMap<Entity, MultiKey> = HashMap::new();
-    for marker in &markers {
-        match marker.key {
-            MultiKey::Fold(_) => {}
-            MultiKey::Station(_) => {
-                held.extend(marker.all_things().skip(1).map(|t| (t, marker.key)))
-            }
-            _ => held.extend(marker.all_things().map(|t| (t, marker.key))),
-        }
-    }
-
-    let step = step_per_frame(time.delta_secs(), tunables.fold_unfold_anim_ms);
-    for symbol in &symbols {
-        let holder = held
-            .get(&symbol.thing)
-            .and_then(|key| markers.iter().find(|m| m.key == *key));
-        let target = if holder.is_some() { 1.0 } else { 0.0 };
-        let offset = holder.zip(symbol.pos).map(|(m, pos)| m.centre - pos);
-        let next = |slide: JoinSlide| JoinSlide {
-            t: if symbol.settled {
-                advance_towards(slide.t, target, step)
-            } else {
-                target
-            },
-            offset: offset.unwrap_or(slide.offset),
-            held: holder.is_some(),
-        };
-        match slides.get_mut(symbol.thing) {
-            Ok(mut slide) => {
-                let new = next(*slide);
-                slide.set_if_neq(new);
-            }
-            Err(_) => {
-                commands.entity(symbol.thing).insert(JoinSlide {
-                    t: target,
-                    offset: offset.unwrap_or_default(),
-                    held: holder.is_some(),
-                });
-            }
-        }
-    }
+    let joined = joined_things(&markers);
+    let step = step_per_frame(time.delta_secs(), inputs.tunables.fold_unfold_anim_ms);
+    slide_things(
+        &mut commands,
+        &symbols,
+        (&markers, &joined),
+        step,
+        &mut slides,
+    );
     multis.markers = markers;
-    multis.joined = held;
+    multis.joined = joined;
 }
 
 #[cfg(test)]
@@ -694,5 +742,62 @@ mod tests {
             100.0 + clear,
             "boxes touch, no overlap"
         );
+    }
+
+    /// MUL-05: a held thing slides into its marker a step at a time and
+    /// back out when let go, from where the marker was; one seen for the
+    /// first time, or still sliding with its fold, takes its state at
+    /// once.
+    #[test]
+    fn a_thing_slides_into_its_marker_and_back_out() {
+        let offset = Vec2::new(6.0, -2.0);
+        let start = JoinSlide::default();
+        let joining = next_slide(Some(start), Some(offset), true, 0.25);
+        assert_eq!(
+            joining,
+            JoinSlide {
+                t: 0.25,
+                offset,
+                held: true
+            }
+        );
+        let parting = next_slide(Some(joining), None, true, 0.25);
+        assert_eq!(
+            (parting.t, parting.offset, parting.held),
+            (0.0, offset, false)
+        );
+        assert_eq!(next_slide(None, Some(offset), true, 0.25).t, 1.0);
+        assert_eq!(next_slide(Some(start), Some(offset), false, 0.25).t, 1.0);
+    }
+
+    /// MUL-05: the things of a together or overlap marker are joined into
+    /// it; a station marker joins what is docked but not the station, and
+    /// a fold marker joins nothing.
+    #[test]
+    fn joined_things_are_what_markers_draw_in_place_of_symbols() {
+        let e = entities(6);
+        let marker = |key, things: Vec<Entity>, docked| MultiMarker {
+            key,
+            centre: Vec2::ZERO,
+            things,
+            docked,
+            look: crate::view::multi_markers::draw::blank_look(),
+            alpha: 1.0,
+            drawn: true,
+        };
+        let markers = [
+            marker(
+                MultiKey::Station(e[0]),
+                vec![e[0]],
+                vec![(e[0], vec![e[1]])],
+            ),
+            marker(MultiKey::Together(e[2]), vec![e[2], e[3]], vec![]),
+            marker(MultiKey::Fold(e[5]), vec![e[4]], vec![]),
+        ];
+        let joined = joined_things(&markers);
+        assert_eq!(joined.get(&e[1]), Some(&MultiKey::Station(e[0])));
+        assert!(!joined.contains_key(&e[0]));
+        assert_eq!(joined.get(&e[3]), Some(&MultiKey::Together(e[2])));
+        assert!(!joined.contains_key(&e[4]));
     }
 }

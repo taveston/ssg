@@ -89,6 +89,13 @@ fn a_parent_with_folded_satellites_shows_a_fold_marker() {
     assert_eq!(iver_fold.count(), 1);
     assert_eq!(iver_fold.docked[0].0, yard);
     assert_eq!(iver_fold.docked[0].1.len(), 2);
+    // MUL-02: the frames follow what is counted: the own yard, not the
+    // neutral trader docked at it.
+    let own = crate::view::multi_markers::look::affiliation_frame(
+        Affiliation::Own,
+        crate::view::markers::symbol_settings(&tunables),
+    );
+    assert_eq!((iver_fold.look.front, iver_fold.look.back), (own, own));
 }
 
 /// MUL-03 / MUL-13 / SYM-13 / TEST-11: framing Iver unfolds Iver Yard,
