@@ -114,7 +114,7 @@ The orbital plane and the frame are invisible once the orbit rings fade (MRK-14)
 | REF-03 | An arm runs to the edge of the map area (INS-07), or to where the plane's horizon crosses the view if that is nearer. It fades from `ref_alpha_near` at its start to `ref_alpha_far` at its end. The north arm is drawn at that strength; the other three at `ref_minor_factor` times it. | ✓ |
 | REF-04 | The north arm ends in an "N" in the data face, `ref_n_inset_px` inside its end, in the reference colour with a halo (LBL-05) so the dots break behind it. The arm points the way the north dial does (MRK-17). | ✓ |
 | REF-05 | Each arm carries a tick at every multiple of the scale bar's distance (MRK-16) from the frame body, measured along the plane, so ticks crowd together as the view tilts. A tick is `ref_tick_px` long, drawn across the arm on screen, in the reference colour at the arm's strength at that point. A tick that would fall inside the arm's gap (REF-02) is not drawn. | ✓ |
-| REF-06 | A **vertical axis** runs along the plane's normal through the frame body, as a solid line `ref_vertical_px` wide in the reference colour. Its upper half is on the side of the plane the camera is on (CAM-01). It starts at the body's pole (the point at its true radius above its centre) where the body is drawn as a true-size disc (MRK-07), and `ref_gap_px` beyond its box otherwise. Its length is `ref_up_px` on screen when the plane is seen edge-on, shortened by the view as an arm is, so it is nothing looking straight down. It ends in a filled arrowhead `ref_arrow_px` long and fades as REF-03 says. | ✓ |
+| REF-06 | A **vertical axis** runs along the plane's normal through the frame body, as one stroke of round dots in the reference colour, drawn as an arm is (REF-01). Its upper half is on the side of the plane the camera is on (CAM-01). It starts at the body's pole (the point at its true radius above its centre) where the body is drawn as a true-size disc (MRK-07), and `ref_gap_px` beyond its box otherwise. Its length is `ref_up_fraction` of the map area's height (INS-07) on screen when the plane is seen edge-on, so it grows and shrinks with the window and the inset, and is shortened by the view as an arm is, so it is nothing looking straight down. It ends in a filled arrowhead `ref_arrow_px` long, which is solid, and fades as REF-03 says. | |
 | REF-07 | The vertical axis's lower half starts at the frame body's centre, is `ref_down_fraction` of the upper half's length, has no arrowhead, and fades as REF-03 says. It is drawn behind the body, so only the part outside a disc shows. | ✓ |
 | REF-08 | A vertical half whose length on screen is under `ref_vertical_min_px` is not drawn. | ✓ |
 | REF-09 | Draw order (extends MRK-12): the arms, ticks and the lower half of the vertical axis are drawn with the orbit rings, at the bottom. The upper half is drawn above natural bodies, so it runs over a true-size disc, and below symbols, labels, pills and brackets. | ✓ |
@@ -344,8 +344,7 @@ All in the `Tunables` resource (`src/view/tunables.rs`). Defaults are starting v
 | `ref_minor_factor` | 0.6 | REF-03 |
 | `ref_n_inset_px` | 13 px | REF-04 |
 | `ref_tick_px` | 9 px | REF-05 |
-| `ref_vertical_px` | 1.5 px | REF-06 |
-| `ref_up_px` | 100 px | REF-06 |
+| `ref_up_fraction` | 0.45 | REF-06 |
 | `ref_arrow_px` | 8 px | REF-06 |
 | `ref_down_fraction` | 0.7 | REF-07 |
 | `ref_vertical_min_px` | 10 px | REF-08 |
@@ -373,7 +372,7 @@ All three are one family (IBM Plex), so their proportions and details match.
 ## Open points
 
 - Input targets mouse and keyboard only. Gamepad, touch and trackpad are not targets, but designs should avoid what would be hard to port to them (for example, relying on hover alone or on raw wheel deltas).
-- The frame cue has no toggle until layer toggles are specced. The vertical axis could later carry more of the physical picture (a faint plane disc, drop lines to the plane in the cluster view); only the axes are specced now.
+- The frame cue has no toggle until layer toggles are specced. The vertical axis is dotted like the arms, so where it and the north arm share a screen line (heading 0, a moderate tilt) the two read as one: check on screen, and if it is a problem, thin the dots or tint the axis. The vertical axis could later carry more of the physical picture (a faint plane disc, drop lines to the plane in the cluster view); only the axes are specced now.
 - Per-system camera memory, a frame that rotates with its body, breadcrumb drop-downs, selection cycling (Tab), and gamepad and touch input: in `docs/ideas/presentation/presentation.md` (Camera), not yet specced.
 
 ## Not yet specced

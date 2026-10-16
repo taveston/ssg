@@ -13,6 +13,9 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
+- [ ] **Frame cue's vertical axis** · REF-06
+  - Changed after the first build: the axis is dotted like the arms, and its length is `ref_up_fraction` (0.45) of the map area's height at edge-on, not a fixed `ref_up_px`. Remove `ref_vertical_px` and `ref_up_px` from `Tunables`. REF-07 and REF-08 follow from it and need no change.
+  - Check the overlap with the north arm (spec open points): at heading 0 and a moderate tilt the two share a screen line.
 - [ ] **Planner: whole-day Depart, and settings the solver rejects** · PLNR-13, PLNR-21, PLNR-23, PLNR-24, PLNR-29, PLNR-30, PLNR-33 to PLNR-35, PLNR-40, PLNR-50, PLNR-80 to PLNR-82, PLNR-87, PLNR-92, PHAS-16, XFER-02
   - Meaning changed, so their ✓ is cleared: PLNR-13, 21, 23, 24, 29, 30, 40, 50, 80, 81, 82, 87 and 92, and XFER-02. PLNR-33 to PLNR-35 and PHAS-16 are new.
   - PLNR-80 also now says what the build already does for a leg that ends on a whole band of its primary (the 180-day range, no Next window). Only the wording changed there.
