@@ -2,7 +2,7 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-229.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-235.
 
 ---
 
@@ -247,6 +247,36 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** PLNR-106 doesn't say what a depart day with no trip at all counts as, or what an empty grid shows. The build counts such a day as outside the margin, so the Depart label shows the full PLNR-96 text, which explains blank. Since Soonest is solved again as the clock runs, the label can switch between its two texts while the planner is open.
 - **Affects:** PLNR-106, PLNR-96 · **Type:** spec gap
 - **Disposition:** open. Accept, and add the sentence to PLNR-106.
+
+### F-229 · Where the fold marker sits
+- **Observation:** GRP-05 and MUL-06 say only that the fold marker sits beside its parent. The build puts its front frame level with the parent's centre, to its right, with the two boxes just touching, as mock-up 18 does. Labels take the right slot first, so planet labels now sit on the left. In Halden IV's own frame its label had no free slot and was hidden. The old pill sat lower right and left the right slot free.
+- **Affects:** GRP-05, MUL-06, LBL-01 · **Type:** spec gap
+- **Disposition:** open. Keep it level and to the right; move it below right like the pill (about 27 px down to clear a one-line label); or put it on the left.
+
+### F-230 · Do docked things colour a larger marker's frames?
+- **Observation:** MUL-04 says things docked at a station inside a larger marker sit under its row and aren't counted. MUL-02 doesn't say whether they count for the frames. The build leaves them out of the frames too, for fold markers, overlap clusters and shared-orbit identity marks. So Iver's fold marker reads as an own "1", not a neutral one. A hostile ship docked inside a larger marker then shows only in the tray.
+- **Affects:** MUL-02, MUL-04 · **Type:** spec gap
+- **Disposition:** open. Accept, or count docked things for the frames, at the cost of a "1" in another thing's colour.
+
+### F-231 · The identity mark of an orbit holding one station with ships docked
+- **Observation:** MOT-14 gives a shared orbit a multi-marker. If the orbit's only thing is a station with ships docked at it (Iver's High band: Iver Yard, Corvid and the Pellam trader), MUL-04 would make that a plain multi-marker counting 1. The build draws the station's own station marker instead: its frame and bar, the docked count and a back frame.
+- **Affects:** MOT-14, MUL-03, MUL-04 · **Type:** spec gap
+- **Disposition:** open. Accept, and say so in MOT-14.
+
+### F-232 · Things joined into a marker have no tail
+- **Observation:** MUL-05 says a joined thing draws no tail of its own and leaves its orbit ring unchanged. In dot mode the build drops joined things' tails; in ring mode they still light the exposure ring. So in dot mode a together or overlap marker (the TEST-12 convoy, a cluster in the High band) has no tail, and on a running clock it reads as standing still.
+- **Affects:** MUL-05, MOT-01 · **Type:** spec wrong
+- **Disposition:** open. Give a together or overlap marker one tail of its own, from its centre.
+
+### F-233 · Two stations together
+- **Observation:** MUL-03 defines docking only for ships and groups. When two stations are together (PHAS-02), the build makes the first the lead and treats the other as docked at it: it is counted as docked and its own symbol is hidden. No content has this case yet.
+- **Affects:** MUL-03, MUL-05 · **Type:** spec gap
+- **Disposition:** open. Say what two stations together show.
+
+### F-234 · Fold markers never fade
+- **Observation:** A fold marker is always drawn at full strength, even when its parent's dot has faded into the exposure ring (MOT-11). Other multi-markers fade with the strongest thing in them. The old pill behaved the same.
+- **Affects:** GRP-05, MOT-11 · **Type:** spec gap
+- **Disposition:** open. Accept, or fade the fold marker with its parent.
 
 ## Parked
 
