@@ -14,6 +14,7 @@ use super::look::{Emphasis, ghost_opacity};
 use super::strokes::{DrawnPath, DrawnPaths, coast_color, path_color};
 use crate::sim::body::BodyClass;
 use crate::view::fonts::Fonts;
+use crate::view::halo::TextHalo;
 use crate::view::layers;
 use crate::view::markers::marker_half_size;
 use crate::view::motion_mode::MotionModeState;
@@ -327,6 +328,7 @@ fn write_labels(
                     TextLayout::linebreak(LineBreak::NoWrap),
                     fonts.data(PATH_LABEL_FONT_PX),
                     TextColor(mark.color),
+                    TextHalo::ground(),
                     Pickable::IGNORE,
                 ));
             });

@@ -101,7 +101,7 @@ Applies to every label on the map: body labels and symbol labels (SYM-13).
 | LBL-02 | Labels are placed in priority order, higher first: the selection; the hovered object; the frame body; the star and planets; then ships, groups and stations by affiliation (hostile, unknown, own commanded, own-flag civilian, allied and neutral); then moons. Within a rank, the object nearer the camera goes first. | ✓ |
 | LBL-03 | A label with no free position loses its second line and tries again; if the name alone has none, the label is hidden. The selection's and the hovered object's labels are never hidden: lower labels give way to them. | ✓ |
 | LBL-04 | A label keeps its position for as long as that position stays free. A change of position or visibility fades over `label_fade_ms`. | ✓ |
-| LBL-05 | Every label on the map has a halo: an outline `label_halo_px` wide round its glyphs in the ground colour, drawn under the text and over everything beneath it. A ring, tail, axis or other line breaks where a label crosses it, close round the letters, and is whole elsewhere. The halo follows the glyphs; it is not a box. | |
+| LBL-05 | Every label on the map has a halo: an outline `label_halo_px` wide round its glyphs in the ground colour, drawn under the text and over everything beneath it. A ring, tail, axis or other line breaks where a label crosses it, close round the letters, and is whole elsewhere. The halo follows the glyphs; it is not a box. | ✓ |
 
 ## 3c. Frame cue
 

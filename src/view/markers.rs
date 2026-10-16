@@ -46,6 +46,7 @@ use super::world::ViewNow;
 use crate::sim::body::{Affiliation, BodyClass, DisplayName};
 use crate::sim::clock::GameClock;
 use crate::sim::track::ShipRecord;
+use crate::view::halo::TextHalo;
 use crate::{Boot, Stage};
 
 /// Half-size in pixels, so the update system can centre the node on its
@@ -513,6 +514,7 @@ fn spawn_label(
                 fonts.label(LABEL_FONT_PX),
                 TextColor(color),
                 Tint::new(color, TintSlot::Text),
+                TextHalo::ground(),
             ));
             if let Some(line) = text.second_line {
                 label.spawn((
@@ -522,6 +524,7 @@ fn spawn_label(
                     fonts.data(SECOND_LINE_FONT_PX),
                     TextColor(colors::PANEL_BORDER),
                     Tint::new(colors::PANEL_BORDER, TintSlot::Text),
+                    TextHalo::ground(),
                 ));
             }
         })

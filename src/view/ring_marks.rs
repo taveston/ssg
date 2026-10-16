@@ -48,6 +48,7 @@ use super::tunables::Tunables;
 use super::world::ViewNow;
 use crate::sim::body::{Affiliation, BodyClass};
 use crate::sim::track::ShipRecord;
+use crate::view::halo::TextHalo;
 use crate::{Boot, Stage};
 
 /// Below this much fade a ring's mark and label aren't drawn.
@@ -235,6 +236,7 @@ fn spawn_label(root: &mut ChildSpawnerCommands, fonts: &Fonts, ring: &Ring, colo
             fonts.label(LABEL_FONT_PX),
             TextColor(color),
             Tint::new(color, TintSlot::Text),
+            TextHalo::ground(),
         ));
         label.spawn((
             PeriodLine,
@@ -243,6 +245,7 @@ fn spawn_label(root: &mut ChildSpawnerCommands, fonts: &Fonts, ring: &Ring, colo
             fonts.data(PERIOD_FONT_PX),
             TextColor(colors::SECONDARY),
             Tint::new(colors::SECONDARY, TintSlot::Text),
+            TextHalo::ground(),
         ));
     });
 }

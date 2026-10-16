@@ -267,6 +267,10 @@ pub struct Tunables {
     pub label_gap_px: f32,
     /// A label's change of place or visibility fades over this (LBL-04).
     pub label_fade_ms: f32,
+    /// Every label has an outline this wide round its glyphs, in the
+    /// ground colour, so a line it crosses breaks round the letters
+    /// (LBL-05).
+    pub label_halo_px: f32,
 
     // --- Transfer planner (docs/spec/planner.md) ---
     /// A slider's track is this high (PLNR-23).
@@ -419,6 +423,7 @@ impl Default for Tunables {
 
             label_gap_px: 4.0,
             label_fade_ms: 150.0,
+            label_halo_px: 2.0,
 
             slider_track_px: 10.0,
             slider_thumb_w_px: 14.0,

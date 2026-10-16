@@ -570,3 +570,61 @@ fn a_ship_in_flight_has_a_velocity_leader_the_way_it_moves() {
     run(&mut app, 2);
     assert!(!leader_of(&mut app, orison).0);
 }
+
+/// LBL-05: every label on the map carries the ground-colour halo,
+/// `label_halo_px` wide: body and symbol labels with their second lines,
+/// exposure ring labels with their period lines, and the planner's path
+/// labels.
+#[test]
+fn every_map_label_carries_the_ground_halo() {
+    use crate::view::colors;
+    use crate::view::halo::{HaloPlugin, TextHalo};
+    use crate::view::markers::MarkerLabel;
+    use crate::view::ring_marks::{RingLabelBox, RingMarksPlugin};
+
+    let mut app = symbols_app_with(|app| {
+        app.add_plugins((
+            PlannerPlugin,
+            PathsPlugin,
+            SharedOrbitPlugin,
+            RingMarksPlugin,
+            HaloPlugin,
+        ))
+        .init_resource::<crate::view::camera::requests::PlanetaryViewRequest>();
+    });
+    let halden = body(&mut app, "Halden IV");
+    app.world_mut().resource_mut::<FrameRequest>().0 = Some(halden);
+    run(&mut app, 60 + move_frames());
+    plan_orison_to_iva(&mut app);
+    run(&mut app, 3);
+
+    let want = TextHalo {
+        width_px: Tunables::default().label_halo_px,
+        color: colors::GROUND,
+    };
+    let mut roots = app.world_mut().query_filtered::<(
+        Entity,
+        Has<MarkerLabel>,
+        Has<RingLabelBox>,
+    ), Or<(With<MarkerLabel>, With<RingLabelBox>, With<PathLabel>)>>();
+    let roots: Vec<(Entity, bool, bool)> = roots.iter(app.world()).collect();
+    let (mut marker, mut ring, mut path) = (0, 0, 0);
+    for (root, is_marker, is_ring) in roots {
+        for text in descendants(&mut app, root) {
+            if app.world().get::<Text>(text).is_none() {
+                continue;
+            }
+            assert_eq!(
+                app.world().get::<TextHalo>(text),
+                Some(&want),
+                "a label's text without the halo"
+            );
+            match (is_marker, is_ring) {
+                (true, _) => marker += 1,
+                (_, true) => ring += 1,
+                _ => path += 1,
+            }
+        }
+    }
+    assert!(marker > 0 && ring > 0 && path > 0, "{marker} {ring} {path}");
+}

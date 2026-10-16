@@ -1,8 +1,8 @@
 //! View (ARCH-01): everything drawn - the km to render conversion, the
 //! camera, markers, rings, pills, grouping, the motion rule, gate edge
 //! arrows, inspection insets, the top bar, the palette,
-//! fonts, fidelity images and the presentation tunables, and a debug
-//! screenshot option (`debug_shot`).
+//! fonts, the label halo, fidelity images and the presentation tunables,
+//! and a debug screenshot option (`debug_shot`).
 //!
 //! The view reads the simulation and changes it only through its API
 //! (ARCH-14). State that several view modules share lives in its own small
@@ -32,6 +32,7 @@ pub mod fonts;
 pub mod frame;
 pub mod gesture;
 pub mod grouping;
+pub mod halo;
 pub mod hover;
 pub mod hovered;
 pub mod inspect;
@@ -121,6 +122,7 @@ impl Plugin for ViewPlugin {
             ))
             .add_plugins((
                 labels::LabelsPlugin,
+                halo::HaloPlugin,
                 brackets::BracketsPlugin,
                 true_size::TrueSizePlugin,
                 debug_shot::DebugShotPlugin,
