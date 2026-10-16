@@ -46,7 +46,8 @@
 //!   planner: anything but a ship the faction commands, parked in a named
 //!   orbit with no order (PLNR-01);
 //! - with `fly`, a destination that can't be picked, or whose order can't
-//!   be scheduled once the planner has searched and solved it: the log
+//!   be scheduled once the planner has searched and solved it, or that
+//!   Schedule refuses when it solves a Soonest order again: the log
 //!   gives the planner's own reason (PLNR-92), such as "Needs 13.2 km/s,
 //!   has 9.9" for a trip over the ship's budget.
 //!
@@ -181,6 +182,9 @@ pub enum ShotPhase {
     Starting,
     /// Waiting for the planner's order to be ready, to schedule it.
     Scheduling,
+    /// Schedule refused the order, solved again from the clock; the shot
+    /// fails in this frame with the planner's reason.
+    Refused,
     /// Waiting for the order to reach the ship, to move the clock on.
     Flying,
     /// The frame move is in flight.
@@ -422,12 +426,19 @@ fn fly_order(
             // Once the planner has an order, Schedule is pressed: at
             // Soonest it is solved again from the clock (PLNR-50).
             let now = clock.elapsed_days();
-            if order_to_schedule(&planner).is_some()
-                && let Some((ship, order, _)) = schedule_order(&mut planner, now)
-            {
-                orders.write(ShipOrder::Transfer { ship, order });
-                planner.end();
-                shot.phase = ShotPhase::Flying;
+            if order_to_schedule(&planner).is_none() {
+                return;
+            }
+            match schedule_order(&mut planner, now) {
+                Some((ship, order, _)) => {
+                    orders.write(ShipOrder::Transfer { ship, order });
+                    planner.end();
+                    shot.phase = ShotPhase::Flying;
+                }
+                // Solved again, the leg is rejected or over budget: the
+                // planner now holds why, and `refuse_unplannable`, next
+                // in the chain, ends the shot with it.
+                None => shot.phase = ShotPhase::Refused,
             }
         }
         ShotPhase::Flying => {
@@ -489,6 +500,8 @@ fn open_tray(
 enum Refusal {
     /// The planner closed before the order was ready.
     Closed,
+    /// Schedule refused the order, though the planner gives no reason.
+    Refused,
     /// The destination can't be picked, so nothing is planned.
     NotPickable,
     /// The search or the leg can't be flown, or the leg is over budget;
@@ -531,7 +544,8 @@ fn refusal(planner: &PlannerState) -> Option<Refusal> {
 
 /// `fly`: once the planner has answered, a destination it can't plan for
 /// ends the shot at once with the planner's reason, rather than leaving
-/// it waiting for the timeout.
+/// it waiting for the timeout. So does an order Schedule refused when it
+/// solved the leg again from the clock (PLNR-50).
 fn refuse_unplannable(
     mut shot: ResMut<Shot>,
     planner: Res<PlannerState>,
@@ -539,16 +553,19 @@ fn refuse_unplannable(
     parents: Query<&ChildOf>,
     mut exit: MessageWriter<AppExit>,
 ) {
-    if shot.phase != ShotPhase::Scheduling {
-        return;
-    }
-    let Some(refusal) = refusal(&planner) else {
+    let refused = match shot.phase {
+        ShotPhase::Scheduling => None,
+        ShotPhase::Refused => Some(Refusal::Refused),
+        _ => return,
+    };
+    let Some(refusal) = refusal(&planner).or(refused) else {
         return;
     };
     let ship = shot.plan.select.clone().unwrap_or_default();
     let target = shot.plan.planner.clone().unwrap_or_default();
     let because = match refusal {
         Refusal::Closed => "the planner closed before its order was ready".to_string(),
+        Refusal::Refused => "Schedule refused the order".to_string(),
         Refusal::NotPickable => format!("`{target}` can't be picked as a destination"),
         Refusal::Unplannable { why, primary } => {
             // The crossing's primary, or else the body the ship orbits,

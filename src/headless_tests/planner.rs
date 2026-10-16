@@ -412,6 +412,46 @@ fn accepted(app: &App, setting: Setting) -> bool {
         .is_ok()
 }
 
+/// PLNR-13 / PLNR-33: changing Rendezvous to Intercept keeps the
+/// settings, except a thumb the change leaves on a setting the solver
+/// rejects: on Halden IVa's Soonest some travel times can be met but not
+/// intercepted, and from one of them the Travel time thumb moves to an
+/// accepted setting while Depart, still accepted, stays.
+#[test]
+fn an_arrival_change_moves_a_thumb_off_a_setting_it_rejects() {
+    use crate::sim::transfer::search::Request;
+    use crate::view::planner::input::intercept_arrival;
+    let mut app = planner_app();
+    plan_to_halden_iva(&mut app);
+    let rendezvous = session(&app).request.unwrap();
+    let intercept = Request {
+        arrival: intercept_arrival(rendezvous.destination),
+        ..rendezvous
+    };
+    let soonest_column = session(&app).search().unwrap().grid.rows[0].clone();
+    let setting = soonest_column
+        .iter()
+        .filter(|sample| sample.accepted())
+        .map(|sample| sample.setting)
+        .find(|&setting| context(&app).solve(intercept, setting).is_err())
+        .expect("a travel time Halden IVa can be met at but not intercepted");
+    put_thumbs(&mut app, setting);
+    assert_eq!(
+        session(&app).setting,
+        Some(setting),
+        "accepted as a Rendezvous"
+    );
+
+    let option = option(&mut app, Choice::Arrival { intercept: true });
+    click_node(&mut app, option, 1);
+    settle(&mut app);
+    assert_eq!(session(&app).request, Some(intercept));
+    let moved = session(&app).setting.unwrap();
+    assert_eq!(moved.depart_day, setting.depart_day, "Depart stays");
+    assert_ne!(moved.travel_days, setting.travel_days, "Travel time moves");
+    assert!(accepted(&app, moved), "{moved:?}");
+}
+
 /// Whether the preset button labelled `label` is drawn selected.
 fn preset_selected(app: &mut App, label: &str) -> bool {
     let preset = button(app, label).expect("the preset");
@@ -595,6 +635,127 @@ fn schedule_from_soonest_solves_from_the_clock() {
     assert!(!planner(&app).is_open());
     let leg = plan(&app, orison).leg();
     assert_eq!(leg.depart_day, pressed);
+}
+
+/// A Soonest setting of the open planner's leg, and a later time on the
+/// same day, for which `changes` holds between the leg solved at Soonest
+/// and the leg solved then. The time is checked a little later too, so
+/// running the clock to it may overshoot.
+pub(super) fn soonest_change(
+    app: &App,
+    changes: impl Fn(&Result<SolvedLeg, Infeasible>, &Result<SolvedLeg, Infeasible>) -> bool,
+) -> Option<(Setting, f64)> {
+    let search = session(app).search().unwrap();
+    let context = context(app);
+    let request = session(app).request.unwrap();
+    let soonest = search.soonest();
+    let max_steps = context.tunables.slider_max_steps;
+    search
+        .sliders
+        .travel
+        .settings(max_steps)
+        .into_iter()
+        .flat_map(|travel_days| {
+            [0.3, 0.5, 0.7].map(|fraction| {
+                let at = Setting {
+                    depart_day: soonest,
+                    travel_days,
+                };
+                (at, soonest + fraction)
+            })
+        })
+        .find(|&(at, then)| {
+            let first = context.solve(request, at);
+            [then, then + 0.02].iter().all(|&day| {
+                let later = Setting {
+                    depart_day: day,
+                    ..at
+                };
+                changes(&first, &context.solve(request, later))
+            })
+        })
+}
+
+/// How much more than the leg at Soonest needs the ship is given, in
+/// km/s, when the leg solved later must be over its budget.
+const BUDGET_GAP_KMS: f64 = 0.05;
+
+/// Puts the open planner's thumbs on `setting` and lets it be solved.
+fn put_thumbs(app: &mut App, setting: Setting) {
+    let mut state = app.world_mut().resource_mut::<PlannerState>();
+    state.session.as_mut().unwrap().setting = Some(setting);
+    settle(app);
+}
+
+/// PLNR-50: Schedule at Soonest solves the leg again from the clock; when
+/// that leg is rejected, or needs more than the ship has, no order is
+/// made, the planner stays open with its thumbs at the new Soonest, and
+/// the reason line says why. Halden IVa's legs change within a day: for
+/// the rejected case a setting accepted and affordable at Soonest but
+/// rejected later is found; for the over-budget case, one that costs
+/// more later, with Orison's budget set between the two costs.
+#[test]
+fn schedule_from_soonest_makes_no_order_when_the_leg_solved_again_fails() {
+    for over_budget in [false, true] {
+        let mut app = planner_app();
+        let (orison, _) = plan_to_halden_iva(&mut app);
+        let budget = context(&app).available_kms;
+        // Over budget: a leg that costs more later in the day, with the
+        // ship's budget then set between the two costs.
+        let found = soonest_change(&app, |first, later| match (first, later) {
+            (Ok(first), Ok(later)) if over_budget => {
+                first.delta_v_kms + 2.0 * BUDGET_GAP_KMS < later.delta_v_kms.min(budget)
+            }
+            (Ok(first), Err(_)) if !over_budget => first.delta_v_kms <= budget,
+            _ => false,
+        });
+        let (setting, then) =
+            found.unwrap_or_else(|| panic!("{over_budget}: a leg that fails later the same day"));
+        if over_budget {
+            let request = session(&app).request.unwrap();
+            let first = context(&app).solve(request, setting).unwrap();
+            let squeezed = first.delta_v_kms + BUDGET_GAP_KMS;
+            let mut account = app.world_mut().get_mut::<DeltaV>(orison).unwrap();
+            account.delta_v_kms = squeezed + account.reserved_kms + account.spent_kms;
+            settle(&mut app);
+            let available = context(&app).available_kms;
+            assert!((available - squeezed).abs() < 1e-9, "searched again");
+        }
+        put_thumbs(&mut app, setting);
+        assert_eq!(session(&app).setting, Some(setting), "{over_budget}");
+        assert!(
+            crate::view::planner::input::order_to_schedule(planner(&app)).is_some(),
+            "Schedule is enabled at Soonest"
+        );
+        run_until(&mut app, 0.05, then);
+        pause(&mut app);
+        run(&mut app, 1);
+        let pressed = day(&app);
+        assert_eq!(pressed.floor(), setting.depart_day.floor(), "the same day");
+        let schedule = button(&mut app, "Schedule").expect("Schedule");
+        click_node(&mut app, schedule, 1);
+        settle(&mut app);
+        assert!(planner(&app).is_open(), "{over_budget}: the planner stays");
+        assert!(
+            app.world().get::<Plan>(orison).is_none(),
+            "{over_budget}: no order"
+        );
+        assert_eq!(
+            session(&app).setting.unwrap().depart_day,
+            pressed,
+            "the thumbs are at the new Soonest"
+        );
+        let reason = fields(&mut app)[&Field::Reason].clone();
+        if over_budget {
+            assert!(reason.starts_with("Needs "), "{reason}");
+        } else {
+            assert!(session(&app).leg.as_ref().unwrap().is_err());
+            assert!(
+                !reason.is_empty() && !reason.starts_with("Needs "),
+                "{reason}"
+            );
+        }
+    }
 }
 
 /// PLNR-27 / PLNR-31: a Rendezvous at Iver is over Orison's budget, so

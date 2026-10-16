@@ -1058,6 +1058,71 @@ fn a_shot_that_can_plan_its_trip_goes_on_to_the_capture() {
     assert!(!failed);
 }
 
+/// PLNR-50: Schedule at Soonest solves the order again from the clock.
+/// When a shot's order is rejected then, the shot fails in that frame
+/// with the planner's reason, rather than waiting for its timeout. Once
+/// the planner has solved Halden IVa, its thumbs are put on a setting
+/// accepted at Soonest but rejected later that day, and the clock is
+/// moved on to then.
+#[test]
+fn a_shot_whose_order_fails_at_schedule_exits_at_once() {
+    use crate::view::debug_shot::{Shot, ShotPhase};
+    let mut app =
+        planner_shot_app("out=unused.png;select=Orison;planner=Halden IVa;fly=1;rate=0;timeout=30");
+    let mut frames = 0;
+    loop {
+        run(&mut app, 1);
+        frames += 1;
+        assert!(frames < 600, "the planner never solved its leg");
+        let planner = app.world().resource::<PlannerState>();
+        let solved = planner
+            .session
+            .as_ref()
+            .is_some_and(|s| s.setting.is_some() && s.solved_for == s.setting);
+        if solved {
+            break;
+        }
+    }
+    assert_eq!(app.world().resource::<Shot>().phase, ShotPhase::Scheduling);
+    let budget = {
+        let planner = app.world().resource::<PlannerState>();
+        let session = planner.session.as_ref().unwrap();
+        session
+            .found
+            .as_ref()
+            .unwrap()
+            .context
+            .as_ref()
+            .unwrap()
+            .available_kms
+    };
+    let (setting, then) = super::planner::soonest_change(&app, |first, later| {
+        first.as_ref().is_ok_and(|leg| leg.delta_v_kms <= budget) && later.is_err()
+    })
+    .expect("a leg that is rejected later the same day");
+    {
+        let mut planner = app.world_mut().resource_mut::<PlannerState>();
+        let session = planner.session.as_mut().unwrap();
+        let context = session.found.as_ref().unwrap().context.clone().unwrap();
+        session.setting = Some(setting);
+        session.leg = Some(context.solve(session.request.unwrap(), setting));
+        session.solved_for = Some(setting);
+    }
+    let mut clock = app.world_mut().resource_mut::<GameClock>();
+    clock.toggle_pause();
+    let days = then - clock.elapsed_days();
+    let rate = clock.rate_days_per_sec();
+    clock.advance(days / rate);
+    clock.toggle_pause();
+
+    run(&mut app, 1);
+    assert_eq!(app.world().resource::<Shot>().phase, ShotPhase::Failed);
+    assert!(app.should_exit().is_some_and(|exit| exit.is_error()));
+    let planner = app.world().resource::<PlannerState>();
+    let session = planner.session.as_ref().expect("no order, so still open");
+    assert!(session.leg.as_ref().unwrap().is_err(), "solved again");
+}
+
 /// `planner` needs a selected ship that can open the planner (PLNR-01):
 /// with nothing selected, or a planet selected, the shot fails at its
 /// start instead of waiting for the timeout.
