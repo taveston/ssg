@@ -2,7 +2,7 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-192.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-198.
 
 ---
 
@@ -142,6 +142,36 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** Seen in play. An exposure ring reads as an orbit ring drawn slightly thicker. Nothing tells the player that the object is moving too fast to show as a dot, so the identity mark sitting still on the ring looks like a parked object, not a stand-in for one that is circling.
 - **Affects:** MOT-08 to MOT-14 · **Type:** spec wrong
 - **Disposition:** open. Options: a distinct look for the ring (dashes, a gradient or a sweep in the sense of motion), a motion cue on the identity mark (a small arrow or a trail), or a word on hover ("orbiting, period 2 h").
+
+### F-192 · Commanded ships with no drive get a planner they can't use
+- **Observation:** PLNR-01 gives every commanded ship parked in a named orbit a Transfer button. In Corvane only Orison and RFA Tolland have drives (TEST-30); Ardent, the transports and Delve have none. The build shows them the button, and the planner opens, but every line reads "The ship has no drive". Commanded stations (Tern Relay) get no button, as PLNR-01 says "ship". PLNR-05's Delta-v and Drive facts show only for a ship with a drive.
+- **Affects:** PLNR-01, PLNR-05, TEST-30 · **Type:** spec gap
+- **Disposition:** open. Accept, hide the button for a ship with no drive, or give every commanded ship a drive in content.
+
+### F-193 · Where the planner's parts sit in the inset
+- **Observation:** The spec orders the tuning rows (PLNR-20) but not the rest. The build chose: the header (name, Focus, Close) and class line stay while the planner is open; the image, description, key facts and planetary-view button give way; the Transfer button hides. The quiet Cancel sits beside Schedule, and under the prompt while choosing. The Gap line follows the Travel time row. An order (PLNR-51) and a coasting ship's place (PLNR-54) sit below the key facts, over a hairline; the PLNR-53 line sits above the header. Fastest shows disabled when nothing is affordable (PLNR-29), though PLNR-83 says it then doesn't exist, which would hide it.
+- **Affects:** PLNR-02, PLNR-20, PLNR-29, PLNR-41, PLNR-51, PLNR-53, PLNR-54 · **Type:** spec gap
+- **Disposition:** open. Accept, or place them.
+
+### F-194 · What a click does while planning, beyond PLNR-11
+- **Observation:** An orbit row in the outline both picks its band and opens, so the ships in it stay within reach. A double-click while planning picks and still moves the camera (ZOOM-16), as camera controls work as usual (PLNR-03). A named orbit that is not a band or a docking orbit (Morrow IX's "Outer") can't be picked, as no place stands for it (BAND-02). An Intercept of a station or ship is ordered through High; the solver takes the target's own band anyway (F-171).
+- **Affects:** PLNR-03, PLNR-11, INS-05, BAND-02 · **Type:** spec gap
+- **Disposition:** open. Accept.
+
+### F-195 · Changing an order cancels it first
+- **Observation:** PLNR-53's Schedule replaces the order. The build sends Cancel and then the new order in one frame, so the old reservation is free for the new one. If the new order were refused there, the old one would already be gone; the panel only schedules a leg it has just solved within the budget, so this should not happen. What the simulation answers (`OrderOutcome`) is not shown anywhere.
+- **Affects:** PLNR-50, PLNR-53, PLAN-22 · **Type:** spec gap
+- **Disposition:** open. Accept, or ask for a replace in the simulation's order API.
+
+### F-196 · How the sliders behave where the spec is silent
+- **Observation:** A phasing leg's meetings sit evenly along the track, one position each, not by time. A slider keeps keyboard focus until a press on the map. The thumb is centred on its setting, so it overhangs the track by half its width at each end. The Depart range's start moves once a game day, with the search (PLNR-87), while a depart day in the past moves to today at once (PLNR-24). Each new day runs a full search (the grid's 2,160 solves and the presets), so at fast clock rates the planner searches several times a second.
+- **Affects:** PLNR-23, PLNR-24, PLNR-40, PLNR-87 · **Type:** spec gap
+- **Disposition:** open. Accept.
+
+### F-197 · Orison can't reach Iver, so its tracks are all orange
+- **Observation:** Seen on screen. A Rendezvous from Halden IV's High band to Iver's needs at least 13.2 km/s, more than Orison's 9.9, so both tracks are the over-budget colour from end to end and no window shows as a bright band. An Intercept of Iver, or Halden IVa, is within reach. The empty colour (the inset's hairline colour) is light grey, close to the dimmest blue, so a rejected setting is hard to tell from a dear one.
+- **Affects:** PLNR-28, TEST-30, F-158 · **Type:** spec wrong
+- **Disposition:** open. Give Orison more delta-v or cheaper bands (F-158), and pick an empty colour darker than the hairline.
 
 ## Parked
 
