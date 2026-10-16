@@ -49,7 +49,7 @@ The first three are spatial layers, nested from sector down to planet. Faction a
 - **Clutter (candidate):**
   - Moons fold into a neutral ring behind a body's marker, with a dim "+N" on its label; ships, groups and stations fold into a small pip down and to the right, which pops out into a count marker near the pointer or when the body is selected (specced: GRP; decided 2026-10-16, from F-244, F-229 and F-239, reasoning in *Symbology* 4).
   - Asteroid belts and debris fields appear as density shading. Surveyed, claimed or active sites get individual markers.
-  - Information layers can be switched on and off: ownership, resources, salvage, traffic, sensor coverage, sky.
+  - Information layers can be switched on and off: ownership, resources, salvage, traffic, sensor coverage.
 - **Sky (direction, 2026-10-17):** a star field and Milky Way behind the system view, to give a sense of scale: the cluster is a small part of a galaxy. Procedural, with no art assets. Mock-up 28 compares styles.
   - **One sky for the whole cluster, from a seed, tied to no system.** The galaxy is far off, so every system sees the same sky; Sol is no exception. It is not drawn from the cluster's own stars. The flattened cluster is a playability concession (*World Generator* 1), and true bearings to its neighbours would show it as a band of unusually bright stars. Neighbours stay on the cluster view and the gate edge tabs.
   - **Drawn at infinity.** It turns with heading and tilt and never moves on pan or zoom, so it reads as far away. Beside the north dial it is the other cue for rotation, and it fits the non-rotating reference frame.
@@ -59,7 +59,7 @@ The first three are spatial layers, nested from sector down to planet. Faction a
   - **Star colour (decided): a natural spread, kept pale.** Blue-white to orange, pulled most of the way back to neutral, so no star reads as an affiliation colour or the warning orange (*Interface Style* 2). The glow is neutral grey-blue.
   - **No text cue (decided).** The sky carries no labels.
   - **Against the belt grain:** the belt (MRK-18) is also faint points. The sky stays dimmer than the grain and holds still when the view pans, which tells them apart.
-  - **Layer, on by default (decided).** Below everything in the draw order and never a hover or click target. The player can switch it off like the other information layers: a display preference, not game state.
+  - **Always on, for now (decided 2026-10-17).** It has no toggle until layer toggles are designed. It sits below everything in the draw order and is never a hover or click target.
 - **Motion (candidate):** ship paths are drawn as their actual arcs, including burns: solid behind the ship, dashed ahead, and dashed from the departure point for a scheduled transfer. Transfer planning shows one live preview path with the arrival point on the target's ring, plus slider tracks coloured by delta-v; this replaces the earlier fan of labelled alternative paths (*Orbital Transfers* 3.3). How fast-orbiting objects are drawn is set by the motion rule (specced: MOT).
 - **Sector view (decided):** the same style as the system view, with systems as nodes and gates as links. Gate throughput, reliability and ownership could show as line weight, line style and colour (candidate). **Specced** 2026-10-16 as a minimal truth view that shows every star and every link by state, whatever anyone knows: working solid, dormant dashed, collapsed faint (`docs/spec/sector-view.md`). A view filtered by knowledge replaces it later. Why: the generator's output has to be seen and checked before anything is hidden from the player.
 
@@ -151,7 +151,7 @@ The vector layer is cheap to produce, and so is the sky: it is generated, with n
 - What owning a planet or moon means (surface assets may belong to different parties), and how to show it. The map draws natural bodies in neutral white and shows no ownership for now (MRK-10, from playtest finding F-108).
 - Body discs (decided 2026-10-13, from F-114): solid white discs at 36/30/24 px looked heavy and merged in the inner system. Bodies are now outlined discs with a dim fill and a dark gap, at 28/22/18 px (Specced: MRK-03, MRK-11). Same size with the outline was the alternative.
 - Faction colours beyond the affiliation colours in `symbology.md`.
-- Layers: how the player switches them (the sky, the frame cue, and later ownership, resources and traffic). A Layers button in the top bar that opens a short checklist is proposed. Whether the planetary view and the inspection inset show a richer sky is a separate question.
+- Layers: how the player switches them (the frame cue, and later ownership, resources, traffic and sensor coverage; the sky stays on until then). A Layers button in the top bar that opens a short checklist is proposed. Whether the planetary view and the inspection inset show a richer sky is a separate question.
 - Zoom: step factor, animation timing, strength of the resistance at stops, the minimum view radius, and the standard tilt.
 - Camera: the final tilt limit and pan and rotate speeds after testing; the tilt range for the sector view.
 - Motion rule: final values for R_show, `tail_secs` and `dot_fade_from_degrees` after testing; whether the label should glide from the dot to its fixed spot on the ring as the tail closes, rather than jump.
