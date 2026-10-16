@@ -128,9 +128,6 @@ pub struct Tunables {
     /// The pivot stays within this many system-frame radii of the star
     /// (CAM-19).
     pub pan_bound_factor: f32,
-    /// Space between the frame brackets and the selection ring's size, on
-    /// each side (CAM-22).
-    pub focus_bracket_margin_px: f32,
 
     // --- Hover, selection and the inset ---
     /// Every marker and symbol can be hit at least this far from its
@@ -143,6 +140,17 @@ pub struct Tunables {
     /// The selected object's orbit ring is drawn white at this alpha
     /// (HOV-03).
     pub orbit_selected_alpha: f32,
+    /// The hover mark is the selection's corner brackets drawn at this
+    /// alpha (HOV-06).
+    pub bracket_hover_alpha: f32,
+    /// Each bracket arm is this share of its box's shorter side long
+    /// (HOV-06).
+    pub bracket_arm_fraction: f32,
+    /// Width of a bracket arm's stroke (HOV-06).
+    pub bracket_stroke_px: f32,
+    /// The bracket box clears what is drawn by this much on every side
+    /// (HOV-07); a fold pill sits clear of its parent's box (GRP-05).
+    pub bracket_margin_px: f32,
     /// The inspection sidebar's width (INS-07).
     pub inset_width_px: f32,
     /// How long the sidebar takes to slide open or closed (INS-07).
@@ -265,12 +273,15 @@ impl Default for Tunables {
             standard_tilt_deg: 60.0,
             focus_keep_margin_px: 40.0,
             pan_bound_factor: 1.5,
-            focus_bracket_margin_px: 2.0,
 
             min_hit_radius_px: 10.0,
             ring_hit_px: 7.0,
             orbit_hover_alpha: 0.6,
             orbit_selected_alpha: 0.85,
+            bracket_hover_alpha: 0.6,
+            bracket_arm_fraction: 0.3,
+            bracket_stroke_px: 2.0,
+            bracket_margin_px: 4.0,
             inset_width_px: 320.0,
             sidebar_slide_ms: 200.0,
             plot_margin_px: 24.0,

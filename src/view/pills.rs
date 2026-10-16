@@ -4,7 +4,8 @@
 //! there. What is folded, and the flags, come from `fold.rs`; this module
 //! only draws them. The pill's node and face are shared with the identity
 //! pill on a shared exposure ring (`ring_marks.rs`, MOT-14), which is
-//! styled and coloured the same way.
+//! styled and coloured the same way. The brackets round a hovered pill, or
+//! one holding the selection, are `brackets.rs` (HOV-06).
 
 use bevy::prelude::*;
 
@@ -14,39 +15,31 @@ use super::colors;
 use super::fold::{FoldSummary, PillFlags};
 use super::fonts::Fonts;
 use super::hover;
-use super::markers::{MarkersPlaced, ring_outer_half};
+use super::markers::{
+    MarkerShape, MarkersPlaced, box_half, drawn_half, marker_half_size, marker_shape,
+};
 use super::screen::ScreenPositions;
-use super::selection::Selection;
 use super::symbol_draw::{Tint, TintSlot};
-use super::targets::{GroupPillFor, Hovered};
+use super::targets::GroupPillFor;
+use super::true_size::DiscRadii;
 use super::tunables::Tunables;
 use crate::sim::body::BodyClass;
 use crate::sim::orbit::Orbit;
+use crate::sim::track::ShipRecord;
 use crate::{Boot, Stage};
 
 /// GRP-05: how far below its parent's marker centre the pill's top sits.
-/// Sideways it sits just clear of the parent's hover ring.
+/// Sideways it sits just clear of the parent's bracket box (HOV-07).
 const PILL_DROP_PX: f32 = 8.0;
-/// Half the pill's height: its left-middle is where the
-/// frame brackets meet it (INS-06).
+/// Half the pill's height, about which an identity pill is centred on its
+/// ring point (MOT-14).
 pub const PILL_HALF_HEIGHT_PX: f32 = 8.0;
-/// The white ring on a pill that holds a selected satellite (INS-06) or a
-/// hovered shared orbit (HOV-05), the same as a marker's (MRK-01).
-const RING_PX: f32 = 2.0;
-const RING_OFFSET_PX: f32 = 2.0;
 
 /// GRP-05: where a pill's top-left sits from its parent's marker centre:
-/// down and to the right, clear of a marker whose hover ring reaches
-/// `parent_clear_px` from its centre.
+/// down and to the right, clear of a parent whose bracket box reaches
+/// `parent_clear_px` from its centre, whether or not the box is showing.
 pub fn pill_offset(parent_clear_px: f32) -> Vec2 {
     Vec2::new(parent_clear_px, PILL_DROP_PX)
-}
-
-/// INS-06: where a folded satellite is shown - the left-middle of its
-/// parent's pill, given the parent's screen position and how far its
-/// marker reaches.
-pub fn pill_anchor(parent_screen: Vec2, parent_clear_px: f32) -> Vec2 {
-    parent_screen + pill_offset(parent_clear_px) + Vec2::new(0.0, PILL_HALF_HEIGHT_PX)
 }
 /// The pill's own dark ground, a touch lighter than the map so it reads as
 /// a chip over it.
@@ -123,7 +116,6 @@ pub fn pill_bundle(fonts: &Fonts, face: PillFace, node: Node) -> impl Bundle {
         node,
         BackgroundColor(PILL_GROUND),
         Tint::new(PILL_GROUND, TintSlot::Background),
-        selection_outline(false),
         children![
             (
                 PillRim,
@@ -165,19 +157,6 @@ pub fn pill_bundle(fonts: &Fonts, face: PillFace, node: Node) -> impl Bundle {
     )
 }
 
-/// INS-06 / HOV-05: the white ring round a pill, on or off.
-pub fn selection_outline(on: bool) -> Outline {
-    Outline {
-        width: px(if on { RING_PX } else { 0.0 }),
-        offset: px(RING_OFFSET_PX),
-        color: if on {
-            colors::SELECTION_RING
-        } else {
-            Color::NONE
-        },
-    }
-}
-
 pub struct PillsPlugin;
 
 impl Plugin for PillsPlugin {
@@ -185,7 +164,7 @@ impl Plugin for PillsPlugin {
         app.add_systems(Startup, spawn_pills.in_set(Boot::Overlay))
             .add_systems(
                 Update,
-                (update_pills.in_set(MarkersPlaced), ring_pills).in_set(Stage::Overlay),
+                update_pills.in_set(MarkersPlaced).in_set(Stage::Overlay),
             );
     }
 }
@@ -207,33 +186,12 @@ fn spawn_pills(
                 GlobalZIndex(layers::LABELS),
                 pill_bundle(&fonts, PillFace::default(), pill_node()),
             ))
-            // GRP-07: hover rings the pill as it does a marker; click is
-            // the parent's click.
+            // GRP-07: hover brackets the pill as it does a marker; click
+            // is the parent's click.
             .observe(hover::on_marker_over)
             .observe(hover::on_marker_out)
             .observe(hover::on_pill_click);
     }
-}
-
-/// INS-06 / GRP-07: a pill carries the white ring while a selected object
-/// is folded into it, or while it is hovered, as a marker does.
-fn ring_pills(
-    selection: Res<Selection>,
-    folds: Res<FoldSummary>,
-    mut pills: Query<(&GroupPillFor, Has<Hovered>, &mut Outline)>,
-) {
-    for (pill_for, hovered, mut outline) in &mut pills {
-        let holds_selection = folds
-            .0
-            .get(&pill_for.0)
-            .is_some_and(|group| group.members.iter().any(|&m| selection.is_selected(m)));
-        outline.set_if_neq(selection_outline(pill_ringed(holds_selection, hovered)));
-    }
-}
-
-/// INS-06 / GRP-07: whether a fold pill shows the white ring.
-pub fn pill_ringed(holds_selection: bool, hovered: bool) -> bool {
-    holds_selection || hovered
 }
 
 /// The parts of a fold pill's face, rewritten each frame.
@@ -243,10 +201,27 @@ type PillParts<'w, 's> = (
     Query<'w, 's, &'static mut Node, (With<PillOwnShipDot>, Without<GroupPillFor>)>,
 );
 
+/// What a pill's parent looks like, for how far its bracket box reaches.
+type ParentLooks<'w, 's> = Query<'w, 's, (&'static BodyClass, Has<ShipRecord>)>;
+
+/// HOV-07 / GRP-05: how far a parent's bracket box reaches from its
+/// centre: its drawn marker, grown to a true-size disc when close (MRK-07),
+/// and the margin.
+pub fn parent_clear_px(
+    class: BodyClass,
+    has_record: bool,
+    true_radius_px: f32,
+    tunables: &Tunables,
+) -> f32 {
+    let is_disc = marker_shape(class, has_record) == MarkerShape::Disc;
+    let drawn = drawn_half(marker_half_size(class, tunables), is_disc, true_radius_px);
+    box_half(drawn, tunables)
+}
+
 fn update_pills(
-    screen: Res<ScreenPositions>,
+    (screen, discs): (Res<ScreenPositions>, Res<DiscRadii>),
     tunables: Res<Tunables>,
-    classes: Query<&BodyClass>,
+    parents: ParentLooks,
     folds: Res<FoldSummary>,
     mut pills: Query<(&GroupPillFor, &mut Node, &Children)>,
     (mut rims, mut counts, mut dots): PillParts,
@@ -264,9 +239,9 @@ fn update_pills(
         };
 
         node.display = Display::Flex;
-        let clear = classes
-            .get(parent)
-            .map_or(0.0, |class| ring_outer_half(*class, &tunables));
+        let clear = parents.get(parent).map_or(0.0, |(class, record)| {
+            parent_clear_px(*class, record, discs.get(parent), &tunables)
+        });
         let offset = pill_offset(clear);
         node.left = px(pos.x + offset.x);
         node.top = px(pos.y + offset.y);
@@ -299,43 +274,18 @@ mod tests {
     use super::*;
     use crate::sim::body::Affiliation;
 
-    /// GRP-07 / HOV-01: hovering a fold pill rings it in white, as for a
-    /// marker; leaving it clears the ring.
+    /// GRP-05 / HOV-07: a pill sits clear of its parent's bracket box,
+    /// which grows with the parent's true-size disc.
     #[test]
-    fn hovering_a_pill_rings_it() {
-        use bevy::ecs::system::RunSystemOnce;
-        let mut world = World::new();
-        world.init_resource::<Selection>();
-        world.init_resource::<FoldSummary>();
-        let parent = world.spawn_empty().id();
-        let pill = world
-            .spawn((GroupPillFor(parent), Hovered, selection_outline(false)))
-            .id();
-        world.run_system_once(ring_pills).unwrap();
-        assert_eq!(
-            *world.get::<Outline>(pill).unwrap(),
-            selection_outline(true)
-        );
-        world.entity_mut(pill).remove::<Hovered>();
-        world.run_system_once(ring_pills).unwrap();
-        assert_eq!(
-            *world.get::<Outline>(pill).unwrap(),
-            selection_outline(false)
-        );
-    }
-
-    /// INS-06: a folded satellite is shown at its parent's pill, at the
-    /// pill's left-middle, which follows the parent on screen.
-    #[test]
-    fn pill_anchor_is_the_pills_left_middle() {
-        let parent = Vec2::new(400.0, 300.0);
-        let anchor = pill_anchor(parent, 19.0);
-        assert_eq!(anchor.x, parent.x + 19.0);
-        assert_eq!(anchor.y, parent.y + PILL_DROP_PX + PILL_HALF_HEIGHT_PX);
-        assert_eq!(
-            pill_anchor(parent + Vec2::X * 50.0, 19.0),
-            anchor + Vec2::X * 50.0
-        );
+    fn a_pill_clears_its_parents_bracket_box() {
+        let tunables = Tunables::default();
+        let margin = tunables.bracket_margin_px;
+        let planet = tunables.planet_marker_px / 2.0;
+        let far = parent_clear_px(BodyClass::Planet, false, 1.0, &tunables);
+        assert_eq!(far, planet + margin);
+        let close = parent_clear_px(BodyClass::Planet, false, 90.0, &tunables);
+        assert_eq!(close, 90.0 + margin);
+        assert_eq!(pill_offset(close).x, close);
     }
 
     /// GRP-05 / GRP-06: a pill's face reads "+N", takes the pressing

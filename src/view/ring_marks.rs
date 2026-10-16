@@ -10,7 +10,8 @@
 //!
 //! The mark is placed with its centre on a whole pixel (SYM-16) and is a
 //! target for the same thing the ring is: the body, or the shared orbit
-//! (HOV-05), whose pill is ringed in white while the orbit is hovered.
+//! (HOV-05). The brackets round a hovered or selected mark are
+//! `brackets.rs` (HOV-06).
 
 use bevy::prelude::*;
 
@@ -18,13 +19,12 @@ use super::anim::{advance_towards, step_per_frame};
 use super::colors;
 use super::fonts::Fonts;
 use super::hover;
-use super::hovered::HoveredBodies;
 use super::layers;
 use super::markers::{
     BodyLook, MarkersPlaced, TintedParts, fade_parts, marker_half_size, spawn_icon,
 };
 use super::motion_mode::MotionModeState;
-use super::pills::{PILL_HALF_HEIGHT_PX, PillFace, pill_bundle, pill_node, selection_outline};
+use super::pills::{PILL_HALF_HEIGHT_PX, PillFace, pill_bundle, pill_node};
 use super::screen::{MapView, in_viewport, snap_to_pixel};
 use super::selection::Selection;
 use super::shared_orbit::{OrbitRings, Ring, ring_screen_point};
@@ -72,11 +72,7 @@ impl Plugin for RingMarksPlugin {
         app.add_systems(Startup, spawn_ring_marks.in_set(Boot::Overlay))
             .add_systems(
                 Update,
-                (
-                    colour_ring_labels,
-                    ring_identity_pills,
-                    place_ring_marks.in_set(MarkersPlaced),
-                )
+                (colour_ring_labels, place_ring_marks.in_set(MarkersPlaced))
                     .chain()
                     .in_set(Stage::Overlay),
             );
@@ -241,22 +237,11 @@ fn colour_ring_labels(
         };
         let selected = ring.members.iter().any(|m| selection.is_selected(m.body));
         let color = if selected {
-            colors::SELECTION_RING
+            colors::SELECTION
         } else {
             label_for.color
         };
         tint.set_if_neq(Tint::new(color, TintSlot::Text));
-    }
-}
-
-/// HOV-05: a shared orbit's identity pill is ringed in white while the
-/// orbit is hovered.
-fn ring_identity_pills(
-    hovered: Res<HoveredBodies>,
-    mut pills: Query<(&IdentityPill, &mut Outline)>,
-) {
-    for (pill, mut outline) in &mut pills {
-        outline.set_if_neq(selection_outline(hovered.contains(pill.0)));
     }
 }
 

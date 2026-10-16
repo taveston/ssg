@@ -159,7 +159,7 @@ pub fn ring_highlight(
     selected_alpha: f32,
     hover_alpha: f32,
 ) -> Option<Color> {
-    let white = colors::SELECTION_RING;
+    let white = colors::SELECTION;
     if selected {
         Some(white.with_alpha(selected_alpha))
     } else if hovered {
@@ -252,7 +252,7 @@ pub fn ring_colors(highlight: Option<Color>, ring_alpha: f32, exposure_alpha: f3
     RingColors {
         normal: highlight.unwrap_or(colors::ORBIT_LINE.with_alpha(ring_alpha)),
         exposure: if highlight.is_some() {
-            colors::SELECTION_RING
+            colors::SELECTION
         } else {
             colors::NEUTRAL.with_alpha(exposure_alpha)
         },
@@ -655,13 +655,13 @@ mod tests {
     /// normal colour.
     #[test]
     fn hovered_and_selected_rings_are_white() {
-        use crate::view::colors::SELECTION_RING;
-        let selected = Some(SELECTION_RING.with_alpha(0.85));
+        use crate::view::colors::SELECTION;
+        let selected = Some(SELECTION.with_alpha(0.85));
         assert_eq!(ring_highlight(true, false, 0.85, 0.6), selected);
         assert_eq!(ring_highlight(true, true, 0.85, 0.6), selected);
         assert_eq!(
             ring_highlight(false, true, 0.85, 0.6),
-            Some(SELECTION_RING.with_alpha(0.6))
+            Some(SELECTION.with_alpha(0.6))
         );
         assert_eq!(ring_highlight(false, false, 0.85, 0.6), None);
     }
@@ -706,10 +706,10 @@ mod tests {
             colors::ORBIT_LINE.with_alpha(0.35)
         );
         let hovered = ring_colors(ring_highlight(false, true, 0.85, 0.6), 0.35, 0.5);
-        assert_eq!(ring_color_at(hovered, 1.0), colors::SELECTION_RING);
+        assert_eq!(ring_color_at(hovered, 1.0), colors::SELECTION);
         assert_eq!(
             ring_color_at(hovered, 0.0),
-            colors::SELECTION_RING.with_alpha(0.6)
+            colors::SELECTION.with_alpha(0.6)
         );
     }
 

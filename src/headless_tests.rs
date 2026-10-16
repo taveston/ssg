@@ -49,12 +49,10 @@ use crate::view::frame::{Frame, FramePlugin};
 use crate::view::gesture::PressStart;
 use crate::view::grouping::GroupingPlugin;
 use crate::view::hovered::HoveredPlugin;
-use crate::view::markers::{
-    BodyDetail, BodyRim, MarkerHalfSize, MarkersPlugin, body_fill, ring_outer_half,
-};
+use crate::view::markers::{BodyDetail, BodyRim, MarkerHalfSize, MarkersPlugin, body_fill};
 use crate::view::motion::MotionPlugin;
 use crate::view::motion_mode::MotionModeState;
-use crate::view::pills::PillsPlugin;
+use crate::view::pills::{PillsPlugin, parent_clear_px};
 use crate::view::plot_marks::{NorthArrow, NorthDial, PlotMarksPlugin, ScaleBarLine};
 use crate::view::projection::ProjectionPlugin;
 use crate::view::scale::{km_to_render, km_to_render_vec3};
@@ -62,9 +60,9 @@ use crate::view::screen::{ScreenPlugin, ScreenPositions};
 use crate::view::selection::Selection;
 use crate::view::shared_orbit::SharedOrbitPlugin;
 use crate::view::symbol_draw::Tint;
-use crate::view::targets::{GroupPillFor, MarkerFor};
+use crate::view::targets::{GroupPillFor, Hovered, MarkerFor};
 use crate::view::topbar::TOP_BAR_HEIGHT_PX;
-use crate::view::true_size::projected_radius_px;
+use crate::view::true_size::{TrueSizePlugin, projected_radius_px};
 use crate::view::tunables::{Tunables, TunablesPlugin};
 use crate::view::world::{RenderOrigin, WorldPositions};
 use crate::{Boot, Stage};
@@ -546,7 +544,7 @@ fn the_frame_body_keeps_its_place_on_screen() {
             ProjectionPlugin,
             CameraPlugin,
         ))
-        .add_plugins(ScreenPlugin)
+        .add_plugins((ScreenPlugin, TrueSizePlugin))
         .init_resource::<Selection>()
         .add_plugins((FramePlugin, crate::view::sidebar::SidebarPlugin))
         .init_resource::<PressStart>();
@@ -656,7 +654,7 @@ fn camera_app_with(extra: impl FnOnce(&mut App)) -> App {
             ProjectionPlugin,
             CameraPlugin,
         ))
-        .add_plugins(ScreenPlugin)
+        .add_plugins((ScreenPlugin, TrueSizePlugin))
         .init_resource::<Selection>()
         .add_plugins((FramePlugin, crate::view::sidebar::SidebarPlugin))
         .init_resource::<PressStart>();
@@ -1196,7 +1194,7 @@ fn planets_are_never_merged() {
 }
 
 /// GRP-05: at the system fit Halden IV shows a "+N" pill counting all
-/// its folded satellites, beside its marker and clear of it and its ring.
+/// its folded satellites, beside its marker and clear of its bracket box.
 #[test]
 fn a_parent_with_folded_satellites_shows_a_count_pill() {
     let mut app = camera_app_with(|app| {
@@ -1221,7 +1219,7 @@ fn a_parent_with_folded_satellites_shows_a_count_pill() {
     let (Val::Px(left), Val::Px(top)) = (node.left, node.top) else {
         panic!("pill not placed in pixels");
     };
-    let clear = ring_outer_half(BodyClass::Planet, &Tunables::default());
+    let clear = parent_clear_px(BodyClass::Planet, false, 0.0, &Tunables::default());
     assert!(left - marker.x >= clear, "the pill overlaps the marker");
     assert!(
         top > marker.y,
@@ -3560,4 +3558,279 @@ fn a_station_is_a_place_in_its_band_at_its_phase() {
     assert!(matches!(leg.landing, Landing::Orbit { orbit, .. } if orbit == low));
     let band_leg = preview(&mut app, orison, to_band).unwrap();
     assert_eq!(leg.delta_v_kms, band_leg.delta_v_kms);
+}
+
+/// The overlay that draws selection and hover marks: markers, fold pills,
+/// exposure-ring marks and the brackets themselves.
+fn brackets_app() -> App {
+    use crate::view::brackets::BracketsPlugin;
+    use crate::view::ring_marks::RingMarksPlugin;
+    camera_app_with(|app| {
+        app.insert_resource(placeholder_fonts())
+            .add_plugins((
+                EdgePlugin,
+                GroupingPlugin,
+                MotionPlugin,
+                MarkersPlugin,
+                PillsPlugin,
+                HoveredPlugin,
+                SharedOrbitPlugin,
+                RingMarksPlugin,
+            ))
+            .add_plugins(BracketsPlugin);
+    })
+}
+
+/// A bracket set as drawn: its box's top-left and size, and its alpha.
+#[derive(Debug, Clone, Copy)]
+struct DrawnBracket {
+    min: Vec2,
+    size: Vec2,
+    alpha: f32,
+}
+
+impl DrawnBracket {
+    fn centre(&self) -> Vec2 {
+        self.min + self.size / 2.0
+    }
+}
+
+/// Every bracket set shown this frame. Each sits in the labels-and-pills
+/// layer, above all markers (MRK-12).
+fn shown_brackets(app: &mut App) -> Vec<DrawnBracket> {
+    use crate::view::brackets::Bracket;
+    use crate::view::layers;
+    let mut sets = app
+        .world_mut()
+        .query_filtered::<(&Node, &Children, &GlobalZIndex), With<Bracket>>();
+    let found: Vec<(Node, Entity, i32)> = sets
+        .iter(app.world())
+        .filter(|(node, ..)| node.display == Display::Flex)
+        .map(|(node, children, z)| (node.clone(), children[0], z.0))
+        .collect();
+    let px = |v: Val| match v {
+        Val::Px(x) => x,
+        other => panic!("bracket placed as {other:?}"),
+    };
+    found
+        .into_iter()
+        .map(|(node, corner, z)| {
+            assert_eq!(z, layers::LABELS, "brackets draw with labels and pills");
+            let border = app.world().get::<BorderColor>(corner).unwrap();
+            DrawnBracket {
+                min: Vec2::new(px(node.left), px(node.top)),
+                size: Vec2::new(px(node.width), px(node.height)),
+                alpha: border.top.alpha(),
+            }
+        })
+        .collect()
+}
+
+/// Where a body's marker is drawn: centre and half-size.
+fn marker_drawn(app: &mut App, body: Entity) -> Option<(Vec2, f32)> {
+    use crate::view::markers::MarkerDrawn;
+    let mut markers = app.world_mut().query::<(&MarkerFor, &MarkerDrawn)>();
+    markers
+        .iter(app.world())
+        .find(|(marker, _)| marker.0 == body)
+        .and_then(|(_, drawn)| drawn.0)
+}
+
+fn close(a: Vec2, b: Vec2) -> bool {
+    (a - b).abs().max_element() < 0.01
+}
+
+/// HOV-06 / HOV-07 / HOV-01 / INS-06 / GRP-07: at the system fit, the
+/// selected Halden IV has white corner brackets on a square that clears
+/// its marker by `bracket_margin_px`; hovered instead, the same brackets
+/// at `bracket_hover_alpha`. Orison, folded into Halden IV, puts its
+/// selection mark on the pill; hovering that pill merges into the one
+/// mark, and hovering it alone gives the hover mark. With nothing hovered
+/// or selected, no brackets show, and the frame body has none.
+#[test]
+fn selection_and_hover_bracket_what_stands_for_the_object() {
+    let mut app = brackets_app();
+    let tunables = Tunables::default();
+    let margin = tunables.bracket_margin_px;
+    let halden = body(&mut app, "Halden IV");
+    let orison = body(&mut app, "Orison");
+    run(&mut app, SETTLE_FRAMES);
+    assert!(
+        shown_brackets(&mut app).is_empty(),
+        "no selection, no hover"
+    );
+
+    app.world_mut().resource_mut::<Selection>().select(halden);
+    run(&mut app, 1);
+    let (centre, half) = marker_drawn(&mut app, halden).expect("Halden IV is drawn");
+    let marks = shown_brackets(&mut app);
+    assert_eq!(marks.len(), 1);
+    assert!(close(marks[0].centre(), centre));
+    assert_eq!(
+        marks[0].size,
+        Vec2::splat(tunables.planet_marker_px + 2.0 * margin)
+    );
+    assert_eq!(half, tunables.planet_marker_px / 2.0);
+    assert_eq!(marks[0].alpha, 1.0, "the selection mark is full white");
+
+    app.world_mut().resource_mut::<Selection>().clear();
+    let pointer = app.world_mut().spawn((MarkerFor(halden), Hovered)).id();
+    run(&mut app, 2);
+    let marks = shown_brackets(&mut app);
+    assert_eq!(marks.len(), 1);
+    assert_eq!(marks[0].alpha, tunables.bracket_hover_alpha);
+    app.world_mut().entity_mut(pointer).despawn();
+
+    // INS-06: a folded ship's mark is on the pill that holds it. No layout
+    // runs headless, so the pill is given a size by hand.
+    let pill = {
+        let mut pills = app.world_mut().query::<(Entity, &GroupPillFor)>();
+        pills
+            .iter(app.world())
+            .find(|(_, pill)| pill.0 == halden)
+            .unwrap()
+            .0
+    };
+    let pill_size = Vec2::new(34.0, 16.0);
+    app.world_mut().get_mut::<ComputedNode>(pill).unwrap().size = pill_size;
+    app.world_mut().resource_mut::<Selection>().select(orison);
+    run(&mut app, 2);
+    let node = app.world().get::<Node>(pill).unwrap();
+    let (Val::Px(left), Val::Px(top)) = (node.left, node.top) else {
+        panic!("pill not placed");
+    };
+    let marks = shown_brackets(&mut app);
+    assert_eq!(marks.len(), 1);
+    assert!(close(
+        marks[0].min,
+        Vec2::new(left, top) - Vec2::splat(margin)
+    ));
+    assert!(close(marks[0].size, pill_size + Vec2::splat(2.0 * margin)));
+    assert_eq!(marks[0].alpha, 1.0);
+
+    // GRP-07: hovering the pill too leaves one full mark; hovering it
+    // alone gives the hover mark.
+    app.world_mut().entity_mut(pill).insert(Hovered);
+    run(&mut app, 1);
+    let marks = shown_brackets(&mut app);
+    assert_eq!(marks.len(), 1);
+    assert_eq!(marks[0].alpha, 1.0);
+    app.world_mut().resource_mut::<Selection>().clear();
+    run(&mut app, 1);
+    let marks = shown_brackets(&mut app);
+    assert_eq!(marks.len(), 1);
+    assert_eq!(marks[0].alpha, tunables.bracket_hover_alpha);
+    app.world_mut().entity_mut(pill).remove::<Hovered>();
+
+    // The frame body has no mark of its own.
+    set_frame(&mut app, halden, Vec3::ZERO);
+    run(&mut app, 2);
+    assert!(shown_brackets(&mut app).is_empty());
+}
+
+/// HOV-07 / MRK-07: close in, Halden IV is a true-size disc and its box
+/// grows with it, clearing the disc by the margin.
+#[test]
+fn the_bracket_box_grows_with_a_true_size_disc() {
+    let mut app = brackets_app();
+    let margin = Tunables::default().bracket_margin_px;
+    let halden = body(&mut app, "Halden IV");
+    set_frame(&mut app, halden, Vec3::ZERO);
+    app.world_mut().resource_mut::<CameraRig>().distance = 0.01;
+    app.world_mut().resource_mut::<Selection>().select(halden);
+    run(&mut app, 3);
+    let (centre, half) = marker_drawn(&mut app, halden).unwrap();
+    assert!(
+        half > Tunables::default().planet_marker_px,
+        "a disc: {half}"
+    );
+    let marks = shown_brackets(&mut app);
+    assert_eq!(marks.len(), 1);
+    assert!(close(marks[0].centre(), centre));
+    assert!(close(marks[0].size, Vec2::splat(2.0 * (half + margin))));
+}
+
+/// SYM-14 / HOV-07: an unfolded ship's box is its `ship_symbol_px` square
+/// and the margin, not its amplifiers.
+#[test]
+fn a_ships_box_encloses_its_symbol_square() {
+    let mut app = brackets_app();
+    let tunables = Tunables::default();
+    let halden = body(&mut app, "Halden IV");
+    let orison = body(&mut app, "Orison");
+    set_frame(&mut app, halden, Vec3::ZERO);
+    app.world_mut().resource_mut::<Selection>().select(orison);
+    let mut checked = false;
+    for distance in [1.0, 0.5, 0.25] {
+        app.world_mut().resource_mut::<CameraRig>().distance = distance;
+        run(&mut app, 20);
+        let folded = app
+            .world()
+            .get::<SatelliteFoldState>(orison)
+            .unwrap()
+            .anim_t
+            < 1.0;
+        let Some((centre, _)) = marker_drawn(&mut app, orison).filter(|_| !folded) else {
+            continue;
+        };
+        let marks = shown_brackets(&mut app);
+        assert_eq!(marks.len(), 1);
+        assert!(close(marks[0].centre(), centre));
+        let side = tunables.ship_symbol_px + 2.0 * tunables.bracket_margin_px;
+        assert_eq!(marks[0].size, Vec2::splat(side));
+        checked = true;
+        break;
+    }
+    assert!(checked, "Orison was never drawn on its own");
+}
+
+/// HOV-05 / HOV-06 / MOT-14: at 1 d/s in Halden IV's frame the parked
+/// ships' High band is an exposure ring with a "+N" identity pill;
+/// hovering the orbit brackets that pill at `bracket_hover_alpha`.
+#[test]
+fn hovering_a_shared_orbit_brackets_its_identity_pill() {
+    use crate::view::ring_marks::{IdentityPill, RingMarkFor};
+    use crate::view::targets::OrbitFor;
+    let mut app = brackets_app();
+    let tunables = Tunables::default();
+    let halden = body(&mut app, "Halden IV");
+    let orison = body(&mut app, "Orison");
+    let high = app.world().get::<InNamedOrbit>(orison).unwrap().0;
+    let mut clock = app.world_mut().resource_mut::<GameClock>();
+    clock.toggle_pause();
+    clock.run_at(1.0);
+    app.world_mut().resource_mut::<FrameRequest>().0 = Some(halden);
+    run(&mut app, 60 + eased_frames());
+
+    let (mark, half, node) = {
+        let mut marks = app.world_mut().query::<(Entity, &RingMarkFor, &Node)>();
+        marks
+            .iter(app.world())
+            .find(|(_, mark, _)| mark.owner == high)
+            .map(|(e, mark, node)| (e, mark.half, node.clone()))
+            .unwrap()
+    };
+    assert_eq!(node.display, Display::Flex, "the High band is a ring");
+    let pill = descendants(&mut app, mark)
+        .into_iter()
+        .find(|&e| app.world().get::<IdentityPill>(e).is_some())
+        .unwrap();
+    let pill_size = Vec2::new(34.0, 16.0);
+    app.world_mut().get_mut::<ComputedNode>(pill).unwrap().size = pill_size;
+    app.world_mut().spawn((OrbitFor(high), Hovered));
+    run(&mut app, 2);
+
+    let node = app.world().get::<Node>(mark).unwrap().clone();
+    let (Val::Px(left), Val::Px(top)) = (node.left, node.top) else {
+        panic!("mark not placed");
+    };
+    let pill_centre = Vec2::new(left + pill_size.x / 2.0, top + half);
+    let marks = shown_brackets(&mut app);
+    let around = marks
+        .iter()
+        .find(|m| close(m.centre(), pill_centre))
+        .expect("brackets round the identity pill");
+    let margin = tunables.bracket_margin_px;
+    assert!(close(around.size, pill_size + Vec2::splat(2.0 * margin)));
+    assert!((around.alpha - tunables.bracket_hover_alpha).abs() < 1e-3);
 }

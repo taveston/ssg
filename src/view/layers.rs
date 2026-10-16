@@ -13,7 +13,8 @@ use bevy::prelude::*;
 pub const BODIES: i32 = 0;
 /// Ship, group and station symbols, and the other non-body markers.
 pub const SYMBOLS: i32 = 10_000;
-/// Labels, pills and the frame brackets, above all markers.
+/// Labels, pills and the selection and hover brackets, above all markers
+/// (HOV-06).
 pub const LABELS: i32 = 20_000;
 /// Edge arrows and their labels.
 pub const EDGE: i32 = 30_000;

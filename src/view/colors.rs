@@ -38,7 +38,9 @@ pub const WARNING: Color = Color::srgb(
     0xA0 as f32 / 255.0,
     0x40 as f32 / 255.0,
 );
-pub const SELECTION_RING: Color = Color::WHITE;
+/// MRK-01 / HOV-03 / HOV-06: the white of the selection and hover
+/// brackets and of a highlighted orbit ring.
+pub const SELECTION: Color = Color::WHITE;
 
 /// SYM-02: the paler blue of an own-flag civilian ship.
 pub const CIVILIAN: Color = Color::srgb(

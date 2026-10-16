@@ -1,7 +1,73 @@
 //! How big a body really looks on screen (MRK-07, ZOOM-14): the pixel size
 //! of its true radius at a given depth, and the camera distance at which it
-//! fills a given share of the map. Plain functions; the markers and the
-//! zoom limits call them.
+//! fills a given share of the map. The zoom limits call the functions; the
+//! `DiscRadii` resource holds each body's true on-screen radius this frame,
+//! shared by everything sized by what is drawn (the markers, the fold
+//! pills and the selection brackets, HOV-07; ARCH-03).
+
+use std::collections::HashMap;
+
+use bevy::prelude::*;
+
+use super::scale::km_to_render;
+use super::screen::ScreenPositions;
+use super::world::ViewNow;
+use crate::Stage;
+use crate::sim::body::PhysicalRadius;
+
+/// Each body's true radius on screen this frame, in pixels (MRK-07). A body
+/// with no physical radius, or none in front of the camera, has no entry.
+#[derive(Resource, Default, Debug)]
+pub struct DiscRadii(pub HashMap<Entity, f32>);
+
+impl DiscRadii {
+    /// The true on-screen radius of `body`, or 0 if it has none.
+    pub fn get(&self, body: Entity) -> f32 {
+        self.0.get(&body).copied().unwrap_or(0.0)
+    }
+}
+
+pub struct TrueSizePlugin;
+
+impl Plugin for TrueSizePlugin {
+    fn build(&self, app: &mut App) {
+        app.init_resource::<DiscRadii>()
+            .add_systems(Update, measure_discs.in_set(Stage::Layout));
+    }
+}
+
+/// MRK-07: measure every body's true radius on screen, from its depth in
+/// front of the perspective camera.
+fn measure_discs(
+    view: ViewNow,
+    screen: Res<ScreenPositions>,
+    projections: Query<&Projection, With<Camera3d>>,
+    bodies: Query<(Entity, &PhysicalRadius)>,
+    mut radii: ResMut<DiscRadii>,
+) {
+    radii.0.clear();
+    let Ok(Projection::Perspective(perspective)) = projections.single() else {
+        return;
+    };
+    let Some((_, camera)) = view.camera() else {
+        return;
+    };
+    for (body, radius) in &bodies {
+        let Some(position) = view.position(body) else {
+            continue;
+        };
+        let depth = (position - camera.translation()).dot(*camera.forward());
+        let px = projected_radius_px(
+            km_to_render(radius.0),
+            depth,
+            perspective.fov,
+            screen.viewport.y,
+        );
+        if px > 0.0 {
+            radii.0.insert(body, px);
+        }
+    }
+}
 
 /// MRK-07: the on-screen radius, in pixels, of a sphere of `radius`
 /// (render units) at `depth` in front of a perspective camera with vertical

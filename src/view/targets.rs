@@ -13,8 +13,8 @@ use bevy::prelude::*;
 #[derive(Component)]
 pub struct MarkerFor(pub Entity);
 
-/// On a node while the pointer is over it (HOV-01), so the marker overlay
-/// can draw the white ring for hover and selection alike (MRK-01).
+/// On a node while the pointer is over it (HOV-01), so the overlay can
+/// draw the hover brackets round it (HOV-06).
 #[derive(Component)]
 pub struct Hovered;
 

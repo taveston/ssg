@@ -1,7 +1,7 @@
 //! Which bodies and shared orbits the pointer is over this frame, through
 //! any of their pickable stand-ins - marker hit area, label, orbit ring or
-//! identity pill (HOV-01, HOV-03, HOV-05). Shared state, so the markers'
-//! white ring and the orbit rings' highlight agree without importing each
+//! identity pill (HOV-01, HOV-03, HOV-05). Shared state, so the hover
+//! brackets and the orbit rings' highlight agree without importing each
 //! other (ARCH-03).
 
 use std::collections::HashSet;

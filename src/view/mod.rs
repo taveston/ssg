@@ -12,10 +12,10 @@
 
 use bevy::prelude::*;
 
-pub mod anchors;
 pub mod anim;
 pub mod belt;
 pub mod bindings;
+pub mod brackets;
 pub mod breadcrumb;
 pub mod buttons;
 pub mod camera;
@@ -28,7 +28,6 @@ pub mod fidelity;
 pub mod fold;
 pub mod fonts;
 pub mod frame;
-pub mod frame_marks;
 pub mod gesture;
 pub mod grouping;
 pub mod hover;
@@ -101,8 +100,6 @@ impl Plugin for ViewPlugin {
                 rings::RingsPlugin,
                 ring_picking::RingPickingPlugin,
                 screen::ScreenPlugin,
-                anchors::AnchorsPlugin,
-                frame_marks::FrameMarksPlugin,
                 edge::EdgePlugin,
                 symbol_shape::SymbolShapePlugin,
                 markers::MarkersPlugin,
@@ -112,6 +109,11 @@ impl Plugin for ViewPlugin {
                 outline::OutlinePlugin,
                 topbar::TopBarPlugin,
             ))
-            .add_plugins((labels::LabelsPlugin, debug_shot::DebugShotPlugin));
+            .add_plugins((
+                labels::LabelsPlugin,
+                brackets::BracketsPlugin,
+                true_size::TrueSizePlugin,
+                debug_shot::DebugShotPlugin,
+            ));
     }
 }

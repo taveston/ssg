@@ -27,20 +27,17 @@ use super::edge::GateEdgeTargets;
 use super::fold::SatelliteFoldState;
 use super::fonts::Fonts;
 use super::hover;
-use super::hovered::HoveredBodies;
 use super::layers;
 use super::motion_mode::MotionModeState;
-use super::scale::km_to_render;
 use super::screen::ScreenPositions;
-use super::selection::Selection;
 use super::symbol_draw::{Tint, TintSlot, spawn_symbol_parts};
 use super::symbol_shape::SymbolPart;
 use super::symbols::{SymbolSettings, label_second_line, symbol_look};
 use super::targets::MarkerFor;
-use super::true_size::{disc_half_px, projected_radius_px};
+use super::true_size::{DiscRadii, disc_half_px};
 use super::tunables::Tunables;
 use super::world::ViewNow;
-use crate::sim::body::{Affiliation, BodyClass, DisplayName, PhysicalRadius};
+use crate::sim::body::{Affiliation, BodyClass, DisplayName};
 use crate::sim::clock::GameClock;
 use crate::sim::track::ShipRecord;
 use crate::{Boot, Stage};
@@ -49,6 +46,13 @@ use crate::{Boot, Stage};
 /// projected screen position without re-deriving size from class.
 #[derive(Component)]
 pub struct MarkerHalfSize(pub Vec2);
+
+/// Where a marker is drawn this frame, for whatever is placed round it
+/// (the selection and hover brackets, HOV-07): its centre and its drawn
+/// half-size, which for a true-size disc is the disc's (MRK-07). `None`
+/// while the marker isn't drawn.
+#[derive(Component, Default, Debug, Clone, Copy, PartialEq)]
+pub struct MarkerDrawn(pub Option<(Vec2, f32)>);
 
 /// A marker's label, a child of the marker placed beside it by
 /// `labels.rs` (LBL-01).
@@ -93,10 +97,6 @@ pub struct BodyDetail;
 
 /// Outline width of hollow markers.
 const HOLLOW_BORDER_PX: f32 = 1.5;
-/// Gap between the hover ring (an outline) and the marker it rings.
-const HOVER_RING_OFFSET_PX: f32 = 2.0;
-/// Width of the white hover and selection ring.
-const RING_PX: f32 = 2.0;
 /// Glyph markers are drawn a little larger than their box so the glyph's
 /// own side bearings don't shrink it.
 const GLYPH_SCALE: f32 = 1.8;
@@ -128,11 +128,23 @@ pub fn marker_half_size(class: BodyClass, tunables: &Tunables) -> f32 {
     }
 }
 
-/// How far the white ring reaches from a marker's centre (MRK-01), so
-/// anything drawn round a marker (CAM-22's brackets) can clear it. For a
-/// symbol it encloses the symbol square, not the amplifiers (SYM-14).
-pub fn ring_outer_half(class: BodyClass, tunables: &Tunables) -> f32 {
-    marker_half_size(class, tunables) + HOVER_RING_OFFSET_PX + RING_PX
+/// MRK-07: the half-size a marker is drawn at, given its class's fixed
+/// half-size and the body's true radius on screen. A natural body's disc
+/// grows to its true size once that is larger; every other shape keeps its
+/// fixed size.
+pub fn drawn_half(class_half: f32, is_disc: bool, true_radius_px: f32) -> f32 {
+    if is_disc {
+        disc_half_px(class_half, true_radius_px)
+    } else {
+        class_half
+    }
+}
+
+/// HOV-07: how far a marker's bracket box reaches from its centre: the
+/// drawn marker (a symbol's square, SYM-14, or a disc to the outer edge of
+/// its rim) and the margin. A fold pill sits clear of it (GRP-05).
+pub fn box_half(drawn_half: f32, tunables: &Tunables) -> f32 {
+    drawn_half + tunables.bracket_margin_px
 }
 
 /// GRP-01 / GRP-03 / MOT-11: how strongly a body's marker is drawn. A
@@ -173,7 +185,6 @@ impl Plugin for MarkersPlugin {
                 Update,
                 (
                     update_markers.in_set(MarkersPlaced),
-                    ring_markers,
                     layer_bodies_by_depth,
                     update_second_lines,
                 )
@@ -424,6 +435,7 @@ fn spawn_marker(
     let mut marker = commands.spawn((
         MarkerFor(body),
         MarkerHalfSize(Vec2::splat(half)),
+        MarkerDrawn::default(),
         shape,
         marker_node(shape, half),
         // MRK-12: bodies are re-layered by depth each frame.
@@ -435,13 +447,10 @@ fn spawn_marker(
         // Hover and click go through the marker's hit area instead
         // (MRK-08, `marker_picking.rs`), so the node itself takes none.
         Pickable::IGNORE,
-        // The hover ring (HOV-01): an outline, invisible until hovered.
-        Outline {
-            width: px(0),
-            offset: px(HOVER_RING_OFFSET_PX),
-            color: Color::NONE,
-        },
     ));
+    if shape == MarkerShape::Disc {
+        marker.insert(disc_gap(tunables));
+    }
     spawn_shape(&mut marker, assets, look, half);
     let color = look.color(tunables);
     marker.with_children(|parent| spawn_label(parent, assets, (body, half, color), text));
@@ -550,42 +559,10 @@ pub fn spawn_icon(
     spawn_shape(&mut icon, assets, look, half);
 }
 
-/// MRK-01: the white ring - on a marker that is hovered (HOV-01) or
-/// selected (INS-01, CAM-22).
-pub fn shows_ring(hovered: bool, selected: bool) -> bool {
-    hovered || selected
-}
-
-/// MRK-01 / MRK-11: the white ring on hovered and selected markers; a
-/// natural body's disc otherwise carries its ground-coloured gap in the
-/// same outline.
-fn ring_markers(
-    selection: Res<Selection>,
-    hovered: Res<HoveredBodies>,
-    tunables: Res<Tunables>,
-    mut markers: Query<(&MarkerFor, &MarkerShape, &mut Outline), With<MarkerHalfSize>>,
-) {
-    for (marker_for, shape, mut outline) in &mut markers {
-        let body = marker_for.0;
-        let ring = shows_ring(hovered.contains(body), selection.is_selected(body));
-        *outline = marker_outline(ring, *shape == MarkerShape::Disc, &tunables);
-    }
-}
-
-/// MRK-01 / MRK-11: the white ring, clear of the marker, when `ring`; else
-/// a disc's gap hard against its rim; else nothing.
-pub fn marker_outline(ring: bool, disc: bool, tunables: &Tunables) -> Outline {
-    if ring {
-        Outline::new(
-            px(RING_PX),
-            px(HOVER_RING_OFFSET_PX),
-            colors::SELECTION_RING,
-        )
-    } else if disc {
-        Outline::new(px(tunables.body_gap_px), px(0), colors::GROUND)
-    } else {
-        Outline::new(px(0), px(HOVER_RING_OFFSET_PX), Color::NONE)
-    }
+/// MRK-11: a natural body's ring of ground colour, hard against the
+/// outside of its rim, so overlapping discs stay distinct.
+pub fn disc_gap(tunables: &Tunables) -> Outline {
+    Outline::new(px(tunables.body_gap_px), px(0), colors::GROUND)
 }
 
 /// MRK-12: natural bodies are layered by depth every frame, so a nearer
@@ -617,34 +594,6 @@ fn layer_bodies_by_depth(
     }
 }
 
-/// MRK-07: the half-size a body's marker is drawn at. A disc is as large as
-/// its true radius on screen when that beats the class's fixed size; every
-/// other shape keeps its fixed size.
-fn drawn_half_size(
-    view: &ViewNow,
-    projection: Option<&Projection>,
-    viewport_height: f32,
-    (body, shape_is_disc, class_half): (Entity, bool, f32),
-    radius: Option<&PhysicalRadius>,
-) -> f32 {
-    let (Some(radius), true, Some(Projection::Perspective(perspective))) =
-        (radius, shape_is_disc, projection)
-    else {
-        return class_half;
-    };
-    let (Some((_, camera)), Some(position)) = (view.camera(), view.position(body)) else {
-        return class_half;
-    };
-    let depth = (position - camera.translation()).dot(*camera.forward());
-    let true_radius = projected_radius_px(
-        km_to_render(radius.0),
-        depth,
-        perspective.fov,
-        viewport_height,
-    );
-    disc_half_px(class_half, true_radius)
-}
-
 /// What a marker's look depends on, from its body.
 type MarkerBodies<'w, 's> = Query<
     'w,
@@ -653,7 +602,6 @@ type MarkerBodies<'w, 's> = Query<
         Option<&'static ChildOf>,
         Option<&'static SatelliteFoldState>,
         Option<&'static MotionModeState>,
-        Option<&'static PhysicalRadius>,
     ),
     With<BodyClass>,
 >;
@@ -668,6 +616,7 @@ type MarkerNodes<'w, 's> = Query<
         &'static MarkerHalfSize,
         &'static MarkerShape,
         &'static mut Node,
+        &'static mut MarkerDrawn,
     ),
 >;
 
@@ -747,19 +696,16 @@ pub fn fade_parts(root: Entity, alpha: f32, children: &Query<&Children>, parts: 
 /// MRK-03 / MRK-07: place, fade and colour every marker for this frame.
 #[allow(clippy::too_many_arguments)]
 pub fn update_markers(
-    screen: Res<ScreenPositions>,
-    edges: Res<GateEdgeTargets>,
-    view: ViewNow,
-    projections: Query<&Projection, With<Camera3d>>,
+    (screen, edges, discs): (Res<ScreenPositions>, Res<GateEdgeTargets>, Res<DiscRadii>),
     bodies: MarkerBodies,
     mut markers: MarkerNodes,
     (children, mut parts, mut details): (Query<&Children>, TintedParts, DetailNodes),
     tunables: Res<Tunables>,
 ) {
-    let projection = projections.single().ok();
-    for (entity, marker_for, half, shape, mut node) in &mut markers {
+    for (entity, marker_for, half, shape, mut node, mut drawn_at) in &mut markers {
         let body = marker_for.0;
-        let Ok((child_of, fold, motion, radius)) = bodies.get(body) else {
+        drawn_at.set_if_neq(MarkerDrawn(None));
+        let Ok((child_of, fold, motion)) = bodies.get(body) else {
             node.display = Display::None;
             continue;
         };
@@ -781,13 +727,8 @@ pub fn update_markers(
         let parent = child_of.and_then(|child_of| screen.get(child_of.parent()));
         let pos = marker_position(own, parent, fold_anim_t);
 
-        let drawn = drawn_half_size(
-            &view,
-            projection,
-            screen.viewport.y,
-            (body, *shape == MarkerShape::Disc, half.0.x),
-            radius,
-        );
+        let drawn = drawn_half(half.0.x, *shape == MarkerShape::Disc, discs.get(body));
+        drawn_at.set_if_neq(MarkerDrawn(Some((pos, drawn))));
         node.display = Display::Flex;
         node.width = px(drawn * 2.0);
         node.height = px(drawn * 2.0);
@@ -869,14 +810,6 @@ mod tests {
         assert_eq!(marker_shape(Station, true), MarkerShape::Symbol);
     }
 
-    /// MRK-01: hovered or selected markers carry the white ring.
-    #[test]
-    fn ring_on_hover_or_selection() {
-        assert!(shows_ring(true, false));
-        assert!(shows_ring(false, true));
-        assert!(!shows_ring(false, false));
-    }
-
     /// MRK-03 / SYM-04: marker size depends on class only; natural bodies
     /// are the largest, star over planet over moon, each at least a ship
     /// symbol across; a symbol fits `ship_symbol_px`.
@@ -894,27 +827,35 @@ mod tests {
         }
     }
 
-    /// SYM-14: the ring and brackets enclose the symbol square.
-    #[test]
-    fn the_ring_encloses_the_symbol_square() {
-        let tunables = Tunables::default();
-        assert!(ring_outer_half(BodyClass::Ship, &tunables) > tunables.ship_symbol_px / 2.0);
-    }
-
-    /// MRK-11: an unhovered disc carries its ground-coloured gap hard
-    /// against its rim; a hovered one the white ring; other markers nothing.
+    /// MRK-11: a disc carries its ground-coloured gap hard against its
+    /// rim, whether or not it is hovered or selected.
     #[test]
     fn a_disc_is_ringed_by_a_ground_gap() {
         let tunables = Tunables::default();
-        let gap = marker_outline(false, true, &tunables);
+        let gap = disc_gap(&tunables);
         assert_eq!(gap.color, colors::GROUND);
         assert_eq!(gap.width, px(tunables.body_gap_px));
         assert_eq!(gap.offset, px(0));
+    }
+
+    /// HOV-07 / MRK-07: a disc's box grows with its true size once that
+    /// beats the marker; any other shape keeps its fixed size.
+    #[test]
+    fn the_box_follows_the_drawn_size() {
+        let tunables = Tunables::default();
+        let margin = tunables.bracket_margin_px;
         assert_eq!(
-            marker_outline(true, true, &tunables).color,
-            colors::SELECTION_RING
+            box_half(drawn_half(6.0, true, 2.0), &tunables),
+            6.0 + margin
         );
-        assert_eq!(marker_outline(false, false, &tunables).width, px(0));
+        assert_eq!(
+            box_half(drawn_half(6.0, true, 80.0), &tunables),
+            80.0 + margin
+        );
+        assert_eq!(
+            box_half(drawn_half(11.0, false, 80.0), &tunables),
+            11.0 + margin
+        );
     }
 
     /// MRK-10: the star, planets and moons are drawn in the neutral colour

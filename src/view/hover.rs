@@ -1,6 +1,6 @@
-//! Hover and click on the map (HOV-01, HOV-05, INS-01, GRP-07): the white
-//! hover ring and the pointer handlers every pickable node (marker, pill,
-//! ring hit target, ring mark) is observed by. Nothing has a tooltip: a
+//! Hover and click on the map (HOV-01, HOV-05, INS-01, GRP-07): the
+//! pointer handlers every pickable node (marker, pill, ring hit target,
+//! ring mark) is observed by; `brackets.rs` draws the hover mark. Nothing has a tooltip: a
 //! marker's name and type are on the map already, and a fold pill's
 //! satellites are in the inset's outline once its parent is selected. A shared orbit's ring or pill selects the orbit's parent
 //! with that orbit's row revealed in the inset.
@@ -53,8 +53,8 @@ fn clear_on_empty_click(
     }
 }
 
-/// HOV-01 / GRP-07: hovering a marker, label, ring or pill marks it for
-/// the white ring.
+/// HOV-01 / GRP-07: hovering a marker, label, ring or pill marks it, so
+/// it takes the hover brackets (HOV-06).
 pub fn on_marker_over(over: On<PointerOver>, mut commands: Commands) {
     commands.entity(over.entity).insert(Hovered);
 }
@@ -313,8 +313,8 @@ mod tests {
         assert_eq!(planetary.0, None);
     }
 
-    /// HOV-01: hovering a marker marks it for the white ring and leaving it
-    /// clears it.
+    /// HOV-01: hovering a marker marks it for the hover brackets and
+    /// leaving it clears it.
     #[test]
     fn hovering_a_marker_rings_it_without_a_tooltip() {
         let mut world = World::new();
