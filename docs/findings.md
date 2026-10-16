@@ -2,21 +2,11 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-221.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-228.
 
 ---
 
 ## To triage
-
-### F-219 · At heading 0 the vertical axis lies on the north arm
-- **Observation:** At heading 0, at any tilt between straight down and edge-on, the north arm and the plane's normal both point straight up the screen. They start at the same gap beyond the frame body's box, with the same dot size and pitch, so the axis's upper half sits dot for dot on the north arm. Only the arrowhead, the ticks and a slightly stronger fade show there are two strokes. A few degrees of heading separates them. The build follows REF-06 as written, with no offset or tint.
-- **Affects:** REF-06, REF-01 · **Type:** spec gap
-- **Disposition:** open. Check on screen. If it reads as one line: a different dot pitch or size for the axis, dots offset by half a pitch, or a tint (spec open points).
-
-### F-220 · The vertical axis can run past the top of the map
-- **Observation:** At `ref_up_fraction` 0.45 of the map height, the axis's upper half can run past the top of the map area when the frame body sits high on screen at a steep tilt. With Halden IV mid-screen at tilt 75 the arrowhead already reaches just under the top bar. The arms are clipped at the map edge or the horizon (REF-03), but REF-06 sets no limit for the axis, so the build doesn't clip it.
-- **Affects:** REF-06, REF-03 · **Type:** spec gap
-- **Disposition:** open. Clip the upper half at the map's edge as the arms are, or accept.
 
 ### F-162 · Which band Iver Yard sits in
 - **Observation:** SCL-07 now puts every station in a band, so the build drops a station's own orbit. TEST-02 and TEST-09 name the band for Arden Highport and Tern Relay, but nothing names one for Iver Yard, which had its own 45,000 km orbit. The build puts it in Iver's High band (197,200 km at 34 radii, period about 10.6 d). That band was nearest its old orbit when High was 10 radii; now the Low band (6,300 km) is nearer. This moves Iver's satellite frame out to 197,200 km.
@@ -207,6 +197,51 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** The spec names the type roles (MRK-02) but no sizes. Each module sets its own: a marker's name 12 px and its second line 10 px, an exposure ring's label 11 px and its period line 10 px, an edge tab's name 12 px, a path's label 12 px, the scale bar 10 px, the cue's "N" 10 px, the breadcrumb and date 14 px, buttons 13 px. A ring's label is 1 px smaller than a marker's name for no stated reason.
 - **Affects:** MRK-02, MOT-02, LBL-01 · **Type:** spec gap
 - **Disposition:** open. Options: add a size column to the type roles table (map label, map second line, panel text, bar text) and read the sizes from one place in `view/fonts.rs`; or accept as is.
+
+### F-219 · At heading 0 the vertical axis lies on the north arm
+- **Observation:** At heading 0, at any tilt between straight down and edge-on, the north arm and the plane's normal both point straight up the screen. They start at the same gap beyond the frame body's box, with the same dot size and pitch, so the axis's upper half sits dot for dot on the north arm. Only the arrowhead, the ticks and a slightly stronger fade show there are two strokes. A few degrees of heading separates them. The build follows REF-06 as written, with no offset or tint.
+- **Affects:** REF-06, REF-01 · **Type:** spec gap
+- **Disposition:** open. Check on screen. If it reads as one line: a different dot pitch or size for the axis, dots offset by half a pitch, or a tint (spec open points).
+
+### F-220 · The vertical axis can run past the top of the map
+- **Observation:** At `ref_up_fraction` 0.45 of the map height, the axis's upper half can run past the top of the map area when the frame body sits high on screen at a steep tilt. With Halden IV mid-screen at tilt 75 the arrowhead already reaches just under the top bar. The arms are clipped at the map edge or the horizon (REF-03), but REF-06 sets no limit for the axis, so the build doesn't clip it.
+- **Affects:** REF-06, REF-03 · **Type:** spec gap
+- **Disposition:** open. Clip the upper half at the map's edge as the arms are, or accept.
+
+### F-221 · A window leg skips a start whose crossing would graze the Low band
+- **Observation:** PHAS-16 says to take the cheapest of the sampled starts. Inside a planet's frame the cheapest arc to a station in the Low band often just touches the band, and the burn days alone tip it under, so the leg would be refused (XFER-07). The build prices each start by its arc, then takes the cheapest start whose crossing, flown after its burn days, clears the primary. It takes the cheapest outright only if none clears.
+- **Affects:** PHAS-16, XFER-07 · **Type:** spec gap
+- **Disposition:** open. Accept, and add the sentence to PHAS-16.
+
+### F-222 · A window leg's grid looks for each day's window where Soonest found it
+- **Observation:** Searching every start for every grid cell took about 360 ms per search for a station in the Low band. A window leg costs the same whenever its two ends stand the same way, which recurs every window interval. So the grid searches Soonest in full, and on other days tries the start nearest that phase and one either side, falling back to a full search when none of them can be flown. In tests under 5% of cells differ from a full search, and none is dearer. The solved leg and Schedule always use the full search.
+- **Affects:** PLNR-82, PHAS-16 · **Type:** spec gap
+- **Disposition:** open. Accept, or ask for an exact grid at about 4 times the cost.
+
+### F-223 · Presets are kept as the clock runs
+- **Observation:** PLNR-87 says the clock doesn't recompute the presets. The build keeps their settings. A preset at Soonest, or on a day that has come, moves to Soonest with its travel time kept, as a thumb does (PLNR-24). Its travel time may then be rejected there.
+- **Affects:** PLNR-24, PLNR-29, PLNR-87 · **Type:** spec gap
+- **Disposition:** open. Accept, or pick the presets again on the daily step (about 100 more solves).
+
+### F-224 · No Intercept through the Low band of the crossing's primary, wherever the ship starts
+- **Observation:** PLNR-30 names "the leg's own primary, the body the ship orbits". The build tests the crossing's primary. So a leg from a moon's band to its planet's Low band (or to a station in it) offers no Intercept either, since XFER-07 restricts it the same way.
+- **Affects:** PLNR-30 · **Type:** spec gap
+- **Disposition:** open. Accept, and reword PLNR-30.
+
+### F-225 · How PLNR-33 judges a position off the grid
+- **Observation:** A Depart position that isn't a grid column, and lies between two rejected columns, counts as rejected without being solved, as the track draws it. Otherwise its Travel time track is solved and kept for the session. A travel time between two rejected track samples counts as rejected too. A key step with no accepted setting in its direction leaves the thumb where it is. On a leg with gappy windows a day that is really accepted could be skipped.
+- **Affects:** PLNR-33 · **Type:** spec gap
+- **Disposition:** open. Accept, or always solve the track for such a day (slower).
+
+### F-226 · Short window intervals make a two-position Depart slider
+- **Observation:** From Halden IV's High band to Halden IVa the window interval is 1.7 days. The Depart range is therefore 1.9 days, and the slider has only Soonest and tomorrow. Any window interval between one and about two days gives a slider this short.
+- **Affects:** PLNR-80, PHAS-16 · **Type:** spec wrong
+- **Disposition:** open. Raise PHAS-16's one-day threshold, or give the Depart range a minimum span.
+
+### F-227 · A phasing leg's grid has only the Soonest column
+- **Observation:** PLNR-82 says the grid holds Soonest and the Depart positions. For a phasing leg every day costs the same, so the build keeps only the Soonest column, and the Depart track is drawn in one colour from it (PLNR-40).
+- **Affects:** PLNR-82, PLNR-40 · **Type:** spec gap
+- **Disposition:** open. Accept, and add the sentence to PLNR-82.
 
 ## Parked
 
