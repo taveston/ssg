@@ -93,10 +93,10 @@ fn screen_heading<P: Fn(Vec3) -> Option<Vec2>>(
     ((camera.project)(to)? - centre).try_normalize()
 }
 
-/// Where every arm and the vertical axis start from: the frame body at `body` (render units),
-/// landing at `centre` on screen, with its `look`; the map area the arms
-/// stay inside, and the ticks' spacing in render units (the scale bar's
-/// distance).
+/// Where every arm and the vertical axis start from: the frame body at
+/// `body` (render units), landing at `centre` on screen, with its `look`;
+/// the map area the arms stay inside and the vertical axis is sized from,
+/// and the ticks' spacing in render units (the scale bar's distance).
 #[derive(Clone, Copy)]
 struct ArmBase {
     body: Vec3,

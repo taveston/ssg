@@ -118,9 +118,9 @@ pub struct VerticalLook {
 /// normal on the camera's side. The upper half starts `upper_from` pixels
 /// from the centre (at the pole of a true-size disc, or the gap beyond a
 /// marker's box) and is `up_px` long shortened by `shortening`, ending in
-/// an arrowhead. Both halves are dotted as the arms are. The lower half starts at the centre, runs the other way
+/// an arrowhead. The lower half starts at the centre, runs the other way
 /// for `down_fraction` of the upper half's length and has no arrowhead.
-/// Both fade as the arms do. A half shorter than `min_px` is not drawn.
+/// Both are dotted and fade as the arms do. A half shorter than `min_px` is not drawn.
 pub fn vertical_halves(
     centre: Vec2,
     up: Vec2,
@@ -240,8 +240,9 @@ mod tests {
     }
 
     /// REF-06 / REF-07: both halves are dotted as the arms are; the upper
-    /// half starts beyond the body and ends in an arrowhead; the lower half starts at the centre, runs down for
-    /// its fraction of the upper's length, with no arrowhead.
+    /// half starts beyond the body and ends in an arrowhead; the lower
+    /// half starts at the centre, runs down for its fraction of the
+    /// upper's length, with no arrowhead.
     #[test]
     fn the_vertical_halves_start_and_run_as_set() {
         let centre = Vec2::new(400.0, 300.0);

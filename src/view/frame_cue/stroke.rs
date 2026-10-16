@@ -1,8 +1,7 @@
 //! How a stroke of the frame cue is drawn (REF-01, REF-05, REF-06): a UI
 //! node laid along the stroke and turned to its direction, filled by the
 //! material in `stroke.wesl`, which draws the dots, the ticks across them
-//! and the arrowhead per screen pixel, faded along its
-//! length. Callers write [`CueStroke`] and place the node with
+//! and the arrowhead per screen pixel, faded along its length. Callers write [`CueStroke`] and place the node with
 //! [`stroke_node_box`]; the material follows the look.
 
 use bevy::asset::embedded_asset;

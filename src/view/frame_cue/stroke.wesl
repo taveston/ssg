@@ -43,11 +43,11 @@ fn fade(along: f32) -> f32 {
 
 // Coverage of the dots: the nearest dot's centre, with the first dot
 // touching the start and none past the arrowhead's base (the stroke's
-// end if it has none).
+// end if it has none). No dots without a pitch, as in a hidden stroke.
 fn dots(along: f32, across: f32, scale: f32) -> f32 {
     let r = cue.dot_px / 2.0;
     let dots_end = cue.length_px - cue.arrow_px;
-    if dots_end < cue.dot_px {
+    if cue.pitch_px <= 0.0 || dots_end < cue.dot_px {
         return 0.0;
     }
     let last = floor((dots_end - cue.dot_px) / cue.pitch_px);
