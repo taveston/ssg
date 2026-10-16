@@ -18,6 +18,10 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 - [ ] **Stations in bands** · SCL-07, BAND-02, TEST-02, TEST-09, TEST-10
   - A station takes a place in a body's Low or High band, as a ship does; the Station place becomes the band it occupies. Move Arden Highport and Tern Relay into Low bands (`content/corvane.rs`) and drop the station's own-orbit placement.
   - A station has a phase in its band (BAND-02, PHAS-01). A ship docked at it sits at that phase; the **Phase in transfers** item below builds the arrival.
+- [ ] **Sol test ships and stations** · SOL-08, SOL-11, SOL-12 to SOL-17
+  - Changes SOL-08 and SOL-11 (their ✓ is cleared). In `content/sol.rs`: Perigee Station, Marlin and Vestige in Earth's Low band, Apogee Station in its High band, at the phases of table 3 (SOL-14). Marlin's phase equals the station's, so it is docked.
+  - Build after **Stations in bands**, so both stations can be placed in bands. Drives and delta-v follow `propulsion_for` in `content/corvane.rs` (`Drive::new`, `Propulsion`); the tests in `content/sol.rs` and `headless_tests.rs` (SOL-11) take the new counts.
+  - SOL-17's test uses the `orbits` crate's `hohmann` for the Low-to-High crossing. Vestige's 3.7 h first burn is a large share of the 9.2 h crossing; log what the burn-time rule does with it as a finding.
 - [ ] **Phase in transfers** · BAND-05, BAND-06, XFER-02, XFER-05, XFER-10, PLAN-11, PHAS-01 to PHAS-15
   - Ships in one band are at real places. A same-band target is a phasing leg; a station or ship in another body's band is met by timing the arrival; leaving an impulsive drive's band waits for the exit point. Ships in a group share one phase.
   - The maths goes in the `orbits` crate (PHAS-12): the phasing orbit, the capture angle and the exit angle. Lambert can't do the same-band case, because the path returns to its start point.

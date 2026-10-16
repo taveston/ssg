@@ -1,6 +1,6 @@
 # Spec: Sol test system
 
-**In short:** a second test system made from the real solar system, so scale, spacing and speed can be judged against figures people know. It holds the Sun, Mercury to Mars, Ceres, Jupiter, Saturn, Uranus and Neptune with their main moons, and the main asteroid belt, with no stations, ships, gates or salvage sites. Orbits stay circular, coplanar and prograde, as the simulation requires, so each body sits at its mean distance. The game starts on Corvane; `--system sol` starts it on Sol.
+**In short:** a second test system made from the real solar system, so scale, spacing and speed can be judged against figures people know. It holds the Sun, Mercury to Mars, Ceres, Jupiter, Saturn, Uranus and Neptune with their main moons, and the main asteroid belt, with no gates or salvage sites. Round Earth it also holds two stations and two ships, for trying transfers once they are built: a near-future chemical tug and a relic fusion-torch ship, both in the Low band beside one station, and a second station in the High band. Orbits stay circular, coplanar and prograde, as the simulation requires, so each body sits at its mean distance. The game starts on Corvane; `--system sol` starts it on Sol.
 
 *Scope:* Sol's content and the choice of system at start-up. *Source ideas:* `docs/ideas/mechanics/world-generator.md` (section 5.2). **Built** is ✓ once a requirement is in the code.
 
@@ -21,10 +21,16 @@
 | SOL-05 | Each body's period, from Kepler's third law with its parent's mass (SCL-04), is within 1% of the real period in the tables. | ✓ |
 | SOL-06 | At day 0 each planet is at its phase in table 1: its mean longitude at J2000.0, which Sol takes as day 0 (the calendar keeps its own epoch, CLK-02). Ceres starts at 0°. The *i*th moon of a parent, counting outwards from 0, starts at 1.3 × *i* rad. | ✓ |
 | SOL-07 | Sol has one belt, the main asteroid belt, from 2.2 to 3.2 AU, with no salvage sites. | ✓ |
-| SOL-08 | Sol has no stations, ships, gates or salvage sites. Every body in it is neutral and surveyed. | ✓ |
+| SOL-08 | Sol has no gates or salvage sites. Every natural body in it is neutral and surveyed; the stations and ships of SOL-12 are own and surveyed. | |
 | SOL-09 | With the default tunables, every star, planet and moon in Sol has a Low band, and a High band except Phobos, Deimos, Amalthea, Mimas, Enceladus and Proteus: half their Hill radius does not exceed their Low radius (BAND-01). Tethys keeps its High band by about 19 km (High 1,050 km, Low 1,031 km). | ✓ |
 | SOL-10 | The system fit (ZOOM-15) is Neptune's orbit, 30.07 AU. | ✓ |
-| SOL-11 | Sol spawns in a headless app (ARCH-13) as one star, nine planets (Ceres included), twenty-one moons and one belt, with no gates, and every named orbit resolves. | ✓ |
+| SOL-11 | Sol spawns in a headless app (ARCH-13) as one star, nine planets (Ceres included), twenty-one moons, two stations, two ships and one belt, with no gates, and every named orbit resolves. Every station and ship is a member of a named orbit. | |
+| SOL-12 | Sol has four own, surveyed records round Earth, the stations and ships of table 3, built from the same blueprint types as Corvane's (SCL-03). The stations are class Station with no drive. The ships are commanded, unarmed Cargo ships, each with the drive of its row (SOL-15, SOL-16). | |
+| SOL-13 | Perigee Station, Marlin and Vestige are members of Earth's Low band, and Apogee Station of its High band (SCL-07, BAND-02). None has an orbit of its own. With the default tunables Low is 6,871 km out (period 94.5 min) and High 63,710 km out (period 1.85 d). | |
+| SOL-14 | At day 0 the four sit at the phases of table 3. Marlin has Perigee Station's phase, so it is docked at it (PHAS-02). Vestige is not together with Perigee Station or Marlin (PHAS-02). | |
+| SOL-15 | **Marlin**, the near-future ship, has a hydrolox chemical drive: impulsive, exhaust velocity 4.4 km/s, loaded acceleration 1 g, and 4.8 km/s of delta-v (`drives-and-transit.md` section 3, chemical row). | |
+| SOL-16 | **Vestige**, the relic ship, has a continuous fusion torch: impulsive, exhaust velocity 500 km/s, loaded acceleration 20 milli-g, and 500 km/s of delta-v (`drives-and-transit.md` section 3, torch row). | |
+| SOL-17 | Marlin's delta-v covers the Hohmann crossing from Earth's Low band to its High band, about 4.0 km/s, once, and not twice. Vestige's covers any number of them. The crossing's burns come from the `orbits` crate's Hohmann function. | |
 
 ## 2. Start-up
 
@@ -79,10 +85,23 @@ Orbit radii are mean distances, and every orbit is drawn circular and in one pla
 
 The Moon's period comes out about 0.5% long, because SCL-04 uses the parent's mass alone; every other body is within 0.25%.
 
+**Table 3: stations and ships round Earth**
+
+The phase is the angle at day 0, in the sense of motion, as for any member of a named orbit (SCL-07). Drive figures are those of `drives-and-transit.md` section 3; the acceleration is loaded, in g (1 g = 9.80665 m/s²).
+
+| Name | Kind | Orbit | Phase at day 0 (°) | Drive | Exhaust velocity (km/s) | Acceleration | Delta-v (km/s) |
+|---|---|---|---|---|---|---|---|
+| Perigee Station | Station | Earth, Low | 0 | none | n/a | n/a | n/a |
+| Marlin | Ship, near-future chemical tug | Earth, Low | 0 (docked at Perigee Station) | Hydrolox chemical, impulsive | 4.4 | 1 g | 4.8 |
+| Vestige | Ship, relic fusion-torch | Earth, Low | 120 | Continuous fusion torch, impulsive | 500 | 0.02 g | 500 |
+| Apogee Station | Station | Earth, High | 240 | none | n/a | n/a | n/a |
+
+Names are placeholders, free to change. What the layout is for is in `docs/ideas/mechanics/world-generator.md` (5.2).
+
 ## Tunables
 
 None.
 
 ## Not in Sol
 
-Left out on purpose; see `docs/ideas/mechanics/world-generator.md` (5.2) for why. Not to be built until specced: Pluto and Charon, Miranda and the other small regular moons, distant captured moons, rings, Trojans and comets, eccentric, tilted or retrograde orbits, and any station, ship, gate or salvage site.
+Left out on purpose; see `docs/ideas/mechanics/world-generator.md` (5.2) for why. Not to be built until specced: Pluto and Charon, Miranda and the other small regular moons, distant captured moons, rings, Trojans and comets, eccentric, tilted or retrograde orbits, any gate or salvage site, and any station or ship beyond the four of table 3.
