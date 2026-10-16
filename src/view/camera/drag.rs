@@ -12,16 +12,14 @@ use bevy::ecs::system::SystemParam;
 use bevy::input::mouse::AccumulatedMouseMotion;
 use bevy::prelude::*;
 
-use super::control::CameraControl;
+use super::control::{CameraControl, CameraSettings};
 use super::requests::ContextMenuRequest;
 use super::rules::{camera_transform, plane_point};
 use super::state::{CameraRig, OrbitCamera};
-use super::stops::ZoomStops;
 use crate::view::bindings::{Bindings, held};
 use crate::view::frame::body_position;
 use crate::view::gesture::{PressStart, is_drag};
 use crate::view::targets::PointerTargets;
-use crate::view::tunables::Tunables;
 use crate::view::world::WorldPositions;
 
 /// What a press has turned into so far.
@@ -116,12 +114,9 @@ pub fn begin_press(
 
 /// A press past the threshold becomes a pan or a rotation, which then
 /// follows the cursor every frame.
-#[allow(clippy::too_many_arguments)]
 pub fn update_drag(
     buttons: Res<ButtonInput<MouseButton>>,
-    bindings: Res<Bindings>,
-    tunables: Res<Tunables>,
-    stops: Res<ZoomStops>,
+    settings: CameraSettings,
     motion: Res<AccumulatedMouseMotion>,
     pointer: Pointer,
     positions: Res<WorldPositions>,
@@ -134,8 +129,9 @@ pub fn update_drag(
     let Some(cursor) = pointer.cursor() else {
         return;
     };
+    let tunables = &settings.tunables;
     if press.mode == DragMode::Pending && is_drag(press.start, cursor, tunables.drag_threshold_px) {
-        press.mode = start_drag(&press, &bindings, &pointer, &positions, &mut view);
+        press.mode = start_drag(&press, &settings.bindings, &pointer, &positions, &mut view);
         drag.0 = Some(press);
     }
     match press.mode {
@@ -143,8 +139,7 @@ pub fn update_drag(
             let grab_now = body_position(relative_to, &positions) + grab;
             let pivot = view.pivot_now(&positions);
             if let Some(under) = pointer.plane_point_at(cursor, &view.rig, pivot) {
-                let bound = tunables.pan_bound_factor * stops.system_radius;
-                view.pan(grab_now - under, &positions, bound);
+                view.pan(grab_now - under, &positions, settings.pan_bound());
             }
         }
         DragMode::Rotate => {

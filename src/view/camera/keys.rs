@@ -5,13 +5,14 @@
 
 use bevy::prelude::*;
 
-use super::control::CameraControl;
+use bevy::ecs::system::SystemParam;
+
+use super::control::{CameraControl, CameraSettings};
 use super::rules::{
     KeyPanSettings, edge_scroll_direction, key_pan_velocity, plane_axes, ramp_velocity,
     visible_height_at_pivot,
 };
 use super::state::{OrbitCamera, camera_fov};
-use super::stops::ZoomStops;
 use crate::view::bindings::{Bindings, held};
 use crate::view::planner_state::PlannerState;
 use crate::view::tunables::Tunables;
@@ -56,22 +57,37 @@ fn pan_direction(
     direction
 }
 
+/// The window, for edge scrolling, and the camera's field of view.
+#[derive(SystemParam)]
+pub struct KeyPanScreen<'w, 's> {
+    windows: Query<'w, 's, &'static Window>,
+    camera: Query<'w, 's, &'static Projection, With<OrbitCamera>>,
+}
+
+impl KeyPanScreen<'_, '_> {
+    fn window(&self) -> Option<&Window> {
+        self.windows.single().ok()
+    }
+
+    fn fov(&self) -> f32 {
+        self.camera
+            .single()
+            .map_or(std::f32::consts::FRAC_PI_4, camera_fov)
+    }
+}
+
 /// CAM-14 / CAM-17: pan at a fraction of the visible height per second,
 /// ramping in and out; panning moves the frame's offset (CAM-07).
-#[allow(clippy::too_many_arguments)]
 pub fn handle_key_pan(
     time: Res<Time>,
-    keys: Res<ButtonInput<KeyCode>>,
-    bindings: Res<Bindings>,
-    tunables: Res<Tunables>,
-    stops: Res<ZoomStops>,
-    windows: Query<&Window>,
-    camera: Query<&Projection, With<OrbitCamera>>,
+    input: CameraSettings,
+    screen: KeyPanScreen,
     positions: Res<WorldPositions>,
     planner: Res<PlannerState>,
     mut key_pan: ResMut<KeyPan>,
     mut view: CameraControl,
 ) {
+    let (keys, bindings, tunables) = (&input.keys, &input.bindings, &input.tunables);
     // PLNR-23: a focused slider takes Left and Right in place of the pan.
     let taken: Vec<KeyCode> = if planner.slider_focus.is_some() {
         [
@@ -82,18 +98,15 @@ pub fn handle_key_pan(
     } else {
         Vec::new()
     };
-    let direction = pan_direction(&keys, &bindings, &tunables, windows.single().ok(), &taken);
+    let direction = pan_direction(keys, bindings, tunables, screen.window(), &taken);
     // Only keys actually held are pan input (CAM-20): a ramp still easing
     // out gives way to a move started meanwhile.
     if direction == Vec2::ZERO && view.active.0.is_some() {
         key_pan.0 = Vec2::ZERO;
         return;
     }
-    let fov = camera
-        .single()
-        .map_or(std::f32::consts::FRAC_PI_4, camera_fov);
-    let visible_height = visible_height_at_pivot(view.rig.distance, fov);
-    let fast = held(&keys, &bindings.pan_fast);
+    let visible_height = visible_height_at_pivot(view.rig.distance, screen.fov());
+    let fast = held(keys, &bindings.pan_fast);
     let settings = KeyPanSettings {
         screen_per_s: tunables.key_pan_screen_per_s,
         fast_factor: tunables.key_pan_fast_factor,
@@ -109,11 +122,7 @@ pub fn handle_key_pan(
     }
     let (right, up) = plane_axes(view.rig.heading);
     let delta = (right * key_pan.0.x + up * key_pan.0.y) * dt;
-    view.pan(
-        delta,
-        &positions,
-        tunables.pan_bound_factor * stops.system_radius,
-    );
+    view.pan(delta, &positions, input.pan_bound());
 }
 
 /// CAM-15: Q and E turn, Page Up tilts towards the horizon and Page Down

@@ -7,9 +7,10 @@
 //! in `keys.rs`; all read input through the bindings (CAM-18) and change
 //! the camera through `control.rs`.
 
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
-use super::control::CameraControl;
+use super::control::{CameraControl, CameraSettings};
 use super::fits::Fits;
 use super::release::nearest_unringed_ancestor;
 use super::requests::{FrameRequest, NorthUpRequest, RecentreRequest};
@@ -83,28 +84,21 @@ pub fn handle_north_up(
 /// has already selected the body. A body in exposure-ring mode can't be a
 /// frame (CAM-24): it stays selected, and the frame moves to its nearest
 /// ancestor that can be one, or the star, as a jump to that ancestor would.
-#[allow(clippy::too_many_arguments)]
 pub fn handle_frame_requests(
-    keys: Res<ButtonInput<KeyCode>>,
-    bindings: Res<Bindings>,
-    tunables: Res<Tunables>,
+    settings: CameraSettings,
     selection: Res<Selection>,
     fits: Fits,
-    modes: Query<&MotionModeState>,
-    parents: Query<&ChildOf>,
+    frameable: Frameable,
     positions: Res<WorldPositions>,
     mut request: ResMut<FrameRequest>,
     mut view: CameraControl,
 ) {
-    let key = pressed(&keys, &bindings.focus_selection).then_some(selection.selected);
-    let Some(mut body) = request.0.take().or(key.flatten()) else {
+    let (keys, bindings, tunables) = (&settings.keys, &settings.bindings, &settings.tunables);
+    let key = pressed(keys, &bindings.focus_selection).then_some(selection.selected);
+    let Some(body) = request.0.take().or(key.flatten()) else {
         return;
     };
-    let ringed = |entity: Entity| modes.get(entity).is_ok_and(|mode| mode.ring_mode);
-    if ringed(body) {
-        let parent_of = |entity: Entity| parents.get(entity).ok().map(ChildOf::parent);
-        body = nearest_unringed_ancestor(body, parent_of, ringed).unwrap_or(view.frame.star);
-    }
+    let body = frameable.frame_for(body, view.frame.star);
     let tilt = view.rig.tilt;
     let distance = if body == view.frame.star {
         fits.system_fit(tilt)
@@ -118,6 +112,27 @@ pub fn handle_frame_requests(
     };
     let target = MoveTarget::keeping_view(&view.rig, pivot, distance);
     view.start(target, tunables.focus_jump_ms);
+}
+
+/// Which bodies can be a frame: one in exposure-ring mode can't (CAM-24).
+#[derive(SystemParam)]
+pub struct Frameable<'w, 's> {
+    modes: Query<'w, 's, &'static MotionModeState>,
+    parents: Query<'w, 's, &'static ChildOf>,
+}
+
+impl Frameable<'_, '_> {
+    /// The frame a request for `body` gets: the body itself, or, if it is
+    /// in exposure-ring mode, its nearest ancestor that isn't, else the
+    /// star.
+    fn frame_for(&self, body: Entity, star: Entity) -> Entity {
+        let ringed = |entity: Entity| self.modes.get(entity).is_ok_and(|mode| mode.ring_mode);
+        if !ringed(body) {
+            return body;
+        }
+        let parent_of = |entity: Entity| self.parents.get(entity).ok().map(ChildOf::parent);
+        nearest_unringed_ancestor(body, parent_of, ringed).unwrap_or(star)
+    }
 }
 
 /// CAM-25: the frame body's own breadcrumb entry re-centres it with zero
