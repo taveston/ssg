@@ -194,7 +194,7 @@ fn iver() -> BodyBlueprint {
             record: Some(ShipRecord::new(ShipClass::Station, true)),
             propulsion: None,
             description: "A dormant pre-collapse shipyard, barely maintained.",
-            key_facts: vec![("Status", "Dormant"), ("Owner", "State")],
+            key_facts: vec![("Status", "Dormant"), ("Owner", "Own")],
             knowledge: surveyed_today(),
             orbit: own(45_000.0),
             radius_km: 1.0,
@@ -275,7 +275,7 @@ fn halden_iv() -> BodyBlueprint {
                 ],
                 ..moon(
                     "Halden IVc",
-                    "An ice moon the state has not yet surveyed up close.",
+                    "An ice moon the faction has not yet surveyed up close.",
                     430_292.0,
                     2100.0,
                     3.3,
@@ -297,7 +297,7 @@ fn halden_iv() -> BodyBlueprint {
                 record: Some(ShipRecord::new(ShipClass::Station, true)),
                 propulsion: None,
                 description: "Halden IV's primary orbital station.",
-                key_facts: vec![("Status", "Active"), ("Owner", "State")],
+                key_facts: vec![("Status", "Active"), ("Owner", "Own")],
                 knowledge: surveyed_today(),
                 orbit: own(halden_orbit_km(HALDEN_HIGHPORT_DAYS)),
                 radius_km: 1.0,
@@ -382,7 +382,7 @@ fn ships_at_halden() -> Vec<BodyBlueprint> {
                 condition: Some(0.9),
                 ..warship.clone()
             },
-            "A state warship parked in high orbit over Halden IV.",
+            "An own warship parked in high orbit over Halden IV.",
         ),
         (
             "Ardent",
@@ -391,7 +391,7 @@ fn ships_at_halden() -> Vec<BodyBlueprint> {
                 condition: Some(0.8),
                 ..warship.clone()
             },
-            "A state warship sharing Orison's high orbit over Halden IV.",
+            "An own warship sharing Orison's high orbit over Halden IV.",
         ),
         (
             "RFA Tolland",
@@ -446,7 +446,7 @@ fn ships_at_halden() -> Vec<BodyBlueprint> {
                 requisitioned: true,
                 ..civilian_cargo.clone()
             },
-            "A civilian ore carrier chartered by the state.",
+            "A civilian ore carrier chartered by the faction.",
         ),
         (
             "Marten",
@@ -617,7 +617,7 @@ fn morrow_ix_satellites() -> Vec<BodyBlueprint> {
     let relay = BodyBlueprint {
         class: BodyClass::Station,
         knowledge: surveyed_today(),
-        key_facts: vec![("Status", "Active"), ("Owner", "State")],
+        key_facts: vec![("Status", "Active"), ("Owner", "Own")],
         radius_km: 0.5,
         ..satellite(
             "Tern Relay",
@@ -960,7 +960,7 @@ mod tests {
         assert!(!system.gates.is_empty());
     }
 
-    /// What the state knows of a body in Halden IV's orbit, by name.
+    /// What the faction knows of a body in Halden IV's orbit, by name.
     fn known(name: &str) -> (Affiliation, ShipRecord) {
         let halden = planet("Halden IV");
         let body = halden

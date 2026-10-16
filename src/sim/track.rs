@@ -1,12 +1,12 @@
-//! What the state knows of a ship or station (SYM-01): its affiliation,
-//! whether the state commands it, its class, whether it is armed, a troop
+//! What the faction knows of a ship or station (SYM-01): its affiliation,
+//! whether the faction commands it, its class, whether it is armed, a troop
 //! transport's load, how firm its track is, and an own ship's condition.
 //! Plain data with no presentation in it; the view draws the symbol from
 //! these values only.
 
 use bevy::prelude::*;
 
-/// How the state sees an object (SYM-01). Every body has one; for planets
+/// How the faction sees an object (SYM-01). Every body has one; for planets
 /// and moons it is simply whose they are.
 #[derive(Component, Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub enum Affiliation {
@@ -51,7 +51,7 @@ pub enum TroopLoad {
     Embarked(Vec<Formation>),
 }
 
-/// How firm the state's track on an object is (SYM-08). Days are game
+/// How firm the faction's track on an object is (SYM-08). Days are game
 /// days since the campaign epoch, negative for before it.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Track {
@@ -60,13 +60,13 @@ pub enum Track {
     Stale { last_observed_day: f64 },
 }
 
-/// SYM-01: what the state knows of a ship or station.
+/// SYM-01: what the faction knows of a ship or station.
 #[derive(Component, Clone, PartialEq, Debug)]
 pub struct ShipRecord {
-    /// Whether the state gives it orders. An own ship that isn't commanded
+    /// Whether the faction gives it orders. An own ship that isn't commanded
     /// is an own-flag civilian.
     pub commanded: bool,
-    /// An own-flag civilian the state has taken command of (requisition or
+    /// An own-flag civilian the faction has taken command of (requisition or
     /// charter). Implies `commanded`.
     pub requisitioned: bool,
     pub class: ShipClass,

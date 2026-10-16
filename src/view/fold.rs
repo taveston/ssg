@@ -74,7 +74,7 @@ pub fn more_pressing(a: Option<Affiliation>, b: Option<Affiliation>) -> Option<A
 
 /// GRP-06, as a plain function over the folded satellites' class and
 /// affiliation. "Own ships parked there" is an own *ship*, not any own
-/// satellite: a state-owned moon or station is not a parked ship.
+/// satellite: a faction-owned moon or station is not a parked ship.
 pub fn pill_flags(folded: &[(BodyClass, Affiliation)]) -> PillFlags {
     PillFlags {
         pressing: folded.iter().fold(None, |most, (_, affiliation)| {

@@ -1,5 +1,5 @@
 //! Ship and station symbols as data (SYM-02 to SYM-08, SYM-13, SYM-15):
-//! from what the state knows of an object (`ShipRecord`), which frame,
+//! from what the faction knows of an object (`ShipRecord`), which frame,
 //! colour, fill, icon and amplifiers its symbol has, what its label's
 //! second line says, and the words used for its ownership. Adapted from
 //! NATO APP-6: the frame shape shows affiliation, the icon what it is, and
@@ -61,7 +61,7 @@ pub struct SymbolLook {
 /// The tunables a look depends on.
 #[derive(Clone, Copy, Debug)]
 pub struct SymbolSettings {
-    pub fill_state: f32,
+    pub fill_faction: f32,
     pub fill_other: f32,
     pub stale_alpha: f32,
 }
@@ -72,7 +72,7 @@ pub fn own_flag_civilian(affiliation: Affiliation, record: &ShipRecord) -> bool 
 }
 
 /// SYM-02: frame shape and colour by affiliation; an own-flag civilian is
-/// paler blue. A requisitioned civilian is commanded, so state blue.
+/// paler blue. A requisitioned civilian is commanded, so faction blue.
 pub fn frame_and_color(affiliation: Affiliation, record: &ShipRecord) -> (FrameShape, Color) {
     let shape = match affiliation {
         Affiliation::Own => FrameShape::Circle,
@@ -89,11 +89,11 @@ pub fn frame_and_color(affiliation: Affiliation, record: &ShipRecord) -> (FrameS
 }
 
 /// SYM-03: fill shows command. A commanded own object mixes its colour in
-/// at the state fraction, an own-flag civilian not at all, any other
+/// at the faction fraction, an own-flag civilian not at all, any other
 /// affiliation at the lighter fraction.
 pub fn fill_mix(affiliation: Affiliation, record: &ShipRecord, settings: SymbolSettings) -> f32 {
     match affiliation {
-        Affiliation::Own if record.commanded => settings.fill_state,
+        Affiliation::Own if record.commanded => settings.fill_faction,
         Affiliation::Own => 0.0,
         _ => settings.fill_other,
     }
@@ -151,7 +151,7 @@ pub fn echelon(record: &ShipRecord) -> Option<&'static str> {
     }
 }
 
-/// SYM-02 to SYM-08: the whole look of a symbol from what the state knows.
+/// SYM-02 to SYM-08: the whole look of a symbol from what the faction knows.
 pub fn symbol_look(
     affiliation: Affiliation,
     record: &ShipRecord,
@@ -224,7 +224,7 @@ mod tests {
     use crate::sim::track::Formation;
 
     const SETTINGS: SymbolSettings = SymbolSettings {
-        fill_state: 0.30,
+        fill_faction: 0.30,
         fill_other: 0.16,
         stale_alpha: 0.55,
     };
@@ -267,8 +267,8 @@ mod tests {
         );
     }
 
-    /// SYM-03: commanded own objects take the state fill, own-flag
-    /// civilians plain ground, and a requisitioned civilian the state blue
+    /// SYM-03: commanded own objects take the faction fill, own-flag
+    /// civilians plain ground, and a requisitioned civilian the faction blue
     /// and fill; every other affiliation the lighter mix.
     #[test]
     fn fill_shows_command() {

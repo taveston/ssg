@@ -158,7 +158,7 @@ pub fn marker_position(own: Vec2, parent: Option<Vec2>, fold_anim_t: f32) -> Vec
 /// SYM-02 / SYM-03 / SYM-08: the symbol settings from the tunables.
 pub fn symbol_settings(tunables: &Tunables) -> SymbolSettings {
     SymbolSettings {
-        fill_state: tunables.symbol_fill_state,
+        fill_faction: tunables.symbol_fill_faction,
         fill_other: tunables.symbol_fill_other,
         stale_alpha: tunables.stale_symbol_alpha,
     }

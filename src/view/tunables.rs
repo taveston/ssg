@@ -197,8 +197,8 @@ pub struct Tunables {
     /// EDGE-03).
     pub button_stroke_px: f32,
     /// How much of a symbol's colour is mixed into the ground colour for
-    /// the opaque inside of objects the state commands (SYM-03).
-    pub symbol_fill_state: f32,
+    /// the opaque inside of objects the faction commands (SYM-03).
+    pub symbol_fill_faction: f32,
     /// The same mix for every other affiliation but own-flag civilians,
     /// whose inside is plain ground (SYM-03).
     pub symbol_fill_other: f32,
@@ -293,7 +293,7 @@ impl Default for Tunables {
             list_symbol_px: 14.0,
             symbol_stroke_px: 1.5,
             button_stroke_px: 1.0,
-            symbol_fill_state: 0.30,
+            symbol_fill_faction: 0.30,
             symbol_fill_other: 0.16,
             stale_symbol_alpha: 0.55,
 

@@ -38,7 +38,7 @@ pub struct BodyBlueprint {
     pub name: &'static str,
     pub class: BodyClass,
     pub affiliation: Affiliation,
-    /// What the state knows of a ship or station (SYM-01); `None` for
+    /// What the faction knows of a ship or station (SYM-01); `None` for
     /// natural bodies.
     pub record: Option<ShipRecord>,
     /// A ship's drive and delta-v (PLAN-20); `None` for anything that
