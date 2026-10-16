@@ -371,6 +371,32 @@ fn a_drag_released_on_a_rows_toggle_leaves_it_alone() {
     assert!(open(&app));
 }
 
+/// MUL-09 / MUL-10: stepping the selection with the keys moves the
+/// highlight from row to row without building the rows again.
+#[test]
+fn stepping_moves_the_highlight_without_rebuilding_the_rows() {
+    let mut app = tray_app();
+    run(&mut app, SETTLE_FRAMES);
+    let halden = body(&mut app, "Halden IV");
+    click_fold_marker(&mut app, halden);
+    let things: Vec<Entity> = contents(&app).lines.iter().map(|l| l.row.entity).collect();
+    let nodes = |app: &mut App| things.iter().map(|&t| row_node(app, t)).collect::<Vec<_>>();
+    let highlighted = |app: &mut App| {
+        nodes(app)
+            .into_iter()
+            .map(|row| app.world().get::<BackgroundColor>(row).unwrap().0 != Color::NONE)
+            .collect::<Vec<bool>>()
+    };
+    let before = nodes(&mut app);
+    assert!(highlighted(&mut app).iter().all(|&h| !h));
+
+    press_key(&mut app, KeyCode::ArrowDown);
+    press_key(&mut app, KeyCode::ArrowDown);
+    assert_eq!(nodes(&mut app), before, "the same rows");
+    let lit = highlighted(&mut app);
+    assert!(lit[1] && lit.iter().filter(|&&h| h).count() == 1, "{lit:?}");
+}
+
 /// MUL-10 / CAM-14 / CAM-18: with the tray open, Down and Up step the
 /// selection through the rows and stop at the ends; Right opens TF-1 to
 /// list its members one level in, and stepping onto a member keeps TF-1

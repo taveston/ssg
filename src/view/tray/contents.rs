@@ -270,55 +270,62 @@ impl TrayInputs<'_, '_> {
             .unwrap_or_default()
     }
 
+    /// MUL-09: a group member's look and tag: a ship in its group's
+    /// affiliation, tagged with its condition when the group is own.
+    fn member_look(&self, record: &ShipRecord, group: Entity) -> (RowLook, String) {
+        let affiliation = self
+            .bodies
+            .get(group)
+            .map_or(Affiliation::Unknown, |b| *b.2);
+        let condition = record.condition.filter(|_| affiliation == Affiliation::Own);
+        let look = RowLook {
+            class: BodyClass::Ship,
+            affiliation,
+            record: Some(record.clone()),
+        };
+        (look, row_tag(&TagFacts::Member { condition }))
+    }
+
+    /// MUL-09 / GRP-09: a thing's look and tag: "station" for a station,
+    /// a group's member count by class for a group, nothing otherwise.
+    fn thing_look(&self, entity: Entity) -> (RowLook, String) {
+        let (class, affiliation, record) = self.bodies.get(entity).map_or(
+            (BodyClass::Ship, Affiliation::Unknown, None),
+            |(_, class, affiliation, record, _)| (*class, *affiliation, record.cloned()),
+        );
+        let facts = match (class, self.groups.get(entity)) {
+            (BodyClass::Station, _) => TagFacts::Station,
+            (_, Ok(group)) => TagFacts::Group {
+                members: group.members.len(),
+                classes: member_count_text(&self.faces.member_classes(entity)),
+            },
+            _ => TagFacts::Plain,
+        };
+        let look = RowLook {
+            class,
+            affiliation,
+            record,
+        };
+        (look, row_tag(&facts))
+    }
+
     /// One row's name, look and tag (MUL-09).
     fn line(&self, row: TrayRow, state: &TrayState) -> TrayLine {
-        let selected = state.cursor == Some(row.entity);
-        let (look, tag, member) = match self.members.get(row.entity) {
-            Ok((_, record, member_of)) => {
-                let affiliation = self
-                    .bodies
-                    .get(member_of.0)
-                    .map_or(Affiliation::Unknown, |b| *b.2);
-                let condition = record.condition.filter(|_| affiliation == Affiliation::Own);
-                let look = RowLook {
-                    class: BodyClass::Ship,
-                    affiliation,
-                    record: Some(record.clone()),
-                };
-                (look, row_tag(&TagFacts::Member { condition }), true)
-            }
-            Err(_) => {
-                let (class, affiliation, record) = self.bodies.get(row.entity).map_or(
-                    (BodyClass::Ship, Affiliation::Unknown, None),
-                    |(_, class, affiliation, record, _)| (*class, *affiliation, record.cloned()),
-                );
-                let facts = match (class, self.groups.get(row.entity)) {
-                    (BodyClass::Station, _) => TagFacts::Station,
-                    (_, Ok(group)) => TagFacts::Group {
-                        members: group.members.len(),
-                        classes: member_count_text(&self.faces.member_classes(row.entity)),
-                    },
-                    _ => TagFacts::Plain,
-                };
-                let look = RowLook {
-                    class,
-                    affiliation,
-                    record,
-                };
-                (look, row_tag(&facts), false)
-            }
+        let member = self.members.get(row.entity).ok();
+        let (look, tag) = match member {
+            Some((_, record, member_of)) => self.member_look(record, member_of.0),
+            None => self.thing_look(row.entity),
         };
         // MUL-12 / PLNR-11: a group's member is wherever its group is,
         // and a group can't be picked, so neither can its members.
-        let dimmed =
-            self.planner.is_open() && (member || self.planner.unpickable.contains(&row.entity));
+        let unpickable = member.is_some() || self.planner.unpickable.contains(&row.entity);
         TrayLine {
             row,
             name: self.name(row.entity),
             tag,
             look,
-            selected,
-            dimmed,
+            selected: state.cursor == Some(row.entity),
+            dimmed: self.planner.is_open() && unpickable,
         }
     }
 

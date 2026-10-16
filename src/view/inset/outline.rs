@@ -32,23 +32,29 @@ use crate::view::colors;
 use crate::view::fonts::Fonts;
 use crate::view::frame::Frame;
 use crate::view::hover::double_click;
+use crate::view::list_rows::RowLayout;
 use crate::view::markers::draw::{BodyLook, MarkerAssets, spawn_list_icon};
 use crate::view::planner::state::{PickTarget, PlannerState};
 use crate::view::selection::Selection;
 use crate::view::tunables::Tunables;
 
 const ENTRY_GAP_PX: f32 = 6.0;
-/// One generation's indent.
-const INDENT_PX: f32 = 14.0;
-/// The width of the toggle's slot, so names line up whether or not an
-/// entry has one.
-const TOGGLE_PX: f32 = 14.0;
-const ROW_PADDING_Y_PX: f32 = 2.0;
-/// The toggle glyphs: collapsed and expanded.
-pub const COLLAPSED_GLYPH: &str = ">";
-pub const EXPANDED_GLYPH: &str = "v";
-/// The selected row's highlight.
-const HIGHLIGHT: Color = colors::LIST_HIGHLIGHT;
+
+/// INS-05: the outline's rows: one generation's indent before the row,
+/// so the highlight starts at the entry, and a toggle slot as wide as the
+/// indent, so names line up whether or not an entry has one.
+fn row_layout(tunables: &Tunables) -> RowLayout {
+    RowLayout {
+        height: None,
+        pad_y: 2.0,
+        side: 0.0,
+        indent: 14.0,
+        indent_inside: false,
+        gap: ENTRY_GAP_PX,
+        toggle: 14.0,
+        toggle_font: tunables.sidebar_text_px,
+    }
+}
 
 /// One body as the outline sees it.
 #[derive(Debug, Clone, PartialEq)]
@@ -435,44 +441,6 @@ fn fill_outline(
     }
 }
 
-/// INS-05: the row's indent and its toggle slot.
-fn row_node(depth: usize, selected: bool) -> (Node, BackgroundColor) {
-    (
-        Node {
-            flex_direction: FlexDirection::Row,
-            align_items: AlignItems::Center,
-            column_gap: px(ENTRY_GAP_PX),
-            padding: UiRect::axes(px(0), px(ROW_PADDING_Y_PX)),
-            margin: UiRect::left(px(depth as f32 * INDENT_PX)),
-            ..default()
-        },
-        BackgroundColor(if selected { HIGHLIGHT } else { Color::NONE }),
-    )
-}
-
-/// The toggle glyph of a row with children, or an empty slot.
-fn spawn_toggle(
-    row: &mut ChildSpawnerCommands,
-    (fonts, tunables): MarkerAssets,
-    state: Option<bool>,
-) -> Entity {
-    let glyph = match state {
-        Some(true) => EXPANDED_GLYPH,
-        Some(false) => COLLAPSED_GLYPH,
-        None => "",
-    };
-    row.spawn((
-        Node {
-            width: px(TOGGLE_PX),
-            ..default()
-        },
-        Text::new(glyph),
-        fonts.data(tunables.sidebar_text_px),
-        TextColor(colors::PANEL_BORDER),
-    ))
-    .id()
-}
-
 fn spawn_row(
     list: &mut ChildSpawnerCommands,
     assets: MarkerAssets,
@@ -524,10 +492,10 @@ fn spawn_entry(
         // symbol carries no amplifiers of a group.
         group: None,
     };
-    let (row_node, background) = row_node(depth, selected);
-    list.spawn((OutlineRow(body), row_node, background))
+    let layout = row_layout(tunables);
+    list.spawn((OutlineRow(body), layout.row(depth, selected)))
         .with_children(|row| {
-            let toggle_id = spawn_toggle(row, assets, toggle_state);
+            let toggle_id = layout.spawn_toggle(row, fonts, toggle_state);
             if toggle_state.is_some() {
                 row.commands().entity(toggle_id).observe(
                     move |click: On<PointerClick>, mut expanded: ResMut<Expanded>| {
@@ -571,10 +539,10 @@ fn spawn_orbit_row(
     expanded: bool,
 ) {
     let (fonts, tunables) = assets;
-    let (row_node, background) = row_node(depth, false);
-    list.spawn((OutlineRow(orbit), row_node, background))
+    let layout = row_layout(tunables);
+    list.spawn((OutlineRow(orbit), layout.row(depth, false)))
         .with_children(|row| {
-            spawn_toggle(row, assets, Some(expanded));
+            layout.spawn_toggle(row, fonts, Some(expanded));
             row.spawn((
                 Text::new(title),
                 fonts.label(tunables.sidebar_text_px),

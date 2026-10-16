@@ -53,6 +53,7 @@ impl Plugin for TrayPlugin {
                     input::tray_keys,
                     contents::gather_tray,
                     draw::fill_tray,
+                    draw::highlight_tray_rows,
                     draw::place_tray_panel,
                     draw::dim_rows,
                     input::scroll_tray,
