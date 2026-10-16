@@ -67,7 +67,7 @@ pub struct Search {
     pub intercept_offered: bool,
     /// PHAS-16: for a leg that waits for its window, when the window came
     /// on Soonest, so other days can look for it there.
-    pub windows: Option<Windows>,
+    pub window_starts: Option<WindowStarts>,
 }
 
 /// PHAS-16: when a leg that waits for its window set out on Soonest, for
@@ -75,14 +75,14 @@ pub struct Search {
 /// way again once every window interval, so on any other day the window
 /// is expected that much later, modulo the interval.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Windows {
+pub struct WindowStarts {
     pub interval_days: f64,
     /// The day each travel time's crossing set out on, before its burn
     /// days; `None` where the leg couldn't be flown.
     pub set_out: Vec<Option<f64>>,
 }
 
-impl Windows {
+impl WindowStarts {
     /// The wait after `depart_day` at which travel time `index`'s window
     /// is expected.
     pub fn wait_on(&self, index: usize, depart_day: f64) -> Option<f64> {
@@ -95,16 +95,10 @@ impl Search {
     /// PLNR-21: the Soonest setting's depart day: the clock's time when
     /// the search was made or last moved on.
     pub fn soonest(&self) -> f64 {
-        match self.sliders.depart {
-            Slider::Days { soonest, .. } => soonest,
-            _ => self
-                .sliders
-                .depart
-                .settings(1)
-                .first()
-                .copied()
-                .unwrap_or(0.0),
-        }
+        let Slider::Days { soonest, .. } = self.sliders.depart else {
+            unreachable!("a search's Depart slider is always in days from Soonest");
+        };
+        soonest
     }
 }
 
@@ -301,14 +295,14 @@ impl SearchContext {
 
     /// PLNR-28 / PLNR-87 / PHAS-16: the Travel time track on one depart
     /// day, with, for each travel time, the day its crossing set out on.
-    /// Where `windows` says when the windows came on another day, each
+    /// Where `window_starts` says when the windows came on another day, each
     /// leg looks for its window there first.
     fn track_near(
         &self,
         request: Request,
         sliders: &Sliders,
         depart_day: f64,
-        windows: Option<&Windows>,
+        window_starts: Option<&WindowStarts>,
     ) -> (Vec<Sample>, Vec<Option<f64>>) {
         sliders
             .travel
@@ -320,7 +314,7 @@ impl SearchContext {
                     depart_day,
                     travel_days,
                 };
-                let hint = windows.and_then(|w| w.wait_on(j, depart_day));
+                let hint = window_starts.and_then(|w| w.wait_on(j, depart_day));
                 let leg = solve_leg_near(
                     &self.tree,
                     &self.tunables,
@@ -356,7 +350,7 @@ impl SearchContext {
             request,
             &search.sliders,
             depart_day,
-            search.windows.as_ref(),
+            search.window_starts.as_ref(),
         )
         .0
     }
@@ -381,13 +375,15 @@ impl SearchContext {
         request: Request,
         sliders: &Sliders,
         soonest: f64,
-    ) -> (Vec<Sample>, Option<Windows>) {
+    ) -> (Vec<Sample>, Option<WindowStarts>) {
         let (row, set_out) = self.track_near(request, sliders, soonest, None);
-        let windows = self.window_interval(request).map(|interval_days| Windows {
-            interval_days,
-            set_out,
-        });
-        (row, windows)
+        let window_starts = self
+            .window_interval(request)
+            .map(|interval_days| WindowStarts {
+                interval_days,
+                set_out,
+            });
+        (row, window_starts)
     }
 
     /// PLNR-82: the grid: each depart column with its Travel time track,
@@ -395,19 +391,23 @@ impl SearchContext {
     /// window (PHAS-16) costs the same whenever the two ends stand the
     /// same way, which they do again once every window interval, so the
     /// other columns look for their windows where Soonest found them.
-    pub fn grid_and_windows(&self, request: Request, sliders: &Sliders) -> (Grid, Option<Windows>) {
+    pub fn grid_and_window_starts(
+        &self,
+        request: Request,
+        sliders: &Sliders,
+    ) -> (Grid, Option<WindowStarts>) {
         let columns = self.depart_columns(sliders);
         let Some((&soonest, later)) = columns.split_first() else {
             return (Grid { rows: Vec::new() }, None);
         };
-        let (first, windows) = self.soonest_column(request, sliders, soonest);
+        let (first, starts) = self.soonest_column(request, sliders, soonest);
         let mut rows = vec![first];
         rows.extend(
             later
                 .iter()
-                .map(|&day| self.track_near(request, sliders, day, windows.as_ref()).0),
+                .map(|&day| self.track_near(request, sliders, day, starts.as_ref()).0),
         );
-        (Grid { rows }, windows)
+        (Grid { rows }, starts)
     }
 
     /// PLNR-24 / PLNR-87: a search moved on to `now`, once a game day at
@@ -427,8 +427,8 @@ impl SearchContext {
         }
         self.today = now;
         let mut kept = std::mem::take(&mut search.grid.rows);
-        let (first, windows) = self.soonest_column(request, &search.sliders, now);
-        search.windows = windows;
+        let (first, starts) = self.soonest_column(request, &search.sliders, now);
+        search.window_starts = starts;
         search.grid.rows.push(first);
         let mut solved = vec![now];
         for &day in self.depart_columns(&search.sliders).iter().skip(1) {
@@ -452,7 +452,7 @@ impl SearchContext {
     /// for a request, or why it has none.
     pub fn search(&self, request: Request) -> Result<Search, Infeasible> {
         let sliders = self.sliders(request)?;
-        let (grid, windows) = self.grid_and_windows(request, &sliders);
+        let (grid, window_starts) = self.grid_and_window_starts(request, &sliders);
         let presets = presets(
             &grid,
             &sliders,
@@ -465,7 +465,7 @@ impl SearchContext {
             grid,
             presets,
             intercept_offered: self.offers_intercept(request.destination),
-            windows,
+            window_starts,
         })
     }
 }
@@ -559,7 +559,7 @@ mod tests {
             panic!("a Travel range");
         };
         assert!((end / start - 2.0 / 0.3).abs() < 1e-9);
-        let grid = ctx.grid_and_windows(request, &sliders).0;
+        let grid = ctx.grid_and_window_starts(request, &sliders).0;
         assert!((40..=60).contains(&grid.rows.len()), "{}", grid.rows.len());
         assert!(grid.rows.iter().all(|row| row.len() == 36));
         assert_eq!(grid.rows[0][0].setting.depart_day, 10.0);
@@ -660,7 +660,7 @@ mod tests {
             )
             .unwrap();
         assert!((leg.travel_days - travel).abs() < 1e-6);
-        let grid = ctx.grid_and_windows(request, &sliders).0;
+        let grid = ctx.grid_and_window_starts(request, &sliders).0;
         assert!(grid.rows.iter().all(|row| row.len() == 1));
         assert_eq!(ctx.search(request).unwrap().presets.next_window, None);
     }
@@ -696,7 +696,7 @@ mod tests {
         assert_eq!(meetings.len(), ctx.tunables.max_phasing_laps as usize);
         assert!((meetings[0] - 0.5 * period).abs() < 1e-9);
         assert!((meetings[2] - 2.5 * period).abs() < 1e-9);
-        let grid = ctx.grid_and_windows(request, &sliders).0;
+        let grid = ctx.grid_and_window_starts(request, &sliders).0;
         assert_eq!(grid.rows.len(), 1);
         assert_eq!(grid.rows[0].len(), meetings.len());
         let search = ctx.search(request).unwrap();
@@ -836,10 +836,10 @@ mod tests {
         let request = rendezvous(Place::Station { station: l.station });
         let search = ctx.search(request).unwrap();
         assert!(!search.sliders.windows, "no Next window");
-        let windows = search.windows.clone().expect("a leg that waits");
-        assert!(windows.interval_days < 1.0 / 12.0);
-        let wait = windows.wait_on(0, 12.0).unwrap();
-        assert!((0.0..windows.interval_days).contains(&wait));
+        let starts = search.window_starts.clone().expect("a leg that waits");
+        assert!(starts.interval_days < 1.0 / 12.0);
+        let wait = starts.wait_on(0, 12.0).unwrap();
+        assert!((0.0..starts.interval_days).contains(&wait));
         let mut differ = 0;
         for sample in search.grid.samples() {
             let full = ctx.sample(request, sample.setting);

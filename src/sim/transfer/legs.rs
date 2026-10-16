@@ -21,7 +21,9 @@ use std::f64::consts::TAU;
 
 use bevy::math::DVec3;
 use bevy::prelude::*;
-use orbits::{Conic, Rail, Segment, Sense, Spiral, State, circular_speed, exit_angle, lambert};
+use orbits::{
+    Conic, Lambert, Rail, Segment, Sense, Spiral, State, circular_speed, exit_angle, lambert,
+};
 
 use super::ends::{End, Own, Target, departure_end, resolve, target_end};
 use super::order::{Arrival, Departure, Infeasible, LegBurns, Order, SolvedLeg, TargetLock};
@@ -170,10 +172,10 @@ impl Setup<'_> {
         (node.body != self.primary).then_some(node)
     }
 
-    /// XFER-03: the prograde Lambert arc between the two ends' positions.
-    fn lambert_crossing(&self, start_day: f64, travel_days: f64) -> Option<Crossing> {
-        let end_day = start_day + travel_days;
-        let (start, end) = self.ends(start_day, end_day)?;
+    /// The two ends' states at `start_day` and `travel_days` later, and
+    /// the prograde Lambert arc between their positions.
+    fn lambert_arc(&self, start_day: f64, travel_days: f64) -> Option<(State, State, Lambert)> {
+        let (start, end) = self.ends(start_day, start_day + travel_days)?;
         let arc = lambert(
             self.mu,
             start.position,
@@ -181,6 +183,13 @@ impl Setup<'_> {
             travel_days,
             Sense::Prograde,
         )?;
+        Some((start, end, arc))
+    }
+
+    /// XFER-03: the prograde Lambert arc between the two ends' positions.
+    fn lambert_crossing(&self, start_day: f64, travel_days: f64) -> Option<Crossing> {
+        let end_day = start_day + travel_days;
+        let (start, end, arc) = self.lambert_arc(start_day, travel_days)?;
         let conic = Conic::from_state(
             self.mu,
             State::new(start.position, arc.departure_velocity),
@@ -206,14 +215,7 @@ impl Setup<'_> {
     /// them; without building its path, so many starts can be compared
     /// cheaply.
     fn lambert_burns(&self, start_day: f64, travel_days: f64) -> Option<f64> {
-        let (start, end) = self.ends(start_day, start_day + travel_days)?;
-        let arc = lambert(
-            self.mu,
-            start.position,
-            end.position,
-            travel_days,
-            Sense::Prograde,
-        )?;
+        let (start, end, arc) = self.lambert_arc(start_day, travel_days)?;
         let burn_1 = (arc.departure_velocity - start.velocity).length();
         let burn_2 = (end.velocity - arc.arrival_velocity).length();
         Some(if self.rendezvous {
@@ -269,60 +271,70 @@ impl Setup<'_> {
         earliest: f64,
         travel_days: f64,
     ) -> Result<(f64, Crossing), Infeasible> {
-        let first_at = |wait: f64| {
-            self.lambert_crossing(earliest + wait, travel_days)
-                .ok_or(Infeasible::NoPath)
-        };
         let Some(interval) = self.window_interval else {
-            return Ok((0.0, first_at(0.0)?));
+            return Ok((0.0, self.first_crossing(earliest, travel_days)?));
         };
         let samples = self.tunables.window_wait_samples.max(1);
         let wait_of = |i: usize| interval * i as f64 / samples as f64;
-        // Each start is priced by its arc alone, once.
+        // Each start is priced by its arc alone, once; starts with no arc
+        // are dropped.
         let mut prices: Vec<Option<Option<f64>>> = vec![None; samples];
-        let mut price = |i: usize| {
-            *prices[i].get_or_insert_with(|| self.lambert_burns(earliest + wait_of(i), travel_days))
-        };
-        let flies = |wait: f64| -> Option<Crossing> {
-            let first = first_at(wait).ok()?;
-            let start = earliest + wait + self.burn_days(drive, &first);
-            let clear = self
-                .lambert_crossing(start, travel_days)
-                .is_some_and(|flown| self.check_periapsis(&flown).is_ok());
-            clear.then_some(first)
+        let mut cheapest_first = |starts: Vec<usize>| -> Vec<f64> {
+            let mut priced: Vec<(f64, usize)> = starts
+                .into_iter()
+                .filter_map(|i| {
+                    let price = *prices[i].get_or_insert_with(|| {
+                        self.lambert_burns(earliest + wait_of(i), travel_days)
+                    });
+                    Some((price?, i))
+                })
+                .collect();
+            priced.sort_by(|a, b| a.0.total_cmp(&b.0));
+            priced.into_iter().map(|(_, i)| wait_of(i)).collect()
         };
         if let Some(hint) = self.window_hint {
-            // The start nearest the hint and its two neighbours, cheapest
-            // first.
-            let at = ((hint / interval * samples as f64).round() as usize) % samples;
-            let mut starts: Vec<usize> = (0..=NEAR_WINDOW_STARTS.min(samples / 2))
-                .flat_map(|d| [(at + d) % samples, (at + samples - d) % samples])
-                .collect();
-            starts.sort_unstable();
-            starts.dedup();
-            let mut near: Vec<(f64, usize)> = starts
-                .into_iter()
-                .filter_map(|i| Some((price(i)?, i)))
-                .collect();
-            near.sort_by(|a, b| a.0.total_cmp(&b.0));
-            for &(_, i) in &near {
-                if let Some(first) = flies(wait_of(i)) {
-                    return Ok((wait_of(i), first));
-                }
+            let near = cheapest_first(starts_near(hint / interval, samples));
+            if let Some(found) = self.first_flown(drive, earliest, travel_days, &near) {
+                return Ok(found);
             }
         }
         // Only the cheapest starts are flown in full, until one clears the
         // primary.
-        let mut priced: Vec<(f64, usize)> =
-            (0..samples).filter_map(|i| Some((price(i)?, i))).collect();
-        priced.sort_by(|a, b| a.0.total_cmp(&b.0));
-        let cheapest = wait_of(priced.first().ok_or(Infeasible::NoPath)?.1);
-        for &(_, i) in &priced {
-            if let Some(first) = flies(wait_of(i)) {
-                return Ok((wait_of(i), first));
-            }
+        let waits = cheapest_first((0..samples).collect());
+        let cheapest = *waits.first().ok_or(Infeasible::NoPath)?;
+        if let Some(found) = self.first_flown(drive, earliest, travel_days, &waits) {
+            return Ok(found);
         }
-        Ok((cheapest, first_at(cheapest)?))
+        Ok((
+            cheapest,
+            self.first_crossing(earliest + cheapest, travel_days)?,
+        ))
+    }
+
+    /// The crossing from `start_day` solved with no burn days.
+    fn first_crossing(&self, start_day: f64, travel_days: f64) -> Result<Crossing, Infeasible> {
+        self.lambert_crossing(start_day, travel_days)
+            .ok_or(Infeasible::NoPath)
+    }
+
+    /// Of `waits` after `earliest`, in order, the first whose crossing,
+    /// flown after its burn days, clears the primary (XFER-07); with the
+    /// crossing solved from it with no burn days.
+    fn first_flown(
+        &self,
+        drive: &Drive,
+        earliest: f64,
+        travel_days: f64,
+        waits: &[f64],
+    ) -> Option<(f64, Crossing)> {
+        waits.iter().find_map(|&wait| {
+            let first = self.first_crossing(earliest + wait, travel_days).ok()?;
+            let start = earliest + wait + self.burn_days(drive, &first);
+            let clear = self
+                .lambert_crossing(start, travel_days)
+                .is_some_and(|flown| self.check_periapsis(&flown).is_ok());
+            clear.then_some((wait, first))
+        })
     }
 
     /// XFER-03 to XFER-05, PHAS-03, PHAS-16: the two-burn crossing taking
@@ -484,6 +496,19 @@ impl Setup<'_> {
         }
         Err(Infeasible::CantLineUp)
     }
+}
+
+/// Of `samples` starts spread evenly over one window interval, the one
+/// nearest `fraction` of the interval and its `NEAR_WINDOW_STARTS`
+/// neighbours each side, in index order.
+fn starts_near(fraction: f64, samples: usize) -> Vec<usize> {
+    let at = ((fraction * samples as f64).round() as usize) % samples;
+    let mut starts: Vec<usize> = (0..=NEAR_WINDOW_STARTS.min(samples / 2))
+        .flat_map(|d| [(at + d) % samples, (at + samples - d) % samples])
+        .collect();
+    starts.sort_unstable();
+    starts.dedup();
+    starts
 }
 
 /// The segment a ship follows before its crossing: parked where it is,

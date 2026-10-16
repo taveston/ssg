@@ -186,7 +186,8 @@ enum Refine {
 /// PLNR-86: a preset's sample refined: every slider setting within one
 /// grid spacing of it, on both sliders, is solved, and the preset picks
 /// again among them. If nothing nearby qualifies, the setting nearest the
-/// sample is kept.
+/// sample is kept. A phasing leg costs the same on every depart day
+/// (PLNR-40), so it is refined on its sample's day, Soonest, alone.
 fn refine(
     sample: Sample,
     rule: Refine,
@@ -198,9 +199,13 @@ fn refine(
     let max_steps = tunables.slider_max_steps;
     let depart_within = sliders.depart.spacing(tunables.track_depart_samples);
     let travel_within = sliders.travel.spacing(tunables.track_travel_samples);
-    let departs = sliders
-        .depart
-        .settings_near(sample.setting.depart_day, depart_within, max_steps);
+    let departs = if sliders.phasing() {
+        vec![sample.setting.depart_day]
+    } else {
+        sliders
+            .depart
+            .settings_near(sample.setting.depart_day, depart_within, max_steps)
+    };
     let travels =
         sliders
             .travel
@@ -388,9 +393,10 @@ mod tests {
         // travel time. A trip arrives on its depart day plus its travel
         // time.
         let sliders = Sliders {
-            depart: Slider::Range {
-                start: 0.0,
+            depart: Slider::Days {
+                soonest: 0.0,
                 end: 20.0,
+                step: 1.0,
             },
             travel: Slider::Range {
                 start: 10.0,
@@ -452,5 +458,51 @@ mod tests {
         };
         let found = presets(&grid, &windowed, &tunables, 4.0, solve);
         assert!(found.next_window.is_some());
+    }
+
+    /// PLNR-86 / PLNR-40: a phasing leg costs the same on every depart
+    /// day, so its presets are refined on Soonest alone.
+    #[test]
+    fn a_phasing_legs_presets_are_refined_on_soonest_alone() {
+        let sliders = Sliders {
+            depart: Slider::Days {
+                soonest: 0.0,
+                end: 20.0,
+                step: 1.0,
+            },
+            travel: Slider::Positions(vec![10.0, 20.0, 30.0]),
+            windows: false,
+        };
+        let solve_at = |setting: Setting| {
+            sample(
+                setting.depart_day,
+                setting.travel_days,
+                setting.travel_days / 10.0,
+                setting.depart_day + setting.travel_days,
+            )
+        };
+        let row = [10.0, 20.0, 30.0].map(|travel| {
+            solve_at(Setting {
+                depart_day: 0.0,
+                travel_days: travel,
+            })
+        });
+        let grid = Grid {
+            rows: vec![row.to_vec()],
+        };
+        let days = std::cell::RefCell::new(Vec::new());
+        let found = presets(&grid, &sliders, &SimTunables::default(), 2.5, |setting| {
+            days.borrow_mut().push(setting.depart_day);
+            solve_at(setting)
+        });
+        assert!(!days.borrow().is_empty());
+        assert!(days.borrow().iter().all(|&day| day == 0.0), "{days:?}");
+        assert_eq!(
+            found.fastest,
+            Some(Setting {
+                depart_day: 0.0,
+                travel_days: 10.0
+            })
+        );
     }
 }

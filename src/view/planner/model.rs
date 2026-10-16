@@ -588,7 +588,7 @@ mod tests {
                 next_window: None,
             },
             intercept_offered: !phasing,
-            windows: None,
+            window_starts: None,
         }
     }
 
