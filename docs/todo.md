@@ -23,23 +23,15 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - The spec already says it: a ship on a Parked segment is a member of its named orbit and nothing else (RAIL-09), wherever that orbit is. The build fixes membership at spawn, so a ship that arrives in an orbit isn't one of its members: after a transfer to another body its symbol and outline entry stay with the old body (F-242), and its new ring draws no tail and doesn't reach it on hover or click (F-201).
   - Keep each orbit's members, ring strokes, ring targets, identity mark, outline rows and fold parent up to date as ships leave and arrive, including an orbit that had no members before and one left empty.
   - Leads from the clean-up: `index_members` in `shared_orbit.rs` runs only at Startup, so `OrbitMembers` never changes (F-201). Arrival already moves the ship's `ChildOf` to the new body (`sim/transfer/plan.rs`), but `fill_outline` refills only when the selection or the expanded rows change, which may be why the outline lags (F-242). Check both.
+  - From the clean-up's review, in the same code:
+    - `rings/marks.rs` `sync_ring_marks` now removes a band's identity mark as soon as its last ship leaves, since `rings.owners()` lists an orbit only while it has members. A ship coming back then fades the mark in from 0 instead of resuming. Decide with the membership rework (keep the mark while the orbit exists), and fix the doc comment that says an empty ring keeps its mark.
+    - `multi_markers/gather.rs` falls back to a thing's own `orbit.radius_km` when its named orbit isn't found; `together_sets` assumes one radius per orbit. Take the radius from the orbit, or skip the slot.
+    - `overlap_clusters` relies on two unchecked invariants from `units()`: each thing is in at most one spot a frame, and each spot's lead is unique and one of its own things. Add a `debug_assert`.
+    - `link.rs` `linking_many_things_does_not_test_every_pair` has a 3 s timing bound in a debug test (about 0.1 s now). Count comparisons instead of timing, so it can't flake.
   - Tests: Earth Low to Moon Low moves the ship's symbol, fold parent and outline entry to the Moon; a ship arriving in an empty orbit gets a ring with its tail, and hover and click on that ring reach it; the orbit it left loses it.
   - Delete F-242 and F-201 when done.
 
 ## Other
-
-- [ ] **Multi-markers and tray: clean-up after review**
-  - Work per frame grows with the square of the ship count (`multi_markers/gather.rs`: `together_sets`, `link_groups`, `overlap_clusters`, `slide_things`, `fold_markers`; `MultiMarkers::get` is a linear search). Link only neighbours in phase, bucket overlap candidates into a grid of `cluster_split_px` cells, and index markers by key.
-  - `place_multi_markers` writes every pool node's `Node` each frame. Write only on change.
-  - The tray rebuilds every row on each arrow step. Leave `selected` out of the rebuild check and recolour the rows instead.
-  - The tray's rows repeat the outline's row code (`tray/draw.rs` `spawn_row`, `inset/outline.rs`), with slightly different indent and toggle width. Share one row builder.
-  - The marker box (HOV-07) is computed in both `tray/contents.rs` and `markers/brackets.rs`. Keep one function in `multi.rs`.
-  - The four `MultiLook` builds could share constructors in `look.rs`.
-  - Split the long functions: `spawn_tray` and `spawn_row` (about 85 and 90 lines), and `TrayInputs::line` (about 50).
-  - Headless test helpers: `the_window` is in both `headless_tests/camera.rs` and `tray.rs`, and `camera.rs` reads the `HoverMap` inline where `tray.rs` has `hovered()`. Share them in `headless_tests.rs`.
-  - `overlap_clusters` now latches pairs of things, docked things included, so two overlapping stations with many ships docked give |a|·|b| pairs a frame. Fold this into the rework above, for example by latching lead things plus each unit's previous lead.
-  - `rings/marks.rs` `sync_ring_marks` compares a lone body's mark (`MarkShows::Body`) by entity only, so a change in that body's look (its group face, its record) isn't redrawn. Compare its look inputs too.
-  - `sync_ring_marks` has no branch for a ring whose owner leaves `rings.owners()`, so its mark would stay. Harmless while named orbits never go away; remove it when they can.
 
 - [ ] **Bring older docs up to the writing style**
   - The rules are in `docs/README.md` (Writing). Do it one doc at a time, with no change of meaning.
