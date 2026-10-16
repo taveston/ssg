@@ -17,9 +17,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Other
 
-- [ ] **Rings: resync on a lone orbit's change**
-  - `rings/mod.rs` `sync_ring_strokes` and `rings/picking.rs` `sync_ring_targets` rerun only when `OrbitMembers` changes. A ship or station with an orbit of its own, outside any named orbit, would leave a stale empty stroke and target behind when it departs, until the next membership change. No content has such a ship today. Also resync when an `Orbit` is added or removed.
-
 - [ ] **Bring older docs up to the writing style**
   - The rules are in `docs/README.md` (Writing). Do it one doc at a time, with no change of meaning.
   - The longest are the likeliest to need it: `ideas/mechanics/requirements-and-bids.md`, `ideas/mechanics/component-stats.md` and `ideas/mechanics/transfers.md`.
