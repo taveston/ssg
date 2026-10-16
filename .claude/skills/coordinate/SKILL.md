@@ -63,6 +63,7 @@ When the user asks, run a high-level code review agent once the scheduled work i
 - Worktrees share `CARGO_TARGET_DIR=<repo>/target`, because a full target is about 26 GB.
   - Every worktree's `orbits` crate has the same name in it, so a stale copy gives "unresolved imports" or doctest failures. Touch its sources and rerun.
   - `target/debug/orphan_worlds.exe` may be another worktree's build.
+  - A parallel agent's build can replace the test binary mid-run, so a check may run another branch's tests (a failing test whose name isn't on the branch). Run checks with `set -o pipefail` so a failure stops the merge, and rerun before trusting a failure or a pass.
 - A worktree can start from an old commit, so the brief's first step syncs it with master.
 - Game runs hang if a shot can't finish. `OW_SHOT` has a `timeout` key, and agents also wrap runs in their own timeout. If a game window lingers, find its parent `cargo run` and close it.
 - On Windows, `git worktree remove` often says "Permission denied". Use `--force`, then prune. Leftover folders under `.claude/worktrees/` are harmless; delete them at the end of the session.
