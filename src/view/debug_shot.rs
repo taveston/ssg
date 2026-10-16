@@ -19,6 +19,9 @@
 //! - `heading`: heading in degrees; 0 is north up.
 //! - `rate`: clock rate in days per second; 0 pauses the clock.
 //! - `wait`: seconds to let the view settle before the capture (default 2).
+//! - `timeout`: seconds after start by which the shot must be saved
+//!   (default 60). Past it the app logs the phase it was stuck in and exits
+//!   with an error, so a shot that can't finish never leaves a window open.
 //! - `planner`: opens the transfer planner for the selected ship: `open`
 //!   leaves it choosing; a body's name picks that body as the destination,
 //!   as a click on it would (PLNR-02, PLNR-11).
@@ -61,6 +64,9 @@ pub const SHOT_ENV: &str = "OW_SHOT";
 const START_AFTER_SECS: f32 = 1.0;
 /// Seconds the view settles before the capture, unless `wait` says.
 const DEFAULT_WAIT_SECS: f32 = 2.0;
+/// Seconds after start by which the shot must be saved, unless `timeout`
+/// says.
+const DEFAULT_TIMEOUT_SECS: f32 = 60.0;
 
 /// What `OW_SHOT` asked for: the view to set up and where to save it.
 #[derive(Debug, Clone, PartialEq)]
@@ -74,6 +80,8 @@ pub struct ShotPlan {
     pub heading_deg: Option<f32>,
     pub rate_days_per_sec: Option<f64>,
     pub wait_secs: f32,
+    /// Seconds after start by which the shot must be saved.
+    pub timeout_secs: f32,
     /// `open`, or the name of a destination to pick.
     pub planner: Option<String>,
     /// Days after the leave day to move the clock to, once the planner's
@@ -99,6 +107,7 @@ impl ShotPlan {
             heading_deg: None,
             rate_days_per_sec: None,
             wait_secs: DEFAULT_WAIT_SECS,
+            timeout_secs: DEFAULT_TIMEOUT_SECS,
             planner: None,
             fly_days: None,
         };
@@ -118,6 +127,7 @@ impl ShotPlan {
                 "heading" => plan.heading_deg = Some(number(key, value)?),
                 "rate" => plan.rate_days_per_sec = Some(number(key, value)?),
                 "wait" => plan.wait_secs = number(key, value)?,
+                "timeout" => plan.timeout_secs = number(key, value)?,
                 "planner" => plan.planner = Some(value.to_string()),
                 "fly" => plan.fly_days = Some(number(key, value)?),
                 _ => return Err(format!("unknown key `{key}`")),
@@ -170,6 +180,11 @@ impl Shot {
             phase: ShotPhase::Starting,
         }
     }
+
+    /// True once the shot has run past its timeout without being saved.
+    pub fn timed_out(&self, now: f32) -> bool {
+        self.phase != ShotPhase::Saved && now >= self.plan.timeout_secs
+    }
 }
 
 pub struct DebugShotPlugin;
@@ -209,6 +224,14 @@ fn run_shot(
     mut exit: MessageWriter<AppExit>,
 ) {
     let now = time.elapsed_secs();
+    if shot.timed_out(now) {
+        error!(
+            "{SHOT_ENV}: gave up after {}s, stuck in {:?}",
+            shot.plan.timeout_secs, shot.phase
+        );
+        exit.write(AppExit::error());
+        return;
+    }
     let find = |name: &str| {
         names
             .iter()
@@ -355,6 +378,17 @@ mod tests {
         assert_eq!(plan.wait_secs, 3.5);
         assert_eq!(plan.planner.as_deref(), Some("Iver"));
         assert_eq!(plan.fly_days, Some(12.0));
+    }
+
+    #[test]
+    fn a_shot_that_is_not_saved_by_its_timeout_gives_up() {
+        let mut shot = Shot::new(ShotPlan::parse("out=a.png;timeout=5").unwrap());
+        assert!(!shot.timed_out(4.9));
+        assert!(shot.timed_out(5.0));
+        shot.phase = ShotPhase::Saved;
+        assert!(!shot.timed_out(10.0));
+        let default = ShotPlan::parse("out=a.png").unwrap();
+        assert_eq!(default.timeout_secs, DEFAULT_TIMEOUT_SECS);
     }
 
     #[test]
