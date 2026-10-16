@@ -12,7 +12,7 @@ Status tags, used in every idea doc: **Decided** = settled. **Direction** = sett
 
 ## 1. Vision
 
-- **Pitch (draft):** lead a successor faction of a shattered human civilisation as it rebuilds and defends its gate network and institutions across a hard sci-fi cluster. Distance, orbits and the ambitions of your own people shape every decision.
+- **Pitch (draft):** lead a successor faction of a shattered human civilisation as it rebuilds and defends its gate network and institutions across a hard sci-fi sector. Distance, orbits and the ambitions of your own people shape every decision.
 - **Elevator pitch (draft):** Earth's gate network once tied humanity together. Now Earth is gone, the network is failing and the shipyards are idle. You head a successor government with a few hostile worlds, some surviving institutions and the wreckage of a vanished age. You govern through ministers, officers and companies with their own agendas. You commission ships from bidders whose designs never turn out quite as planned. And you push through the gates to reclaim what was built before the collapse.
 - **Player role (decided):** always head of government; no election or legislature can remove them. Probably not an in-world character. Other factions are led by real characters.
 - **Player fantasy (draft):** the person at the top of a struggling faction, not the hero in the cockpit. You decide what to rebuild, whom to trust and what to risk.
@@ -27,7 +27,7 @@ Status tags, used in every idea doc: **Decided** = settled. **Direction** = sett
 ## 2. Game structure (decided)
 
 - **Time:** continuous real time. By default about 1 real second is 1 game day, so a year is about 6 minutes and a decade about an hour. Events on a scale of minutes or hours effectively pause the game. The player has full control while paused. All orders are delegated; there is no direct real-time control.
-- **Scale:** a cluster of 10 to 100 systems. Total human population is in the hundreds of thousands to millions. That makes invasion plausible; it doesn't mean few characters.
+- **Scale:** a sector of 30 (Small), 80 (Medium) or 200 (Large) gated systems, among about three times as many stars that have no gate. Total human population is in the hundreds of thousands to millions. That makes invasion plausible; it doesn't mean few characters.
 - **Match:** long sandbox games on a generated map. The external threat is a possible end-game.
 
 ## 3. Core loop (draft)
@@ -55,15 +55,15 @@ One line per system and the doc that holds it. All paths are under `docs/ideas/`
 | Drives and transit | Drive families, transit times, transfer windows, gate placement. | `mechanics/drives-and-transit.md` |
 | Orbital transfers | Ships on rails along precomputed patched-conic arcs; two-slider transfer planning; scheduled and re-taskable orders. | `mechanics/transfers.md` |
 | Gates | Paired wormhole mouths, slowly failing; most links already collapsed. How gates work stays unexplained on screen. | `mechanics/gates.md` |
-| World generation | A flat 3D cluster at realistic star density, gates where the old network had reason to go, and a historical layer. | `mechanics/world-generator.md` |
+| World generation | A flat 3D sector at realistic star density, gates where the old network had reason to go, links most of which have failed, and a historical layer. | `mechanics/world-generator.md` |
 | Combat, raiders and diplomacy | Combat simulated in full when it starts and revealed as a replay on its own clock; raiders from simulated conditions. | `mechanics/conflict.md`, `mechanics/combat-simulation.md` |
-| Presentation | Cluster, system and planet layers as a vector display at true scale, semi-photoreal inspection, a separate administration view. | `presentation/presentation.md`, `presentation/symbology.md`, `presentation/ui-style.md`, `presentation/combat-view.md` |
+| Presentation | Sector, system and planet layers as a vector display at true scale, semi-photoreal inspection, a separate administration view. | `presentation/presentation.md`, `presentation/symbology.md`, `presentation/ui-style.md`, `presentation/combat-view.md` |
 
 ## 5. Not yet started
 
 - **Player experience:** UI detail beyond the view structure in *Presentation & Visual Style*, onboarding, difficulty, multiplayer. (Unrestricted pausing suits single-player.)
 - **Art and audio:** anything beyond the visual direction in *Presentation & Visual Style*.
-- **Technical approach:** simulation load at 100 systems, AI.
+- **Technical approach:** simulation load across 200 systems, AI.
 - **Scope:** MVP, milestones, team, budget.
 
 ## 6. Risks

@@ -1,35 +1,42 @@
 # Orphan Worlds: World Generator
 
-**In short:** the generator builds the cluster for a new game: a flattened 3D volume of stars at realistic density and mix, gates only in the systems the old network had a reason to reach, links between them, full detail for gated systems only, and a historical layer of settlements, yards, ruins and salvage. It produces the truth; what each faction knows of it is handled separately (*Presentation & Visual Style*, 2: fidelity follows knowledge).
+**In short:** the generator builds the sector for a new game: a flattened 3D volume of stars at realistic density and mix, gates only in the systems the old network had a reason to reach, links between them, full detail for gated systems only, and a historical layer of settlements, yards, ruins and salvage. It produces the truth; what each faction knows of it is handled separately (*Presentation & Visual Style*, 2: fidelity follows knowledge). The first five stages, the bodies of a gated system and a minimal view of the sector are specced. History and factions are not.
 
-*Status:* draft. Companion to the overview (2, structure), *Gates*, *Salvage & Research* and *Setting & Back Story*; status tags as there (**Decided**, **Direction**, **Candidate**). All numbers are placeholders for tuning. The astronomical figures are approximate and should be checked against current surveys before they are fixed.
+*Status:* draft. Companion to the overview (2, structure), *Gates*, *Salvage & Research* and *Setting & Back Story*; status tags as there (**Decided**, **Direction**, **Candidate**). All numbers are placeholders for tuning. The astronomical figures were checked against current surveys on 2026-10-16; the spec's sources paragraph says which held and which did not (`docs/spec/sector-generator.md`).
+
+**Specced** in `docs/spec/sector-generator.md` (stages 1 to 5, the failure of links, names), `docs/spec/system-generator.md` (the bodies of a gated system) and `docs/spec/sector-view.md` (a minimal truth view of the sector, entering a system, start-up).
+
+A **sector** is the star map of one game: a slab of star systems. A **system** is a star with its planets, moons and belts.
 
 ---
 
 ## 1. Principles
 
-- **3D but flat (decided):** the cluster is a three-dimensional volume, narrow in z. This is a concession to playability: the map reads well from a tilted top-down view, links rarely hide behind each other, and the player rarely has to rotate the camera. In reality the galactic disc is hundreds of parsecs thick, so a local cluster would be roughly spherical. The flattening is deliberate, not a claim about the galaxy.
+- **3D but flat (decided):** the sector is a three-dimensional volume, narrow in z. This is a concession to playability: the map reads well from a tilted top-down view, links rarely hide behind each other, and the player rarely has to rotate the camera. In reality the galactic disc is hundreds of parsecs thick, so a local volume would be roughly spherical. The flattening is deliberate, not a claim about the galaxy.
 - **Informed by current science (decided):** star types, multiplicity, planet occurrence and system architectures follow observed distributions, not genre conventions. Where the game needs something rarer than nature provides (enough habitable worlds, say), the reason is the builders' choice of where to settle, not inflated odds.
 - **Gates where there was a reason (decided):** not every system has a gate. The old network built them where something justified the cost: worlds to settle, resources, or a link needed to join the network together.
 - **Non-visitable systems are lightly modelled (decided):** systems without a gate are never visited, so they need only enough detail to appear on the map and in the astronomical record.
-- **Seeded and reproducible (candidate):** one seed reproduces a map exactly. Each stage draws from its own derived seed, so tuning one stage doesn't reshuffle the others.
+- **Seeded and reproducible (decided 2026-10-16):** one seed reproduces a sector exactly. Each stage draws from its own derived seed, so tuning one stage doesn't reshuffle the others, and a system's detail depends only on the sector seed and the system's id. Why: tuning needs the rest of the map to hold still, and a system must look the same each time it is entered.
 
 ## 2. Pipeline (direction)
 
-1. **Volume:** choose the cluster size and shape from the game settings.
+1. **Volume:** choose the sector size and shape from the game settings.
 2. **Stars:** populate the volume with star systems at realistic density and mix (section 3).
 3. **Summaries:** give every system a coarse summary (star, rough planet architecture, notable features), cheap enough to run for all of them.
 4. **Gates:** score each system's value to the old network's builders and choose which were gated (section 4).
-5. **Links:** connect the gated systems into a network (section 4).
+5. **Links:** connect the gated systems into a network and fail most of the links (section 4).
 6. **Detail:** generate full bodies and orbits for the gated systems only (section 5).
 7. **History:** lay down what the old network built, what the collapse destroyed, and what survives (section 7).
 8. **Factions:** place starting factions to match their histories, then run fairness checks (section 8).
 
-## 3. Cluster Volume & Stellar Population
+**Specced:** stages 1 to 5 in the sector generator; the bodies half of stage 6 in the system generator (the detail of a system is made when it is entered, not up front). Stages 7 and 8 are not specced.
 
-- **Shape (candidate):** a slab, roughly round or irregular in plan, with a thickness of about a fifth to a third of its width.
-- **Density (candidate):** realistic, about 0.1 star systems per cubic parsec, so nearest neighbours are typically 1 to 2 parsecs (3 to 6 light years) apart. For scale, a slab 6 pc thick and about 25 pc across holds roughly 300 systems.
-- **Map size (candidate):** the overview's 10 to 100 systems counts gated, visitable systems. If a quarter to a half of all systems are gated, a large map holds a few hundred stars in total.
+## 3. Sector Volume & Stellar Population
+
+- **Settings (decided 2026-10-16):** the player picks the number of gated systems, N, through a preset: Small 30, Medium 80, Large 200. The generator works up to about 300; values below 30 are a development setting. A seed is random by default and shown on screen. Why: N is what the player plays with; everything else follows from it.
+- **Shape (decided 2026-10-16):** a slab, round-ish in plan (slightly elliptical), with a thickness of a quarter of its width by default (a fifth to a third is allowed).
+- **Density (decided 2026-10-16):** realistic, about 0.1 star systems per cubic parsec, so nearest neighbours are typically 1 to 2 parsecs (3 to 6 light years) apart. A 10 pc census of 317 systems agrees to within its incompleteness.
+- **Map size (decided 2026-10-16):** about three star systems for every gated one, so one in three is gated. The sector holds about 600 systems at Large, in a slab about 31 pc across and 8 pc thick; gated systems average 3.1 pc (10 ly) apart at every size. Why: the overview counts gated, visitable systems (2, structure); a third makes the ungated stars a believable majority without crowding the map.
 - **Stellar mix (direction, approximate solar-neighbourhood figures by primary star):**
 
   | Primary | Share | Notes |
@@ -42,13 +49,15 @@
   | White dwarf | ~5–8% | Stellar remnants; debris, polluted remnants, odd sites |
   | Giants | very rare | Possible as a notable landmark |
 
-  Brown dwarfs add roughly one for every four to six stars; most are isolated, some are companions.
-- **Multiplicity (direction):** roughly a quarter of M dwarfs and about half of Sun-like stars have companions.
-  - Wide pairs behave as two nearby systems.
-  - Close pairs host circumbinary planets.
-  - Intermediate pairs truncate planet systems.
-- **Age and metallicity (candidate):** each system gets an age (0 to about 10 billion years) and a metallicity spread around solar. Higher metallicity raises the chance of giant planets and rich rocky material, so it feeds directly into resource value. Age governs M-dwarf activity and which stars have become white dwarfs.
-- **Free-floating planets (candidate):** surveys suggest planets without a star may be about as common as stars. Most are invisible, but a few could appear as charted objects, and a gate at one would make an intriguing node. The game's title makes this hard to resist.
+  - **Decided 2026-10-16:** brown dwarfs and giants are in the catalogue only. They get a place, an age and a metallicity, and never planets or a gate. About one brown dwarf for every five star systems (the 20 pc census finds four stars to one).
+  - **Decided 2026-10-16:** white dwarfs can be gated, for science, and have their own remnant architecture (5.1).
+- **Multiplicity (decided 2026-10-16, figures checked):** the catalogue records every companion with its separation. About a quarter of M dwarfs and about half of Sun-like stars have companions.
+  - Wide pairs (over 1,000 AU) are two entries in the catalogue, each its own system with its own summary.
+  - Intermediate pairs truncate planet systems: planets lie inside 0.3 of the nearest companion's separation.
+  - Close pairs host circumbinary planets; these are not generated yet (section 9).
+  - Only single-star systems can be gated. Why: a gate ring and a planet list round one star are the simplest thing to build and draw, and multi-star detail can wait.
+- **Age and metallicity (decided 2026-10-16):** each system gets an age (0.2 to 10 billion years, limited by the star's lifetime) and a metallicity spread around solar. Higher metallicity raises the chance of giant planets and rich rocky material, so it feeds directly into resource value. Age governs M-dwarf activity and which stars have become white dwarfs.
+- **Free-floating planets (decided 2026-10-16):** left out of the catalogue entirely for now. Surveys suggest planets without a star may be about as common as stars, and a gate at one would make an intriguing node (the game's title makes this hard to resist), but nothing in the first version can reach or use one. They can be added later as catalogue entries.
 
 ## 4. Gates & the Network
 
@@ -63,51 +72,58 @@ The old network's builders knew each system well and built gates where the value
 | Industry | Water and metals close together, a calm star, good transfer geometry | Shipyard hub |
 | Junction | Central position with many neighbours in range; administration and traffic | Administrative centre |
 | Science | Unusual objects: white dwarfs, flare stars, close binaries, young systems | Research outpost |
-| Strategic | Chokepoints and approaches to valuable systems | Naval base |
+| Strategic | Approaches to valuable systems (a dense mesh has few true chokepoints) | Naval base |
 | Relay | Little intrinsic value, but needed to join systems beyond link range | None; gate-maintenance outposts at most |
 
-- **Relays (candidate):** a dim red dwarf that is gated only because the network had to pass through it makes a natural chokepoint with nothing to live on. That suits raiders and defence.
-- **Ungated systems:** everything else. Most are dim M dwarfs with nothing the builders needed. A few rich systems were never gated (too remote, or planned and never finished), which can feed lore and regret.
+- **Decided 2026-10-16: how the gated set is chosen.** Exactly N systems are gated. Settlement, extraction, industry and science are intrinsic: a system has them whatever else is gated. Junction, strategic and relay depend on the shape of the network, which does not exist until the core is chosen. So: pick a core by score, with a quota of at least 10% of N reserved for each of the four intrinsic reasons and the rest by overall score; add junctions and then relays to join the core into one network; count all of them inside N (if the total is over N, drop the weakest core system and try again); label approaches to valuable systems strategic once the links exist (a dense mesh has almost no chokepoints, so those show in the surviving network instead). Every gated system keeps its main reason. Why: the circularity is broken in the only order that works, and the quota stops one reason (extraction, with belts) crowding the others out.
+- **Decided 2026-10-16: belts weigh heavily in extraction.** Most extraction will be from belts, so belt mass and composition dominate the extraction score; giants add a little for helium-3.
+- **Decided 2026-10-16: the core is picked strictly by score.** Why: an ungated star can't be reached, so the player has no reason to search for one, and a rich system left ungated on purpose would be a find nobody could use.
+- **Relays (decided):** a dim red dwarf that is gated only because the network had to pass through it makes a natural chokepoint with nothing to live on. That suits raiders and defence. Relays are the last connectors added.
+- **Ungated systems:** everything else. Most are dim M dwarfs with nothing the builders needed.
+- **Names (decided 2026-10-16):** gated systems get names from a name generator; ungated stars get a catalogue designation. All names are placeholders.
 
-### 4.2 Links (candidate)
+### 4.2 Links
 
-- Each gated system links to a small handful (two to five) of gated systems within a maximum link range. The network is connected.
-- Links prefer near neighbours, so relays and chokepoints arise naturally rather than by decree.
-- A mild preference for links that don't cross in the top-down projection, for readability.
-- Some links lead out of the cluster and are dark (*Gates*, 11).
-- **Failed links (candidate, speculative):** the generator builds the old network, then fails most of its links. Fairness checks (section 8) run on the surviving network. Collapsed links leave a gate wreck in each of their two systems, as salvage. Some links are dormant rather than collapsed, faulted or locked at one end or both. See *Gates* (6, 7, 9).
-- Gates sit at the system edge, one per destination (*Gates*, 2). The gate's distance from the star, and whether it scales with the star's mass or the extent of its planets, is open (section 9).
+- **Links (decided 2026-10-16):** each gated system links to two to five gated systems within a maximum link range, twice the mean spacing of gated systems (about 6 pc, 20 ly). A minimum spanning tree guarantees the old network is connected; extra links go to the nearest neighbours, shortest first, and don't cross in the top-down projection, for readability. The old network is a dense mesh, as *Gates* (6) says: most systems have four or five links, about 4.3 on average. Why: the repair order below needs the links that have not collapsed to join every system, and with about 55% collapsed that takes about 2.2 links per system. A prototype with 2.9 links per system could not get the collapsed share above about 30%. Relays arise where the mesh is thin.
+- **Out of the sector (decided 2026-10-16):** no links lead out of the sector and no gate is dark in the first version (*Gates*, 11).
+- **Failed links (decided 2026-10-16):** the generator builds the old network, then fails most of its links. The targets are 30% working, 15% dormant and 55% collapsed, shifted a little for each map; they are targets, not exact, because the rules below come first, and a prototype put the result at about 30%, 18% and 51%. Failure is weighted towards links between busy, valuable systems, plus chance. Collapsed links leave a gate wreck in each of their two systems, as salvage. Dormant links are faulted at one end or both (*Gates*, 6, 7 and 9); whether a fault is damage or a deliberate lock is left to the historical layer. Rules the generator enforces:
+  - every gated system keeps at least one gate that is not collapsed, so none is a pure orphan;
+  - the largest working region holds at least 40% of the gated systems;
+  - every pocket can be reached from the main region by a repair order: a sequence of dormant links, each faulted only at the end already held, so the holder can restart it. Why: a pocket that could never be reached would play no part in the game.
+- **Gate position (decided 2026-10-16):** gates sit on a ring round the star, one per link end, at 1.35 times the snow line (the 2.0 AU of Corvane, *Drives & Transit*, 6). The ring slides to the nearest radius at least five Hill radii from every giant planet (outward first, then inward, within a limit); if none is in reach, the offending giant moves instead. A collapsed link's end is a wreck on the ring. Why: the giants' orbits are drawn realistically with no regard for the ring, so the ring adapts to the planets, not the planets to the ring.
+- Fairness checks (section 8) run on the surviving network.
 
 ## 5. Gated Systems: Full Detail
 
 ### 5.1 Approach (direction)
 
-Generate from observed occurrence rates and architecture templates rather than simulating planet formation: cheap, plausible and tunable.
+Generate from observed occurrence rates and architecture templates rather than simulating planet formation: cheap, plausible and tunable. A coarse **summary** (a template, planets with their orbit, mass and kind, belts, and per-planet facts) is made for every system, and the detail of a gated system refines it and never re-rolls it.
 
-- **Architecture templates by star type (candidate):**
+- **Architecture templates by star type (decided 2026-10-16):**
   - compact multi-planet M-dwarf systems, like TRAPPIST-1
   - Solar-system-like, with an inner rocky zone and outer giants
-  - a hot or eccentric giant that has cleared the inner system
+  - a hot giant that has cleared the inner system
   - debris-disc systems
   - white-dwarf remnants with debris and surviving outer planets
-- **Occurrence (direction, approximate):**
-  - Small planets are nearly everywhere.
+  - Orbits are circular, coplanar and prograde (SCL-04). Eccentric and tilted orbits are left out. Why: the simulation holds only circular orbits, and the first version should not outrun it.
+- **Occurrence (direction, figures checked 2026-10-16):**
+  - Small planets are nearly everywhere: M dwarfs host about 1.2 planets of 0.5 to 2.5 Earth radii per star at periods up to 10 days, and at least a third of Sun-like stars host several planets of 1 to 4 Earth radii within a year.
   - Sub-Neptunes (between Earth and Neptune in size, absent from our own system) are the most common type.
   - M dwarfs typically host two or three small planets in close orbits.
-  - Cold giants occur around perhaps 10 to 20% of Sun-like stars and only a few percent of M dwarfs.
-  - Hot Jupiters occur around about 1% of stars.
-- **Stability (candidate):** planets are spaced by a minimum number of mutual Hill radii; moons orbit within a fraction of their planet's Hill sphere.
-- **Key boundaries (direction):** the habitable zone is at about 0.95 to 1.7 × √(L/L☉) AU, the snow line at about 2.7 × √(L/L☉) AU. Water ice is abundant beyond the snow line, so its distance shapes the trade-off between water and solar power.
+  - Cold giants: about 14% of stars host one at 2 to 8 AU and 9% at 8 to 32 AU, rising with stellar mass and metallicity; a few percent of M dwarfs.
+  - Hot Jupiters occur around 0.5 to 1% of Sun-like stars.
+- **Stability (decided 2026-10-16):** planets are spaced at least eight mutual Hill radii apart; moons orbit within half their planet's Hill radius.
+- **Key boundaries (decided 2026-10-16):** the habitable zone runs from 0.99 to 1.70 × √(L/L☉) AU (the Sun's conservative limits, checked), the snow line is at 2.7 × √(L/L☉) AU. Water ice is abundant beyond the snow line, so its distance shapes the trade-off between water and solar power. The snow line is a game convention, not a surveyed figure.
 
 ### 5.2 Bodies (candidate)
 
-- **Planets:** rocky (airless, thin atmosphere, dense atmosphere, icy, molten), super-Earths, sub-Neptunes, ice giants, gas giants.
-- **Moons:** giants get moon systems, often with large icy moons, which are the main water sources. Rocky planets get few or none.
+- **Planets:** rocky (airless, thin atmosphere, dense atmosphere, icy, molten), super-Earths, sub-Neptunes, ice giants, gas giants. **Decided 2026-10-16:** every planet carries its kind, gravity, equilibrium temperature, atmosphere class (airless, thin, dense, or an envelope) and water (none, ice or surface), shown in the inspection inset; molten and icy are not separate kinds.
+- **Moons:** giants get moon systems, often with large icy moons, which are the main water sources. Rocky planets get few or none. **Decided 2026-10-16:** moons are named for their planet and a lowercase letter by distance (Morrow a, Morrow b), because numerals don't suit both planets and moons.
   - **Decided:** the test system (Corvane) is a plausible output of the generator, so its giants and their moons use realistic figures. Its main job is testing, so it may be less typical than the generator's usual output. Why: an implausible test system would hide problems the generator will meet, while an unusual one still exercises them.
   - **Direction, giant mass:** real gas giants run from about a tenth of a Jupiter mass (Saturn is 0.3) to several. Corvane's Morrow is one Jupiter mass.
-  - **Direction, moon spacing:** large regular moons sit from about 2 to 30 planet radii out, with periods of about 1 to 20 days (Io 1.8 d, Callisto 16.7 d). None sit inside about 2 radii, where tides tear moons apart. Moons stay within about half the planet's Hill radius (about 24 million km for Morrow). Small inner moons and distant captured moons also occur.
+  - **Decided 2026-10-16, moon spacing:** large regular moons sit from about 2 to 30 planet radii out, with periods of about 1 to 20 days (Io 1.8 d, Callisto 16.7 d). None sit inside 2 radii, where tides tear moons apart. Moons stay within half the planet's Hill radius (about 24 million km for Morrow). Small inner moons and distant captured moons also occur; the generator leaves captured moons out.
   - **Candidate:** the test system leaves out distant captured moons, because the satellite fit (ZOOM-15) fits every satellite and a moon at tens of millions of km would shrink the rest to nothing.
-  - **Specced:** Morrow's mass and moon periods, in TEST-07 and TEST-08 (`docs/spec/system-view.md`).
+  - **Specced:** Morrow's mass and moon periods, in TEST-07 and TEST-08 (`docs/spec/system-view.md`); generated moons in SYSG-30 to SYSG-35 (`docs/spec/system-generator.md`).
   - **Decided:** a second test system, Sol, is the real solar system inside the simulation's limits: the Sun, Mercury to Mars, Ceres, Jupiter, Saturn, Uranus and Neptune with their main moons and the main asteroid belt. Why: Corvane's figures are invented, so they can't show whether scale, spacing and speed feel right. Sol gives reference points people already know, such as how far Mercury sits from the Sun, how big Jupiter's moon system is and how long Neptune takes to go round.
   - **Direction, what Sol leaves out:** orbits are circular, coplanar and prograde (SCL-04), so Sol uses mean distances, ignores eccentricity and tilt, draws Triton prograde, and draws Uranus's moons in the system plane rather than round its tilted equator. Left out: the smallest regular moons (Miranda among them), Pluto and Charon (eccentric, tilted and locked in a resonance with Neptune, and Charon is an eighth of Pluto's mass, so SCL-04's parent-only period would be about 6% off), distant captured moons (as for Corvane), rings, Trojans and comets. It has no gates or salvage sites.
   - **Decided:** Sol also holds two stations and two ships round Earth, so transfers can be tried against known figures once they are built: Perigee Station, Marlin (a near-future hydrogen nuclear thermal ship, 15 km/s) and Vestige (a relic fusion-torch ship, 500 km/s) in the Low band, with Marlin docked at the station, and Apogee Station in the High band. Why: Corvane's ships are at invented planets, and one band-to-band trip round a planet people know is the smallest test of the transfer feature. Two drives, a workhorse that can explore the inner system and a relic that can go anywhere, show what the feature does at the edge of one ship's reach and with no edge at all.
@@ -119,14 +135,14 @@ Generate from observed occurrence rates and architecture templates rather than s
   - **Candidate:** Sol's day 0 is J2000.0 and the planets start at their real mean longitudes, but the calendar still starts on its own epoch (14 Mar 2341). Give a system its own start date if comparing with the real sky matters.
   - **Open:** Sol now has ships, and `lost_beyond_au` (6 AU) puts Saturn and Neptune beyond the point where a coasting ship is lost (BAND-08), so Vestige can't be sent there. It needs to be per system, or much larger.
   - **Specced:** Sol's content, its test ships and stations, and the start-up choice of system, in SOL-01 to SOL-17 and SOL-22 to SOL-23 (`docs/spec/sol.md`).
-- **Small bodies:** inner rocky or metallic belts, outer icy belts, Trojans, comets. Drawn as density shading, with notable sites as individual markers (*Presentation & Visual Style*, 2).
-- **Orbits:** Keplerian, on rails. How much more detail is modelled is open (*Drives & Transit*, 9).
+- **Small bodies (decided 2026-10-16):** a system has up to three belts, each an annulus with a mass and a rocky, metallic and icy composition: inner belts rocky and metallic, outer belts icy. A belt may hold a few large bodies, which are ordinary planet-class bodies. Trojans, comets and rings are left out of the first version. Belts are drawn as density shading, with notable sites as individual markers (*Presentation & Visual Style*, 2); the belts are a list, not a single belt (SCL-08). Why: most extraction will be from belts, so the belt is what the economy needs to know about; Trojans and comets add nothing the belts don't yet.
+- **Orbits (decided 2026-10-16):** circular and on rails, as everywhere in the simulation (SCL-04). Eccentricity, inclination and resonances are left out for now. The wider simulation's detail is still open (*Drives & Transit*, 9).
 
 ### 5.3 Worlds that support human life (direction)
 
 Starter worlds support human life in habitats on hostile surfaces (*Economy*), not in the open air.
 
-- **Candidate criteria:** gravity roughly 0.3 to 1.5 g; surface temperature and pressure within what habitats can manage; accessible water; a star that isn't too active.
+- **Candidate criteria:** gravity roughly 0.3 to 1.5 g; surface temperature and pressure within what habitats can manage; accessible water; a star that isn't too active. The settlement score of the generator uses these (SGEN-50).
 - Halden IV in the reference sketches (cold terrestrial, 0.82 g, thin nitrogen, −41 °C) is the intended flavour.
 - Close-in worlds of M dwarfs are often tidally locked and exposed to flares, which makes them harder but not impossible homes.
 
@@ -139,13 +155,15 @@ Each body carries rough deposits of the economy's few resources (*Economy*):
 - **Rare metals:** scarce and localised; concentrated in metallic asteroids and more common in high-metallicity systems.
 - **Helium-3:** gas giants; present but minor.
 
+**Decided 2026-10-16:** the first version records composition class only (rocky, metallic and icy fractions of a belt; water as none, ice or surface on a planet). Deposit amounts wait for the economy spec. Why: how much of what a body holds depends on how the economy counts resources, which is not designed yet.
+
 ## 6. Non-Visitable Systems (direction)
 
 Modelled at catalogue level only:
 
-- Position, star type(s), age, metallicity, and a catalogue designation rather than a name (the old network named only the systems it reached).
-- **Known planets (candidate):** a short list as astronomers would know it, biased towards large planets and close orbits, as real detection methods are. The player never learns more.
-- **Uses:** landmarks and depth in the cluster view; lore and recovered records ("a survey of this system was planned"); candidates for dark-gate destinations later.
+- Position, star type(s), age, metallicity, and a catalogue designation rather than a name (the old network named only the systems it reached). **Decided 2026-10-16.**
+- **Known planets (decided 2026-10-16 for the truth view):** an ungated system carries the same coarse summary as a gated one, and the truth view of the sector shows it. A view filtered by what a faction knows would show a short list as astronomers would know it, biased towards large planets and close orbits, as real detection methods are (candidate).
+- **Uses:** landmarks and depth in the sector view; lore and recovered records ("a survey of this system was planned"); candidates for dark-gate destinations later.
 - They are **never** visited, so full detail is never generated. If a later feature makes one visitable, the coarse summary seeds its detail on demand.
 
 ## 7. Historical Layer (direction)
@@ -166,13 +184,11 @@ Laid down after the physical map, in the same order as the setting's timeline (*
 
 ## 9. Open Questions
 
-- Slab proportions, and whether the plan shape is round, irregular or elongated.
-- The ratio of gated to ungated systems; maximum link range; links per system; the share of links that fail, and how they're chosen (*Gates*, 11).
-- Gate distance from the star: fixed, scaled by stellar mass, or beyond the outermost major planet (*Drives & Transit*, 9).
-- Which architecture templates are needed, and how many bodies per system.
-- How much orbital detail is modelled (eccentricity, inclination, resonances).
 - Whether native life exists anywhere, and in what form.
-- How habitable worlds are guaranteed in sufficient numbers without unrealistic odds.
-- Whether free-floating planets and white dwarfs get special treatment.
+- How habitable worlds are guaranteed in sufficient numbers without unrealistic odds. The settlement quota (at least 10% of gated systems are chosen for settlement) does not guarantee that any of them holds a habitable world.
+- Circumbinary planets, and whether a binary can be gated.
+- Whether a dormant gate's fault is damage or a lock, and which; the historical layer decides it.
 - How the historical layer is simulated: rules or a short simulated history.
-- Generation speed and how the simulation copes with a few hundred stars.
+- How the simulation copes with a few hundred systems, if more than the entered one ever runs at once.
+- When dark links to systems outside the sector, and free-floating planets, are added.
+- What a faction knows of the sector, and how the sector view is filtered by it.

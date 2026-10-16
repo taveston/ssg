@@ -42,6 +42,7 @@ The overview keeps how gates work deliberately unexplained. That still holds on 
 ## 6. Most links have already collapsed
 
 - **Most of the old network is dead.** The working links at game start are a minority of those the old network built.
+- **Shares and choice (decided 2026-10-16):** at game start about 30% of links work, 15% are dormant and 55% are collapsed, shifted a little for each map; the shares are targets. Failure falls more on links between busy, valuable systems, plus chance. Every system keeps at least one gate that isn't collapsed, the main working region holds at least 40% of the systems, and a repair order reaches every pocket from the main region, so no pocket stays out of play for good. **Specced** in `docs/spec/sector-generator.md` (7).
 - **Topology:** the old network was a dense mesh. With most links gone, what's left is sparse and irregular: chokepoints where one gate holds a region together, dead ends, backwaters, and isolated pockets that connect to each other but not to anyone else.
 - **Orphan worlds:** a system whose every gate has failed is cut off. It's still visible in the sky and known from the records. These give the title a second meaning, and are candidates for late-game reopening, lore and regret.
 - **Two salvage sites per dead link:** when a throat collapses, both mouths go. The generator shells at each end stay behind, dark and drifting. So one failed link leaves a wreck in each of two systems, near the gate ring.
@@ -77,12 +78,10 @@ A dormant gate is faulted, or locked, at one end or both. Which end decides who 
 
 - **The collapse:** the refugee flood on the last ships through the gates (*Factions & Ideology*) may have helped break the network.
 - **The threat:** rebuilding collapsed links, or reopening long-sealed ones, may let the threat in (*Setting & Back Story*).
-- **Free-floating planets:** a gate at a starless planet (*World Generator*, 3) could be a mouth abandoned mid-tow.
+- **Free-floating planets:** a gate at a starless planet could be a mouth abandoned mid-tow. The generator leaves free-floating planets out for now (*World Generator*, 3).
 
 ## 11. Open questions
 
-- Share of links collapsed, dormant and working at game start, and whether that varies by map.
-- How the generator chooses which links fail: at random, by distance from Earth (longest without tuning updates), by traffic during the collapse, or a mix.
 - Throat size, and whether it varies by gate.
 - How a lock works: who can set it, how long it takes, and whether it can be forced from the far side at a cost.
 - What the keyhole carries: speech and pictures only, or data and research too.
@@ -91,4 +90,4 @@ A dormant gate is faulted, or locked, at one end or both. Which end decides who 
 - Gate transit time and throughput.
 - Whether gates can be destroyed or captured.
 - Fog of war: what a faction knows of links it hasn't used.
-- Later: links out of the cluster that are dark.
+- Later: links out of the sector that are dark. There are none in the first version (*World Generator*, 4.2).

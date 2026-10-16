@@ -37,7 +37,7 @@ Everything shown is **candidate** unless *Presentation & Visual Style* marks it 
 ## Board 1: System view (hover)
 
 - A full-screen vector display at true scale: orbits as faint circles, faint range rings, the belt as a shaded band, the star with a glow and label.
-- **Top bar:** breadcrumb (Cluster / Corvane system); date with pause, 1 day/s (active) and 5 d/s; layer toggles (Ownership active, Resources, Salvage, Sensors); an Administration button that switches to the 2D administration view.
+- **Top bar:** breadcrumb (Sector / Corvane system); date with pause, 1 day/s (active) and 5 d/s; layer toggles (Ownership active, Resources, Salvage, Sensors); an Administration button that switches to the 2D administration view.
 - **Legend** top left, explaining marker shapes. **Alerts** top right: an orange-bordered "New contact near Halden IV" and a neutral "Bid received: survey tender".
 - **Off-screen gate:** edge-of-screen arrow labelled "Gate → Ostra · off-screen · 41 d from Halden".
 - **No moons are drawn individually at this zoom.** Every planet's moons, stations and parked ships are folded into its count marker (Halden IV "+5", Morrow "+11"), following the grouping rule.
@@ -76,7 +76,7 @@ Principle: the image itself carries the player through the transition, rather th
   - Own ground formation as a NATO-style infantry box (1st Arden Guard).
   - Shuttle field as a crosshair circle.
 - **Orbital layer:** tilted orbit rings drawn behind and in front of the globe, with Arden Highport station and moons IVa and IVb on their rings, and an edge cue for the inbound convoy ("Convoy C-12 · arrives in 19 d").
-- **Top bar:** back button and breadcrumb (Cluster / Corvane system / Halden IV); date and speed; Administration button.
+- **Top bar:** back button and breadcrumb (Sector / Corvane system / Halden IV); date and speed; Administration button.
 - **Body switcher chips** top left: Halden IV (active), Arden Highport, IVa, IVb, "IVc · inspect only". Bodies without a full planetary view open the inspection view instead.
 - **Layer toggles** bottom left: Settlements, Resources, Military, Ownership, Orbital.
 - **Settlement panel** on the right (Port Arden):

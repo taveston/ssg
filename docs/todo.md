@@ -55,6 +55,26 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - Clip the vertical axis's upper half at the map area's edge, as the arms are, so its arrowhead never runs under the top bar.
   - Tests: a ring's name and a marker's name share one size; changing a tunable changes every text it names; at tilt 75 with the frame body high on screen, the axis ends at the map's edge.
 
+- [ ] **Belts become a list** · SCL-08, MRK-05, MRK-18, SOL-07, TEST-01
+  - A system holds any number of named belts. Replace the single `Belt` component (`src/sim/body.rs`) with one belt record per belt: a name, inner and outer radius, and optionally a mass and a rocky, metallic and icy split. `BeltBlueprint` becomes a list in the system blueprint. Corvane's belt is named "Corvane belt" and Sol's "Main belt".
+  - MRK-05, MRK-18, SOL-07 and TEST-01 changed meaning (more than one belt, belt names), so their ✓ is cleared. SOL-11's count of one belt still holds.
+  - Tests: two belts draw two bands, each with its own grain seed; a system with no belt draws none; the belt counts and names of Corvane and Sol.
+- [ ] **Sector generator** · SGEN-01 to SGEN-92, ARCH-22
+  - Build `src/content/generator/` as plain data, one module per stage, with its own seeded random generator. Ask before adding a crate. Add `GeneratorTunables` (ARCH-22) holding every tunable in the spec's table, documented field by field.
+  - The name data file is `assets/names/names.txt` (SGEN-80): author at least 120 stems, 40 endings and the reserved list. Placeholder syllables are fine.
+  - Tests first: the invariants of SGEN-91 over many seeds are the main check, plus one test per requirement, named for what it checks (ARCH-30). Build the stages in order (volume and stars, summaries, gate choice, links, failure) and keep each stage's tests green before the next.
+  - ARCH-22 changed meaning (a third tunables struct), so its ✓ is cleared.
+  - Where the spec leaves a choice open, pick something sensible and add a finding.
+- [ ] **System generator** · SYSG-01 to SYSG-71, INS-08 · needs "Belts become a list" and "Sector generator"
+  - `generate_system` builds the records Corvane and Sol use (SCL-03). Add planet facts (SYSG-22) and the gate state (SYSG-52) as simulation components.
+  - INS-08 changed meaning (planet facts and gate state in the inset), so its ✓ is cleared.
+  - Tests: the invariants of SYSG-70 over generated systems; a generated system spawns in a headless app and its named orbits resolve (SYSG-05).
+- [ ] **Sector view** · SECT-01 to SECT-44, CAM-25, SOL-22, UNIT-05 · needs "System generator"
+  - A new view module with its plugin (`src/view/sector/`), a layer state both views read (SECT-01), and the light-year formatting in the shared module (UNIT-05).
+  - CAM-25 changed (the first entry is "Sector" and it works) and SOL-22 changed (`--sector` and `--seed` are now named), so their ✓ is cleared. Rename "Cluster" to "Sector" in `src/view/topbar/breadcrumb.rs` and its comments. Leave `cluster_join_px`, `overlap_clusters` and the other marker-grouping names alone: they mean overlapping markers.
+  - Add the keys `sector`, `seed` and `enter` to the `OW_SHOT` list in `CLAUDE.md` (SECT-44).
+  - The looks are first drafts: judge them on screen and add findings.
+
 ## Fixes
 
 - [ ] **Orbit membership follows the ship** · F-242, F-201 · RAIL-09, SCL-07, HOV-04, INS-05, MRK-09, HOV-02

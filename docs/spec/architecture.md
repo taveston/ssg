@@ -15,7 +15,7 @@ The code is split into domains, each a folder under `src/` with its own Bevy plu
 | Domain | Folder | Owns | Examples today |
 |---|---|---|---|
 | Simulation | `src/sim/` | The game state and its rules, in real units: clock, bodies, orbits, ownership, knowledge, and the authored text the player's records hold about a body (name, description, key facts). Knows nothing about screens, cameras or input. | `GameClock`, orbital elements, body positions in km, Kepler periods |
-| Content | `src/content/` | Data that seeds the simulation: the Corvane and Sol test systems as records. Replaced later by a generator. | `hand_made_system()` |
+| Content | `src/content/` | Data that seeds the simulation: the Corvane and Sol test systems as records, and the generators that make a sector and its systems (`sector-generator.md`, `system-generator.md`) as plain data in `src/content/generator/`. | `hand_made_system()`, `generate_sector()` |
 | View | `src/view/` | Everything drawn: scale conversion, markers, rings, multi-markers and trays, grouping, motion rule, inspection inset, top bar, palette, fonts, fidelity images, presentation tunables. | `markers`, `grouping`, `motion`, `inspect` |
 | Camera and input | `src/view/camera/` (or `src/input/` if it grows) | Camera state, zoom stops, zoom animation, navigation keys and mouse. The reference frame and key bindings are shared view modules (`view/frame.rs`, `view/bindings.rs`) so other view modules can read them. | `camera/rig`, `camera/stops`, bookmarks |
 
@@ -42,7 +42,7 @@ The code is split into domains, each a folder under `src/` with its own Bevy plu
 |---|---|---|
 | ARCH-20 | Every rule in a spec (fold hysteresis, motion mode, zoom stops, Kepler periods, apparent period, label rules) is a plain function with no Bevy queries or resources in its signature, taking and returning plain values. Systems gather inputs, call the function and apply the result. | ✓ |
 | ARCH-21 | Systems stay small: as a guide, under about 50 lines. Longer systems are split into a gather / decide / apply sequence or into helper functions. UI spawning is split into one helper per panel section. Content data and tests are exempt. | ✓ |
-| ARCH-22 | Magic numbers are named constants with a comment saying what they are. Numbers the spec calls tunable stay in one config resource per domain: `Tunables` (`src/view/tunables.rs`) for the view, `SimTunables` (`src/sim/tunables.rs`) for the simulation; simulation constants (for example `KM_PER_AU`, `G`) live in `src/sim/`. | ✓ |
+| ARCH-22 | Magic numbers are named constants with a comment saying what they are. Numbers the spec calls tunable stay in one config resource per domain: `Tunables` (`src/view/tunables.rs`) for the view, `SimTunables` (`src/sim/tunables.rs`) for the simulation, and `GeneratorTunables` (`src/content/generator/tunables.rs`, a plain struct passed to the generators) for the generators; simulation constants (for example `KM_PER_AU`, `G`) live in `src/sim/`. | |
 | ARCH-23 | A comment at the function implementing a spec rule explains the rule in its own terms, so the code can be understood without the spec open. It may end with the rule's ID, e.g. `// Satellites fold below fold_px and unfold only above unfold_px, so they don't flicker (GRP-01)`. A comment that is only an ID doesn't meet this. | ✓ |
 
 ## 3a. The orbits crate
