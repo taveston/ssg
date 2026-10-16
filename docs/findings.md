@@ -218,16 +218,6 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** MRK-02, MOT-02, LBL-01 · **Type:** spec gap
 - **Disposition:** open. Options: add a size column to the type roles table (map label, map second line, panel text, bar text) and read the sizes from one place in `view/fonts.rs`; or accept as is.
 
-### F-217 · Long functions and oversized modules
-- **Observation:** ARCH-21 asks for systems under about 50 lines, split gather / decide / apply, and one helper per panel section. These run well over: `planner/panel.rs` `spawn_tuning` (99 lines), `transfer/phasing.rs` `phasing_leg` (86), `sim/spawn.rs` `spawn_body` (84), `transfer/legs.rs` `solve_leg` (82), `plot_marks.rs` `spawn_north_dial` (82), `symbol_draw.rs` `spawn_symbol_parts` (78), `debug_shot.rs` `run_shot` (77), `transfer/tree.rs` `snapshot` (74). Several modules have grown past one concern: `planner/panel.rs` (about 1,200 lines before its tests: the panel's facts, its model-to-node writes and every spawn helper), `view/inspect.rs` (865), `transfer/legs.rs` (814), `view/markers.rs` (784). Seventeen functions in the game carry `allow(clippy::too_many_arguments)`; most are systems where a `SystemParam` bundle would do.
-- **Affects:** ARCH-21 · **Type:** conflict
-- **Disposition:** open. To-do item: split `planner/panel.rs` into `panel/facts.rs` (`PanelFacts`), `panel/write.rs` (`PanelWrites`, `paint_segments`) and `panel/spawn.rs` (the spawn helpers); split the functions above into gather / decide / apply; bundle the long system signatures into `SystemParam`s.
-
-### F-218 · The view folder and the headless tests are flat
-- **Observation:** `src/view/` holds 60 modules side by side; related ones share only a name prefix (`ring_chevron`, `ring_marks`, `ring_picking`, `rings`; `symbol_draw`, `symbol_shape`, `symbols`; `marker_picking`, `markers`; `planner_state`, `planner_words` beside `planner/`). `src/headless_tests.rs` is 4,943 lines, though `headless_tests/` already holds the paths, planner and frame cue tests in their own files.
-- **Affects:** ARCH-01, ARCH-31 · **Type:** idea
-- **Disposition:** open. To-do item: group the view into subfolders by area (`rings/`, `symbols/`, `markers/`, `inset/` for inspect, outline and sidebar), keeping shared state modules at the top (ARCH-03); move the rest of `headless_tests.rs` into `headless_tests/` by area (camera and zoom, grouping and motion, markers and labels, inset and outline), keeping the shared app builders in `headless_tests.rs`. Moves only, no behaviour change (ARCH-35).
-
 ## Parked
 
 ### F-145 · An intercept needs a standoff distance
