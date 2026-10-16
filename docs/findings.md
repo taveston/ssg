@@ -90,3 +90,33 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Observation:** SCL-07 now puts every station in a band, so the build drops a station's own orbit. TEST-02 and TEST-09 name the band for Arden Highport and Tern Relay, but nothing names one for Iver Yard, which had its own 45,000 km orbit. The build puts it in Iver's High band (58,000 km, period about 1.7 d), the band nearest its old orbit. This moves Iver's satellite frame out to 58,000 km.
 - **Affects:** SCL-07, TEST-01 · **Type:** spec gap
 - **Disposition:** open. Accept, or name Iver Yard's band in TEST-01.
+
+### F-173 · Capture and closest approach inside the primary's frame
+- **Observation:** BAND-06 and PHAS-11 read the point from the hyperbola a ship arrives on from outside a body's frame. A crossing round the body itself (band to band, or to a gate round the star) has no such hyperbola: its arc ends at a real place. The build lands a Rendezvous where the arc ends, and gives an Intercept there the angle of the arc's end as its closest-approach phase. The old rule (the angle of the arrival velocity) put the ship somewhere it never flew.
+- **Affects:** BAND-06, PHAS-11 · **Type:** spec gap
+- **Disposition:** open. Accept, and say so in BAND-06.
+
+### F-174 · "Already there" is a reason to the planner and done at once to an order
+- **Observation:** PHAS-04 says the plan is Done at once, and PLNR-42 and PLNR-92 make "Already there" a reason the solver gives. The build does both: the solver (`preview`) returns `AlreadyThere`, and `schedule` accepts the order and changes nothing, as Hold does for a parked ship. No Done plan is kept on the ship.
+- **Affects:** PHAS-04, PLNR-42 · **Type:** spec gap
+- **Disposition:** open. Accept, or say whether a Done plan should be recorded.
+
+### F-175 · How a low-thrust Intercept is trimmed
+- **Observation:** PHAS-15 trims an Intercept by lengthening `travel_days`, but a low-thrust drive's travel time is fixed by the drive (XFER-06). The build adds the trim to the spiral's length: same delta-v, gentler thrust, ending at the body a little later. Separately, the trim can fail on an impulsive leg when a small change of travel time moves the exit point past the ship, so the departure wait (PHAS-03) jumps by a period; the leg is then "Can't line up".
+- **Affects:** PHAS-15, XFER-06, PHAS-03 · **Type:** spec gap
+- **Disposition:** open. Accept, make a low-thrust Intercept at a station infeasible, or trim it by waiting before departure.
+
+### F-176 · Which band an Intercept at a station passes through
+- **Observation:** XFER-10 says an Intercept at a station or parked ship takes the target's band, but the order also carries `Intercept { band }`. The build uses the target's band and ignores the order's. So an Intercept at a station in a Low band (Arden Highport) is refused as "through Low" until **Intercept through Low** is built. Its speed (XFER-09) is taken at the target's band; for a station round the crossing's primary it is the plain relative speed (XFER-10).
+- **Affects:** XFER-10, XFER-08, XFER-09 · **Type:** spec gap
+- **Disposition:** open. Accept, or say what the order's band means for a station.
+
+### F-177 · The phasing rule of thumb holds only near half a turn
+- **Observation:** PHAS-13's rule of thumb (delta-v × meeting time within 3% of ⅔ × r × angle, for k ≥ 2) holds for the half-turn gap the check gives. For other gaps it can miss: at a gap of 0.8 of a turn, k = 2, inner orbit, it is 3.1% off. The test checks the half-turn case only.
+- **Affects:** PHAS-13 · **Type:** spec wrong
+- **Disposition:** open. Limit the rule to the half-turn case, or widen the tolerance.
+
+### F-178 · Groups are together, but nothing forms them yet
+- **Observation:** PHAS-14 needs the ships of a group to be together, but nothing in play forms a group (F-159). The build adds the check only: `SystemTree::all_together` says whether ships could be one group (all parked in one orbit, every two together). Whatever forms or merges groups should call it. The departure wait, the arrival wait and docking all read phase, so ships that are together leave and arrive together.
+- **Affects:** PHAS-14 · **Type:** spec gap
+- **Disposition:** open. Use the check when group orders are specced.
