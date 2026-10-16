@@ -12,7 +12,11 @@ use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use orbits::{CircularOrbit, Segment};
 
-use super::legs::{Arrival, Departure, Infeasible, Landing, LegBurns, Order, SolvedLeg, solve_leg};
+use super::legs::solve_leg;
+use super::order::{
+    Arrival, Departure, Infeasible, Landing, LegBurns, Order, SolvedLeg, TargetLock,
+};
+use super::phase::{gap_rad, together};
 use super::places::{Place, is_escaping};
 use super::tree::{ShipState, TreeQuery};
 use crate::sim::body::BodyClass;
@@ -54,6 +58,16 @@ pub struct Leg {
     pub arrival_day: f64,
     pub landing: Landing,
     pub intercept_speed_kms: Option<f64>,
+    /// PHAS-03: days waited in the departure orbit for the exit point.
+    pub departure_wait_days: f64,
+    /// PHAS-10: days waited for the target to reach the capture point.
+    pub arrival_wait_days: f64,
+    /// PHAS-11: an Intercept's closest-approach phase.
+    pub closest_approach_rad: Option<f64>,
+    /// PHAS-15: days added so an Intercept meets its target.
+    pub trim_days: Option<f64>,
+    /// PLAN-11: the parked target ship the leg was solved against.
+    pub target_lock: Option<TargetLock>,
 }
 
 impl Leg {
@@ -73,6 +87,11 @@ impl Leg {
             arrival_day: solved.arrival_day,
             landing: solved.landing,
             intercept_speed_kms: solved.intercept_speed_kms,
+            departure_wait_days: solved.departure_wait_days,
+            arrival_wait_days: solved.arrival_wait_days,
+            closest_approach_rad: solved.closest_approach_rad,
+            trim_days: solved.trim_days,
+            target_lock: solved.target_lock,
         }
     }
 
@@ -157,23 +176,19 @@ pub enum Effect {
 }
 
 /// PLAN-10 / PLAN-11 / PLAN-21: the transitions a plan makes on `day`:
-/// Scheduled becomes InFlight on the depart day if the ship is still in
-/// the orbit assumed (`in_departure_orbit`) and can still pay
+/// Scheduled becomes InFlight on the depart day if everything the leg
+/// was solved against still holds (`as_solved`: the ship in the orbit
+/// assumed, a target ship where it was) and the ship can still pay
 /// (`available_kms` counts what this plan reserved), else Failed; in
 /// flight, the burns are made as their days pass, the ship leaves and
 /// joins orbits, and the plan is Done on arrival (Rendezvous) or at the
 /// crossing's end (Intercept).
-pub fn advance(
-    plan: &mut Plan,
-    day: f64,
-    in_departure_orbit: bool,
-    available_kms: f64,
-) -> Vec<Effect> {
+pub fn advance(plan: &mut Plan, day: f64, as_solved: bool, available_kms: f64) -> Vec<Effect> {
     let mut effects = Vec::new();
     let leg = plan.legs.last().cloned().expect("a plan has a leg");
     if plan.status == Status::Scheduled && day >= leg.depart_day {
         let can_pay = available_kms + plan.reserved_kms >= leg.delta_v_kms - 1e-9;
-        if in_departure_orbit && can_pay {
+        if as_solved && can_pay {
             plan.status = Status::InFlight;
             effects.push(Effect::Launch(leg.trajectory.clone()));
         } else {
@@ -324,7 +339,9 @@ impl Planner<'_, '_> {
     }
 
     /// PLAN-01 / PLAN-21: give `ship` a one-leg plan for `order`, reserving
-    /// its delta-v. A Hold order holds instead (PLAN-13).
+    /// its delta-v. A Hold order holds instead (PLAN-13), and an order to
+    /// where the ship already is (PHAS-04) is done at once: like Hold on a
+    /// parked ship, it costs nothing and changes nothing.
     pub fn schedule(&mut self, ship: Entity, order: &Order) -> Result<(), Infeasible> {
         if order.destination == Place::Hold {
             return self.hold(ship);
@@ -336,7 +353,10 @@ impl Planner<'_, '_> {
         {
             return Err(Infeasible::Busy);
         }
-        let solved = self.preview(ship, order)?;
+        let solved = match self.preview(ship, order) {
+            Err(Infeasible::AlreadyThere) => return Ok(()),
+            solved => solved?,
+        };
         let plan = Plan::new(ship, vec![Leg::new(order, solved)])?;
         let (_, mut account, _) = self.ships.get_mut(ship).map_err(|_| Infeasible::NoDrive)?;
         account.reserve(plan.reserved_kms());
@@ -444,12 +464,29 @@ type PlannedShips<'w, 's> = Query<
     ),
 >;
 
+/// Where a parked ship is: its named orbit, its phase there and the
+/// orbit's radius.
+pub type ParkedAt = (Entity, f64, f64);
+
+/// PLAN-11: whether the target ship a leg was solved against is still
+/// parked where it was: in the same orbit, and together (PHAS-02) with
+/// the phase it had. `now` is where it is parked today, if it is.
+pub fn target_unmoved(lock: &TargetLock, now: Option<ParkedAt>, together_km: f64) -> bool {
+    now.is_some_and(|(orbit, phase0_rad, radius_km)| {
+        orbit == lock.orbit
+            && together(radius_km, gap_rad(lock.phase0_rad, phase0_rad), together_km)
+    })
+}
+
 /// PLAN-10 / PLAN-11 / PLAN-21: step every plan to today and apply what
-/// it asks for to its ship.
+/// it asks for to its ship. On the depart day the leg must still find the
+/// ship in its departure orbit and any target ship where it was.
 pub fn run_plans(
     mut commands: Commands,
     clock: Res<GameClock>,
+    tunables: Res<SimTunables>,
     bodies: Query<(Entity, &BodyClass)>,
+    parked: Query<(&InNamedOrbit, &Orbit)>,
     mut ships: PlannedShips,
 ) {
     let day = clock.elapsed_days();
@@ -457,14 +494,23 @@ pub fn run_plans(
         .iter()
         .find(|(_, class)| **class == BodyClass::Star)
         .map(|(e, _)| e);
+    let parked_at = |ship: Entity| -> Option<ParkedAt> {
+        let (in_orbit, orbit) = parked.get(ship).ok()?;
+        Some((in_orbit.0, orbit.phase0_rad, orbit.radius_km))
+    };
     for (ship, mut plan, mut account, in_orbit) in &mut ships {
         if !plan.is_active() {
             continue;
         }
-        let assumed = plan.leg().departure_orbit();
+        let leg = plan.leg();
+        let assumed = leg.departure_orbit();
         let in_departure_orbit = assumed.is_none() || assumed == in_orbit.map(|o| o.0);
+        let target_there = leg
+            .target_lock
+            .is_none_or(|lock| target_unmoved(&lock, parked_at(lock.ship), tunables.together_km));
         let available = account.available_kms();
-        for effect in advance(&mut plan, day, in_departure_orbit, available) {
+        let as_solved = in_departure_orbit && target_there;
+        for effect in advance(&mut plan, day, as_solved, available) {
             apply(&mut commands, ship, star, &mut account, effect);
         }
     }
@@ -642,6 +688,11 @@ mod tests {
                 Landing::Intercept
             },
             intercept_speed_kms: (!rendezvous).then_some(4.0),
+            departure_wait_days: 0.0,
+            arrival_wait_days: 0.0,
+            closest_approach_rad: None,
+            trim_days: None,
+            target_lock: None,
         };
         (Plan::new(ship, vec![leg]).unwrap(), orbit, dest)
     }
@@ -757,5 +808,25 @@ mod tests {
         advance(&mut plan, 5.0, true, 0.0);
         assert_eq!(cancel(&mut plan), None);
         assert_eq!(plan.status, Status::InFlight);
+    }
+
+    /// PLAN-11: a target ship is where the leg was solved against only
+    /// while it is parked in the same orbit, together with the phase it
+    /// had; moved along the ring, into another orbit or off into flight,
+    /// it is not.
+    #[test]
+    fn a_target_ship_must_stay_where_it_was() {
+        let mut world = World::new();
+        let [ship, orbit, other] = [(); 3].map(|_| world.spawn_empty().id());
+        let lock = TargetLock {
+            ship,
+            orbit,
+            phase0_rad: 1.0,
+        };
+        let r = 60_000.0;
+        assert!(target_unmoved(&lock, Some((orbit, 1.0 + 5.0 / r, r)), 10.0));
+        assert!(!target_unmoved(&lock, Some((orbit, 1.1, r)), 10.0));
+        assert!(!target_unmoved(&lock, Some((other, 1.0, r)), 10.0));
+        assert!(!target_unmoved(&lock, None, 10.0));
     }
 }

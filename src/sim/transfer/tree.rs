@@ -10,6 +10,7 @@ use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use orbits::{CircularOrbit, Conic};
 
+use super::phase::{gap_rad, together};
 use super::places::{Band, hill_radius_km};
 use crate::sim::body::{BodyClass, Mass, PhysicalRadius};
 use crate::sim::named_orbit::{DockingOrbitOf, InNamedOrbit, NamedOrbit};
@@ -127,12 +128,49 @@ impl SystemTree {
     }
 
     /// The station a ship parked in `orbit` at `phase0_rad` is docked at:
-    /// one in the same orbit at the same phase (BAND-02).
-    pub fn station_at(&self, orbit: Entity, phase0_rad: f64) -> Option<Entity> {
+    /// one in the same orbit that the ship is together with, closer than
+    /// `together_km` (BAND-02, PHAS-02).
+    pub fn station_at(&self, orbit: Entity, phase0_rad: f64, together_km: f64) -> Option<Entity> {
+        let radius_km = self.orbits.get(&orbit)?.radius_km;
         self.stations
             .iter()
-            .find(|(_, node)| node.orbit == orbit && same_phase(node.phase0_rad, phase0_rad))
+            .find(|(_, node)| {
+                node.orbit == orbit
+                    && together(radius_km, gap_rad(phase0_rad, node.phase0_rad), together_km)
+            })
             .map(|(&station, _)| station)
+    }
+
+    /// PHAS-14: whether `ships` could be one group: every one parked in
+    /// the same named orbit, and every two of them together (PHAS-02).
+    /// Ships that aren't together close the gap first, so they can't be
+    /// grouped as they are. No ships, or one parked ship, are together.
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "read when ships form groups, not yet specced (F-159)"
+        )
+    )]
+    pub fn all_together(&self, ships: &[Entity], together_km: f64) -> bool {
+        let places: Option<Vec<(Entity, f64)>> = ships
+            .iter()
+            .map(|ship| match self.ships.get(ship)? {
+                ShipState::Parked { orbit, phase0_rad } => Some((*orbit, *phase0_rad)),
+                _ => None,
+            })
+            .collect();
+        let Some(places) = places else {
+            return false;
+        };
+        places.iter().enumerate().all(|(i, &(orbit, phase))| {
+            places[i + 1..].iter().all(|&(other_orbit, other_phase)| {
+                other_orbit == orbit
+                    && self.orbits.get(&orbit).is_some_and(|node| {
+                        together(node.radius_km, gap_rad(phase, other_phase), together_km)
+                    })
+            })
+        })
     }
 
     /// The docking orbit a gate or site offers.
@@ -278,14 +316,6 @@ impl TreeQuery<'_, '_> {
     }
 }
 
-/// Whether two start phases name the same place on a ring, whole turns
-/// apart or not. Content places a docked ship at its station's phase
-/// exactly, so the tolerance only absorbs rounding.
-fn same_phase(a: f64, b: f64) -> bool {
-    let gap = (a - b).rem_euclid(std::f64::consts::TAU);
-    gap.min(std::f64::consts::TAU - gap) < 1e-9
-}
-
 /// RAIL-09 / BAND-07: a ship is parked if it sits in a named orbit, and
 /// otherwise coasting if its rail's current segment is an unbounded conic;
 /// anything else is mid-crossing.
@@ -418,5 +448,52 @@ mod tests {
             }
         );
         assert_eq!(ship_state(None, None, None, 0.0), ShipState::InFlight);
+    }
+
+    /// PHAS-02 / PHAS-14: a ship within `together_km` of a station in its
+    /// orbit is docked at it, and one farther off is not. Ships could be
+    /// one group only if all are parked in one orbit and together.
+    #[test]
+    fn docking_and_grouping_need_ships_together() {
+        let mut world = World::new();
+        let [body, orbit, other_orbit, station, a, b, c, d, e] =
+            [(); 9].map(|_| world.spawn_empty().id());
+        let r = 60_000.0;
+        let mut tree = SystemTree::default();
+        for o in [orbit, other_orbit] {
+            let node = OrbitNode {
+                body,
+                radius_km: r,
+                period_days: 2.0,
+                band: None,
+                docking_for: None,
+            };
+            tree.orbits.insert(o, node);
+        }
+        tree.stations.insert(
+            station,
+            StationNode {
+                orbit,
+                phase0_rad: 1.0,
+            },
+        );
+        let near = 1.0 + 5.0 / r;
+        let far = 1.0 + 50.0 / r;
+        assert_eq!(tree.station_at(orbit, near, 10.0), Some(station));
+        assert_eq!(tree.station_at(orbit, 1.0 - 5.0 / r, 10.0), Some(station));
+        assert_eq!(tree.station_at(orbit, far, 10.0), None);
+        assert_eq!(tree.station_at(other_orbit, 1.0, 10.0), None);
+
+        let parked = |orbit, phase0_rad| ShipState::Parked { orbit, phase0_rad };
+        tree.ships.insert(a, parked(orbit, 1.0));
+        tree.ships.insert(b, parked(orbit, near));
+        tree.ships.insert(c, parked(orbit, far));
+        tree.ships.insert(d, parked(other_orbit, 1.0));
+        tree.ships.insert(e, ShipState::InFlight);
+        assert!(tree.all_together(&[a, b], 10.0));
+        assert!(tree.all_together(&[a], 10.0));
+        assert!(!tree.all_together(&[a, b, c], 10.0), "c is 50 km off");
+        assert!(!tree.all_together(&[a, d], 10.0), "another orbit");
+        assert!(!tree.all_together(&[a, e], 10.0), "e is in flight");
     }
 }

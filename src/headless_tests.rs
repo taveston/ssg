@@ -31,7 +31,7 @@ use crate::sim::ship::{DeltaV, InFlight, ShipRail};
 use crate::sim::system::{
     BeltBlueprint, BodyBlueprint, GateBlueprint, OrbitPlacement, SystemData, SystemDataResource,
 };
-use crate::sim::transfer::legs::{Arrival, Infeasible, Landing, Order, SolvedLeg};
+use crate::sim::transfer::order::{Arrival, Infeasible, Landing, Order, SolvedLeg};
 use crate::sim::transfer::places::{Band, Place};
 use crate::sim::transfer::plan::{Plan, Planner, Status};
 use crate::sim::units::{EARTH_MASS_KG, KM_PER_AU, SOLAR_MASS_KG};
@@ -3051,7 +3051,7 @@ fn high_to_low(app: &mut App, halden: Entity, depart_day: f64) -> Order {
 /// plan is Scheduled with its delta-v reserved; on the depart day it is
 /// InFlight; at the crossing start the ship burns, leaves its named orbit
 /// and flies round Halden IV on its rail; at the crossing end it burns
-/// again and joins Low at its arrival direction; on arrival the plan is
+/// again and joins Low where its arc ends; on arrival the plan is
 /// Done and the whole delta-v is spent.
 #[test]
 fn a_warship_flies_from_high_to_low_and_parks() {
@@ -3420,6 +3420,156 @@ fn hold_drops_the_later_burns() {
     assert_eq!(plan(&app, orison).status, Status::Holding);
 }
 
+/// A ship's named orbit and phase there, read from its components.
+fn parked_phase(app: &App, ship: Entity) -> (Entity, f64) {
+    let orbit = app.world().get::<InNamedOrbit>(ship).unwrap().0;
+    (orbit, app.world().get::<Orbit>(ship).unwrap().phase0_rad)
+}
+
+fn position_km(app: &App, entity: Entity) -> bevy::math::DVec3 {
+    app.world().get::<OrbitPositionKm>(entity).unwrap().0
+}
+
+/// BAND-05 / TEST-10: Orison and Ardent share Halden IV's High band but
+/// not a place in it: on every day they are 2r sin(gap / 2) apart.
+#[test]
+fn ships_in_one_band_are_apart_by_their_phase_gap() {
+    use crate::sim::transfer::phase::{gap_rad, separation_km};
+
+    let mut app = sim_app();
+    let orison = body(&mut app, "Orison");
+    let ardent = body(&mut app, "Ardent");
+    let (high, orison_phase) = parked_phase(&app, orison);
+    let (ardent_orbit, ardent_phase) = parked_phase(&app, ardent);
+    assert_eq!(high, ardent_orbit);
+    let radius = app.world().get::<NamedOrbit>(high).unwrap().radius_km;
+    let expected = separation_km(radius, gap_rad(orison_phase, ardent_phase));
+    assert!(expected > 1_000.0, "{expected} km");
+    for until in [0.3, 2.7] {
+        run_until(&mut app, 1.0, until);
+        let apart = (position_km(&app, orison) - position_km(&app, ardent)).length();
+        assert!((apart - expected).abs() < 1e-3, "{apart} vs {expected}");
+    }
+}
+
+/// An order for Orison to meet Ardent in their shared band.
+fn meet_ardent(app: &mut App, depart_day: f64) -> Order {
+    let ardent = body(app, "Ardent");
+    Order {
+        destination: Place::Ship { ship: ardent },
+        arrival: Arrival::Rendezvous,
+        depart_day,
+        travel_days: 1.0,
+    }
+}
+
+/// PHAS-05 / PHAS-09 / PHAS-02: Orison closes the gap to Ardent in their
+/// shared band with a phasing leg. It leaves its orbit at the first burn,
+/// flies round Halden IV, and on arrival is back in High, together with
+/// Ardent, with both burns spent.
+#[test]
+fn a_ship_closes_the_gap_to_another_in_its_band() {
+    let mut app = sim_app();
+    let orison = body(&mut app, "Orison");
+    let ardent = body(&mut app, "Ardent");
+    let (high, _) = parked_phase(&app, orison);
+    let order = meet_ardent(&mut app, 0.5);
+    schedule(&mut app, orison, order).unwrap();
+    let leg = plan(&app, orison).leg().clone();
+    assert_eq!(leg.primary, body(&mut app, "Halden IV"));
+    assert!(leg.travel_days >= 1.0);
+
+    run_until(
+        &mut app,
+        1.0,
+        (leg.crossing_start_day + leg.crossing_end_day) / 2.0,
+    );
+    assert!(app.world().get::<InFlight>(orison).is_some());
+
+    run_until(&mut app, 1.0, leg.arrival_day + 0.2);
+    assert_eq!(plan(&app, orison).status, Status::Done);
+    assert_eq!(parked_phase(&app, orison).0, high);
+    let apart = (position_km(&app, orison) - position_km(&app, ardent)).length();
+    let together_km = app
+        .world()
+        .resource::<crate::sim::tunables::SimTunables>()
+        .together_km;
+    assert!(apart < together_km, "{apart} km apart");
+    assert!((account(&app, orison).spent_kms - leg.delta_v_kms).abs() < 1e-9);
+}
+
+/// PHAS-04: an order to the ship's own band is already done: it is
+/// accepted, makes no plan and costs nothing.
+#[test]
+fn an_order_to_where_the_ship_is_changes_nothing() {
+    let mut app = sim_app();
+    let halden = body(&mut app, "Halden IV");
+    let orison = body(&mut app, "Orison");
+    let order = Order {
+        destination: Place::Body {
+            body: halden,
+            band: Band::High,
+        },
+        ..meet_ardent(&mut app, 1.0)
+    };
+    assert_eq!(
+        preview(&mut app, orison, order),
+        Err(Infeasible::AlreadyThere)
+    );
+    assert_eq!(schedule(&mut app, orison, order), Ok(()));
+    run(&mut app, 1);
+    assert!(app.world().get::<Plan>(orison).is_none());
+    assert_eq!(account(&app, orison), DeltaV::full(9.9));
+}
+
+/// PLAN-11: a leg that meets a ship remembers where the ship was. If the
+/// target has moved round the band by the depart day, the plan fails and
+/// its delta-v is given back.
+#[test]
+fn a_plan_fails_if_its_target_ship_has_moved() {
+    let mut app = sim_app();
+    let orison = body(&mut app, "Orison");
+    let ardent = body(&mut app, "Ardent");
+    let order = meet_ardent(&mut app, 2.0);
+    schedule(&mut app, orison, order).unwrap();
+    assert!(plan(&app, orison).leg().target_lock.is_some());
+    app.world_mut().get_mut::<Orbit>(ardent).unwrap().phase0_rad += 0.5;
+    run_until(&mut app, 1.0, 2.5);
+    assert_eq!(plan(&app, orison).status, Status::Failed);
+    assert_eq!(account(&app, orison), DeltaV::full(9.9));
+}
+
+/// PHAS-15 / XFER-10: Orison's Intercept at Iver Yard, in Iver's High
+/// band, is trimmed by less than one period of the band so that the yard
+/// is at the Intercept's closest-approach point on the crossing end day.
+#[test]
+fn an_intercept_at_iver_yard_is_trimmed_to_meet_it() {
+    use crate::sim::transfer::phase::gap_rad;
+
+    let mut app = sim_app();
+    let orison = body(&mut app, "Orison");
+    let iver = body(&mut app, "Iver");
+    let yard = body(&mut app, "Iver Yard");
+    let order = Order {
+        destination: Place::Station { station: yard },
+        ..cheapest_intercept_of_iver(&mut app, orison, iver)
+    };
+    let leg = preview(&mut app, orison, order).unwrap();
+    let (band, yard_phase) = parked_phase(&app, yard);
+    let named = app.world().get::<NamedOrbit>(band).unwrap().clone();
+    let trim = leg.trim_days.expect("an Intercept at a station is trimmed");
+    assert!((0.0..named.period_days).contains(&trim), "{trim} d");
+    let yard_angle = orbits::CircularOrbit {
+        radius_km: named.radius_km,
+        period_days: named.period_days,
+        phase0_rad: yard_phase,
+    }
+    .angle_at(leg.crossing_end_day);
+    let miss = gap_rad(yard_angle, leg.closest_approach_rad.unwrap());
+    let miss_km = named.radius_km * miss.min(std::f64::consts::TAU - miss);
+    assert!(miss_km < 10.0, "{miss_km} km");
+}
+
 /// A headless app with Sol waiting to spawn, as `--system sol` gives.
 fn sol_app() -> App {
     let mut app = headless_app(FRAME);
@@ -3507,10 +3657,10 @@ fn the_debug_shot_sets_up_its_view_then_asks_for_a_capture() {
     assert_eq!(shots.iter(app.world()).count(), 1);
 }
 
-/// BAND-02 / SCL-07 / TEST-02: Arden Highport is a place in Halden IV's
-/// Low band (period about 0.07 d) at its own phase, and offers no orbit of
-/// its own. An order to the station flies to that band, as an order to
-/// the band itself does.
+/// BAND-02 / SCL-07 / TEST-02 / XFER-10: Arden Highport is a place in
+/// Halden IV's Low band (period about 0.07 d) at its own phase, and offers
+/// no orbit of its own. An order to the station flies to that band and
+/// meets the station where it is, landing at its phase.
 #[test]
 fn a_station_is_a_place_in_its_band_at_its_phase() {
     use crate::sim::transfer::tree::{StationNode, TreeQuery};
@@ -3547,7 +3697,19 @@ fn a_station_is_a_place_in_its_band_at_its_phase() {
         ..to_band
     };
     let leg = preview(&mut app, orison, to_station).unwrap();
-    assert!(matches!(leg.landing, Landing::Orbit { orbit, .. } if orbit == low));
-    let band_leg = preview(&mut app, orison, to_band).unwrap();
-    assert_eq!(leg.delta_v_kms, band_leg.delta_v_kms);
+    assert!(
+        matches!(leg.landing, Landing::Orbit { orbit, phase0_rad, .. } if orbit == low && phase0_rad == 2.4)
+    );
+    let low_km = app.world().get::<NamedOrbit>(low).unwrap().radius_km;
+    let station_then = orbits::CircularOrbit {
+        radius_km: low_km,
+        period_days: period,
+        phase0_rad: 2.4,
+    }
+    .position_at(leg.crossing_end_day);
+    let arc_end = leg
+        .trajectory
+        .state_at(leg.crossing_end_day - 1e-9)
+        .unwrap();
+    assert!((arc_end.position - station_then).length() < 10.0);
 }
