@@ -23,7 +23,7 @@ pub fn on_multi_click(
     check: ClickCheck,
     mut body_click: BodyClick,
 ) {
-    if !check.selects(&click) || body_click.completes_double() {
+    if !check.selects(&click) || body_click.completes_double(click.count) {
         return;
     }
     let Some(marker) = targets

@@ -54,8 +54,15 @@ impl MapClicks {
         self.last = None;
     }
 
-    /// A select-button press at `now`.
+    /// A select-button press at `now`. Only the first press after a click
+    /// can double it: a second press since then, on a panel or starting a
+    /// drag, ends the chance.
     pub fn pressed(&mut self, now: Duration) {
+        if let (Some(last), Some(before)) = (self.last, self.pressed_at)
+            && before > last.released_at
+        {
+            self.last = None;
+        }
         self.pressed_at = Some(now);
     }
 
@@ -131,5 +138,19 @@ mod tests {
         clicks.forget();
         clicks.pressed(ms(3100));
         assert_eq!(clicks.take_double(INTERVAL), None, "forgotten");
+    }
+
+    /// ZOOM-16: a press between the click and the next one, on a panel or
+    /// to drag, means the next click doubles nothing.
+    #[test]
+    fn a_press_in_between_ends_the_double_click() {
+        let mut world = World::new();
+        let body = world.spawn_empty().id();
+        let mut clicks = MapClicks::default();
+        clicks.pressed(ms(1000));
+        clicks.remember(body, ms(1080));
+        clicks.pressed(ms(1150));
+        clicks.pressed(ms(1300));
+        assert_eq!(clicks.take_double(INTERVAL), None);
     }
 }

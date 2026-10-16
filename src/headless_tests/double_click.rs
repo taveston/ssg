@@ -17,6 +17,12 @@ fn click_app() -> App {
         app.add_plugins((SharedOrbitPlugin, RingMarksPlugin))
             .add_plugins((PickingPlugin, InteractionPlugin, RingPickingPlugin))
             .add_plugins(crate::view::hover::HoverPlugin)
+            // The clicks are timed on the real clock; a long interval
+            // keeps a slow test machine from splitting a double-click.
+            .insert_resource(bevy::picking::PickingSettings {
+                multi_click_interval: std::time::Duration::from_secs(30),
+                ..default()
+            })
             .add_systems(
                 PreUpdate,
                 super::camera::follow_cursor_with_pointer.before(PickingSystems::ProcessInput),

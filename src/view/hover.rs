@@ -135,8 +135,14 @@ impl BodyClick<'_> {
     /// first click hit this target or another one that has since moved,
     /// complete the double-click on what the first click hit and say so.
     /// This click's own target then does nothing more: the first click
-    /// already selected what it hit and opened its tray.
-    pub fn completes_double(&mut self) -> bool {
+    /// already selected what it hit and opened its tray. A click Bevy
+    /// already counts as a double (`count` 2 or more) landed on the same
+    /// target, so it takes that target's own double-click path, which
+    /// also keeps its tray open (MUL-07).
+    pub fn completes_double(&mut self, count: u8) -> bool {
+        if count >= 2 {
+            return false;
+        }
         let interval = double_click_interval(self.picking.as_deref());
         let Some(body) = self.clicks.take_double(interval) else {
             return false;
@@ -153,7 +159,7 @@ impl BodyClick<'_> {
     /// INS-03 / PLNR-03: a click on empty map space clears the selection,
     /// unless the planner is open or the click completes a double-click.
     fn empty_click(&mut self) {
-        if self.completes_double() {
+        if self.completes_double(1) {
             return;
         }
         self.clicks.forget();
@@ -258,7 +264,7 @@ pub fn on_marker_click(
     check: ClickCheck,
     mut body_click: BodyClick,
 ) {
-    if !check.selects(&click) || body_click.completes_double() {
+    if !check.selects(&click) || body_click.completes_double(click.count) {
         return;
     }
     let Ok(marker_for) = markers.get(click.entity) else {
@@ -285,7 +291,7 @@ pub fn on_orbit_click(
     check: ClickCheck,
     mut body_click: BodyClick,
 ) {
-    if !check.selects(&click) || body_click.completes_double() {
+    if !check.selects(&click) || body_click.completes_double(click.count) {
         return;
     }
     if let Ok(orbit_for) = orbits.get(click.entity)
@@ -400,6 +406,34 @@ mod tests {
         assert_eq!(world.resource::<Selection>().revealed_orbit, Some(orbit));
         click(&mut world, target, 2);
         assert_eq!(outcome(&world), (Some(parent), Some(parent), None));
+    }
+
+    /// MUL-07 / HOV-05: a double-click on the same shared ring, soon after
+    /// its first click, asks for the parent's frame and asks for the tray
+    /// again, so the tray the first click opened stays open.
+    #[test]
+    fn a_double_click_on_one_target_keeps_its_tray() {
+        let (mut world, parent, ..) = click_world();
+        let orbit = world
+            .spawn(NamedOrbit {
+                parent,
+                name: "High".to_string(),
+                radius_km: 1.0,
+                period_days: 1.0,
+            })
+            .id();
+        let target = world.spawn(OrbitFor(orbit)).observe(on_orbit_click).id();
+        click(&mut world, target, 1);
+        world.resource_mut::<TrayRequest>().0 = None;
+        world
+            .resource_mut::<MapClicks>()
+            .pressed(Duration::from_millis(100));
+        click(&mut world, target, 2);
+        assert_eq!(outcome(&world), (Some(parent), Some(parent), None));
+        assert_eq!(
+            world.resource::<TrayRequest>().0,
+            Some(TrayFor::Orbit(orbit))
+        );
     }
 
     /// PLNR-03 / INS-01: while the planner is open, a click on a marker
