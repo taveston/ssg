@@ -19,18 +19,13 @@ use std::f64::consts::TAU;
 
 use bevy::math::DVec3;
 use bevy::prelude::*;
-use orbits::{
-    Conic, Rail, Segment, Sense, Spiral, State, capture_angle, circular_speed, closing_speed,
-    exit_angle, lambert, pass_speed, turn_angle, turned_velocity,
-};
+use orbits::{Conic, Rail, Segment, Sense, Spiral, State, circular_speed, exit_angle, lambert};
 
-use super::ends::{End, Own, Target, departure_end, phase_for_angle, resolve, target_end};
-use super::order::{
-    Arrival, Departure, Infeasible, Landing, LegBurns, Order, SolvedLeg, TargetLock,
-};
+use super::ends::{End, Own, Target, departure_end, resolve, target_end};
+use super::order::{Arrival, Departure, Infeasible, LegBurns, Order, SolvedLeg, TargetLock};
 use super::phase::{gap_rad, wait_days};
 use super::phasing::solve_in_own_orbit;
-use super::places::{Band, Place, band_radii};
+use super::places::{Band, Place};
 use super::tree::{OrbitNode, SystemTree};
 use crate::sim::rail::{
     SegmentKind, ShipTrajectory, km_per_day_to_km_per_s, km_per_s_to_km_per_day,
@@ -38,52 +33,42 @@ use crate::sim::rail::{
 use crate::sim::ship::Drive;
 use crate::sim::tunables::SimTunables;
 
-/// How far under its limit a periapsis may come, as a fraction of the
-/// limit, and still count as at it: room for the rounding of a path
-/// solved to arrive at a Low band exactly (XFER-07).
-const PERIAPSIS_ROUNDING: f64 = 1e-6;
-
-/// Whether a periapsis is under `limit_km`, beyond rounding (XFER-07).
-fn under_limit(periapsis_km: f64, limit_km: f64) -> bool {
-    periapsis_km < limit_km * (1.0 - PERIAPSIS_ROUNDING)
-}
-
 /// The crossing's fixed facts, gathered before the solve.
-struct Setup<'a> {
-    tree: &'a SystemTree,
-    tunables: &'a SimTunables,
-    primary: Entity,
-    mu: f64,
-    from: End,
-    to: End,
-    target: Target,
-    rendezvous: bool,
+pub(super) struct Setup<'a> {
+    pub(super) tree: &'a SystemTree,
+    pub(super) tunables: &'a SimTunables,
+    pub(super) primary: Entity,
+    pub(super) mu: f64,
+    pub(super) from: End,
+    pub(super) to: End,
+    pub(super) target: Target,
+    pub(super) rendezvous: bool,
     /// The band an Intercept passes through: the order's, or a station's
     /// or ship's own band (XFER-10).
-    intercept_band: Option<Band>,
+    pub(super) intercept_band: Option<Band>,
     /// Departure cost (km/s) and approach days.
-    depart: (f64, f64),
+    pub(super) depart: (f64, f64),
     /// Capture cost (km/s) and approach days; zero for an Intercept.
-    arrive: (f64, f64),
+    pub(super) arrive: (f64, f64),
 }
 
 /// A crossing solved round the primary: the states at its two ends and
 /// the velocities the path has there.
-struct Crossing {
-    start_day: f64,
-    end_day: f64,
-    start: State,
-    end: State,
-    path_start_velocity: DVec3,
-    path_end_velocity: DVec3,
-    segment: SegmentKind,
+pub(super) struct Crossing {
+    pub(super) start_day: f64,
+    pub(super) end_day: f64,
+    pub(super) start: State,
+    pub(super) end: State,
+    pub(super) path_start_velocity: DVec3,
+    pub(super) path_end_velocity: DVec3,
+    pub(super) segment: SegmentKind,
 }
 
 impl Crossing {
     /// The path's velocity at its end relative to the end state: the
     /// excess velocity at a body (BAND-06), or the closing velocity at a
     /// ship (XFER-10).
-    fn arrival_relative_velocity(&self) -> DVec3 {
+    pub(super) fn arrival_relative_velocity(&self) -> DVec3 {
         self.path_end_velocity - self.end.velocity
     }
 }
@@ -94,25 +79,6 @@ struct Flight {
     burns: LegBurns,
     /// PHAS-03: days waiting for the exit point.
     departure_wait: f64,
-}
-
-/// XFER-13: an Intercept through another body's Low band. The body
-/// swings the ship round, so from the crossing end day it coasts on a new
-/// conic round the primary, not on the crossing's own.
-struct LowPass {
-    /// How far the pass turned the ship's velocity relative to the body,
-    /// in radians, prograde.
-    turn_rad: f64,
-    /// The conic the ship coasts on after the pass, round the primary.
-    coast: Conic,
-}
-
-/// How a Rendezvous ends: in an orbit or on a conic, and when.
-struct Arrived {
-    landing: Landing,
-    last: Option<SegmentKind>,
-    wait_days: f64,
-    arrival_day: f64,
 }
 
 impl Setup<'_> {
@@ -178,7 +144,7 @@ impl Setup<'_> {
     /// The target's named orbit, if the target sits in an orbit of a body
     /// other than the primary: met at the edge of that body's frame, where
     /// phase only sets a wait.
-    fn beyond_frame(&self) -> Option<OrbitNode> {
+    pub(super) fn beyond_frame(&self) -> Option<OrbitNode> {
         let (_, node) = self.target.orbit()?;
         (node.body != self.primary).then_some(node)
     }
@@ -398,249 +364,6 @@ impl Setup<'_> {
         }
         Err(Infeasible::CantLineUp)
     }
-
-    /// XFER-07: the closest a conic of this leg may come to the primary,
-    /// in km. Out in the open it is `min_periapsis_radii` mean radii. A
-    /// conic that starts or ends round the primary itself (in a band, at a
-    /// station, on a coast round it) has to get that close, so its limit
-    /// is the primary's Low band instead: it may touch the band but not
-    /// dip under it.
-    fn periapsis_limit_km(&self, round_the_primary: bool) -> f64 {
-        let Some(primary) = self.tree.bodies.get(&self.primary) else {
-            return 0.0;
-        };
-        if round_the_primary {
-            band_radii(primary.radius_km, primary.hill_km, self.tunables).low_km
-        } else {
-            self.tunables.min_periapsis_radii * primary.radius_km
-        }
-    }
-
-    /// XFER-07: a crossing is infeasible if its conic reaches a periapsis
-    /// under the limit while on the crossing. A spiral never dips below
-    /// the lower of its two ends.
-    fn check_periapsis(&self, crossing: &Crossing) -> Result<(), Infeasible> {
-        let SegmentKind::Conic { conic, .. } = crossing.segment else {
-            return Ok(());
-        };
-        let round_the_primary = self.from.host == self.primary || self.to.host == self.primary;
-        let periapsis_km = conic.periapsis_radius_km();
-        if under_limit(periapsis_km, self.periapsis_limit_km(round_the_primary))
-            && conic.passes_periapsis_between(crossing.start_day, crossing.end_day)
-        {
-            return Err(Infeasible::Periapsis { periapsis_km });
-        }
-        Ok(())
-    }
-
-    /// XFER-07: an Intercept is infeasible if the conic the ship coasts on
-    /// after it (the rail's last segment: the crossing run on, or the
-    /// turned conic after a pass through Low) still has a periapsis under
-    /// the limit ahead of it. The coast starts where the crossing ended,
-    /// so it takes the Low band limit when that end is round the primary.
-    fn check_coast(
-        &self,
-        crossing: &Crossing,
-        trajectory: &ShipTrajectory,
-    ) -> Result<(), Infeasible> {
-        if self.rendezvous {
-            return Ok(());
-        }
-        let Some(SegmentKind::Conic { conic, .. }) = trajectory.segments().last().map(|s| s.kind)
-        else {
-            return Ok(());
-        };
-        let periapsis_km = conic.periapsis_radius_km();
-        let limit_km = self.periapsis_limit_km(self.to.host == self.primary);
-        if under_limit(periapsis_km, limit_km)
-            && conic.passes_periapsis_between(crossing.end_day, f64::INFINITY)
-        {
-            return Err(Infeasible::CoastPeriapsis { periapsis_km });
-        }
-        Ok(())
-    }
-
-    /// The ring an Intercept passes through: a station's or ship's own
-    /// band, or the order's band of the destination body.
-    fn intercept_ring(&self) -> Option<OrbitNode> {
-        match self.target {
-            Target::Point { node, .. } => Some(node),
-            Target::Ring { node, .. } => {
-                let orbit = self.tree.band_orbit(node.body, self.intercept_band?)?;
-                self.tree.orbits.get(&orbit).copied()
-            }
-            Target::Coasting { .. } => None,
-        }
-    }
-
-    /// BAND-06: where a ship arriving at `node`'s body from outside its
-    /// frame comes closest to it: the closest point of the prograde
-    /// hyperbola it arrives on, at the orbit's radius.
-    fn capture_point(&self, node: &OrbitNode, crossing: &Crossing) -> f64 {
-        capture_angle(
-            self.tree.mu(node.body),
-            node.radius_km,
-            crossing.arrival_relative_velocity(),
-        )
-    }
-
-    /// PHAS-11: an Intercept's closest-approach phase, as an angle round
-    /// the body on the crossing end day: the capture point's formula with
-    /// the intercept band's radius. Inside the primary's frame the
-    /// crossing simply ends at its point. A coasting target has none.
-    fn closest_approach(&self, crossing: &Crossing) -> Option<f64> {
-        let (_, node) = self.target.orbit()?;
-        if node.body == self.primary {
-            return Some(crossing.end.angle());
-        }
-        Some(self.capture_point(&self.intercept_ring()?, crossing))
-    }
-
-    /// The band of another body an Intercept passes through: the
-    /// destination body's band, or a station's or ship's own band beyond
-    /// the primary's frame. `None` when the crossing ends at the target
-    /// itself.
-    fn ring_passed(&self) -> Result<Option<OrbitNode>, Infeasible> {
-        Ok(match self.target {
-            Target::Ring { .. } => Some(self.intercept_ring().ok_or(Infeasible::NoHighBand)?),
-            Target::Point { node, .. } if node.body != self.primary => Some(node),
-            _ => None,
-        })
-    }
-
-    /// XFER-09 / XFER-10: the speed at an Intercept: through a body's
-    /// band, the excess speed boosted by the body's gravity at the band's
-    /// radius; at a ship or station whose state is the end state, the
-    /// plain relative speed.
-    fn intercept_speed_kms(&self, crossing: &Crossing) -> Result<f64, Infeasible> {
-        let v_inf = crossing.arrival_relative_velocity().length();
-        Ok(km_per_day_to_km_per_s(match self.ring_passed()? {
-            Some(ring) => pass_speed(self.tree.mu(ring.body), ring.radius_km, v_inf),
-            None => v_inf,
-        }))
-    }
-
-    /// XFER-14 / XFER-10: the speed at which an Intercept at a station or
-    /// a ship goes by it. A target in another body's band moves the way
-    /// the pass goes round, so the pass closes at its own speed less the
-    /// band's circular speed; a target whose state is the end state
-    /// closes at the plain relative speed. An Intercept at a body has no
-    /// target to close on.
-    fn closing_speed_kms(&self, crossing: &Crossing) -> Option<f64> {
-        let v_inf = crossing.arrival_relative_velocity().length();
-        let closing = match self.target {
-            Target::Ring { .. } => return None,
-            Target::Point { node, .. } if node.body != self.primary => {
-                closing_speed(self.tree.mu(node.body), node.radius_km, v_inf)
-            }
-            Target::Point { .. } | Target::Coasting { .. } => v_inf,
-        };
-        Some(km_per_day_to_km_per_s(closing))
-    }
-
-    /// XFER-13: an Intercept through the Low band of a body other than
-    /// the primary is swung round by it. Its velocity relative to the body
-    /// keeps its size and turns prograde by 2 arcsin(1 / e); the ship
-    /// leaves from the body's position with the body's velocity plus the
-    /// turned one. Costs no delta-v and no time. A pass through High, or
-    /// inside the primary's own frame, takes no turn.
-    fn low_pass(&self, crossing: &Crossing) -> Result<Option<LowPass>, Infeasible> {
-        if self.rendezvous {
-            return Ok(None);
-        }
-        let Some(ring) = self.ring_passed()? else {
-            return Ok(None);
-        };
-        if ring.band != Some(Band::Low) || ring.body == self.primary {
-            return Ok(None);
-        }
-        let mu = self.tree.mu(ring.body);
-        let v_inf = crossing.arrival_relative_velocity();
-        let velocity = crossing.end.velocity + turned_velocity(mu, ring.radius_km, v_inf);
-        let coast = Conic::from_state(
-            self.mu,
-            State::new(crossing.end.position, velocity),
-            crossing.end_day,
-            self.tunables.parabola_epsilon,
-        )
-        .ok_or(Infeasible::NoPath)?;
-        Ok(Some(LowPass {
-            turn_rad: turn_angle(mu, ring.radius_km, v_inf.length()),
-            coast,
-        }))
-    }
-
-    /// BAND-06 / PHAS-10 / XFER-08 / XFER-10: what happens at the
-    /// crossing's end: the orbit and phase the ship joins, or the conic it
-    /// shares, and the day it gets there.
-    fn arrive(&self, crossing: &Crossing) -> Arrived {
-        let reached = crossing.end_day + self.arrive.1;
-        let (landing, last, wait_days) = match self.target {
-            _ if !self.rendezvous => (Landing::Intercept, None, 0.0),
-            Target::Coasting { primary, conic } => (
-                Landing::Coast,
-                Some(SegmentKind::Conic { primary, conic }),
-                0.0,
-            ),
-            Target::Ring { orbit, node } => {
-                let angle = match self.beyond_frame() {
-                    Some(_) => self.capture_point(&node, crossing),
-                    None => crossing.end.angle(),
-                };
-                let phase0_rad = phase_for_angle(&node, angle, reached);
-                let (landing, last) = parked_landing(orbit, node, phase0_rad);
-                (landing, last, 0.0)
-            }
-            Target::Point {
-                orbit,
-                node,
-                phase0_rad,
-                ..
-            } => {
-                let wait = match self.beyond_frame() {
-                    Some(_) => wait_days(
-                        node.path(phase0_rad).angle_at(reached),
-                        self.capture_point(&node, crossing),
-                        node.period_days,
-                    ),
-                    None => 0.0,
-                };
-                let (landing, last) = parked_landing(orbit, node, phase0_rad);
-                (landing, last, wait)
-            }
-        };
-        Arrived {
-            landing,
-            last,
-            wait_days,
-            arrival_day: if self.rendezvous {
-                reached + wait_days
-            } else {
-                crossing.end_day
-            },
-        }
-    }
-}
-
-/// A ship joining `orbit` at `phase0_rad`: the landing and the segment
-/// it parks on.
-fn parked_landing(
-    orbit: Entity,
-    node: OrbitNode,
-    phase0_rad: f64,
-) -> (Landing, Option<SegmentKind>) {
-    (
-        Landing::Orbit {
-            orbit,
-            body: node.body,
-            phase0_rad,
-        },
-        Some(SegmentKind::Parked {
-            orbit,
-            primary: node.body,
-            path: node.path(phase0_rad),
-        }),
-    )
 }
 
 /// The segment a ship follows before its crossing: parked where it is,
@@ -707,16 +430,6 @@ fn build_trajectory(
     ShipTrajectory::new(segments).map_err(|_| Infeasible::NoPath)
 }
 
-/// What a leg's arrival reads, in km/s: an Intercept's speed at the
-/// target, its closing speed and its closest approach (rad); and the
-/// speed the arrival row shows (PLNR-26).
-struct ArrivalSpeeds {
-    intercept_kms: Option<f64>,
-    closing_kms: Option<f64>,
-    arrival_kms: Option<f64>,
-    closest_approach_rad: Option<f64>,
-}
-
 impl Setup<'_> {
     /// The leg's flight: trimmed to meet a parked target where it will
     /// be, or flown as asked; with the trim's days if it was trimmed.
@@ -733,31 +446,6 @@ impl Setup<'_> {
             }
             None => Ok((self.fly(order, drive, departure, 0.0)?, None)),
         }
-    }
-
-    /// The crossing's arrival speeds. A Rendezvous has no intercept,
-    /// closing speed or closest approach, and its arrival row reads the
-    /// speed relative to the target; an Intercept's reads the closing
-    /// speed, else the intercept speed (PLNR-26).
-    fn arrival_speeds(&self, crossing: &Crossing) -> Result<ArrivalSpeeds, Infeasible> {
-        if self.rendezvous {
-            return Ok(ArrivalSpeeds {
-                intercept_kms: None,
-                closing_kms: None,
-                arrival_kms: Some(km_per_day_to_km_per_s(
-                    crossing.arrival_relative_velocity().length(),
-                )),
-                closest_approach_rad: None,
-            });
-        }
-        let intercept_kms = Some(self.intercept_speed_kms(crossing)?);
-        let closing_kms = self.closing_speed_kms(crossing);
-        Ok(ArrivalSpeeds {
-            intercept_kms,
-            closing_kms,
-            arrival_kms: closing_kms.or(intercept_kms),
-            closest_approach_rad: self.closest_approach(crossing),
-        })
     }
 }
 
@@ -846,13 +534,14 @@ pub fn solve_leg(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::sim::transfer::order::Landing;
     use crate::sim::transfer::phase::separation_km;
     use crate::sim::transfer::test_layout::{
         FAR_STATION_PHASE, Layout, STATION_PHASE, layout, rendezvous_with, within,
     };
     use crate::sim::transfer::tree::ShipState;
     use crate::sim::units::KM_PER_AU;
-    use orbits::{CircularOrbit, angle_of, hohmann};
+    use orbits::{CircularOrbit, angle_of, capture_angle, hohmann};
 
     /// The angle between two directions, in [0, π].
     fn angle_between(a: f64, b: f64) -> f64 {
