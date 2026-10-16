@@ -13,7 +13,7 @@ This folder is the single source of truth for the design. Ideas are worked out i
 | `ideas/presentation/` | Views and visual style, reference sketches, mock-ups | Mock-ups illustrate; the spec decides behaviour. |
 | `ideas/scratch.md` | Half-formed notes | Anything goes. |
 | `spec/` | The committed design, written to code from | Every requirement has a stable ID. No open questions inside a requirement. |
-| `todo.md` | What to build next: spec changes, fixes and other work | Ordered by priority. Done items are deleted. |
+| `todo.md` | What to build next: spec changes, fixes and other work; specced items nothing needs yet are parked at the end | Ordered by priority. Done items are deleted. |
 | `findings.md` | Observations from building and playing: those to triage, and those parked until a later feature | Deleted once decided. |
 
 Status tags in `ideas/`: **Decided** = settled. **Direction** = settled in principle, details open. **Candidate** = under consideration. These describe the idea, not whether it's built: only `spec/` is built from.

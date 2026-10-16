@@ -5,6 +5,7 @@ Work waiting to be built. You choose which items a coding session takes, and the
 - **Spec changes:** design sessions add an item whenever they add, change or withdraw requirements. One item per coherent change, naming the IDs.
 - **Fixes:** findings triaged as "fix code".
 - **Other:** refactors, tooling and doc work that isn't a spec change.
+- **Parked:** specced items nothing needs yet. They are not built until what brings them back happens.
 
 A finished item is deleted (git history keeps the record). Notes indented under an item are hints for whoever builds it.
 
@@ -38,9 +39,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - Replaces the hard-edged band: soft edges and a seeded scatter of faint points.
 - [ ] **Exposure ring cues** · MOT-02, MOT-14
   - A period line under the ring's label and a direction chevron beside the identity mark. Mock-up 19, exposure rings board.
-- [ ] **Ideology profile** · IDEO-01 to IDEO-31
-  - Decide the open points in `docs/spec/ideology.md` first.
-  - IDEO-11: an exact tie between the two lowest scores is Pluralist. Six of the 216 histories land on one (3/3/6 in some order), so test them.
 
 ## Fixes
 
@@ -54,3 +52,12 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 - [ ] **Bring older docs up to the writing style**
   - The rules are in `docs/README.md` (Writing). Do it one doc at a time, with no change of meaning.
   - The longest are the likeliest to need it: `ideas/mechanics/requirements-and-bids.md`, `ideas/mechanics/component-stats.md` and `ideas/mechanics/transfers.md`.
+
+## Parked
+
+Specced but not built, because nothing needs it yet. Don't pick these for a coding session. Each says what brings it back. Their requirements still count for the coverage check in `docs/README.md`.
+
+- [ ] **Ideology profile** · IDEO-01 to IDEO-31
+  - **Revisit when:** a system reads ideology (a faction, settlement or character that carries a profile, or an effect that uses the scores) and the UI for showing it is specced. Until then the code would have no caller.
+  - Decide the open point in `docs/spec/ideology.md` first (whether characters share the structure), and say where the option values are loaded from (IDEO-31).
+  - IDEO-11: an exact tie between the two lowest scores is Pluralist. Six of the 216 histories land on one (3/3/6 in some order), so test them.
