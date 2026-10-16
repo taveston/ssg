@@ -36,6 +36,9 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - Reject content that puts two stations together (PHAS-02) with a loader error naming both. Remove the build's lead-and-docked handling of two stations at one point. Two overlapping station markers join as two things (MUL-05), each shown in the tray (MUL-09) with its own docked things under it.
   - Tests: the loader rejects two stations at one orbit and phase; two overlapping stations form a marker counting 2 with neither docked.
 
+- [ ] **Name the shared orbit's mark in the planner click rule** · F-235 · MUL-12
+  - MUL-12 now says what the build already does: with the planner open, a click on a shared orbit's identity mark picks the orbit's band and opens the tray. Add a test for it.
+
 ## Fixes
 
 - [ ] **Orbit membership follows the ship** · F-242, F-201 · RAIL-09, SCL-07, HOV-04, INS-05, MRK-09, HOV-02

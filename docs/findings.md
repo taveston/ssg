@@ -238,11 +238,6 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** PLNR-106, PLNR-96 · **Type:** spec gap
 - **Disposition:** open. Accept, and add the sentence to PLNR-106.
 
-### F-235 · A shared orbit's identity mark while the planner is open
-- **Observation:** MUL-12 says a click on any multi-marker other than a fold marker picks nothing. MOT-14 says the identity mark targets what its ring targets, and PLNR-11 says a shared ring picks that orbit's band. The build follows MOT-14 and PLNR-11: the mark picks the band and opens its tray.
-- **Affects:** MUL-12, MOT-14, PLNR-11, HOV-05 · **Type:** spec wrong
-- **Disposition:** open. Keep this and name the shared orbit's mark beside the fold marker in MUL-12, or make the mark pick nothing.
-
 ### F-236 · Rows for a group's members
 - **Observation:** A member has no inset of its own, so a member row, clicked or stepped onto, selects its group, and the tray highlights the member row. With the planner open, member rows are dimmed, since a member is wherever its group is and a group can't be picked. With the planner open, Up and Down move only the highlight; picking takes a click. With no row selected, Up or Down selects the first row. Left on a member closes its group and selects the group.
 - **Affects:** MUL-09, MUL-10, MUL-12 · **Type:** spec gap
