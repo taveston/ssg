@@ -193,8 +193,8 @@ pub struct DepartDays {
 
 impl DepartDays {
     /// PLNR-82: the grid's depart columns: Soonest, then the positions
-    /// whose day number is a multiple of the column stride, so that at
-    /// most `count` columns cover the range.
+    /// whose day number is a multiple of the step times the column stride,
+    /// so that at most `count` columns cover the range.
     pub fn samples(&self, count: usize) -> Vec<f64> {
         let stride = column_stride(self.end - self.soonest, self.step, count);
         let mut columns = vec![self.soonest];

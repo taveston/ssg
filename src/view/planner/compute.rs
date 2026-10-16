@@ -133,13 +133,14 @@ pub fn starting_setting(search: &Search, max_steps: u32) -> Setting {
 /// the nearest Depart position, within the Travel range, on a meeting for
 /// a phasing leg, and the fixed value where there is no slider.
 pub fn fitted(setting: Setting, sliders: &Sliders, max_steps: u32) -> Setting {
-    let fit = |slider: &Slider, value: f64| match slider {
-        Slider::Range { start, end } => value.clamp(*start, end.max(*start)),
-        _ => slider.snap(value, max_steps),
+    let travel = &sliders.travel;
+    let travel_days = match travel {
+        Slider::Range { start, end } => setting.travel_days.clamp(*start, end.max(*start)),
+        _ => travel.snap(setting.travel_days, max_steps),
     };
     Setting {
         depart_day: sliders.depart.snap(setting.depart_day),
-        travel_days: fit(&sliders.travel, setting.travel_days),
+        travel_days,
     }
 }
 
