@@ -34,6 +34,7 @@ use super::fold::SatelliteFoldState;
 use super::layers;
 use super::motion_mode::MotionModeState;
 use super::multi::{JoinSlide, MultiMarkers};
+use super::multi_markers::MultiGathered;
 use super::screen::ScreenPositions;
 use super::ship_groups::GroupFaces;
 use super::symbols::draw::{Tint, TintSlot};
@@ -228,7 +229,8 @@ impl Plugin for MarkersPlugin {
                 (
                     update_markers.in_set(MarkersPlaced),
                     layer_bodies_by_depth,
-                    update_second_lines,
+                    // Reads this frame's docked counts, so none lags a frame.
+                    update_second_lines.after(MultiGathered),
                 )
                     .in_set(Stage::Overlay),
             );

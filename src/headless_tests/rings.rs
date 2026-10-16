@@ -590,3 +590,106 @@ fn an_exposure_ring_shows_its_period_and_a_chevron_the_way_it_runs() {
         "the labels keep clear of the chevron's box"
     );
 }
+
+/// MOT-14 / MUL-04: a shared orbit's identity mark follows its members as
+/// they move, dock and leave. Iver Yard's band starts as a station marker
+/// counting Corvid and the Pellam trader docked there. Corvid moving off
+/// the yard's phase makes it a multi-marker of the yard and Corvid, the
+/// trader still docked; the trader moving off too makes it count 3. With
+/// both ships gone from the band, the yard alone is a lone station, and
+/// its mark is its own symbol, fading on from where the old mark was.
+#[test]
+fn a_shared_orbits_identity_mark_follows_ships_that_move_dock_and_leave() {
+    use crate::view::multi_markers::draw::{MultiCount, MultiPart};
+    use crate::view::rings::marks::{IdentityFront, MarkShows, RingMarkFor, RingMarksPlugin};
+
+    let mut app = camera_app_with(|app| {
+        app.insert_resource(placeholder_fonts()).add_plugins((
+            GroupingPlugin,
+            MotionPlugin,
+            HoveredPlugin,
+            SharedOrbitPlugin,
+            RingMarksPlugin,
+        ));
+    });
+    let yard = body(&mut app, "Iver Yard");
+    let ships = ["Corvid", "Pellam trader"].map(|n| body(&mut app, n));
+    let band = app.world().get::<InNamedOrbit>(yard).unwrap().0;
+    let mark = |app: &mut App| {
+        let mut marks = app
+            .world_mut()
+            .query::<(Entity, &RingMarkFor, &MarkShows)>();
+        let found: Vec<(Entity, MarkShows)> = marks
+            .iter(app.world())
+            .filter(|(_, m, _)| m.owner == band)
+            .map(|(e, _, shows)| (e, shows.clone()))
+            .collect();
+        assert_eq!(found.len(), 1, "one mark per ring");
+        found[0].clone()
+    };
+    let drawn = |app: &mut App| {
+        let (root, shows) = mark(app);
+        let parts = descendants(app, root);
+        let frames = parts
+            .iter()
+            .filter(|&&e| app.world().get::<MultiPart>(e).is_some())
+            .count();
+        let count: Vec<String> = parts
+            .iter()
+            .filter(|&&e| app.world().get::<MultiCount>(e).is_some())
+            .filter_map(|&e| app.world().get::<Text>(e).map(|t| t.0.clone()))
+            .collect();
+        (shows, frames, count)
+    };
+    let move_off = |app: &mut App, ship: Entity| {
+        app.world_mut().get_mut::<Orbit>(ship).unwrap().phase0_rad += std::f64::consts::PI;
+        app.update();
+    };
+
+    let (shows, frames, count) = drawn(&mut app);
+    assert!(matches!(
+        shows,
+        MarkShows::Multi(IdentityFront::Station(_), _)
+    ));
+    assert_eq!(
+        (frames, count),
+        (2, vec!["2".to_string()]),
+        "back frame and count"
+    );
+
+    move_off(&mut app, ships[0]);
+    let (shows, frames, count) = drawn(&mut app);
+    assert!(matches!(shows, MarkShows::Multi(IdentityFront::Frame, _)));
+    assert_eq!(
+        (frames, count),
+        (4, vec!["2".to_string()]),
+        "the trader is still docked"
+    );
+
+    move_off(&mut app, ships[1]);
+    let (_, frames, count) = drawn(&mut app);
+    assert_eq!((frames, count), (4, vec!["3".to_string()]));
+
+    let (old_root, _) = mark(&mut app);
+    app.world_mut()
+        .get_mut::<RingMarkFor>(old_root)
+        .unwrap()
+        .shown = 0.5;
+    for ship in ships {
+        app.world_mut()
+            .entity_mut(ship)
+            .remove::<(Orbit, InNamedOrbit)>()
+            .insert(InFlight);
+    }
+    app.update();
+    let (root, shows) = mark(&mut app);
+    assert_eq!(shows, MarkShows::Body(yard));
+    assert_eq!(app.world().get::<MarkerFor>(root).map(|m| m.0), Some(yard));
+    let shown = app.world().get::<RingMarkFor>(root).unwrap().shown;
+    // One frame's fade step is 16.7 ms of `identity_mark_fade_ms`.
+    let step = FRAME.as_secs_f32() * 1000.0 / Tunables::default().identity_mark_fade_ms;
+    assert!(
+        (shown - 0.5).abs() <= step + 1e-4,
+        "fading from where it was, not from 0"
+    );
+}

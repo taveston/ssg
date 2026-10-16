@@ -115,35 +115,46 @@ pub fn next_joined(distance: f32, was_joined: bool, join_px: f32, split_px: f32)
     }
 }
 
-/// A pair of symbols, in a fixed order, for the overlap latch.
+/// A pair of things, in a fixed order, for the overlap latch.
 fn pair(a: Entity, b: Entity) -> (Entity, Entity) {
     if a < b { (a, b) } else { (b, a) }
 }
 
-/// MUL-05: the overlap clusters among symbols at `units` (each named by
-/// its lead thing): every symbol joined to another by a chain of joined
-/// pairs, with the hysteresis of `next_joined` read from `latch`, last
-/// frame's joined pairs. Returns the clusters, as indices into `units`
+/// MUL-05: whether any thing of `a` was joined to any thing of `b` last
+/// frame.
+fn were_joined(a: &[Entity], b: &[Entity], latch: &HashSet<(Entity, Entity)>) -> bool {
+    a.iter()
+        .any(|&x| b.iter().any(|&y| latch.contains(&pair(x, y))))
+}
+
+/// MUL-05: the overlap clusters among symbols at `units` (each given by
+/// every thing it stands for): every symbol joined to another by a chain
+/// of joined pairs, with the hysteresis of `next_joined` read from
+/// `latch`, last frame's joined pairs of things. The latch is kept per
+/// thing, not per symbol, so two symbols stay joined while one of them
+/// gains or loses a thing. Returns the clusters, as indices into `units`
 /// (lone symbols as clusters of one), and this frame's joined pairs.
 pub fn overlap_clusters(
-    units: &[(Entity, Vec2)],
+    units: &[(Vec<Entity>, Vec2)],
     latch: &HashSet<(Entity, Entity)>,
     join_px: f32,
     split_px: f32,
 ) -> (Vec<Vec<usize>>, HashSet<(Entity, Entity)>) {
     let mut joined = HashSet::new();
+    let mut linked = HashSet::new();
     for a in 0..units.len() {
         for b in a + 1..units.len() {
-            let key = pair(units[a].0, units[b].0);
-            let distance = units[a].1.distance(units[b].1);
-            if next_joined(distance, latch.contains(&key), join_px, split_px) {
-                joined.insert(key);
+            let ((things_a, pos_a), (things_b, pos_b)) = (&units[a], &units[b]);
+            let was = were_joined(things_a, things_b, latch);
+            if next_joined(pos_a.distance(*pos_b), was, join_px, split_px) {
+                linked.insert((a, b));
+                for &x in things_a {
+                    joined.extend(things_b.iter().map(|&y| pair(x, y)));
+                }
             }
         }
     }
-    let clusters = link_groups(units.len(), |a, b| {
-        joined.contains(&pair(units[a].0, units[b].0))
-    });
+    let clusters = link_groups(units.len(), |a, b| linked.contains(&(a, b)));
     (clusters, joined)
 }
 
@@ -162,7 +173,7 @@ pub fn overlap_centre(centres: &[Vec2], scale: f32) -> Vec2 {
     snap_to_pixel(mean, scale)
 }
 
-/// Last frame's joined pairs of symbols (MUL-05).
+/// Last frame's joined pairs of things whose symbols overlap (MUL-05).
 #[derive(Resource, Default, Debug)]
 pub struct ClusterLatch(pub HashSet<(Entity, Entity)>);
 
@@ -531,9 +542,13 @@ fn clusters_of(
     tunables: &Tunables,
 ) -> Vec<Vec<usize>> {
     let visible: Vec<usize> = (0..units.len()).filter(|&i| units[i].visible).collect();
-    let spots: Vec<(Entity, Vec2)> = visible
+    let spots: Vec<(Vec<Entity>, Vec2)> = visible
         .iter()
-        .map(|&i| (units[i].lead, units[i].pos))
+        .map(|&i| {
+            let unit = &units[i];
+            let things = unit.things.iter().chain(&unit.docked).copied().collect();
+            (things, unit.pos)
+        })
         .collect();
     let (clusters, joined) = overlap_clusters(
         &spots,
@@ -707,7 +722,7 @@ mod tests {
         assert!(!next_joined(between, false, join, split));
 
         let e = entities(2);
-        let at = |d: f32| [(e[0], Vec2::ZERO), (e[1], Vec2::new(d, 0.0))];
+        let at = |d: f32| [(vec![e[0]], Vec2::ZERO), (vec![e[1]], Vec2::new(d, 0.0))];
         let mut latch = HashSet::new();
         let mut clusters_at = |d: f32| {
             let (clusters, joined) = overlap_clusters(&at(d), &latch, join, split);
@@ -727,13 +742,56 @@ mod tests {
     fn a_chain_of_joined_pairs_is_one_cluster() {
         let e = entities(4);
         let units = [
-            (e[0], Vec2::new(0.0, 0.0)),
-            (e[1], Vec2::new(20.0, 0.0)),
-            (e[2], Vec2::new(40.0, 0.0)),
-            (e[3], Vec2::new(200.0, 0.0)),
+            (vec![e[0]], Vec2::new(0.0, 0.0)),
+            (vec![e[1]], Vec2::new(20.0, 0.0)),
+            (vec![e[2]], Vec2::new(40.0, 0.0)),
+            (vec![e[3]], Vec2::new(200.0, 0.0)),
         ];
         let (clusters, _) = overlap_clusters(&units, &HashSet::new(), 24.0, 28.0);
         assert_eq!(clusters, vec![vec![0, 1, 2], vec![3]]);
+    }
+
+    /// MUL-05: two joined symbols stay joined inside the hysteresis band
+    /// when one of them changes its lead: here a ship that sorts first
+    /// comes together with it, and then the station it docks at leads it.
+    #[test]
+    fn joined_symbols_stay_joined_in_the_band_when_a_lead_changes() {
+        let t = Tunables::default();
+        let between = (t.cluster_join_px + t.cluster_split_px) / 2.0;
+        let e = entities(4);
+        let (newcomer, ship, other, station) = (e[0], e[1], e[2], e[3]);
+        let unit = |lead, things: Vec<Entity>, docked: Vec<Entity>, x: f32| Unit {
+            lead,
+            station: None,
+            things,
+            docked,
+            pos: Vec2::new(x, 0.0),
+            alpha: 1.0,
+            visible: true,
+        };
+        let mut latch = HashSet::new();
+        let near = [
+            unit(ship, vec![ship], vec![], 0.0),
+            unit(other, vec![other], vec![], t.cluster_join_px - 1.0),
+        ];
+        assert_eq!(clusters_of(&near, &mut latch, &t).len(), 1, "joined");
+        let led_by_newcomer = [
+            unit(newcomer, vec![newcomer, ship], vec![], 0.0),
+            unit(other, vec![other], vec![], between),
+        ];
+        assert_eq!(
+            clusters_of(&led_by_newcomer, &mut latch, &t).len(),
+            1,
+            "a new lead stays joined in the band"
+        );
+        let led_by_station = [
+            Unit {
+                station: Some(station),
+                ..unit(station, vec![station], vec![newcomer, ship], 0.0)
+            },
+            unit(other, vec![other], vec![], between),
+        ];
+        assert_eq!(clusters_of(&led_by_station, &mut latch, &t).len(), 1);
     }
 
     /// MUL-06 / SYM-16: an overlap marker sits on the mean of its

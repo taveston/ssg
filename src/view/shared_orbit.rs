@@ -62,8 +62,10 @@ pub struct Member {
     pub affiliation: Affiliation,
     /// Where it is on the ring now, in radians.
     pub angle: f32,
-    /// Its start phase: the fixed spot its label sits at (MOT-02).
-    pub phase0: f32,
+    /// Its start phase in radians: the fixed spot its label sits at
+    /// (MOT-02). Kept at full precision, so what is together on the ring
+    /// is decided exactly as on the map (PHAS-02).
+    pub phase0: f64,
     /// Its orbital period in days. Its angle grows with time while this is
     /// positive, and shrinks while it is negative.
     pub period_days: f64,
@@ -144,7 +146,7 @@ impl Ring {
     /// MOT-02 / MOT-14: the fixed spot on the ring the label and identity
     /// mark sit at: the first member's start phase.
     pub fn label_angle(&self) -> f32 {
-        self.members.first().map_or(0.0, |m| m.phase0)
+        self.members.first().map_or(0.0, |m| m.phase0 as f32)
     }
 
     /// MOT-02: the ring's period in days: its members share one, so any
@@ -217,7 +219,7 @@ impl OrbitRings<'_, '_> {
             class: *class,
             affiliation: *affiliation,
             angle: local.0.z.atan2(local.0.x) as f32,
-            phase0: orbit.phase0_rad as f32,
+            phase0: orbit.phase0_rad,
             period_days: orbit.period_days,
             hidden: fold.is_some_and(|f| f.effective_hidden),
             joined: slide.is_some_and(|s| s.held),

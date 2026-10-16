@@ -148,6 +148,29 @@ fn a_station_with_ships_docked_is_a_station_marker_at_every_zoom() {
     }
 }
 
+/// MUL-04 / MUL-13: a station's "N docked" line follows what is docked in
+/// the same frame: when Corvid moves off Iver Yard's phase, the line
+/// reads "1 docked" at the end of that frame, not a frame later.
+#[test]
+fn a_stations_docked_line_follows_its_docked_count_in_the_same_frame() {
+    use crate::sim::orbit::Orbit;
+    let mut app = symbols_app_with(|_| {});
+    let iver = body(&mut app, "Iver");
+    let yard = body(&mut app, "Iver Yard");
+    let corvid = body(&mut app, "Corvid");
+    app.world_mut().resource_mut::<FrameRequest>().0 = Some(iver);
+    run(&mut app, 60 + move_frames());
+    let marker = marker_of(&mut app, yard);
+    let second = |app: &mut App| texts_with::<crate::view::markers::SecondLineFor>(app, marker);
+    assert_eq!(second(&mut app), ["2 docked"]);
+    // To the far side of the orbit, so it overlaps nothing at the yard.
+    app.world_mut().get_mut::<Orbit>(corvid).unwrap().phase0_rad += std::f64::consts::PI;
+    app.update();
+    let station = multi_marker(&app, MultiKey::Station(yard)).expect("still a station marker");
+    assert_eq!(station.count(), 1);
+    assert_eq!(second(&mut app), ["1 docked"]);
+}
+
 /// Swaps Corvane for Sol before the system is spawned.
 fn load_sol(mut waiting: ResMut<SystemDataResource>) {
     waiting.0 = Some(crate::content::sol::sol_system());

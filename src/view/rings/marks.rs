@@ -7,7 +7,9 @@
 //! only once the tail has closed to a full circle and the dot has gone
 //! (MOT-11), fading in and out over `identity_mark_fade_ms`, so a ring
 //! held short of closing never shows a moving dot and a still mark
-//! together.
+//! together. The mark follows the ring's members as they move, dock and
+//! leave: a shared orbit's multi-marker is redrawn when its count, frames
+//! or docked split change, and a mark that changes kind is built again.
 //!
 //! Under the name, a second line gives the orbit's period, so the ring
 //! says it is a fast orbit. Beside the mark, a direction chevron on the
@@ -105,10 +107,14 @@ pub struct RingMarksPlugin;
 
 impl Plugin for RingMarksPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_ring_marks.in_set(Boot::Overlay))
+        app.add_systems(Startup, sync_ring_marks.in_set(Boot::Overlay))
             .add_systems(
                 Update,
-                (colour_ring_labels, place_ring_marks.in_set(MarkersPlaced))
+                (
+                    sync_ring_marks,
+                    colour_ring_labels,
+                    place_ring_marks.in_set(MarkersPlaced),
+                )
                     .chain()
                     .in_set(Stage::Overlay),
             );
@@ -152,7 +158,7 @@ pub fn ring_things(ring: &Ring, together_km: f64) -> (Vec<Entity>, Vec<(Entity, 
             thing: m.body,
             orbit: ring.owner,
             radius_km: ring.radius_km,
-            phase_rad: m.phase0 as f64,
+            phase_rad: m.phase0,
         })
         .collect();
     let is_station = |body: Entity| {
@@ -178,10 +184,25 @@ pub fn ring_things(ring: &Ring, together_km: f64) -> (Vec<Entity>, Vec<(Entity, 
 /// What a shared orbit's identity multi-marker shows in front: a plain
 /// frame, or, when its only thing is a station with things docked, that
 /// station's own symbol as a station marker (MUL-03).
-enum IdentityFront {
+#[derive(Debug, Clone, PartialEq)]
+pub enum IdentityFront {
     Frame,
     Station(SymbolLook),
 }
+
+/// MOT-14: what a ring's identity mark shows, kept on the mark so it is
+/// rebuilt only when that changes: a lone body's own symbol or marker,
+/// or a shared orbit's multi-marker with its front and look.
+#[derive(Component, Debug, Clone, PartialEq)]
+pub enum MarkShows {
+    Body(Entity),
+    Multi(IdentityFront, MultiLook),
+}
+
+/// The square under a mark's root that holds its symbol, marker or
+/// multi-marker.
+#[derive(Component)]
+struct MarkIcon;
 
 /// What a lone body's mark looks like.
 type Looks<'w, 's> = Query<
@@ -194,48 +215,119 @@ type Looks<'w, 's> = Query<
     ),
 >;
 
-/// MOT-02 / MOT-14: a mark and label for every ring.
-fn spawn_ring_marks(
+/// MOT-14: what a ring's identity mark should show now, from its members
+/// as they are this frame; `None` for a ring with no mark.
+fn mark_shows(
+    ring: &Ring,
+    together_km: f64,
+    looks: &Looks,
+    tunables: &Tunables,
+) -> Option<MarkShows> {
+    match identity_mark(ring)? {
+        IdentityMark::Multi => {
+            let (front, look) = identity_multi(ring, together_km, looks, tunables);
+            Some(MarkShows::Multi(front, look))
+        }
+        IdentityMark::Body(body) => Some(MarkShows::Body(body)),
+    }
+}
+
+/// The marks there are, by the ring they stand for.
+type Marks<'w, 's> = Query<'w, 's, (Entity, &'static RingMarkFor, &'static MarkShows)>;
+
+/// What a mark is drawn with.
+#[derive(bevy::ecs::system::SystemParam)]
+struct MarkAssets<'w, 's> {
+    fonts: Res<'w, Fonts>,
+    tunables: Res<'w, Tunables>,
+    sim: Res<'w, SimTunables>,
+    looks: Looks<'w, 's>,
+    groups: GroupFaces<'w, 's>,
+}
+
+/// MOT-02 / MOT-14 / MUL-04: a mark and label for every ring, kept true
+/// as ships come, go and dock. A shared orbit's multi-marker is redrawn
+/// when its count, frames or docked split change; a mark that changes
+/// kind (a shared orbit down to one member, or back) is built again,
+/// keeping how far it has faded in. A ring with no members this frame
+/// keeps its mark, hidden while it is placed.
+fn sync_ring_marks(
     mut commands: Commands,
-    fonts: Res<Fonts>,
-    tunables: Res<Tunables>,
+    assets: MarkAssets,
     rings: OrbitRings,
-    (looks, sim): (Looks, Res<SimTunables>),
-    groups: GroupFaces,
+    marks: Marks,
+    icons: Query<(Entity, &ChildOf), With<MarkIcon>>,
 ) {
+    let tunables = &assets.tunables;
     for owner in rings.owners() {
         let Some(ring) = rings.ring(owner) else {
             continue;
         };
-        match identity_mark(&ring) {
-            Some(IdentityMark::Multi) => {
-                let (front, look) = identity_multi(&ring, sim.together_km, &looks, &tunables);
-                spawn_multi_mark(&mut commands, (&fonts, &tunables), &ring, (front, look));
+        let Some(wanted) = mark_shows(&ring, assets.sim.together_km, &assets.looks, tunables)
+        else {
+            continue;
+        };
+        let current = marks.iter().find(|(_, mark, _)| mark.owner == owner);
+        let shown = match (current, &wanted) {
+            (Some((_, _, shows)), _) if *shows == wanted => continue,
+            (Some((root, _, MarkShows::Multi(..))), MarkShows::Multi(front, look)) => {
+                for (icon, _) in icons.iter().filter(|(_, c)| c.parent() == root) {
+                    commands
+                        .entity(icon)
+                        .despawn_children()
+                        .with_children(|icon| {
+                            spawn_multi_icon(icon, (&assets.fonts, tunables), front, look);
+                        });
+                }
+                commands.entity(root).insert(wanted.clone());
+                continue;
             }
-            Some(IdentityMark::Body(body)) => {
-                let Ok((class, affiliation, record)) = looks.get(body) else {
-                    continue;
-                };
-                let look = BodyLook {
-                    class: *class,
-                    affiliation: *affiliation,
-                    record,
-                    group: groups.face(body),
-                };
-                spawn_body_mark(&mut commands, (&fonts, &tunables), &ring, body, look);
+            (Some((root, mark, _)), _) => {
+                commands.entity(root).despawn();
+                mark.shown
             }
-            None => {}
-        }
+            (None, _) => 0.0,
+        };
+        spawn_mark(&mut commands, &assets, &ring, (wanted, shown));
     }
 }
 
-/// The node a mark and its label sit in: a row, hidden until placed.
-fn mark_root(owner: Entity, half: f32) -> impl Bundle {
+/// MOT-14: a ring's mark, showing `wanted`, faded in `shown` of the way.
+fn spawn_mark(
+    commands: &mut Commands,
+    assets: &MarkAssets,
+    ring: &Ring,
+    (wanted, shown): (MarkShows, f32),
+) {
+    let draw = (&*assets.fonts, &*assets.tunables);
+    let root = match &wanted {
+        MarkShows::Multi(front, look) => {
+            spawn_multi_mark(commands, draw, ring, (front, look), shown)
+        }
+        MarkShows::Body(body) => {
+            let Ok((class, affiliation, record)) = assets.looks.get(*body) else {
+                return;
+            };
+            let look = BodyLook {
+                class: *class,
+                affiliation: *affiliation,
+                record,
+                group: assets.groups.face(*body),
+            };
+            spawn_body_mark(commands, draw, ring, (*body, look), shown)
+        }
+    };
+    commands.entity(root).insert(wanted);
+}
+
+/// The node a mark and its label sit in: a row, hidden until placed,
+/// faded in `shown` of the way.
+fn mark_root(owner: Entity, half: f32, shown: f32) -> impl Bundle {
     (
         RingMarkFor {
             owner,
             half,
-            shown: 0.0,
+            shown,
             mark: None,
             chevron: None,
         },
@@ -371,16 +463,41 @@ fn identity_multi(
     (IdentityFront::Frame, look)
 }
 
+/// MUL-01 / MUL-03: the parts of a shared orbit's multi-marker under
+/// `icon`, the square its front frame fills: frames and count, or a
+/// station's symbol with the back frame and count of what is docked.
+fn spawn_multi_icon(
+    icon: &mut ChildSpawnerCommands,
+    (fonts, tunables): (&Fonts, &Tunables),
+    front: &IdentityFront,
+    look: &MultiLook,
+) {
+    let size = tunables.ship_symbol_px;
+    match front {
+        IdentityFront::Frame => spawn_multi_parts(icon, (fonts, tunables), look),
+        IdentityFront::Station(symbol) => {
+            let back = back_offset(tunables.back_frame_offset_px);
+            spawn_back_frame(icon, look, (size, back), true);
+            let style = AmplifierStyle {
+                gap: amplifier_gap(tunables.bracket_margin_px, tunables.amplifier_gap_px),
+                track_mix: tunables.condition_track_mix,
+            };
+            spawn_symbol_parts(icon, fonts, symbol, size, style);
+            spawn_count(icon, fonts, look, tunables.multi_count_px, true);
+        }
+    }
+}
+
 /// MOT-14 / HOV-05: a shared orbit's mark: a multi-marker holding its
 /// members, labelled with the orbit's name, targeting the orbit.
 fn spawn_multi_mark(
     commands: &mut Commands,
     (fonts, tunables): (&Fonts, &Tunables),
     ring: &Ring,
-    (front, look): (IdentityFront, MultiLook),
-) {
+    (front, look): (&IdentityFront, &MultiLook),
+    shown: f32,
+) -> Entity {
     let size = tunables.ship_symbol_px;
-    let back = back_offset(tunables.back_frame_offset_px);
     let square = Node {
         width: px(size),
         height: px(size),
@@ -388,33 +505,20 @@ fn spawn_multi_mark(
     };
     commands
         .spawn((
-            mark_root(ring.owner, size / 2.0),
+            mark_root(ring.owner, size / 2.0, shown),
             OrbitFor(ring.owner),
-            BackFrame(Some(back)),
+            BackFrame(Some(back_offset(tunables.back_frame_offset_px))),
         ))
         .with_children(|root| {
-            root.spawn((square, Pickable::IGNORE))
-                .with_children(|icon| match front {
-                    IdentityFront::Frame => spawn_multi_parts(icon, (fonts, tunables), &look),
-                    IdentityFront::Station(symbol) => {
-                        spawn_back_frame(icon, &look, (size, back), true);
-                        let style = AmplifierStyle {
-                            gap: amplifier_gap(
-                                tunables.bracket_margin_px,
-                                tunables.amplifier_gap_px,
-                            ),
-                            track_mix: tunables.condition_track_mix,
-                        };
-                        spawn_symbol_parts(icon, fonts, &symbol, size, style);
-                        spawn_count(icon, fonts, &look, tunables.multi_count_px, true);
-                    }
-                });
+            root.spawn((MarkIcon, square, Pickable::IGNORE))
+                .with_children(|icon| spawn_multi_icon(icon, (fonts, tunables), front, look));
             spawn_label(root, fonts, ring, colors::NEUTRAL);
             spawn_chevron(root, tunables);
         })
         .observe(hover::on_marker_over)
         .observe(hover::on_marker_out)
-        .observe(hover::on_orbit_click);
+        .observe(hover::on_orbit_click)
+        .id()
 }
 
 /// MOT-14: a lone body's mark: its symbol at `ship_symbol_px`, or its body
@@ -423,13 +527,13 @@ fn spawn_body_mark(
     commands: &mut Commands,
     (fonts, tunables): (&Fonts, &Tunables),
     ring: &Ring,
-    body: Entity,
-    look: BodyLook,
-) {
+    (body, look): (Entity, BodyLook),
+    shown: f32,
+) -> Entity {
     let half = marker_half_size(look.class, tunables);
     let color = look.color(tunables);
     commands
-        .spawn((mark_root(ring.owner, half), MarkerFor(body)))
+        .spawn((mark_root(ring.owner, half, shown), MarkerFor(body)))
         .with_children(|root| {
             spawn_icon(root, (fonts, tunables), look, half);
             spawn_label(root, fonts, ring, color);
@@ -437,7 +541,8 @@ fn spawn_body_mark(
         })
         .observe(hover::on_marker_over)
         .observe(hover::on_marker_out)
-        .observe(hover::on_marker_click);
+        .observe(hover::on_marker_click)
+        .id()
 }
 
 /// MOT-02: a ring's label is white while a body on it is selected, and
@@ -682,5 +787,61 @@ mod tests {
         let (things, at_station) = ring_things(&ring, 10.0);
         assert_eq!(things, [station.body, apart.body]);
         assert_eq!(at_station, [(station.body, vec![docked.body])]);
+    }
+
+    /// MUL-04 / MUL-05 / MOT-14: the identity mark decides what is docked
+    /// with the map's test at full precision. A ship just over
+    /// `together_km` from a station is apart on the map, and so on the
+    /// mark too, though its phase rounded to f32 would put it inside.
+    #[test]
+    fn the_identity_mark_and_the_map_agree_on_what_is_docked_near_together_km() {
+        use crate::sim::transfer::phase::{gap_rad, together};
+        let mut world = World::new();
+        let (radius_km, together_km) = (40_000.0, 10.0);
+        let at = |world: &mut World, class, phase0| Member {
+            body: world.spawn_empty().id(),
+            class,
+            affiliation: Affiliation::Own,
+            angle: 0.0,
+            phase0,
+            period_days: 1.0,
+            hidden: false,
+            joined: false,
+            mode: MotionModeState::default(),
+        };
+        // 10 km at 40,000 km is 2.5e-4 rad; this gap is 10.002 km.
+        let (station_phase, ship_phase) = (6.0, 6.0 + 2.5005e-4);
+        let station = at(&mut world, BodyClass::Station, station_phase);
+        let ship = at(&mut world, BodyClass::Ship, ship_phase);
+        let as_f32 = |phase: f64| phase as f32 as f64;
+        assert!(
+            together(
+                radius_km,
+                gap_rad(as_f32(station_phase), as_f32(ship_phase)),
+                together_km
+            ),
+            "rounded to f32, the two would be together"
+        );
+        let ring = Ring {
+            owner: world.spawn_empty().id(),
+            centre: None,
+            radius_km,
+            name: "High".to_string(),
+            shared: true,
+            members: vec![station, ship],
+        };
+        let slots = [station, ship].map(|m| OrbitSlot {
+            thing: m.body,
+            orbit: ring.owner,
+            radius_km,
+            phase_rad: m.phase0,
+        });
+        assert!(
+            together_sets(&slots, together_km).is_empty(),
+            "apart on the map"
+        );
+        let (things, docked) = ring_things(&ring, together_km);
+        assert_eq!(things, [station.body, ship.body]);
+        assert!(docked.is_empty());
     }
 }
