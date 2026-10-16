@@ -62,7 +62,7 @@ The orbital maths lives in its own library crate, `crates/orbits`, in a Cargo wo
 | ID | Requirement | Built |
 |---|---|---|
 | ARCH-30 | Each rule function from ARCH-20 has unit tests in the same file (`#[cfg(test)] mod tests`). A test's name says what it checks (`satellites_stay_folded_inside_the_hysteresis_band`), never just a spec ID; the ID goes in a comment or doc line on the test. Edge cases include the hysteresis band, paused time (infinite apparent period) and empty inputs. | ✓ |
-| ARCH-31 | Headless tests cover at least: orbital positions after a known time; fold state after a scale change; motion mode after a rate change; zoom stop computation for Corvane. They run without a window or GPU. The game crate is a binary, so headless apps are `#[cfg(test)]` code in `src/headless_tests.rs`. | ✓ |
+| ARCH-31 | Headless tests cover at least: orbital positions after a known time; fold state after a scale change; motion mode after a rate change; zoom stop computation for Corvane. They run without a window or GPU. The game crate is a binary, so headless apps are `#[cfg(test)]` code in `src/headless_tests.rs` and its submodules under `src/headless_tests/`. | ✓ |
 | ARCH-32 | `cargo test`, `cargo clippy --all-targets -- -D warnings` and `cargo fmt --check` all pass. | ✓ |
 | ARCH-33 | No dead code: no `#[allow(dead_code)]` or unused items, except tunables for requirements not yet built, each marked with the ID they wait for. | ✓ |
 | ARCH-34 | Every module has a `//!` header saying what it owns and which spec IDs it implements. | ✓ |
