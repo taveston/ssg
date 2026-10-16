@@ -240,7 +240,8 @@ pub fn fill_tray(
 /// its body marker), its name in the neutral colour and its tag at the
 /// right in the secondary colour; highlighted while selected. A click on
 /// the toggle opens or closes its members; anywhere else on it selects
-/// it, or picks it while the planner is open (MUL-10, MUL-12).
+/// it, or picks it while the planner is open (MUL-10, MUL-12). The
+/// release of a drag over it does neither (CAM-10).
 fn spawn_row(list: &mut ChildSpawnerCommands, assets: MarkerAssets, line: &TrayLine) {
     let (fonts, tunables) = assets;
     let entity = line.row.entity;
@@ -297,9 +298,11 @@ fn spawn_row(list: &mut ChildSpawnerCommands, assets: MarkerAssets, line: &TrayL
         ));
         if line.row.open.is_some() {
             toggle.observe(
-                move |mut click: On<PointerClick>, mut state: ResMut<TrayState>| {
+                move |mut click: On<PointerClick>,
+                      check: ClickCheck,
+                      mut state: ResMut<TrayState>| {
                     click.propagate(false);
-                    if click.button == PointerButton::Primary {
+                    if check.selects(&click) {
                         toggle_row(&mut state, entity);
                     }
                 },

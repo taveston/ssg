@@ -177,7 +177,7 @@ fn clicking_the_marker_again_moves_the_highlight_and_a_new_tray_starts_at_the_to
     assert_eq!(app.world().get::<ScrollPosition>(list).unwrap().y, 0.0);
 }
 
-/// MRK-12 / CAM-10 / HOV-02: the tray is drawn above the markers, labels
+/// MRK-12 / CAM-10: the tray is drawn above the markers, labels
 /// and brackets and beneath the edge arrows, and is a panel the map's
 /// drags don't start on: a drag that starts on it doesn't pan.
 #[test]
@@ -212,6 +212,178 @@ fn a_press_on_the_tray_never_pans() {
     mouse(&mut app, ButtonState::Released);
     let after = *app.world().resource::<CameraRig>();
     assert_eq!(before.pivot, after.pivot, "no pan");
+}
+
+/// Stands in for Bevy's UI picking backend, which needs a laid-out UI:
+/// reports the entity in `UiHit` under the mouse wherever it is, at the
+/// UI's order (the camera's plus 0.5), as `bevy_ui` does.
+#[derive(Resource, Default)]
+struct UiHit(Option<Entity>);
+
+fn pick_ui_stand_in(
+    hit: Res<UiHit>,
+    cameras: Query<(Entity, &Camera), With<IsDefaultUiCamera>>,
+    mut output: MessageWriter<bevy::picking::backend::PointerHits>,
+) {
+    use bevy::picking::backend::{HitData, PointerHits};
+    use bevy::picking::pointer::PointerId;
+    let (Some(node), Ok((camera, ui_camera))) = (hit.0, cameras.single()) else {
+        return;
+    };
+    output.write(PointerHits::new(
+        PointerId::Mouse,
+        vec![(node, HitData::new(camera, 0.0, None, None))],
+        ui_camera.order as f32 + 0.5,
+    ));
+}
+
+/// A press and release of the left button where the cursor is, through
+/// Bevy's picking as well as the button input.
+fn picked_click(app: &mut App) {
+    use bevy::camera::NormalizedRenderTarget;
+    use bevy::picking::pointer::{Location, PointerAction, PointerId, PointerInput};
+    let window = the_window(app);
+    let position = app
+        .world()
+        .get::<Window>(window)
+        .unwrap()
+        .cursor_position()
+        .unwrap();
+    let location = Location {
+        target: NormalizedRenderTarget::Window(
+            bevy::window::WindowRef::Entity(window)
+                .normalize(None)
+                .unwrap(),
+        ),
+        position,
+    };
+    for (state, action) in [
+        (
+            ButtonState::Pressed,
+            PointerAction::Press(PointerButton::Primary),
+        ),
+        (
+            ButtonState::Released,
+            PointerAction::Release(PointerButton::Primary),
+        ),
+    ] {
+        app.world_mut().write_message(PointerInput::new(
+            PointerId::Mouse,
+            location.clone(),
+            action,
+        ));
+        mouse(app, state);
+    }
+    run(app, 2);
+}
+
+/// What the mouse is over, by Bevy's picking.
+fn hovered(app: &App) -> Vec<Entity> {
+    use bevy::picking::hover::HoverMap;
+    use bevy::picking::pointer::PointerId;
+    app.world()
+        .resource::<HoverMap>()
+        .0
+        .get(&PointerId::Mouse)
+        .map(|hits| hits.keys().copied().collect())
+        .unwrap_or_default()
+}
+
+/// HOV-02 / MUL-10: with an orbit ring under the tray, a click there hits
+/// the tray's row, not the ring: the row's thing is selected, the ring's
+/// isn't, and the tray stays open. Without the tray over it, the same
+/// point hits the ring.
+#[test]
+fn a_click_on_the_tray_over_a_ring_hits_the_row() {
+    use crate::view::rings::picking::{RingPaths, RingPickingPlugin, distance_to_segments};
+    use bevy::picking::{InteractionPlugin, PickingPlugin, PickingSystems};
+
+    let mut app = tray_app_with(|app| {
+        app.add_plugins((PickingPlugin, InteractionPlugin, RingPickingPlugin))
+            .init_resource::<UiHit>()
+            .add_systems(
+                PreUpdate,
+                (
+                    super::camera::follow_cursor_with_pointer.before(PickingSystems::ProcessInput),
+                    pick_ui_stand_in.in_set(PickingSystems::Backend),
+                ),
+            );
+    });
+    let window = the_window(&mut app);
+    app.world_mut()
+        .entity_mut(window)
+        .insert(bevy::window::PrimaryWindow);
+    app.world_mut()
+        .spawn(bevy::picking::pointer::PointerId::Mouse);
+    run(&mut app, SETTLE_FRAMES);
+    let halden = body(&mut app, "Halden IV");
+    let highport = body(&mut app, "Arden Highport");
+    click_fold_marker(&mut app, halden);
+    assert!(open_tray(&app).is_some());
+    // Let the rings come to rest on screen.
+    run(&mut app, SETTLE_FRAMES);
+
+    // A point on a drawn ring, clear of every other ring, that stands for
+    // something other than Halden IV, the selection, so a click on it
+    // would show.
+    let tolerance = Tunables::default().ring_hit_px;
+    let (ring, point) = {
+        let paths = &app.world().resource::<RingPaths>().0;
+        let clear_of_others = |ring: Entity, point: Vec2| {
+            paths.iter().all(|(&other, segments)| {
+                other == ring || distance_to_segments(point, segments) > 3.0 * tolerance
+            })
+        };
+        paths
+            .iter()
+            .filter(|(ring, _)| {
+                let body = app.world().get::<MarkerFor>(**ring).map(|m| m.0);
+                body.is_some() && body != Some(halden)
+            })
+            .flat_map(|(&ring, segments)| {
+                segments.iter().map(move |&(a, b)| (ring, a.lerp(b, 0.5)))
+            })
+            .find(|&(ring, point)| clear_of_others(ring, point))
+            .expect("a drawn ring clear of the others")
+    };
+    move_cursor(&mut app, point);
+    run(&mut app, 2);
+    assert!(hovered(&app).contains(&ring), "the ring is under the point");
+
+    // The tray's row now lies over the ring.
+    let row = row_node(&mut app, highport);
+    app.world_mut().resource_mut::<UiHit>().0 = Some(row);
+    run(&mut app, 2);
+    assert_eq!(hovered(&app), [row], "the row wins over the ring");
+    picked_click(&mut app);
+    assert_eq!(selected(&app), Some(highport));
+    assert!(open_tray(&app).is_some());
+}
+
+/// MUL-09 / MUL-10 / CAM-10: a click on a row's toggle opens its members,
+/// but the release of a drag over it doesn't.
+#[test]
+fn a_drag_released_on_a_rows_toggle_leaves_it_alone() {
+    use crate::view::gesture::PressStart;
+    use crate::view::tray::TrayState;
+    let mut app = tray_app();
+    run(&mut app, SETTLE_FRAMES);
+    let halden = body(&mut app, "Halden IV");
+    let tf1 = body(&mut app, "TF-1");
+    click_fold_marker(&mut app, halden);
+    let row = row_node(&mut app, tf1);
+    let toggle = app.world().get::<Children>(row).unwrap()[0];
+    let open = |app: &App| app.world().resource::<TrayState>().open_rows.contains(&tf1);
+
+    let press = Vec2::new(500.0, 500.0);
+    app.world_mut().resource_mut::<PressStart>().0 = Some(press);
+    move_cursor(&mut app, press + Vec2::new(100.0, 0.0));
+    click_node(&mut app, toggle, 1);
+    assert!(!open(&app), "a drag's release isn't a click");
+
+    move_cursor(&mut app, press);
+    click_node(&mut app, toggle, 1);
+    assert!(open(&app));
 }
 
 /// MUL-10 / CAM-14 / CAM-18: with the tray open, Down and Up step the

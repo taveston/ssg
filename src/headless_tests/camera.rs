@@ -884,7 +884,7 @@ fn click_at(app: &mut App, at: Vec2) {
 
 /// The mouse pointer's location for Bevy's picking, kept with the window's
 /// cursor, as the real input plugin would.
-fn follow_cursor_with_pointer(
+pub(super) fn follow_cursor_with_pointer(
     windows: Query<(Entity, &Window)>,
     mut pointers: Query<(
         &bevy::picking::pointer::PointerId,
