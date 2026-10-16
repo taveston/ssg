@@ -238,11 +238,6 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** PLNR-106, PLNR-96 · **Type:** spec gap
 - **Disposition:** open. Accept, and add the sentence to PLNR-106.
 
-### F-236 · Rows for a group's members
-- **Observation:** A member has no inset of its own, so a member row, clicked or stepped onto, selects its group, and the tray highlights the member row. With the planner open, member rows are dimmed, since a member is wherever its group is and a group can't be picked. With the planner open, Up and Down move only the highlight; picking takes a click. With no row selected, Up or Down selects the first row. Left on a member closes its group and selects the group.
-- **Affects:** MUL-09, MUL-10, MUL-12 · **Type:** spec gap
-- **Disposition:** open. Copy into the spec if fine.
-
 ### F-237 · Esc with both a tray and the planner open
 - **Observation:** INS-03 doesn't say which Esc closes first. The build closes the tray first, then ends the planner, then clears the selection.
 - **Affects:** INS-03 · **Type:** spec gap
