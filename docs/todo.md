@@ -53,9 +53,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - The check also covers the coast after an Intercept: the conic the ship is left on (the turned one after an Intercept through Low, XFER-13) must not have its periapsis ahead inside the limit.
   - Tests: a far-side arc to a Low band is infeasible with "Path passes too close to *primary*" (PLNR-92); a near-side arc to a Low band, and a departure from one, are feasible. An Intercept in a planet's frame whose coast would dip below the Low band is infeasible. Arriving exactly at the Low radius must pass, so allow for rounding.
 
-- [ ] **Drop `double_click_window_ms`**
-  - The spec's tunables table no longer lists it: the outline selects on a single click at once (INS-05), and double-clicks use the picking backend's click count. Delete the field, its default and its `#[allow(dead_code)]` from `view/tunables.rs`. No behaviour changes.
-
 ## Other
 
 - [ ] **Bring older docs up to the writing style**

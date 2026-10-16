@@ -87,11 +87,6 @@ pub struct Tunables {
     /// The inner zoom limit with a body focused: its true diameter spans
     /// this fraction of the map area's height (ZOOM-14).
     pub body_max_screen_fraction: f32,
-    /// The double-click window. Double-clicks use the picking backend's
-    /// click count, and since the outline selects on a single click at
-    /// once (INS-05) nothing reads this any more (F-150).
-    #[allow(dead_code)]
-    pub double_click_window_ms: f32,
 
     // --- Camera (section 5a). Tilt is measured from straight down. ---
     /// The steepest tilt from straight down, in degrees: the camera never
@@ -262,7 +257,6 @@ impl Default for Tunables {
             zoom_fit_margin: 0.8,
             min_view_radius_au: 0.05,
             body_max_screen_fraction: 0.25,
-            double_click_window_ms: 350.0,
 
             max_pitch_deg: 85.0,
             drag_threshold_px: 4.0,
