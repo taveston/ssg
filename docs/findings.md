@@ -2,7 +2,7 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-228.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-229.
 
 ---
 
@@ -242,6 +242,11 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** PLNR-82 says the grid holds Soonest and the Depart positions. For a phasing leg every day costs the same, so the build keeps only the Soonest column, and the Depart track is drawn in one colour from it (PLNR-40).
 - **Affects:** PLNR-82, PLNR-40 · **Type:** spec gap
 - **Disposition:** open. Accept, and add the sentence to PLNR-82.
+
+### F-228 · The Depart tooltip when a day has no trip
+- **Observation:** PLNR-106 doesn't say what a depart day with no trip at all counts as, or what an empty grid shows. The build counts such a day as outside the margin, so the Depart label shows the full PLNR-96 text, which explains blank. Since Soonest is solved again as the clock runs, the label can switch between its two texts while the planner is open.
+- **Affects:** PLNR-106, PLNR-96 · **Type:** spec gap
+- **Disposition:** open. Accept, and add the sentence to PLNR-106.
 
 ## Parked
 
