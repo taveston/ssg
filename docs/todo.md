@@ -12,12 +12,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **Selection and hover brackets** · HOV-06, HOV-07, SYM-14, HOV-01, HOV-05, INS-06, GRP-07
-  - Changes HOV-01, HOV-05, SYM-14, INS-06 and GRP-07 (their ✓ is cleared). Withdraws CAM-22 (F-160): delete `src/view/frame_marks.rs` with its plugin and tests, and the `focus_bracket_margin_px` tunable. Nothing marks the frame body any more.
-  - Replace the white ring (the `Outline` in `marker_outline`, `shows_ring`, `RING_PX` and `HOVER_RING_OFFSET_PX` in `view/markers.rs`, and the same in `view/pills.rs`) with bracket entities in the labels-and-pills layer (`view/layers.rs`). Keep a disc's ground-coloured gap (MRK-11).
-  - The box follows the drawn size, so it needs the disc's on-screen radius at close zoom (F-161). Add `bracket_hover_alpha`, `bracket_arm_fraction`, `bracket_stroke_px` and `bracket_margin_px` to `Tunables`.
-  - A fold pill is placed clear of its parent's ring (`parent_clear_px`, GRP-05). Clear the bracket box instead.
-  - Selected and hovered identity marks on exposure rings (MOT-14) take brackets too (HOV-06).
 - [ ] **Orbit fade defaults** · MRK-14
   - Changes MRK-14 (its ✓ is cleared): `orbit_fade_from` becomes 4 and `orbit_fade_to` 12 (they were 1.5 and 3). A ring now keeps its full alpha until its arc across the view is only mildly curved, and is gone once it is near-straight. Adjust in play if it still feels wrong.
   - The measure stays as built (`ring_screen_radius_px` in `view/rings.rs`); MRK-14 now says so. Change the defaults in `view/tunables.rs`, and any test that assumes the old ones.

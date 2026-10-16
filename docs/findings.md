@@ -2,7 +2,7 @@
 
 Open observations from building and playing the prototype. Each one is waiting for a decision. Once it's settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings take the next free number from F-162.
+Format and types are in `docs/README.md`. New findings take the next free number from F-167.
 
 ---
 
@@ -50,3 +50,18 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Observation:** Vestige's first burn from Earth's Low band to its High band (SOL-17) is about 2.6 km/s at 20 milli-g, so XFER-05 gives it 3.7 h of burn days, against a 9.2 h Hohmann crossing. The rule keeps the ship Parked in Low for those 3.7 h, then applies the whole burn as one impulse at the crossing start, and the crossing is solved again from that later start. So the burn only delays the trip: no thrust arc is drawn, no gravity loss is charged, and the time the ship would spend burning is spent waiting. Yet 3.7 h is about 2.3 laps of Low (94.5 min), so a real burn that long could not be treated as an impulse at one point. Marlin's burn (0.1 g, about 45 min) is about half a lap, which is borderline too.
 - **Affects:** XFER-05, SOL-16, SOL-17 · **Type:** spec gap
 - **Disposition:** open. Accept the delay as a stand-in, or say how a burn that lasts a large share of an orbit, or of the crossing, is modelled (bears on F-158).
+
+### F-164 · How the selection mark moves while a satellite folds
+- **Observation:** HOV-06 says a marker part-way folded or faded has a mark faded by the same alpha, and INS-06 says the mark moves from the pill to the marker without a jump. The build follows INS-06 for the fold: the mark keeps its full strength and its box slides between the pill's box and the marker's as the satellite slides (`fold_unfold_anim_ms`). The fade by the marker's alpha is applied only to the dot fading into its exposure ring (MOT-11). When a parent's last folded satellite unfolds, its pill hides at once, so that mark starts from the parent's marker instead of the pill.
+- **Affects:** HOV-06, INS-06, GRP-03 · **Type:** spec gap
+- **Disposition:** open. Accept, or say whether the mark should fade with the fold slide.
+
+### F-165 · What a shared orbit's identity pill brackets for
+- **Observation:** HOV-05 brackets a shared orbit's identity pill while the orbit is hovered. HOV-06 puts an object's mark on its exposure ring's identity mark, and a member of a shared orbit has the pill as its mark. The build gives the pill the selection mark while any member is selected, and the hover mark while the orbit or any member is hovered (for example, from the outline).
+- **Affects:** HOV-05, HOV-06, MOT-14 · **Type:** spec gap
+- **Disposition:** open. Accept, or say which objects the pill stands for.
+
+### F-166 · Labels sit very close to the brackets
+- **Observation:** Seen on screen. LBL-01 measures `label_gap_px` (6 px) from the marker's edge, and the bracket box reaches `bracket_margin_px` (4 px) beyond it. A selected or hovered object's label starts 2 px outside its brackets, and at the system fit the right-hand arms nearly touch Halden IV's first letter. The build leaves label placement as it was.
+- **Affects:** LBL-01, HOV-06, HOV-07 · **Type:** spec wrong
+- **Disposition:** open. Options: measure the label gap from the bracket box (for every marker, so labels don't move on hover), or raise `label_gap_px`.
