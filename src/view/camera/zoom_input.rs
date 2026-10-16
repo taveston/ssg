@@ -62,8 +62,7 @@ pub struct ZoomContext<'w, 's> {
 impl ZoomContext<'_, '_> {
     /// ZOOM-01 / CAM-16: wheel notches, else one step per + or - press.
     fn request(&self) -> Option<ZoomRequest> {
-        // Whole notches only, never the raw delta (ZOOM-07's pinch would
-        // hook in here).
+        // Whole notches only, never the raw delta.
         let unit_is_pixels = self.scroll.unit == MouseScrollUnit::Pixel;
         let wheel = notches_from_scroll(self.scroll.delta.y, unit_is_pixels);
         // INS-07: the wheel over a panel scrolls the panel, not the map.

@@ -117,12 +117,6 @@ pub struct Tunables {
     /// Extra fraction of `zoom_anim_ms` spent on a step that lands on a
     /// stop, so the stop reads as slight resistance rather than a snag.
     pub zoom_stop_resistance: f32,
-    /// On release, a continuous (trackpad) zoom settles to the nearest stop
-    /// if it is within this many zoom steps. Waits for ZOOM-07, which is not
-    /// built: continuous pinch input is deferred until there's hardware to
-    /// test it on.
-    #[allow(dead_code)]
-    pub pinch_settle_steps: f32,
     /// Duration of the combined pan-and-zoom when framing a body's
     /// satellites (double-click, or the focus key).
     pub focus_jump_ms: f32,
@@ -403,7 +397,6 @@ impl Default for Tunables {
             zoom_step_factor: 2.0,
             zoom_anim_ms: 200.0,
             zoom_stop_resistance: 0.35,
-            pinch_settle_steps: 1.0,
             focus_jump_ms: 400.0,
             zoom_fit_margin: 0.8,
             min_view_radius_au: 0.05,

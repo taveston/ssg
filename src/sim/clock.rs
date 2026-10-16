@@ -7,7 +7,7 @@
 
 use bevy::prelude::*;
 
-/// CLK-03: the slowest rate the player can halve down to. Below this the
+/// CLK-05: the slowest rate the player can halve down to. Below this the
 /// date stops reading as moving at all.
 const MIN_RATE_DAYS_PER_SEC: f64 = 0.0625;
 
@@ -115,7 +115,7 @@ mod tests {
         assert!((clock.elapsed_days() - 4.0).abs() < 1e-12);
     }
 
-    /// CLK-03: halving stops at 1/16 d/s; doubling is unbounded.
+    /// CLK-05: halving stops at 1/16 d/s; doubling is unbounded.
     #[test]
     fn rate_halves_down_to_one_sixteenth() {
         let mut clock = GameClock::default();

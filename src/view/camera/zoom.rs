@@ -95,8 +95,8 @@ pub fn stepped_distance(current_distance: f32, notches: f32, step_factor: f32) -
 /// at a fixed rate rather than being used raw, which would zoom by many
 /// steps per event.
 ///
-/// Continuous pinch input (ZOOM-07) is not built; until it is, a pixel-unit
-/// device gets whole steps like any other.
+/// There is no continuous pinch zoom: a pixel-unit device gets whole steps
+/// like any other.
 pub fn notches_from_scroll(delta_y: f32, pixel_units: bool) -> f32 {
     if !pixel_units {
         return delta_y;

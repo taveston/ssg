@@ -913,7 +913,7 @@ mod tests {
     /// TEST-20: every star, planet and moon has a Low band; each has a
     /// High band where BAND-01 allows one, which with rocky masses is
     /// every moon but Morrow's two innermost (whose Hill spheres are too
-    /// small at any plausible density, F-146).
+    /// small at any plausible density).
     #[test]
     fn every_natural_body_carries_its_bands() {
         let system = hand_made_system();

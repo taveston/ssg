@@ -9,7 +9,7 @@ use bevy::picking::pointer::PointerId;
 use bevy::prelude::*;
 
 /// A marker (or exposure-ring hit target) -> the body it represents.
-/// Hovering and clicking it target that body (HOV-01, INS-01, MOT-05).
+/// Hovering and clicking it target that body (HOV-01, INS-01, MOT-14).
 #[derive(Component)]
 pub struct MarkerFor(pub Entity);
 
