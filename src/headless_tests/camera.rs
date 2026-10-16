@@ -262,11 +262,6 @@ fn zoom_in_a_frame_keeps_the_body_in_place() {
     }
 }
 
-fn the_window(app: &mut App) -> Entity {
-    let mut windows = app.world_mut().query_filtered::<Entity, With<Window>>();
-    windows.single(app.world()).unwrap()
-}
-
 /// The point on the orbital plane under a screen position, through the
 /// camera as placed this frame.
 fn plane_point_under(app: &mut App, screen: Vec2) -> Vec3 {
@@ -941,13 +936,11 @@ fn an_empty_click_clears_the_selection_and_a_pan_does_not() {
 
     let empty = Vec2::new(300.0, 700.0);
     click_at(&mut app, empty);
-    let hits = app
-        .world()
-        .resource::<bevy::picking::hover::HoverMap>()
-        .0
-        .get(&bevy::picking::pointer::PointerId::Mouse)
-        .map_or(0, |hits| hits.len());
-    assert_eq!(hits, 1, "only the window is under the pointer");
+    assert_eq!(
+        hovered(&app).len(),
+        1,
+        "only the window is under the pointer"
+    );
     assert_eq!(app.world().resource::<Selection>().selected, None);
 
     // PLNR-03: while the transfer planner is open, the same click does

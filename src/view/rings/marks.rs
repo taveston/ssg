@@ -45,7 +45,7 @@ use crate::view::motion_mode::MotionModeState;
 use crate::view::multi::{BackFrame, back_offset, frames_rect};
 use crate::view::multi_markers::draw::{spawn_back_frame, spawn_count, spawn_multi_parts};
 use crate::view::multi_markers::gather::{OrbitSlot, together_sets};
-use crate::view::multi_markers::look::{MultiLook, count_text, multi_frames, station_frames};
+use crate::view::multi_markers::look::MultiLook;
 use crate::view::readout::format_duration;
 use crate::view::screen::{MapView, in_viewport, screen_angle, snap_to_pixel};
 use crate::view::selection::Selection;
@@ -55,7 +55,7 @@ use crate::view::symbols::draw::{
     AmplifierStyle, Tint, TintSlot, amplifier_gap, spawn_symbol_parts,
 };
 use crate::view::symbols::shape::{SymbolMask, SymbolPart};
-use crate::view::symbols::{SymbolLook, symbol_look};
+use crate::view::symbols::{GroupFace, SymbolLook, symbol_look};
 use crate::view::targets::{MarkerFor, OrbitFor};
 use crate::view::tunables::Tunables;
 use crate::view::world::ViewNow;
@@ -191,12 +191,35 @@ pub enum IdentityFront {
 }
 
 /// MOT-14: what a ring's identity mark shows, kept on the mark so it is
-/// rebuilt only when that changes: a lone body's own symbol or marker,
-/// or a shared orbit's multi-marker with its front and look.
+/// rebuilt only when that changes: a lone body's own symbol or marker
+/// with everything it is drawn from, or a shared orbit's multi-marker
+/// with its front and look.
 #[derive(Component, Debug, Clone, PartialEq)]
 pub enum MarkShows {
-    Body(Entity),
+    Body(Entity, BodyMarkLook),
     Multi(IdentityFront, MultiLook),
+}
+
+/// What a lone body's mark is drawn from: its class, affiliation, record
+/// and group face. Kept whole, so a change in any of them redraws the
+/// mark.
+#[derive(Debug, Clone, PartialEq)]
+pub struct BodyMarkLook {
+    pub class: BodyClass,
+    pub affiliation: Affiliation,
+    pub record: Option<ShipRecord>,
+    pub group: Option<GroupFace>,
+}
+
+impl BodyMarkLook {
+    fn body_look(&self) -> BodyLook<'_> {
+        BodyLook {
+            class: self.class,
+            affiliation: self.affiliation,
+            record: self.record.as_ref(),
+            group: self.group,
+        }
+    }
 }
 
 /// The square under a mark's root that holds its symbol, marker or
@@ -217,18 +240,23 @@ type Looks<'w, 's> = Query<
 
 /// MOT-14: what a ring's identity mark should show now, from its members
 /// as they are this frame; `None` for a ring with no mark.
-fn mark_shows(
-    ring: &Ring,
-    together_km: f64,
-    looks: &Looks,
-    tunables: &Tunables,
-) -> Option<MarkShows> {
+fn mark_shows(ring: &Ring, assets: &MarkAssets) -> Option<MarkShows> {
     match identity_mark(ring)? {
         IdentityMark::Multi => {
-            let (front, look) = identity_multi(ring, together_km, looks, tunables);
+            let together_km = assets.sim.together_km;
+            let (front, look) = identity_multi(ring, together_km, &assets.looks, &assets.tunables);
             Some(MarkShows::Multi(front, look))
         }
-        IdentityMark::Body(body) => Some(MarkShows::Body(body)),
+        IdentityMark::Body(body) => {
+            let (class, affiliation, record) = assets.looks.get(body).ok()?;
+            let look = BodyMarkLook {
+                class: *class,
+                affiliation: *affiliation,
+                record: record.cloned(),
+                group: assets.groups.face(body),
+            };
+            Some(MarkShows::Body(body, look))
+        }
     }
 }
 
@@ -247,10 +275,11 @@ struct MarkAssets<'w, 's> {
 
 /// MOT-02 / MOT-14 / MUL-04: a mark and label for every ring, kept true
 /// as ships come, go and dock. A shared orbit's multi-marker is redrawn
-/// when its count, frames or docked split change; a mark that changes
-/// kind (a shared orbit down to one member, or back) is built again,
-/// keeping how far it has faded in. A ring with no members this frame
-/// keeps its mark, hidden while it is placed.
+/// when its count, frames or docked split change; a lone body's mark is
+/// built again when its look does, and so is a mark that changes kind (a
+/// shared orbit down to one member, or back), keeping how far it has
+/// faded in. A ring with no members this frame keeps its mark, hidden
+/// while it is placed; a mark whose ring is gone is removed.
 fn sync_ring_marks(
     mut commands: Commands,
     assets: MarkAssets,
@@ -259,12 +288,17 @@ fn sync_ring_marks(
     icons: Query<(Entity, &ChildOf), With<MarkIcon>>,
 ) {
     let tunables = &assets.tunables;
-    for owner in rings.owners() {
+    let owners = rings.owners();
+    for (root, mark, _) in &marks {
+        if owners.binary_search(&mark.owner).is_err() {
+            commands.entity(root).despawn();
+        }
+    }
+    for owner in owners {
         let Some(ring) = rings.ring(owner) else {
             continue;
         };
-        let Some(wanted) = mark_shows(&ring, assets.sim.together_km, &assets.looks, tunables)
-        else {
+        let Some(wanted) = mark_shows(&ring, &assets) else {
             continue;
         };
         let current = marks.iter().find(|(_, mark, _)| mark.owner == owner);
@@ -304,17 +338,8 @@ fn spawn_mark(
         MarkShows::Multi(front, look) => {
             spawn_multi_mark(commands, draw, ring, (front, look), shown)
         }
-        MarkShows::Body(body) => {
-            let Ok((class, affiliation, record)) = assets.looks.get(*body) else {
-                return;
-            };
-            let look = BodyLook {
-                class: *class,
-                affiliation: *affiliation,
-                record,
-                group: assets.groups.face(*body),
-            };
-            spawn_body_mark(commands, draw, ring, (*body, look), shown)
+        MarkShows::Body(body, look) => {
+            spawn_body_mark(commands, draw, ring, (*body, look.body_look()), shown)
         }
     };
     commands.entity(root).insert(wanted);
@@ -444,22 +469,12 @@ fn identity_multi(
     {
         let symbol = symbol_look(*affiliation, record, settings);
         let at_looks: Vec<_> = at.iter().filter_map(|&b| look_of(b)).collect();
-        let (front, back) = station_frames(&symbol, &at_looks, settings);
-        let look = MultiLook {
-            front,
-            back,
-            count: count_text(at.len()),
-        };
+        let look = MultiLook::of_station(&symbol, &at_looks, at.len(), settings);
         return (IdentityFront::Station(symbol), look);
     }
     // Docked members are left out of the frames as of the count.
     let thing_looks: Vec<_> = things.iter().filter_map(|&b| look_of(b)).collect();
-    let (front, back) = multi_frames(&thing_looks, settings);
-    let look = MultiLook {
-        front,
-        back,
-        count: count_text(things.len()),
-    };
+    let look = MultiLook::of_things(&thing_looks, things.len(), settings);
     (IdentityFront::Frame, look)
 }
 

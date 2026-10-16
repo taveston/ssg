@@ -683,7 +683,7 @@ fn a_shared_orbits_identity_mark_follows_ships_that_move_dock_and_leave() {
     }
     app.update();
     let (root, shows) = mark(&mut app);
-    assert_eq!(shows, MarkShows::Body(yard));
+    assert!(matches!(shows, MarkShows::Body(b, _) if b == yard));
     assert_eq!(app.world().get::<MarkerFor>(root).map(|m| m.0), Some(yard));
     let shown = app.world().get::<RingMarkFor>(root).unwrap().shown;
     // One frame's fade step is 16.7 ms of `identity_mark_fade_ms`.
@@ -692,4 +692,71 @@ fn a_shared_orbits_identity_mark_follows_ships_that_move_dock_and_leave() {
         (shown - 0.5).abs() <= step + 1e-4,
         "fading from where it was, not from 0"
     );
+}
+
+/// MOT-14: a lone body's identity mark is drawn again when its look
+/// changes: Iver Yard, alone on its band once the ships have left, turns
+/// hostile and its mark is rebuilt in the hostile colour. A mark whose
+/// ring is gone is removed.
+#[test]
+fn a_lone_bodys_mark_follows_its_look_and_goes_with_its_ring() {
+    use crate::sim::body::Affiliation;
+    use crate::view::rings::marks::{MarkShows, RingMarkFor, RingMarksPlugin};
+    use crate::view::shared_orbit::OrbitMembers;
+
+    let mut app = camera_app_with(|app| {
+        app.insert_resource(placeholder_fonts()).add_plugins((
+            GroupingPlugin,
+            MotionPlugin,
+            HoveredPlugin,
+            SharedOrbitPlugin,
+            RingMarksPlugin,
+        ));
+    });
+    let yard = body(&mut app, "Iver Yard");
+    let band = app.world().get::<InNamedOrbit>(yard).unwrap().0;
+    for ship in ["Corvid", "Pellam trader"].map(|n| body(&mut app, n)) {
+        app.world_mut()
+            .entity_mut(ship)
+            .remove::<(Orbit, InNamedOrbit)>()
+            .insert(InFlight);
+    }
+    app.update();
+    let marks = |app: &mut App| {
+        let mut marks = app
+            .world_mut()
+            .query::<(Entity, &RingMarkFor, &MarkShows)>();
+        marks
+            .iter(app.world())
+            .filter(|(_, m, _)| m.owner == band)
+            .map(|(e, _, shows)| (e, shows.clone()))
+            .collect::<Vec<_>>()
+    };
+    let tints = |app: &mut App, root: Entity| {
+        descendants(app, root)
+            .into_iter()
+            .filter_map(|e| app.world().get::<Tint>(e).map(|t| t.color))
+            .collect::<Vec<Color>>()
+    };
+    let lone = |app: &mut App| match marks(app).as_slice() {
+        [(root, MarkShows::Body(_, look))] => (*root, look.affiliation),
+        other => panic!("one lone body's mark, not {other:?}"),
+    };
+    let (before, affiliation) = lone(&mut app);
+    assert_eq!(affiliation, Affiliation::Own);
+    assert!(!tints(&mut app, before).contains(&crate::view::colors::HOSTILE));
+
+    *app.world_mut().get_mut::<Affiliation>(yard).unwrap() = Affiliation::Hostile;
+    app.update();
+    let (after, affiliation) = lone(&mut app);
+    assert_eq!(affiliation, Affiliation::Hostile);
+    assert_ne!(after, before, "built again");
+    assert!(tints(&mut app, after).contains(&crate::view::colors::HOSTILE));
+
+    app.world_mut()
+        .resource_mut::<OrbitMembers>()
+        .0
+        .remove(&band);
+    app.update();
+    assert!(marks(&mut app).is_empty(), "no ring, no mark");
 }

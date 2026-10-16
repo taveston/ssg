@@ -17,7 +17,7 @@ use std::collections::{HashMap, HashSet};
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
-use super::look::{MultiLook, count_text, multi_frames, station_frames};
+use super::look::MultiLook;
 use crate::sim::body::{Affiliation, BodyClass};
 use crate::sim::named_orbit::{InNamedOrbit, NamedOrbit};
 use crate::sim::orbit::Orbit;
@@ -310,12 +310,7 @@ impl GatherInputs<'_, '_> {
             .iter()
             .filter_map(|&t| self.class_and_affiliation(t))
             .collect();
-        let (front, back) = multi_frames(&looks, symbol_settings(&self.tunables));
-        MultiLook {
-            front,
-            back,
-            count: count_text(things.len()),
-        }
+        MultiLook::of_things(&looks, things.len(), symbol_settings(&self.tunables))
     }
 
     /// MUL-03: a station marker's look: the station's own frame, and the
@@ -328,12 +323,12 @@ impl GatherInputs<'_, '_> {
             .iter()
             .filter_map(|&t| self.class_and_affiliation(t))
             .collect();
-        let (front, back) = station_frames(&symbol, &docked_looks, settings);
-        Some(MultiLook {
-            front,
-            back,
-            count: count_text(docked.len()),
-        })
+        Some(MultiLook::of_station(
+            &symbol,
+            &docked_looks,
+            docked.len(),
+            settings,
+        ))
     }
 
     fn in_viewport(&self, pos: Vec2) -> bool {

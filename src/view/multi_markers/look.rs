@@ -43,8 +43,42 @@ pub struct MultiLook {
     pub count: String,
 }
 
+impl MultiLook {
+    /// MUL-01 / MUL-02: the look of a marker holding things of these
+    /// classes and affiliations, its count reading `count`.
+    pub fn of_things(
+        things: &[(BodyClass, Affiliation)],
+        count: usize,
+        settings: SymbolSettings,
+    ) -> Self {
+        let (front, back) = multi_frames(things, settings);
+        Self {
+            front,
+            back,
+            count: count_text(count),
+        }
+    }
+
+    /// MUL-03: a station marker's look: the station's own frame in front,
+    /// the back frame over what is docked, and the count of the `count`
+    /// things docked.
+    pub fn of_station(
+        station: &SymbolLook,
+        docked: &[(BodyClass, Affiliation)],
+        count: usize,
+        settings: SymbolSettings,
+    ) -> Self {
+        let (front, back) = station_frames(station, docked, settings);
+        Self {
+            front,
+            back,
+            count: count_text(count),
+        }
+    }
+}
+
 /// MUL-01: the count's text: the figure, or "99+" above 99.
-pub fn count_text(count: usize) -> String {
+fn count_text(count: usize) -> String {
     if count > MAX_SHOWN_COUNT {
         format!("{MAX_SHOWN_COUNT}+")
     } else {
@@ -120,7 +154,7 @@ fn back_frame(
 /// MUL-02: a multi-marker's front and back frames from the class and
 /// affiliation of each thing it holds. Natural bodies are left out; with
 /// nothing else, both frames are plain neutral circles.
-pub fn multi_frames(
+fn multi_frames(
     things: &[(BodyClass, Affiliation)],
     settings: SymbolSettings,
 ) -> (FrameLook, FrameLook) {
@@ -139,7 +173,7 @@ pub fn multi_frames(
 /// MUL-03: a station marker's frames: the station's own frame in front,
 /// whatever is docked, and the back frame by MUL-02 over the docked
 /// things.
-pub fn station_frames(
+fn station_frames(
     station: &SymbolLook,
     docked: &[(BodyClass, Affiliation)],
     settings: SymbolSettings,

@@ -12,6 +12,7 @@ use std::collections::HashMap;
 use bevy::prelude::*;
 
 use crate::view::multi_markers::look::MultiLook;
+use crate::view::tunables::Tunables;
 
 /// What made a multi-marker, and so where it sits and what a click on it
 /// does (MUL-05, MUL-07). Each names the entity that identifies it, so
@@ -87,6 +88,29 @@ pub struct MultiMarkers {
 impl MultiMarkers {
     pub fn get(&self, key: MultiKey) -> Option<&MultiMarker> {
         self.markers.iter().find(|m| m.key == key)
+    }
+
+    /// HOV-07: the box marker `key`'s two frames take on screen, before
+    /// any margin, while it is drawn. A station marker is its station's
+    /// own marker, so `station_marker` says where that is drawn now: its
+    /// centre, half size and back frame.
+    pub fn frames_box(
+        &self,
+        key: MultiKey,
+        station_marker: impl FnOnce(Entity) -> Option<(Vec2, f32, Option<Vec2>)>,
+        tunables: &Tunables,
+    ) -> Option<Rect> {
+        if let MultiKey::Station(station) = key {
+            let (centre, half, back) = station_marker(station)?;
+            return Some(frames_rect(centre, half, back));
+        }
+        let marker = self.get(key).filter(|m| m.drawn)?;
+        let back = back_offset(tunables.back_frame_offset_px);
+        Some(frames_rect(
+            marker.centre,
+            tunables.ship_symbol_px / 2.0,
+            Some(back),
+        ))
     }
 
     /// MUL-03: how many things are docked at a station, zero if it isn't

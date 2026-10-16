@@ -39,11 +39,6 @@ fn selected(app: &App) -> Option<Entity> {
     app.world().resource::<Selection>().selected
 }
 
-fn the_window(app: &mut App) -> Entity {
-    let mut windows = app.world_mut().query_filtered::<Entity, With<Window>>();
-    windows.single(app.world()).unwrap()
-}
-
 fn press_key(app: &mut App, key: KeyCode) {
     let window = the_window(app);
     for state in [ButtonState::Pressed, ButtonState::Released] {
@@ -275,18 +270,6 @@ fn picked_click(app: &mut App) {
         mouse(app, state);
     }
     run(app, 2);
-}
-
-/// What the mouse is over, by Bevy's picking.
-fn hovered(app: &App) -> Vec<Entity> {
-    use bevy::picking::hover::HoverMap;
-    use bevy::picking::pointer::PointerId;
-    app.world()
-        .resource::<HoverMap>()
-        .0
-        .get(&PointerId::Mouse)
-        .map(|hits| hits.keys().copied().collect())
-        .unwrap_or_default()
 }
 
 /// HOV-02 / MUL-10: with an orbit ring under the tray, a click there hits

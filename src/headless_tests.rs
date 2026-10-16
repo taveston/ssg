@@ -509,6 +509,24 @@ fn drawn_alone(app: &mut App, body: Entity) -> bool {
     !joined && app.world().get::<MarkerDrawn>(marker).unwrap().0.is_some()
 }
 
+/// The app's one window.
+fn the_window(app: &mut App) -> Entity {
+    let mut windows = app.world_mut().query_filtered::<Entity, With<Window>>();
+    windows.single(app.world()).unwrap()
+}
+
+/// What the mouse is over, by Bevy's picking.
+fn hovered(app: &App) -> Vec<Entity> {
+    use bevy::picking::hover::HoverMap;
+    use bevy::picking::pointer::PointerId;
+    app.world()
+        .resource::<HoverMap>()
+        .0
+        .get(&PointerId::Mouse)
+        .map(|hits| hits.keys().copied().collect())
+        .unwrap_or_default()
+}
+
 /// The multi-marker `key` this frame, if there is one.
 fn multi_marker(app: &App, key: MultiKey) -> Option<crate::view::multi::MultiMarker> {
     app.world().resource::<MultiMarkers>().get(key).cloned()

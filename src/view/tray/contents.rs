@@ -19,9 +19,7 @@ use crate::sim::track::ShipRecord;
 use crate::sim::tunables::SimTunables;
 use crate::view::bindings::Bindings;
 use crate::view::markers::MarkerDrawn;
-use crate::view::multi::{
-    BackFrame, MultiKey, MultiMarker, MultiMarkers, OpenTray, TrayFor, back_offset, frames_rect,
-};
+use crate::view::multi::{BackFrame, MultiKey, MultiMarker, MultiMarkers, OpenTray, TrayFor};
 use crate::view::multi_markers::draw::StationMarker;
 use crate::view::multi_markers::order::TrayOrder;
 use crate::view::planner::state::PlannerState;
@@ -123,27 +121,18 @@ impl Anchors<'_, '_> {
         let margin = tunables.bracket_margin_px;
         let inflate = |rect: Rect| rect.inflate(margin);
         match tray {
-            TrayFor::Marker(MultiKey::Station(station)) => {
-                self.multis.get(MultiKey::Station(station))?;
-                let drawn = self
-                    .stations
-                    .iter()
-                    .find(|(marker_for, ..)| marker_for.0 == station)
-                    .and_then(|(_, drawn, back)| {
-                        let (centre, half) = drawn.0?;
-                        Some(inflate(frames_rect(centre, half, back.0)))
-                    });
-                Some(drawn)
-            }
             TrayFor::Marker(key) => {
-                let marker = self.multis.get(key)?;
-                let back = back_offset(tunables.back_frame_offset_px);
-                let half = tunables.ship_symbol_px / 2.0;
-                Some(
-                    marker
-                        .drawn
-                        .then(|| inflate(frames_rect(marker.centre, half, Some(back)))),
-                )
+                self.multis.get(key)?;
+                let station_marker = |station: Entity| {
+                    let (_, drawn, back) = self
+                        .stations
+                        .iter()
+                        .find(|(marker_for, ..)| marker_for.0 == station)?;
+                    let (centre, half) = drawn.0?;
+                    Some((centre, half, back.0))
+                };
+                let rect = self.multis.frames_box(key, station_marker, tunables);
+                Some(rect.map(inflate))
             }
             TrayFor::Orbit(orbit) => self
                 .ring_marks

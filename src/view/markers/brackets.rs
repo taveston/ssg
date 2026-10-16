@@ -22,9 +22,7 @@ use crate::view::fold::{FoldSummary, SatelliteFoldState};
 use crate::view::hovered::HoveredBodies;
 use crate::view::layers;
 use crate::view::motion_mode::MotionModeState;
-use crate::view::multi::{
-    BackFrame, JoinSlide, MultiKey, MultiMarkers, MultiTarget, back_offset, frames_rect,
-};
+use crate::view::multi::{BackFrame, JoinSlide, MultiKey, MultiMarkers, MultiTarget, frames_rect};
 use crate::view::rings::marks::RingMarkFor;
 use crate::view::selection::Selection;
 use crate::view::shared_orbit::OrbitMembers;
@@ -278,12 +276,19 @@ impl MarkSources<'_, '_> {
         )
     }
 
+    /// Where a body's marker is drawn: its centre, half size and, for a
+    /// station marker, its back frame.
+    fn drawn_marker(&self, body: Entity) -> Option<(Vec2, f32, Option<Vec2>)> {
+        let (_, drawn, back) = self.markers.iter().find(|(m, ..)| m.0 == body)?;
+        let (centre, half) = drawn.0?;
+        Some((centre, half, back.and_then(|b| b.0)))
+    }
+
     /// HOV-07: the box round a body's marker as drawn, both frames of a
     /// station marker included.
     fn marker_box(&self, body: Entity, margin: f32) -> Option<BracketBox> {
-        let (_, drawn, back) = self.markers.iter().find(|(m, ..)| m.0 == body)?;
-        let (centre, half) = drawn.0?;
-        Some(match back.and_then(|b| b.0) {
+        let (centre, half, back) = self.drawn_marker(body)?;
+        Some(match back {
             Some(back) => BracketBox::around_rect(frames_rect(centre, half, Some(back)), margin),
             None => BracketBox::around_square(centre, half, margin),
         })
@@ -292,14 +297,10 @@ impl MarkSources<'_, '_> {
     /// HOV-07: the box round a multi-marker's two frames, while it is
     /// drawn; a station marker's is its station's marker's.
     fn multi_box(&self, key: MultiKey, tunables: &Tunables) -> Option<BracketBox> {
-        let margin = tunables.bracket_margin_px;
-        if let MultiKey::Station(station) = key {
-            return self.marker_box(station, margin);
-        }
-        let marker = self.multis.get(key).filter(|m| m.drawn)?;
-        let back = back_offset(tunables.back_frame_offset_px);
-        let rect = frames_rect(marker.centre, tunables.ship_symbol_px / 2.0, Some(back));
-        Some(BracketBox::around_rect(rect, margin))
+        let rect = self
+            .multis
+            .frames_box(key, |station| self.drawn_marker(station), tunables)?;
+        Some(BracketBox::around_rect(rect, tunables.bracket_margin_px))
     }
 
     /// INS-06: the parent whose fold marker holds `body` while it is
@@ -481,6 +482,7 @@ fn draw_marks(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::view::multi::back_offset;
 
     /// HOV-07 / SYM-14: a symbol's box is its `ship_symbol_px` square plus
     /// the margin on every side, centred on it.
