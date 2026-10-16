@@ -238,11 +238,6 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** PLNR-106, PLNR-96 · **Type:** spec gap
 - **Disposition:** open. Accept, and add the sentence to PLNR-106.
 
-### F-237 · Esc with both a tray and the planner open
-- **Observation:** INS-03 doesn't say which Esc closes first. The build closes the tray first, then ends the planner, then clears the selection.
-- **Affects:** INS-03 · **Type:** spec gap
-- **Disposition:** open. Accept, and add the order to INS-03.
-
 ### F-238 · Shared orbit trays: dot mode and header
 - **Observation:** HOV-05 opens the identity mark's tray, but in dot mode there is no identity mark, so a click on a shared ring opens no tray; it only closes any tray that is open. The identity mark's tray uses the "N OBJECTS" header meant for any other marker, rather than naming the orbit.
 - **Affects:** HOV-05, MUL-08 · **Type:** spec gap
