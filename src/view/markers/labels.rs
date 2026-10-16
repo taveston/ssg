@@ -7,6 +7,10 @@
 //! selection brackets go round, HOV-07), and takes the first that is
 //! free. The gap is measured from the box whether or not the brackets
 //! show, so a label never moves when its object is hovered or selected.
+//! A parent with an object marker tries left, above, below, then right,
+//! beside a box that takes in its fold marker popped out, so its label
+//! stays put when the marker pops (GRP-12); a body's moon ring is part of
+//! its box, and its "+N" moon count its second line (GRP-10, GRP-11).
 //! A symbol's box takes in its amplifiers too (SYM-13), which also keep
 //! other labels off them. Labels are placed in priority order (the
 //! selection, the hovered object, the frame body, the star and planets,

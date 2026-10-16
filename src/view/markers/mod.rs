@@ -148,14 +148,15 @@ pub fn drawn_half(class_half: f32, is_disc: bool, true_radius_px: f32) -> f32 {
 
 /// HOV-07: how far a marker's bracket box reaches from its centre: the
 /// drawn marker (a symbol's square, SYM-14, or a disc to the outer edge of
-/// its rim) and the margin. A fold marker sits clear of it (GRP-05).
+/// its rim) and the margin.
 pub fn box_half(drawn_half: f32, tunables: &Tunables) -> f32 {
     drawn_half + tunables.bracket_margin_px
 }
 
-/// HOV-07 / GRP-05: how far a parent's bracket box reaches from its
-/// centre: its drawn marker, grown to a true-size disc when close (MRK-07),
-/// and the margin. Its fold marker sits clear of it.
+/// HOV-07 / GRP-12: how far a parent's bracket box reaches from its
+/// centre, without its moon ring: its drawn marker, grown to a true-size
+/// disc when close (MRK-07), and the margin. Its object pip and popped
+/// fold marker are placed from that corner.
 pub fn parent_clear_px(
     class: BodyClass,
     has_record: bool,
@@ -695,8 +696,8 @@ mod tests {
         assert_eq!(joined_place(own, None), (own, 1.0));
     }
 
-    /// GRP-05 / HOV-07: a fold marker sits clear of its parent's bracket
-    /// box, which grows with the parent's true-size disc.
+    /// GRP-12 / HOV-07: the parent's box an object marker is placed from
+    /// grows with the parent's true-size disc.
     #[test]
     fn a_parents_box_grows_with_its_disc() {
         let tunables = Tunables::default();

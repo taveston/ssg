@@ -78,6 +78,7 @@ mod markers;
 mod membership;
 mod multi;
 mod paths;
+mod planet_marker;
 mod planner;
 mod rings;
 mod shared_orbit_marks;

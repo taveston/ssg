@@ -511,7 +511,10 @@ fn labels_keep_clear_of_each_other_and_of_markers() {
 
 /// Where `body`'s label sits relative to its marker's node, and in which
 /// slot.
-fn label_place(app: &mut App, body: Entity) -> (Vec2, crate::view::markers::labels::Placement) {
+pub(super) fn label_place(
+    app: &mut App,
+    body: Entity,
+) -> (Vec2, crate::view::markers::labels::Placement) {
     use crate::view::markers::MarkerLabel;
     use crate::view::markers::labels::LabelState;
     let marker = marker_of(app, body);

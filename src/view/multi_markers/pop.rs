@@ -308,6 +308,26 @@ mod tests {
         assert!(single.back.is_some(), "one thing's back frame comes out");
     }
 
+    /// GRP-12 / MUL-02: an allied and an own ship folded in make an
+    /// allied front pip with an own back pip behind it.
+    #[test]
+    fn an_allied_and_an_own_ship_make_an_allied_pip_on_an_own_back_pip() {
+        use crate::sim::body::{Affiliation, BodyClass};
+        use crate::view::markers::symbol_settings;
+        use crate::view::multi_markers::look::{MultiLook, affiliation_frame};
+        let t = Tunables::default();
+        let settings = symbol_settings(&t);
+        let things = [
+            (BodyClass::Ship, Affiliation::Allied),
+            (BodyClass::Ship, Affiliation::Own),
+        ];
+        let look = MultiLook::of_things(&things, things.len(), settings);
+        assert_eq!(look.front, affiliation_frame(Affiliation::Allied, settings));
+        assert_eq!(look.back, affiliation_frame(Affiliation::Own, settings));
+        let pip = object_geometry(Vec2::ZERO, 10.0, (0.0, things.len()), &t);
+        assert!(pip.back.is_some(), "two things show the back pip");
+    }
+
     fn pointer(x: f32) -> Option<Pointer> {
         Some(Pointer {
             at: Vec2::new(x, 0.0),

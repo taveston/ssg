@@ -78,7 +78,8 @@ pub enum TrayKind<'a> {
         count: usize,
         of: usize,
     },
-    /// A parent's fold marker (GRP-05).
+    /// A parent's fold marker, holding its ships, groups and stations
+    /// (GRP-12, MUL-04).
     Fold { parent: &'a str, count: usize },
     /// Any other: an overlap across orbits, or a shared orbit's identity
     /// mark.
