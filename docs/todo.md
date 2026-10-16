@@ -25,6 +25,9 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - The pip's front and back colours follow MUL-02. Only the parent's own folded satellites decide, as they do for the count. A moon whose station is folded into it is still one body.
   - Tests: moons only shows the neutral ring and "+N", no pip; a folded ship adds the pip and leaves ring and "+N" unchanged; allied plus own shows an allied front pip and an own back pip; the pointer near pops it out and away releases it; selecting the parent pops it with no pointer; a selected folded ship puts the mark round the popped marker; the tray never covers the parent; the label doesn't move when the marker pops; the ring's box and hit area count in the parent's marker. Mock-ups 20 to 22, 26 and 27 show the look; mock-up 26's popped state sits below the planet and is superseded by GRP-13.
 
+- [ ] **A shared orbit with one station shows the station's marker** · F-231 · MOT-14
+  - MOT-14 now says a shared orbit whose only thing is a station shows that station's marker, with its docked count, as the build already does. Clear the check on the build's behaviour only if it differs; add a test for Iver's High band.
+
 ## Fixes
 
 - [ ] **Orbit membership follows the ship** · F-242, F-201 · RAIL-09, SCL-07, HOV-04, INS-05, MRK-09, HOV-02
