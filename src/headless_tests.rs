@@ -69,6 +69,8 @@ use crate::view::tunables::{Tunables, TunablesPlugin};
 use crate::view::world::{RenderOrigin, WorldPositions};
 use crate::{Boot, Stage};
 
+mod planner;
+
 /// One frame at 60 fps.
 const FRAME: Duration = Duration::from_micros(16_667);
 /// Enough frames for transforms to propagate and a 200 ms fold to finish.
@@ -1990,8 +1992,9 @@ fn follow_cursor_with_pointer(
     }
 }
 
-/// INS-03: a click on empty map space clears the selection; the release
-/// at the end of a pan doesn't. Bevy's own picking runs, so the window's
+/// INS-03 / PLNR-03: a click on empty map space clears the selection,
+/// unless the transfer planner is open; the release at the end of a pan
+/// doesn't. Bevy's own picking runs, so the window's
 /// catch-all hit behind everything is in play, as in the game.
 #[test]
 fn an_empty_click_clears_the_selection_and_a_pan_does_not() {
@@ -2028,6 +2031,13 @@ fn an_empty_click_clears_the_selection_and_a_pan_does_not() {
         .map_or(0, |hits| hits.len());
     assert_eq!(hits, 1, "only the window is under the pointer");
     assert_eq!(app.world().resource::<Selection>().selected, None);
+
+    // PLNR-03: while the transfer planner is open, the same click does
+    // nothing.
+    app.world_mut().resource_mut::<Selection>().select(halden);
+    app.world_mut().resource_mut::<PlannerState>().open(halden);
+    click_at(&mut app, empty);
+    assert_eq!(app.world().resource::<Selection>().selected, Some(halden));
 }
 
 /// HOV-02: every drawn ring is traced for hit-testing, in dot mode too;

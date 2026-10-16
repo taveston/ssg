@@ -133,3 +133,30 @@ pub fn handle_key_rotate(
     let tilt = axis(&bindings.tilt_up, &bindings.tilt_down) as f32 * rate;
     view.rotate(heading, tilt, tunables.max_pitch_deg, &positions);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// CAM-14 / PLNR-23: the arrows pan, unless a focused slider has
+    /// taken them; the other pan keys still pan.
+    #[test]
+    fn keys_a_focused_slider_takes_do_not_pan() {
+        let bindings = Bindings::default();
+        let tunables = Tunables::default();
+        let mut keys = ButtonInput::<KeyCode>::default();
+        keys.press(KeyCode::ArrowRight);
+        let free = pan_direction(&keys, &bindings, &tunables, None, &[]);
+        assert_eq!(free, Vec2::X);
+        let taken = [bindings.slider_down.clone(), bindings.slider_up.clone()].concat();
+        assert_eq!(
+            pan_direction(&keys, &bindings, &tunables, None, &taken),
+            Vec2::ZERO
+        );
+        keys.press(KeyCode::KeyA);
+        assert_eq!(
+            pan_direction(&keys, &bindings, &tunables, None, &taken),
+            -Vec2::X
+        );
+    }
+}

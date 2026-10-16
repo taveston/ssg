@@ -104,9 +104,14 @@ pub fn show_tooltips(
     let due = rest
         .label
         .filter(|(_, since)| tooltip_due(now - since, tunables.tooltip_delay_ms));
-    let cursor = windows.single().ok().and_then(Window::cursor_position);
+    // With no window (or no cursor in it) the box sits at the corner.
+    let at = windows
+        .single()
+        .ok()
+        .and_then(Window::cursor_position)
+        .unwrap_or_default();
     for (mut node, children) in &mut boxes {
-        let Some(((entity, _), at)) = due.zip(cursor) else {
+        let Some((entity, _)) = due else {
             node.display = Display::None;
             continue;
         };
