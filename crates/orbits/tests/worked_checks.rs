@@ -1,11 +1,16 @@
-//! The worked checks of the transfer spec (XFER-12, ARCH-44), in plain
+//! The worked checks of the transfer spec (XFER-12, PHAS-13, ARCH-44), in plain
 //! figures: a K-type star of 0.75 solar masses; a capital planet of
 //! radius 5,753 km and surface gravity 0.82 g at 0.8 AU; an inner planet
 //! at 0.5 AU; a belt at 0.64 AU. Every figure must hold within 3%.
 
+use std::f64::consts::TAU;
+
+use glam::DVec3;
 use orbits::{
-    CircularOrbit, Rail, Sense, circular_period, escape_cost, hohmann, km_per_day_to_km_per_s,
-    km3_per_s2_to_km3_per_day2, lambert, synodic_period,
+    CircularOrbit, PhasingOrbit, PhasingSide, Rail, Sense, capture_angle, circular_period,
+    circular_speed, escape_cost, exit_angle, hohmann, km_per_day_to_km_per_s,
+    km_per_s_to_km_per_day, km3_per_s2_to_km3_per_day2, lambert, meeting_days, pass_eccentricity,
+    phasing_orbit, synodic_period,
 };
 
 const KM_PER_AU: f64 = 149_597_870.7;
@@ -105,4 +110,163 @@ fn cheapest_lambert_crossing_is_the_hohmann_one() {
 fn capital_year_matches_the_reference_layout() {
     let days = circular_period(star_mu(), 0.8 * KM_PER_AU);
     assert_within_3_percent(days, 302.0, "capital's year");
+}
+
+// --- Phase (PHAS-13) ---
+
+/// The capital's High band, ten radii out (PHAS-13).
+const HIGH_KM: f64 = 57_530.0;
+/// The capital's Low band, 500 km up (PHAS-13).
+const LOW_KM: f64 = 6_253.0;
+
+/// PHAS-13: the High band turns in 1.95 days at 2.15 km/s; the Low band
+/// in 1.67 hours at 6.52 km/s.
+#[test]
+fn band_periods_and_speeds_match_the_phase_checks() {
+    let mu = capital_mu();
+    assert_within_3_percent(circular_period(mu, HIGH_KM), 1.95, "High period");
+    assert_within_3_percent(
+        km_per_day_to_km_per_s(circular_speed(mu, HIGH_KM)),
+        2.15,
+        "High speed",
+    );
+    assert_within_3_percent(circular_period(mu, LOW_KM) * 24.0, 1.67, "Low period");
+    assert_within_3_percent(
+        km_per_day_to_km_per_s(circular_speed(mu, LOW_KM)),
+        6.52,
+        "Low speed",
+    );
+}
+
+/// The cheaper of the two phasing orbits for a meeting `k`, the inner on
+/// a tie, ignoring whether either clears the planet.
+fn cheaper(radius_km: f64, k: u32) -> PhasingOrbit {
+    let inner = phasing_orbit(capital_mu(), radius_km, 0.5, k, PhasingSide::Inner);
+    let outer = phasing_orbit(capital_mu(), radius_km, 0.5, k, PhasingSide::Outer);
+    match (inner, outer) {
+        (Some(i), Some(o)) if o.delta_v() < i.delta_v() => o,
+        (Some(i), _) => i,
+        (None, Some(o)) => o,
+        (None, None) => panic!("no phasing orbit for k = {k}"),
+    }
+}
+
+/// PHAS-13: in the High band, with the target half a turn ahead, k = 1
+/// meets after 0.97 d for 1.54 km/s (inner only); k = 3 after 4.86 d for
+/// 0.29 km/s (3 laps of a 1.62 d inner orbit or 2 of a 2.43 d outer one);
+/// k = 10 after 18.5 d for 0.076 km/s.
+#[test]
+fn high_band_phasing_matches_the_spec() {
+    let mu = capital_mu();
+    let period = circular_period(mu, HIGH_KM);
+    assert_within_3_percent(meeting_days(period, 0.5, 1), 0.97, "k = 1 meeting");
+    assert!(phasing_orbit(mu, HIGH_KM, 0.5, 1, PhasingSide::Outer).is_none());
+    let one = phasing_orbit(mu, HIGH_KM, 0.5, 1, PhasingSide::Inner).unwrap();
+    assert_within_3_percent(km_per_day_to_km_per_s(one.delta_v()), 1.54, "k = 1 delta-v");
+
+    assert_within_3_percent(meeting_days(period, 0.5, 3), 4.86, "k = 3 meeting");
+    let inner = phasing_orbit(mu, HIGH_KM, 0.5, 3, PhasingSide::Inner).unwrap();
+    let outer = phasing_orbit(mu, HIGH_KM, 0.5, 3, PhasingSide::Outer).unwrap();
+    assert_eq!((inner.laps, outer.laps), (3, 2));
+    assert_within_3_percent(inner.period_days, 1.62, "k = 3 inner lap");
+    assert_within_3_percent(outer.period_days, 2.43, "k = 3 outer lap");
+    assert_within_3_percent(
+        km_per_day_to_km_per_s(cheaper(HIGH_KM, 3).delta_v()),
+        0.29,
+        "k = 3 delta-v",
+    );
+
+    assert_within_3_percent(meeting_days(period, 0.5, 10), 18.5, "k = 10 meeting");
+    assert_within_3_percent(
+        km_per_day_to_km_per_s(cheaper(HIGH_KM, 10).delta_v()),
+        0.076,
+        "k = 10 delta-v",
+    );
+}
+
+/// PHAS-13: in the Low band, with the target half a turn ahead, k = 1
+/// has only an inner orbit, which dips below the band; k = 2 meets after
+/// 2.5 h on the outer orbit for 1.46 km/s; k = 10 after 16 h for 0.23 km/s.
+#[test]
+fn low_band_phasing_matches_the_spec() {
+    let mu = capital_mu();
+    let hours = circular_period(mu, LOW_KM) * 24.0;
+    assert!(phasing_orbit(mu, LOW_KM, 0.5, 1, PhasingSide::Outer).is_none());
+    let dip = phasing_orbit(mu, LOW_KM, 0.5, 1, PhasingSide::Inner);
+    assert!(dip.is_none_or(|o| o.closest_km < LOW_KM));
+
+    assert_within_3_percent(meeting_days(hours, 0.5, 2), 2.5, "k = 2 meeting, hours");
+    let two = phasing_orbit(mu, LOW_KM, 0.5, 2, PhasingSide::Outer).unwrap();
+    assert_within_3_percent(km_per_day_to_km_per_s(two.delta_v()), 1.46, "k = 2 delta-v");
+
+    assert_within_3_percent(meeting_days(hours, 0.5, 10), 16.0, "k = 10 meeting, hours");
+    let ten = phasing_orbit(mu, LOW_KM, 0.5, 10, PhasingSide::Outer).unwrap();
+    assert_within_3_percent(
+        km_per_day_to_km_per_s(ten.delta_v()),
+        0.23,
+        "k = 10 delta-v",
+    );
+}
+
+/// PHAS-13: with the target half a turn ahead, for k ≥ 2, delta-v times
+/// the meeting time is within 3% of two thirds of the radius times the
+/// angle to make up: 2πg for an inner orbit, 2π(1 − g) for an outer one.
+#[test]
+fn delta_v_times_time_is_two_thirds_radius_times_angle() {
+    let mu = capital_mu();
+    let gap = 0.5;
+    for radius in [HIGH_KM, LOW_KM] {
+        let period = circular_period(mu, radius);
+        for k in [2, 3, 5, 10] {
+            for side in [PhasingSide::Inner, PhasingSide::Outer] {
+                let Some(orbit) = phasing_orbit(mu, radius, gap, k, side) else {
+                    continue;
+                };
+                let angle = match side {
+                    PhasingSide::Inner => TAU * gap,
+                    PhasingSide::Outer => TAU * (1.0 - gap),
+                };
+                let product = orbit.delta_v() * meeting_days(period, gap, k);
+                assert_within_3_percent(
+                    product,
+                    2.0 / 3.0 * radius * angle,
+                    &format!("r {radius}, k {k}, {side:?}"),
+                );
+            }
+        }
+    }
+}
+
+/// PHAS-13: at 5 km/s the High band's capture hyperbola has e = 6.40
+/// and its closest point at α − 81.0°; the Low band's e = 1.59 at
+/// α − 51.0°. The exit points are at α − 99.0° and α − 129.0°.
+#[test]
+fn capture_and_exit_points_match_the_spec() {
+    let mu = capital_mu();
+    let v = km_per_s_to_km_per_day(5.0);
+    let alpha: f64 = 0.7;
+    let v_inf = DVec3::new(v * alpha.cos(), 0.0, v * alpha.sin());
+    assert_within_3_percent(pass_eccentricity(mu, HIGH_KM, v), 6.40, "High e");
+    assert_within_3_percent(pass_eccentricity(mu, LOW_KM, v), 1.59, "Low e");
+    let degrees_from_alpha = |angle: f64| (angle - alpha).to_degrees();
+    assert_within_3_percent(
+        degrees_from_alpha(capture_angle(mu, HIGH_KM, v_inf)),
+        -81.0,
+        "High capture point",
+    );
+    assert_within_3_percent(
+        degrees_from_alpha(capture_angle(mu, LOW_KM, v_inf)),
+        -51.0,
+        "Low capture point",
+    );
+    assert_within_3_percent(
+        degrees_from_alpha(exit_angle(mu, HIGH_KM, v_inf)),
+        -99.0,
+        "High exit point",
+    );
+    assert_within_3_percent(
+        degrees_from_alpha(exit_angle(mu, LOW_KM, v_inf)),
+        -129.0,
+        "Low exit point",
+    );
 }
