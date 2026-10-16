@@ -407,7 +407,7 @@ impl RingLooks<'_, '_> {
     fn look(&self, owner: Entity) -> Option<StrokeLook> {
         let tunables = &self.tunables;
         let ring = self.rings.ring(owner)?;
-        let body_angles: Vec<f32> = ring.drawn().map(|m| m.angle).collect();
+        let body_angles = ring.tail_angles();
         let mode = ring.mode();
         let (selected, is_hovered) = ring.highlight(&self.selection, &self.hovered);
         let highlight = ring_highlight(
@@ -418,7 +418,7 @@ impl RingLooks<'_, '_> {
         );
         let extent = ring_extent(
             ring.class(),
-            body_angles.is_empty(),
+            ring.drawn().next().is_none(),
             mode.ring_mode,
             highlight.is_some(),
         );

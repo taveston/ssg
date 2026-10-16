@@ -298,19 +298,39 @@ pub fn last_seen_text(last_observed_day: f64, now_day: f64) -> String {
     format!("last seen {days} d ago")
 }
 
+/// What a label's second line reads besides the record (SYM-13): a
+/// group's members' classes (empty for a ship), how many things are
+/// docked at a station (MUL-03), and the day it is now.
+#[derive(Clone, Copy, Debug)]
+pub struct SecondLineFacts<'a> {
+    pub members: &'a [ShipClass],
+    pub docked: usize,
+    pub now_day: f64,
+}
+
+impl SecondLineFacts<'_> {
+    /// Nothing but the day: a ship with no members and nothing docked.
+    pub fn on_day(now_day: f64) -> Self {
+        Self {
+            members: &[],
+            docked: 0,
+            now_day,
+        }
+    }
+}
+
 /// SYM-13: the label's second line, in the parts that apply joined by
-/// " · ": a group's member count by class (`members` holds its members'
-/// classes, and is empty for a ship), embarked formations, "own flag ·
-/// civilian" or "requisitioned", and a stale track's age. `None` when
-/// nothing applies.
+/// " · ": a group's member count by class, embarked formations, "own
+/// flag · civilian" or "requisitioned", a station's docked count ("3
+/// docked", MUL-13), and a stale track's age. `None` when nothing
+/// applies.
 pub fn label_second_line(
     affiliation: Affiliation,
     record: &ShipRecord,
-    members: &[ShipClass],
-    now_day: f64,
+    facts: SecondLineFacts,
 ) -> Option<String> {
     let mut parts: Vec<String> = Vec::new();
-    parts.extend(member_count_text(members));
+    parts.extend(member_count_text(facts.members));
     if let TroopLoad::Embarked(formations) = &record.load {
         parts.extend(formations.iter().map(|f| f.name.to_string()));
     }
@@ -319,8 +339,11 @@ pub fn label_second_line(
     } else if record.requisitioned {
         parts.push("requisitioned".to_string());
     }
+    if facts.docked > 0 {
+        parts.push(format!("{} docked", facts.docked));
+    }
     if let Track::Stale { last_observed_day } = record.track {
-        parts.push(last_seen_text(last_observed_day, now_day));
+        parts.push(last_seen_text(last_observed_day, facts.now_day));
     }
     (!parts.is_empty()).then(|| parts.join(" · "))
 }
@@ -518,12 +541,12 @@ mod tests {
             echelon: Some(Echelon::Battalion),
         }]));
         assert_eq!(
-            label_second_line(Affiliation::Own, &embarked, &[], 0.0).as_deref(),
+            label_second_line(Affiliation::Own, &embarked, SecondLineFacts::on_day(0.0)).as_deref(),
             Some("1st Arden Guard")
         );
         let civilian = ship(ShipClass::Cargo, false);
         assert_eq!(
-            label_second_line(Affiliation::Own, &civilian, &[], 0.0).as_deref(),
+            label_second_line(Affiliation::Own, &civilian, SecondLineFacts::on_day(0.0)).as_deref(),
             Some("own flag · civilian")
         );
         let requisitioned = ShipRecord {
@@ -532,7 +555,12 @@ mod tests {
             ..civilian
         };
         assert_eq!(
-            label_second_line(Affiliation::Own, &requisitioned, &[], 0.0).as_deref(),
+            label_second_line(
+                Affiliation::Own,
+                &requisitioned,
+                SecondLineFacts::on_day(0.0)
+            )
+            .as_deref(),
             Some("requisitioned")
         );
         let stale = ShipRecord {
@@ -542,11 +570,45 @@ mod tests {
             ..ship(ShipClass::Warship, false)
         };
         assert_eq!(
-            label_second_line(Affiliation::Hostile, &stale, &[], 0.0).as_deref(),
+            label_second_line(Affiliation::Hostile, &stale, SecondLineFacts::on_day(0.0))
+                .as_deref(),
             Some("last seen 6 d ago")
         );
         let plain = ship(ShipClass::Warship, true);
-        assert_eq!(label_second_line(Affiliation::Own, &plain, &[], 0.0), None);
+        assert_eq!(
+            label_second_line(Affiliation::Own, &plain, SecondLineFacts::on_day(0.0)),
+            None
+        );
+    }
+
+    /// SYM-13 / MUL-13: a station with things docked says how many on its
+    /// second line, before a stale track's age; with nothing docked it
+    /// says nothing of it.
+    #[test]
+    fn a_station_says_how_many_are_docked() {
+        let station = ship(ShipClass::Station, true);
+        let docked = |n| SecondLineFacts {
+            docked: n,
+            ..SecondLineFacts::on_day(0.0)
+        };
+        assert_eq!(
+            label_second_line(Affiliation::Own, &station, docked(3)).as_deref(),
+            Some("3 docked")
+        );
+        assert_eq!(
+            label_second_line(Affiliation::Own, &station, docked(0)),
+            None
+        );
+        let stale = ShipRecord {
+            track: Track::Stale {
+                last_observed_day: -2.0,
+            },
+            ..ship(ShipClass::Station, false)
+        };
+        assert_eq!(
+            label_second_line(Affiliation::Hostile, &stale, docked(1)).as_deref(),
+            Some("1 docked · last seen 2 d ago")
+        );
     }
 
     /// SYM-12: own ships with a condition have a bar filled to it in the
@@ -631,8 +693,15 @@ mod tests {
             echelon: Some(Echelon::Battalion),
         }]));
         assert_eq!(
-            label_second_line(Affiliation::Own, &embarked, &[Warship, TroopTransport], 0.0)
-                .as_deref(),
+            label_second_line(
+                Affiliation::Own,
+                &embarked,
+                SecondLineFacts {
+                    members: &[Warship, TroopTransport],
+                    ..SecondLineFacts::on_day(0.0)
+                }
+            )
+            .as_deref(),
             Some("1 warship, 1 troop transport · 1st Arden Guard")
         );
     }

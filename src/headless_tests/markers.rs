@@ -366,13 +366,14 @@ fn the_scale_bar_fits_and_the_north_dial_follows_and_resets_the_heading() {
 
 /// LBL-01 / LBL-03 / LBL-04 / SYM-13: in Halden IV's frame with its
 /// satellites unfolded, every shown label sits clear of every other label
-/// and of every marker (with a symbol's amplifiers) but its own, the
-/// selection's label is never hidden, and labels fade in over `label_fade_ms` rather than appearing at once.
+/// and of every marker (with a symbol's amplifiers) and multi-marker but
+/// its own, the selection's label is never hidden, and labels fade in
+/// over `label_fade_ms` rather than appearing at once.
 #[test]
 fn labels_keep_clear_of_each_other_and_of_markers() {
     use crate::view::markers::labels::{LabelState, LabelsPlugin, label_rect, overlaps};
-    use crate::view::markers::pills::PillsPlugin;
     use crate::view::markers::{MarkerLabel, MarkersPlugin};
+    use crate::view::multi::{BackFrame, frames_rect};
 
     let mut app = camera_app_with(|app| {
         app.insert_resource(placeholder_fonts()).add_plugins((
@@ -380,7 +381,7 @@ fn labels_keep_clear_of_each_other_and_of_markers() {
             GroupingPlugin,
             MotionPlugin,
             MarkersPlugin,
-            PillsPlugin,
+            MultiMarkersPlugin,
             HoveredPlugin,
             LabelsPlugin,
         ));
@@ -440,8 +441,9 @@ fn labels_keep_clear_of_each_other_and_of_markers() {
         let reach = app
             .world()
             .get::<crate::view::symbols::draw::AmplifierReach>(marker);
+        let back = app.world().get::<BackFrame>(marker).and_then(|b| b.0);
         let margin = app.world().resource::<Tunables>().bracket_margin_px;
-        Some(crate::view::markers::labels::marker_box(square, reach, margin).0)
+        Some(crate::view::markers::labels::marker_box(square, (reach, back), margin).0)
     };
     let gap = app.world().resource::<Tunables>().label_gap_px;
     let mut shown: Vec<(Entity, Entity, Rect)> = Vec::new();
@@ -470,10 +472,30 @@ fn labels_keep_clear_of_each_other_and_of_markers() {
     let mut markers = app
         .world_mut()
         .query_filtered::<Entity, With<MarkerHalfSize>>();
-    let marker_rects: Vec<(Entity, Rect)> = markers
+    let mut marker_rects: Vec<(Entity, Rect)> = markers
         .iter(app.world())
         .filter_map(|m| Some((m, marker_rect(&app, m)?)))
         .collect();
+    // MUL-13: no label runs over a multi-marker's two frames either.
+    let margin = app.world().resource::<Tunables>().bracket_margin_px;
+    let mut multis = app
+        .world_mut()
+        .query::<(Entity, &crate::view::multi::MultiNode, &Node, &BackFrame)>();
+    let multi_rects: Vec<(Entity, Rect)> = multis
+        .iter(app.world())
+        .filter_map(|(e, _, node, back)| {
+            let (min, Val::Px(w)) = (node_min(node)?, node.width) else {
+                return None;
+            };
+            let half = w / 2.0;
+            Some((
+                e,
+                frames_rect(min + Vec2::splat(half), half, back.0).inflate(margin),
+            ))
+        })
+        .collect();
+    assert!(!multi_rects.is_empty(), "some multi-markers are drawn");
+    marker_rects.extend(multi_rects);
     for (i, (own, _, rect)) in shown.iter().enumerate() {
         for (j, (_, _, other)) in shown.iter().enumerate() {
             assert!(i == j || !overlaps(*rect, *other), "two labels overprint");
@@ -530,13 +552,16 @@ fn labels_do_not_move_when_their_object_is_hovered_or_selected() {
 
     let tunables = app.world().resource::<Tunables>().clone();
     for object in [ivc, tf1] {
+        // Close enough that TF-1 overlaps no other symbol (MUL-05).
+        zoom_in_until(&mut app, 12, |app| drawn_alone(app, object));
+        settle_labels(&mut app, LABEL_SIZE);
         let before = label_place(&mut app, object);
         // The label's place is measured from the box, not the marker.
         let marker = marker_of(&mut app, object);
         let half = app.world().get::<MarkerHalfSize>(marker).unwrap().0;
         let drawn = Rect::from_corners(Vec2::ZERO, half * 2.0);
         let reach = app.world().get::<AmplifierReach>(marker).copied();
-        let (bbox, _) = marker_box(drawn, reach.as_ref(), tunables.bracket_margin_px);
+        let (bbox, _) = marker_box(drawn, (reach.as_ref(), None), tunables.bracket_margin_px);
         assert!(bbox.min.x <= -tunables.bracket_margin_px);
         let want = label_rect(bbox, LABEL_SIZE, before.1.slot, tunables.label_gap_px).min;
         assert!(

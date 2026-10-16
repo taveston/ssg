@@ -50,6 +50,8 @@ impl Plugin for CameraPlugin {
             .init_resource::<requests::ContextMenuRequest>()
             .init_resource::<drag::MouseDrag>()
             .init_resource::<keys::KeyPan>()
+            // CAM-14: the camera reads whether a tray has the arrow keys.
+            .init_resource::<crate::view::multi::OpenTray>()
             .add_systems(
                 Startup,
                 (rig::spawn_camera, rig::start_at_system_fit)

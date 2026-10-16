@@ -11,7 +11,7 @@
 //! view draws as a shared orbit (HOV-04); nothing is grouped by radius.
 //!
 //! A named orbit is not a `ChildOf` its body, so nothing that walks a
-//! body's children (lists, pills, fits) sees it: it is found by `parent`.
+//! body's children (lists, fold markers, fits) sees it: it is found by `parent`.
 
 use bevy::prelude::*;
 

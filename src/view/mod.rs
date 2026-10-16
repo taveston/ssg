@@ -1,18 +1,19 @@
 //! View (ARCH-01): everything drawn - the km to render conversion, the
-//! camera, markers, rings, pills, grouping, the motion rule, gate edge
+//! camera, markers, rings, multi-markers, grouping, the motion rule, gate edge
 //! arrows, inspection insets, the top bar, the palette, fonts, the label
 //! halo, the frame cue, fidelity images and the presentation tunables, and
 //! a debug screenshot option (`debug_shot`).
 //!
 //! The view reads the simulation and changes it only through its API
 //! (ARCH-14). State that several view modules share lives in its own small
-//! module at this level - `selection`, `fold`, `motion_mode`, `targets`,
-//! `screen`, `shared_orbit`, `sidebar` and others - or, for the planner,
+//! module at this level - `selection`, `fold`, `multi`, `motion_mode`,
+//! `targets`, `screen`, `shared_orbit`, `sidebar` and others - or, for the planner,
 //! `planner/state.rs`, so no two feature modules import each other
 //! (ARCH-03).
 //!
 //! Features with several modules have a folder each: `camera/`, `markers/`
-//! (markers, their picking, labels, pills and brackets), `rings/` (orbit
+//! (markers, their picking, labels and brackets), `multi_markers/`
+//! (several objects on one marker), `rings/` (orbit
 //! rings, their marks, picking and near arcs), `symbols/` (ship symbols,
 //! their drawing, shader and leaders), `edge/` (edge arrows and tabs),
 //! `inset/` (the inspection sidebar's contents), `topbar/`, `frame_cue/`,
@@ -45,6 +46,8 @@ pub mod layers;
 pub mod markers;
 pub mod motion;
 pub mod motion_mode;
+pub mod multi;
+pub mod multi_markers;
 pub mod node_box;
 pub mod paths;
 pub mod planner;
@@ -74,6 +77,8 @@ impl Plugin for ViewPlugin {
         // read across the view.
         app.init_resource::<selection::Selection>()
             .init_resource::<planner::state::PlannerState>()
+            .init_resource::<multi::OpenTray>()
+            .init_resource::<multi::MultiMarkers>()
             .init_resource::<gesture::PressStart>()
             .add_plugins((
                 frame::FramePlugin,
@@ -106,7 +111,7 @@ impl Plugin for ViewPlugin {
                 edge::EdgePlugin,
                 symbols::shape::SymbolShapePlugin,
                 markers::MarkersPlugin,
-                markers::pills::PillsPlugin,
+                multi_markers::MultiMarkersPlugin,
                 hover::HoverPlugin,
                 inset::inspect::InspectPlugin,
                 inset::outline::OutlinePlugin,

@@ -1,5 +1,6 @@
-//! Every camera and clock key and mouse button, and the planner's slider
-//! keys, in one resource (CAM-18, PLNR-23).
+//! Every camera and clock key and mouse button, the planner's slider keys
+//! and a multi-marker's tray keys, in one resource (CAM-18, PLNR-23,
+//! MUL-10).
 //!
 //! No other module names a `KeyCode` or a `MouseButton`: systems ask this
 //! resource whether an action's binding is pressed. A rebinding screen is not yet specced;
@@ -69,6 +70,16 @@ pub struct Bindings {
     /// Held, a focused slider moves ten steps at a time.
     pub slider_fast: Vec<KeyCode>,
 
+    // --- A multi-marker's tray (MUL-10, CAM-14) ---
+    /// Select the previous row.
+    pub tray_previous: Vec<KeyCode>,
+    /// Select the next row.
+    pub tray_next: Vec<KeyCode>,
+    /// Open the selected row's members.
+    pub tray_open_row: Vec<KeyCode>,
+    /// Close the selected row's members.
+    pub tray_close_row: Vec<KeyCode>,
+
     // --- Debug ---
     /// CLK-06: show or hide the frames-per-second readout.
     pub toggle_fps: Vec<KeyCode>,
@@ -115,6 +126,11 @@ impl Default for Bindings {
             slider_down: vec![KeyCode::ArrowLeft],
             slider_up: vec![KeyCode::ArrowRight],
             slider_fast: vec![KeyCode::ShiftLeft, KeyCode::ShiftRight],
+
+            tray_previous: vec![KeyCode::ArrowUp],
+            tray_next: vec![KeyCode::ArrowDown],
+            tray_open_row: vec![KeyCode::ArrowRight],
+            tray_close_row: vec![KeyCode::ArrowLeft],
 
             toggle_fps: vec![KeyCode::F3],
         }

@@ -262,6 +262,27 @@ pub fn outline_rows(
     rows
 }
 
+/// INS-05 / MUL-09: each body's place in the outline with every entry
+/// and orbit row open, so other lists can follow its order.
+pub fn outline_positions(nodes: &[OutlineNode]) -> HashMap<Entity, usize> {
+    let open = Expanded {
+        entries: nodes.iter().map(|n| n.body).collect(),
+        orbits: nodes
+            .iter()
+            .filter_map(|n| n.named_orbit.as_ref().map(|(orbit, _)| *orbit))
+            .collect(),
+    };
+    outline_rows(nodes, &open, None)
+        .into_iter()
+        .filter_map(|row| match row {
+            Row::Entry { body, .. } => Some(body),
+            Row::Orbit { .. } => None,
+        })
+        .enumerate()
+        .map(|(place, body)| (body, place))
+        .collect()
+}
+
 /// INS-05: how far the panel must scroll so a row from `row_top` to
 /// `row_bottom` (relative to the panel's visible top) is in view: up if
 /// it starts above, down if it ends below, nothing if it is in view.
@@ -308,7 +329,7 @@ type Bodies<'w, 's> = Query<
 /// The bodies the outline is built from, and the named orbits they sit
 /// in.
 #[derive(SystemParam)]
-struct OutlineBodies<'w, 's> {
+pub struct OutlineBodies<'w, 's> {
     bodies: Bodies<'w, 's>,
     named: Query<'w, 's, &'static NamedOrbit>,
 }
@@ -316,7 +337,7 @@ struct OutlineBodies<'w, 's> {
 impl OutlineBodies<'_, '_> {
     /// INS-05: every body as an outline node. The star is the root;
     /// anything else with no parent orbits the star.
-    fn nodes(&self) -> Vec<OutlineNode> {
+    pub fn nodes(&self) -> Vec<OutlineNode> {
         let star = self
             .bodies
             .iter()

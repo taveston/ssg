@@ -1,7 +1,6 @@
-//! Headless tests of ship symbols and groups (SYM-09, SYM-10, SYM-12,
-//! SYM-13, GRP-09, TEST-06): condition bars, task forces and their count
-//! and bracket, groups that share a place or fold, and the amplifiers
-//! round a group's symbol.
+//! Headless tests of ship symbols and groups (SYM-09, SYM-12,
+//! SYM-13, TEST-06): condition bars, task forces and their count and
+//! bracket, and the amplifiers round a group's symbol.
 
 use super::*;
 
@@ -142,103 +141,6 @@ fn the_task_force_bar_warns_and_the_other_own_bars_do_not() {
     }
 }
 
-/// Adds a second task force beside TF-1, at its phase in Halden IV's
-/// "High" band, before the system is spawned.
-fn add_a_second_group_beside_tf1(mut waiting: ResMut<SystemDataResource>) {
-    use crate::sim::system::{GroupBlueprint, MemberBlueprint};
-    use crate::sim::track::ShipClass;
-    let data = waiting.0.as_mut().unwrap();
-    let halden = data
-        .planets
-        .iter_mut()
-        .find(|p| p.name == "Halden IV")
-        .unwrap();
-    let phase0_rad = halden
-        .children
-        .iter()
-        .find(|c| c.name == "TF-1")
-        .unwrap()
-        .phase0_rad;
-    let member = |name| MemberBlueprint {
-        name,
-        record: ShipRecord::new(ShipClass::Warship, true),
-    };
-    halden.children.push(BodyBlueprint {
-        class: BodyClass::Ship,
-        affiliation: Affiliation::Own,
-        group: Some(GroupBlueprint {
-            task_force: true,
-            members: vec![member("Ward"), member("Sentinel")],
-        }),
-        orbit: OrbitPlacement::Named("High"),
-        phase0_rad,
-        ..blueprint("TF-3", BodyClass::Ship, 0.0)
-    });
-}
-
-/// SYM-10: two groups at the same place are two symbols, each with its
-/// own count, never merged into one.
-#[test]
-fn two_groups_in_one_place_stay_two_symbols() {
-    use crate::view::symbols::draw::GroupCount;
-
-    let mut app = symbols_app_with(|app| {
-        app.add_systems(
-            Startup,
-            add_a_second_group_beside_tf1
-                .in_set(Boot::World)
-                .before(crate::sim::spawn::spawn_system),
-        );
-    });
-    let halden = body(&mut app, "Halden IV");
-    app.world_mut().resource_mut::<FrameRequest>().0 = Some(halden);
-    run(&mut app, 60 + move_frames());
-
-    let tf1 = body(&mut app, "TF-1");
-    let tf2 = body(&mut app, "TF-3");
-    let positions = app.world().resource::<WorldPositions>();
-    assert!(positions.0[&tf1].distance(positions.0[&tf2]) < 1e-3);
-    let (one, two) = (marker_of(&mut app, tf1), marker_of(&mut app, tf2));
-    assert_ne!(one, two);
-    assert_eq!(texts_with::<GroupCount>(&mut app, one), ["4"]);
-    assert_eq!(texts_with::<GroupCount>(&mut app, two), ["2"]);
-}
-
-/// GRP-09: at the system fit TF-1 is folded into Halden IV as one
-/// satellite: Halden IV's "+N" pill counts its satellites with the group
-/// once, and the group's ships are not satellites at all.
-#[test]
-fn a_folded_group_counts_once_in_the_pill() {
-    use crate::sim::group::ShipGroup;
-
-    let mut app = symbols_app_with(|_| {});
-    run(&mut app, SETTLE_FRAMES);
-    let halden = body(&mut app, "Halden IV");
-    let tf1 = body(&mut app, "TF-1");
-    assert!(app.world().get::<SatelliteFoldState>(tf1).unwrap().folded);
-    let mut satellites = app.world_mut().query::<(Entity, &ChildOf, &BodyClass)>();
-    let of_halden: Vec<Entity> = satellites
-        .iter(app.world())
-        .filter(|(_, child_of, _)| child_of.parent() == halden)
-        .map(|(entity, ..)| entity)
-        .collect();
-    assert!(of_halden.contains(&tf1));
-    let members = app.world().get::<ShipGroup>(tf1).unwrap().members.clone();
-    assert!(members.iter().all(|m| !of_halden.contains(m)));
-
-    let mut pills = app.world_mut().query::<(&GroupPillFor, &Children)>();
-    let count = pills
-        .iter(app.world())
-        .find(|(pill_for, _)| pill_for.0 == halden)
-        .and_then(|(_, children)| {
-            children
-                .iter()
-                .find_map(|child| app.world().get::<Text>(child))
-        })
-        .unwrap();
-    assert_eq!(count.0, format!("+{}", of_halden.len()));
-}
-
 /// SYM-13: TF-1's label sits `label_gap_px` from the outer edge of its
 /// frame's box (HOV-07) and its amplifiers - the count to the right, the
 /// bracket above, the condition bar below - not from the frame alone.
@@ -253,6 +155,8 @@ fn a_group_label_keeps_clear_of_its_amplifiers() {
     let tf1 = body(&mut app, "TF-1");
     app.world_mut().resource_mut::<FrameRequest>().0 = Some(halden);
     run(&mut app, 60 + move_frames());
+    // Close enough that TF-1 overlaps no other symbol (MUL-05).
+    zoom_in_until(&mut app, 12, |app| drawn_alone(app, tf1));
     app.world_mut().resource_mut::<Selection>().select(tf1);
 
     const LABEL_SIZE: Vec2 = Vec2::new(80.0, 28.0);

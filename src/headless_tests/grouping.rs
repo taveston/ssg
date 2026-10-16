@@ -1,9 +1,8 @@
 //! Headless tests of satellite grouping and the motion rule (GRP, MOT):
-//! fold state as the scale changes, count pills, motion modes as the rate
+//! fold state as the scale changes, motion modes as the rate
 //! changes, and how a ring-mode body hands the frame to its parent.
 
 use super::*;
-use crate::view::markers::pills::parent_clear_px;
 
 /// ARCH-31 / GRP-01 / GRP-02 / GRP-04: fold state follows the scale. At the
 /// system frame every satellite is folded; at Halden IV's satellite frame
@@ -225,45 +224,6 @@ fn planets_are_never_merged() {
             assert_ne!(positions[i], positions[j]);
         }
     }
-}
-
-/// GRP-05: at the system fit Halden IV shows a "+N" pill counting all
-/// its folded satellites, beside its marker and clear of its bracket box.
-#[test]
-fn a_parent_with_folded_satellites_shows_a_count_pill() {
-    let mut app = camera_app_with(|app| {
-        app.add_plugins((GroupingPlugin, PillsPlugin))
-            .insert_resource(placeholder_fonts());
-    });
-    run(&mut app, SETTLE_FRAMES);
-
-    let halden = body(&mut app, "Halden IV");
-    let satellites = app.world().get::<Children>(halden).unwrap().len();
-    let marker = app
-        .world()
-        .resource::<ScreenPositions>()
-        .get(halden)
-        .unwrap();
-    let mut pills = app.world_mut().query::<(&GroupPillFor, &Node, &Children)>();
-    let (_, node, children) = pills
-        .iter(app.world())
-        .find(|(pill_for, ..)| pill_for.0 == halden)
-        .unwrap();
-    assert_eq!(node.display, Display::Flex);
-    let (Val::Px(left), Val::Px(top)) = (node.left, node.top) else {
-        panic!("pill not placed in pixels");
-    };
-    let clear = parent_clear_px(BodyClass::Planet, false, 0.0, &Tunables::default());
-    assert!(left - marker.x >= clear, "the pill overlaps the marker");
-    assert!(
-        top > marker.y,
-        "the pill sits beside the marker, below its centre"
-    );
-    let count = children
-        .iter()
-        .find_map(|child| app.world().get::<Text>(child))
-        .unwrap();
-    assert_eq!(count.0, format!("+{satellites}"));
 }
 
 /// TEST-09: Morrow IX's own satellites at 1 d/s: Tern Relay is an exposure

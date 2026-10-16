@@ -1,9 +1,10 @@
 //! Builds a body's marker (MRK-03, MRK-04, MRK-11, MRK-13, SYM-13): its
 //! box sized by class, its shape (a body marker with its class detail, a
 //! hollow circle, a glyph or a symbol), and its label with the name and a
-//! symbol's second line. Lists and exposure-ring identity marks copy the
-//! shape at their own size (INS-05, MOT-14). `markers/mod.rs` places and
-//! fades the markers each frame.
+//! symbol's second line. A station's marker also carries a back frame and
+//! a count, shown while something is docked at it (MUL-03). Lists and
+//! exposure-ring identity marks copy the shape at their own size (INS-05,
+//! MOT-14). `markers/mod.rs` places and fades the markers each frame.
 
 use bevy::prelude::*;
 
@@ -19,11 +20,15 @@ use crate::view::fonts::Fonts;
 use crate::view::halo::TextHalo;
 use crate::view::hover;
 use crate::view::layers;
+use crate::view::multi::{BackFrame, back_offset};
+use crate::view::multi_markers::draw::{StationMarker, blank_look, spawn_back_frame, spawn_count};
 use crate::view::ship_groups::GroupFaces;
 use crate::view::symbols::draw::{
     AmplifierStyle, Tint, TintSlot, amplifier_gap, amplifier_reach, spawn_symbol_parts,
 };
-use crate::view::symbols::{GroupFace, label_second_line, symbol_look, with_group};
+use crate::view::symbols::{
+    GroupFace, SecondLineFacts, label_second_line, symbol_look, with_group,
+};
 use crate::view::targets::MarkerFor;
 use crate::view::tunables::Tunables;
 
@@ -69,8 +74,11 @@ pub(super) fn spawn_markers(
         let label = MarkerText {
             name: &name.0,
             second_line: record.map(|r| {
-                label_second_line(*affiliation, r, &members, clock.elapsed_days())
-                    .unwrap_or_default()
+                let facts = SecondLineFacts {
+                    members: &members,
+                    ..SecondLineFacts::on_day(clock.elapsed_days())
+                };
+                label_second_line(*affiliation, r, facts).unwrap_or_default()
             }),
         };
         spawn_marker(&mut commands, assets, body, marker, label);
@@ -300,7 +308,22 @@ fn spawn_marker(
     if shape == MarkerShape::Disc {
         marker.insert(disc_gap(tunables));
     }
+    let station = look.class == BodyClass::Station && shape == MarkerShape::Symbol;
+    if station {
+        // MUL-03: the back frame goes under the station's own frame, so it
+        // is spawned first; it and the count show while things are docked.
+        let back = (half * 2.0, back_offset(tunables.back_frame_offset_px));
+        marker
+            .insert((StationMarker, BackFrame(None)))
+            .with_children(|parent| spawn_back_frame(parent, &blank_look(), back, false));
+    }
     spawn_shape(&mut marker, assets, look, half);
+    if station {
+        let (fonts, _) = assets;
+        marker.with_children(|parent| {
+            spawn_count(parent, fonts, &blank_look(), tunables.multi_count_px, false);
+        });
+    }
     let color = look.color(tunables);
     marker.with_children(|parent| spawn_label(parent, assets, (body, half, color), text));
 }

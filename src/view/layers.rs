@@ -2,10 +2,10 @@
 //! in, from the bottom. The frame cue's arms come first, with the orbit
 //! rings under the whole overlay; then the paths' start dots and their
 //! ghosts; then natural bodies, ordered by depth so nearer discs sit on
-//! top of farther ones; then the cue's upper vertical half; then symbols;
-//! then labels and pills; then edge arrows; then panels. Draw order is
-//! only what's on top: picking is decided by `markers/picking.rs`
-//! (MRK-08).
+//! top of farther ones; then the cue's upper vertical half; then symbols
+//! and multi-markers; then labels and the selection and hover brackets;
+//! then edge arrows; then panels. Draw order is only what's on top:
+//! picking is decided by `markers/picking.rs` (MRK-08).
 //!
 //! Every layer is named here, so no two kinds of node share one by
 //! accident: nodes in the same layer have no defined order.
@@ -33,9 +33,10 @@ pub const BODIES: i32 = 0;
 /// body, so it runs over a true-size disc, and below the symbols (REF-06,
 /// REF-09).
 pub const CUE_UPPER: i32 = SYMBOLS - 1;
-/// Ship, group and station symbols, and the other non-body markers.
+/// Ship, group and station symbols, multi-markers (MUL-01), and the other
+/// non-body markers.
 pub const SYMBOLS: i32 = 10_000;
-/// Labels, pills and the selection and hover brackets, above all markers
+/// Labels and the selection and hover brackets, above all markers
 /// (HOV-06).
 pub const LABELS: i32 = 20_000;
 /// Edge arrows and their labels.
@@ -76,8 +77,8 @@ mod tests {
 
     /// MRK-12 / REF-09 / PLNR-69: the layers stack the frame cue's arms
     /// and its "N", the paths' dots and ghosts, bodies, the cue's upper
-    /// vertical half, symbols, labels, edge arrows, panels, from the
-    /// bottom.
+    /// vertical half, symbols and multi-markers, labels and brackets,
+    /// edge arrows, panels, from the bottom.
     #[test]
     fn layers_stack_in_order() {
         const { assert!(CUE < CUE_LABEL && CUE_LABEL < PATH_DOTS) };

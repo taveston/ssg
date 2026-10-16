@@ -7,8 +7,10 @@
 //! Each body with a marker gets one invisible target entity carrying
 //! `MarkerFor` and the ordinary marker observers. The drawn marker node
 //! itself takes no clicks, so the UI's rectangle test can't override the
-//! nearest-centre rule. Hits are reported above orbit rings and below the
-//! UI, so pills, labels and panels still win (HOV-02).
+//! nearest-centre rule. A multi-marker is hit anywhere on either of its
+//! two frames too (MUL-11), through its own target (`view/multi.rs`).
+//! Hits are reported above orbit rings and below the UI, so labels and
+//! panels still win (HOV-02).
 
 use bevy::picking::PickingSystems;
 use bevy::picking::backend::{HitData, PointerHits};
@@ -18,12 +20,13 @@ use bevy::prelude::*;
 use super::MarkerHalfSize;
 use crate::sim::body::BodyClass;
 use crate::view::hover;
+use crate::view::multi::{BackFrame, MultiNode};
 use crate::view::targets::MarkerFor;
 use crate::view::tunables::Tunables;
 use crate::{Boot, Stage};
 
 /// Between the rings' order (the camera's) and the UI's (+0.5), so a
-/// marker beats a ring and a pill, label or panel beats a marker (HOV-02).
+/// marker beats a ring and a label or panel beats a marker (HOV-02).
 const MARKER_ORDER_OFFSET: f32 = 0.25;
 const _: () = assert!(MARKER_ORDER_OFFSET > 0.0 && MARKER_ORDER_OFFSET < 0.5);
 
@@ -31,12 +34,30 @@ const _: () = assert!(MARKER_ORDER_OFFSET > 0.0 && MARKER_ORDER_OFFSET < 0.5);
 #[derive(Component)]
 pub struct MarkerTarget;
 
-/// One marker's hit area this frame: its target, centre and reach.
+/// One marker's hit area this frame: its target, centre and reach, and
+/// for a multi-marker its frames' squares (MUL-11): `half` from the
+/// centre, and again round the back frame, `back` from it.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct HitSpot {
     pub target: Entity,
     pub centre: Vec2,
     pub radius: f32,
+    pub frames: Option<(f32, Vec2)>,
+}
+
+impl HitSpot {
+    /// MRK-08 / MUL-11: whether `point` is in reach: within the radius,
+    /// or on either of a multi-marker's frames.
+    fn covers(&self, point: Vec2) -> bool {
+        let in_square = |centre: Vec2, half: f32| {
+            let d = (point - centre).abs();
+            d.x <= half && d.y <= half
+        };
+        self.centre.distance(point) <= self.radius
+            || self.frames.is_some_and(|(half, back)| {
+                in_square(self.centre, half) || in_square(self.centre + back, half)
+            })
+    }
 }
 
 /// Every shown marker's hit area, rebuilt each frame.
@@ -54,10 +75,9 @@ pub fn hit_radius(drawn_half: f32, min_hit_radius_px: f32) -> f32 {
 pub fn marker_under(point: Vec2, spots: &[HitSpot]) -> Option<(Entity, f32)> {
     spots
         .iter()
-        .map(|spot| (spot.target, spot.centre.distance(point), spot.radius))
-        .filter(|&(_, distance, radius)| distance <= radius)
+        .filter(|spot| spot.covers(point))
+        .map(|spot| (spot.target, spot.centre.distance(point)))
         .min_by(|a, b| a.1.total_cmp(&b.1))
-        .map(|(target, distance, _)| (target, distance))
 }
 
 pub struct MarkerPickingPlugin;
@@ -82,11 +102,16 @@ fn spawn_marker_targets(mut commands: Commands, bodies: Query<Entity, With<BodyC
     }
 }
 
-/// MRK-08: where each shown marker is, from its node as laid out this
-/// frame, matched to its body's target.
+/// The drawn multi-markers, by node, with their targets.
+type MultiNodes<'w, 's> = Query<'w, 's, (&'static MultiNode, &'static Node, &'static BackFrame)>;
+
+/// MRK-08 / MUL-11: where each shown marker is, from its node as laid out
+/// this frame, matched to its body's target; and each multi-marker, hit on
+/// either frame. A station marker's back frame is part of its hit area.
 fn find_marker_spots(
     tunables: Res<Tunables>,
-    markers: Query<(&MarkerFor, &Node), With<MarkerHalfSize>>,
+    markers: Query<(&MarkerFor, &Node, Option<&BackFrame>), With<MarkerHalfSize>>,
+    multis: MultiNodes,
     targets: Query<(Entity, &MarkerFor), With<MarkerTarget>>,
     mut spots: ResMut<MarkerSpots>,
 ) {
@@ -95,7 +120,7 @@ fn find_marker_spots(
         .map(|(target, for_)| (for_.0, target))
         .collect();
     spots.0.clear();
-    for (marker_for, node) in &markers {
+    for (marker_for, node, back) in &markers {
         let (Display::Flex, Val::Px(left), Val::Px(top), Val::Px(width)) =
             (node.display, node.left, node.top, node.width)
         else {
@@ -109,6 +134,21 @@ fn find_marker_spots(
             target,
             centre: Vec2::new(left + half, top + half),
             radius: hit_radius(half, tunables.min_hit_radius_px),
+            frames: back.and_then(|b| b.0).map(|b| (half, b)),
+        });
+    }
+    let half = tunables.ship_symbol_px / 2.0;
+    for (multi, node, back) in &multis {
+        let (Display::Flex, Val::Px(left), Val::Px(top), Some(back)) =
+            (node.display, node.left, node.top, back.0)
+        else {
+            continue;
+        };
+        spots.0.push(HitSpot {
+            target: multi.target,
+            centre: Vec2::new(left + half, top + half),
+            radius: hit_radius(half, tunables.min_hit_radius_px),
+            frames: Some((half, back)),
         });
     }
 }
@@ -150,7 +190,35 @@ mod tests {
             target: world.spawn_empty().id(),
             centre,
             radius,
+            frames: None,
         }
+    }
+
+    /// MUL-11: a multi-marker is hit anywhere on its front or back frame
+    /// (each `ship_symbol_px` square), and at least `min_hit_radius_px`
+    /// round the front frame's centre; not beside the frames.
+    #[test]
+    fn a_multi_marker_is_hit_on_either_frame() {
+        let mut world = World::new();
+        let t = Tunables::default();
+        let half = t.ship_symbol_px / 2.0;
+        let back = crate::view::multi::back_offset(t.back_frame_offset_px);
+        let multi = HitSpot {
+            frames: Some((half, back)),
+            ..spot(
+                &mut world,
+                Vec2::ZERO,
+                hit_radius(half, t.min_hit_radius_px),
+            )
+        };
+        let hit = |p: Vec2| marker_under(p, &[multi]).map(|h| h.0);
+        // The front frame's corner, past the round reach.
+        assert_eq!(hit(Vec2::new(-half, half)), Some(multi.target));
+        // The back frame's far corner.
+        assert_eq!(hit(back + Vec2::new(half, -half)), Some(multi.target));
+        // Beside both frames.
+        assert_eq!(hit(Vec2::new(-half - 1.0, 0.0)), None);
+        assert_eq!(hit(Vec2::new(0.0, half + 1.0)), None);
     }
 
     /// MRK-08: a 3 px moon is still hit 10 px from its centre, not 11.

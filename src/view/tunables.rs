@@ -189,7 +189,7 @@ pub struct Tunables {
     /// Width of a bracket arm's stroke (HOV-06).
     pub bracket_stroke_px: f32,
     /// The bracket box clears what is drawn by this much on every side
-    /// (HOV-07); a fold pill sits clear of its parent's box (GRP-05).
+    /// (HOV-07); a fold marker sits clear of its parent's box (GRP-05).
     pub bracket_margin_px: f32,
     /// The inspection sidebar's width (INS-07).
     pub inset_width_px: f32,

@@ -2,8 +2,8 @@
 //! ring that has closed into an exposure ring, a mark at a fixed spot says
 //! what is on it without reading the label beside it. A lone ship or
 //! station shows its symbol at `ship_symbol_px`, a lone natural body its
-//! body marker, and a shared orbit a "+N" pill styled as a fold pill, with
-//! the orbit's name as its label. The mark shows only once the tail has
+//! body marker, and a shared orbit a multi-marker holding its members
+//! (MUL-01, MUL-02), with the orbit's name as its label. The mark shows only once the tail has
 //! closed to a full circle and the dot has gone (MOT-11), fading in and
 //! out over `identity_mark_fade_ms`, so a ring held short of closing never
 //! shows a moving dot and a still mark together.
@@ -27,6 +27,7 @@ use bevy::prelude::*;
 use super::chevron::{ChevronFit, ChevronSpot, chevron_box, chevron_spot};
 use crate::sim::body::{Affiliation, BodyClass};
 use crate::sim::track::ShipRecord;
+use crate::sim::tunables::SimTunables;
 use crate::view::anim::{advance_towards, step_per_frame};
 use crate::view::colors;
 use crate::view::fonts::Fonts;
@@ -34,17 +35,24 @@ use crate::view::halo::TextHalo;
 use crate::view::hover;
 use crate::view::layers;
 use crate::view::markers::draw::{BodyLook, spawn_icon};
-use crate::view::markers::pills::{PILL_HALF_HEIGHT_PX, PillFace, pill_bundle, pill_node};
-use crate::view::markers::{MarkersPlaced, TintedParts, fade_parts, marker_half_size};
+use crate::view::markers::{
+    MarkersPlaced, TintedParts, fade_parts, marker_half_size, symbol_settings,
+};
 use crate::view::motion_mode::MotionModeState;
-use crate::view::node_box::node_size;
+use crate::view::multi::{BackFrame, back_offset, frames_rect};
+use crate::view::multi_markers::draw::{spawn_back_frame, spawn_count, spawn_multi_parts};
+use crate::view::multi_markers::gather::{OrbitSlot, together_sets};
+use crate::view::multi_markers::look::{MultiLook, count_text, multi_frames, station_frames};
 use crate::view::readout::format_duration;
 use crate::view::screen::{MapView, in_viewport, screen_angle, snap_to_pixel};
 use crate::view::selection::Selection;
 use crate::view::shared_orbit::{OrbitRings, Ring, ring_screen_point};
 use crate::view::ship_groups::GroupFaces;
-use crate::view::symbols::draw::{Tint, TintSlot};
+use crate::view::symbols::draw::{
+    AmplifierStyle, Tint, TintSlot, amplifier_gap, spawn_symbol_parts,
+};
 use crate::view::symbols::shape::{SymbolMask, SymbolPart};
+use crate::view::symbols::{SymbolLook, symbol_look};
 use crate::view::targets::{MarkerFor, OrbitFor};
 use crate::view::tunables::Tunables;
 use crate::view::world::ViewNow;
@@ -92,10 +100,6 @@ pub struct RingLabelFor {
     pub color: Color,
 }
 
-/// The "+N" pill of a shared orbit's mark, for the orbit (HOV-05).
-#[derive(Component)]
-pub struct IdentityPill(pub Entity);
-
 pub struct RingMarksPlugin;
 
 impl Plugin for RingMarksPlugin {
@@ -122,18 +126,60 @@ pub fn ring_mark_wanted(state: &MotionModeState, nothing_drawn: bool) -> bool {
 pub enum IdentityMark {
     /// A lone body: its symbol or body marker, `half` pixels from centre.
     Body(Entity),
-    /// A shared orbit: a "+N" pill.
-    Pill,
+    /// A shared orbit: a multi-marker holding its members.
+    Multi,
 }
 
-/// MOT-14: a shared orbit's mark is a "+N" pill; a lone body's is its own
-/// symbol or marker.
+/// MOT-14: a shared orbit's mark is a multi-marker; a lone body's is its
+/// own symbol or marker.
 pub fn identity_mark(ring: &Ring) -> Option<IdentityMark> {
     if ring.shared {
-        Some(IdentityMark::Pill)
+        Some(IdentityMark::Multi)
     } else {
         ring.members.first().map(|m| IdentityMark::Body(m.body))
     }
+}
+
+/// MUL-04 / MOT-14: a shared orbit's members split into the things its
+/// multi-marker counts and, for each station among them, the members
+/// docked there (together with it, PHAS-02), which are not counted.
+pub fn ring_things(ring: &Ring, together_km: f64) -> (Vec<Entity>, Vec<(Entity, Vec<Entity>)>) {
+    let slots: Vec<OrbitSlot> = ring
+        .members
+        .iter()
+        .map(|m| OrbitSlot {
+            thing: m.body,
+            orbit: ring.owner,
+            radius_km: ring.radius_km,
+            phase_rad: m.phase0 as f64,
+        })
+        .collect();
+    let is_station = |body: Entity| {
+        ring.members
+            .iter()
+            .any(|m| m.body == body && m.class == BodyClass::Station)
+    };
+    let mut docked: Vec<(Entity, Vec<Entity>)> = Vec::new();
+    for set in together_sets(&slots, together_km) {
+        if let Some(station) = set.iter().copied().find(|&b| is_station(b)) {
+            docked.push((station, set.into_iter().filter(|&b| b != station).collect()));
+        }
+    }
+    let things = ring
+        .members
+        .iter()
+        .map(|m| m.body)
+        .filter(|b| !docked.iter().any(|(_, d)| d.contains(b)))
+        .collect();
+    (things, docked)
+}
+
+/// What a shared orbit's identity multi-marker shows in front: a plain
+/// frame, or, when its only thing is a station with things docked, that
+/// station's own symbol as a station marker (MUL-03).
+enum IdentityFront {
+    Frame,
+    Station(SymbolLook),
 }
 
 /// What a lone body's mark looks like.
@@ -153,7 +199,7 @@ fn spawn_ring_marks(
     fonts: Res<Fonts>,
     tunables: Res<Tunables>,
     rings: OrbitRings,
-    looks: Looks,
+    (looks, sim): (Looks, Res<SimTunables>),
     groups: GroupFaces,
 ) {
     for owner in rings.owners() {
@@ -161,7 +207,10 @@ fn spawn_ring_marks(
             continue;
         };
         match identity_mark(&ring) {
-            Some(IdentityMark::Pill) => spawn_pill_mark(&mut commands, (&fonts, &tunables), &ring),
+            Some(IdentityMark::Multi) => {
+                let (front, look) = identity_multi(&ring, sim.together_km, &looks, &tunables);
+                spawn_multi_mark(&mut commands, (&fonts, &tunables), &ring, (front, look));
+            }
             Some(IdentityMark::Body(body)) => {
                 let Ok((class, affiliation, record)) = looks.get(body) else {
                     continue;
@@ -279,23 +328,89 @@ fn spawn_chevron(root: &mut ChildSpawnerCommands, tunables: &Tunables) {
     ));
 }
 
-/// MOT-14 / HOV-05: a shared orbit's mark: a "+N" pill styled as a fold
-/// pill, labelled with the orbit's name, targeting the orbit.
-fn spawn_pill_mark(commands: &mut Commands, (fonts, tunables): (&Fonts, &Tunables), ring: &Ring) {
-    let (count, flags) = ring.pill();
-    let face = PillFace { count, flags };
-    let node = Node {
-        position_type: PositionType::Relative,
-        display: Display::Flex,
-        ..pill_node()
+/// MOT-14 / MUL-02 / MUL-03: what a shared orbit's multi-marker shows:
+/// the frames over its members and the count of its things (MUL-04), or
+/// the station marker of a station that is its only thing.
+fn identity_multi(
+    ring: &Ring,
+    together_km: f64,
+    looks: &Looks,
+    tunables: &Tunables,
+) -> (IdentityFront, MultiLook) {
+    let settings = symbol_settings(tunables);
+    let (things, docked) = ring_things(ring, together_km);
+    let look_of = |body: Entity| {
+        ring.members
+            .iter()
+            .find(|m| m.body == body)
+            .map(|m| (m.class, m.affiliation))
+    };
+    if let ([thing], [(station, at)]) = (things.as_slice(), docked.as_slice())
+        && thing == station
+        && let Ok((_, affiliation, Some(record))) = looks.get(*station)
+    {
+        let symbol = symbol_look(*affiliation, record, settings);
+        let at_looks: Vec<_> = at.iter().filter_map(|&b| look_of(b)).collect();
+        let (front, back) = station_frames(&symbol, &at_looks, settings);
+        let look = MultiLook {
+            front,
+            back,
+            count: count_text(at.len()),
+        };
+        return (IdentityFront::Station(symbol), look);
+    }
+    let all: Vec<_> = ring
+        .members
+        .iter()
+        .map(|m| (m.class, m.affiliation))
+        .collect();
+    let (front, back) = multi_frames(&all, settings);
+    let look = MultiLook {
+        front,
+        back,
+        count: count_text(things.len()),
+    };
+    (IdentityFront::Frame, look)
+}
+
+/// MOT-14 / HOV-05: a shared orbit's mark: a multi-marker holding its
+/// members, labelled with the orbit's name, targeting the orbit.
+fn spawn_multi_mark(
+    commands: &mut Commands,
+    (fonts, tunables): (&Fonts, &Tunables),
+    ring: &Ring,
+    (front, look): (IdentityFront, MultiLook),
+) {
+    let size = tunables.ship_symbol_px;
+    let back = back_offset(tunables.back_frame_offset_px);
+    let square = Node {
+        width: px(size),
+        height: px(size),
+        ..default()
     };
     commands
         .spawn((
-            mark_root(ring.owner, PILL_HALF_HEIGHT_PX),
+            mark_root(ring.owner, size / 2.0),
             OrbitFor(ring.owner),
+            BackFrame(Some(back)),
         ))
         .with_children(|root| {
-            root.spawn((IdentityPill(ring.owner), pill_bundle(fonts, face, node)));
+            root.spawn((square, Pickable::IGNORE))
+                .with_children(|icon| match front {
+                    IdentityFront::Frame => spawn_multi_parts(icon, (fonts, tunables), &look),
+                    IdentityFront::Station(symbol) => {
+                        spawn_back_frame(icon, &look, (size, back), true);
+                        let style = AmplifierStyle {
+                            gap: amplifier_gap(
+                                tunables.bracket_margin_px,
+                                tunables.amplifier_gap_px,
+                            ),
+                            track_mix: tunables.condition_track_mix,
+                        };
+                        spawn_symbol_parts(icon, fonts, &symbol, size, style);
+                        spawn_count(icon, fonts, &look, tunables.multi_count_px, true);
+                    }
+                });
             spawn_label(root, fonts, ring, colors::NEUTRAL);
             spawn_chevron(root, tunables);
         })
@@ -360,23 +475,16 @@ type Chevrons<'w, 's> = Query<
 #[derive(bevy::ecs::system::SystemParam)]
 struct MarkParts<'w, 's> {
     children: Query<'w, 's, &'static Children>,
-    pills: Query<'w, 's, &'static ComputedNode, With<IdentityPill>>,
     chevrons: Chevrons<'w, 's>,
 }
 
-impl MarkParts<'_, '_> {
-    /// MOT-14: the box the mark takes, relative to the ring point: a
-    /// symbol or marker centred on it, or a pill starting half its height
-    /// before it.
-    fn mark_box(&self, root: Entity, half: f32) -> Rect {
-        let width = self
-            .children
-            .iter_descendants(root)
-            .find_map(|part| self.pills.get(part).ok())
-            .map_or(2.0 * half, |pill| node_size(pill).x.max(2.0 * half));
-        Rect::new(-half, -half, width - half, half)
-    }
+/// MOT-14 / HOV-07: the box a mark takes, relative to the ring point: a
+/// symbol or marker centred on it, with a multi-marker's back frame.
+pub fn mark_box(half: f32, back: Option<&BackFrame>) -> Rect {
+    frames_rect(Vec2::ZERO, half, back.and_then(|b| b.0))
+}
 
+impl MarkParts<'_, '_> {
     /// MOT-14: place and turn the chevron (its centre and direction on
     /// screen), relative to the mark's top-left `origin`, or hide it.
     fn place_chevron(&mut self, root: Entity, origin: Vec2, spot: Option<ChevronSpot>, size: f32) {
@@ -407,15 +515,15 @@ impl MarkParts<'_, '_> {
 
 /// MOT-02 / MOT-14 / SYM-16: place each ring's mark with its centre on the
 /// ring at the label spot, on a whole pixel, fading it in once the ring
-/// has closed and out when it opens. A pill's node is as tall as the pill,
-/// so its left edge sits half a pill-height before the ring point. The
-/// chevron goes on the ring ahead of the mark; the boxes of both are kept
-/// for the labels, which are placed after (LBL-01).
+/// has closed and out when it opens. A multi-marker's front frame is
+/// centred there, its back frame behind it. The chevron goes on the ring
+/// ahead of the mark; the boxes of both are kept for the labels, which are
+/// placed after (LBL-01).
 fn place_ring_marks(
     (view, time, tunables): (ViewNow, Res<Time>, Res<Tunables>),
     map: MapView,
     rings: OrbitRings,
-    mut marks: Query<(Entity, &mut RingMarkFor, &mut Node)>,
+    mut marks: Query<(Entity, &mut RingMarkFor, &mut Node, Option<&BackFrame>)>,
     (mut mark_parts, mut parts): (MarkParts, TintedParts),
 ) {
     let Some(viewport) = map.viewport() else {
@@ -423,7 +531,7 @@ fn place_ring_marks(
     };
     let scale = map.scale_factor();
     let step = step_per_frame(time.delta_secs(), tunables.identity_mark_fade_ms);
-    for (entity, mut mark, mut node) in &mut marks {
+    for (entity, mut mark, mut node, back) in &mut marks {
         let ring = rings.ring(mark.owner);
         let wanted = ring
             .as_ref()
@@ -449,7 +557,7 @@ fn place_ring_marks(
         node.left = px(pos.x - half);
         node.top = px(pos.y - half);
 
-        let mark_box = mark_parts.mark_box(entity, half);
+        let mark_box = mark_box(half, back);
         let fit = ChevronFit {
             mark: mark_box,
             gap_px: tunables.chevron_gap_px,
@@ -501,21 +609,17 @@ mod tests {
         let tunables = Tunables::default();
         let moon_half = marker_half_size(BodyClass::Moon, &tunables);
         assert!(2.0 * moon_half < LABEL_FONT_PX, "the label is the taller");
-        for half in [
-            moon_half,
-            PILL_HALF_HEIGHT_PX,
-            tunables.ship_symbol_px / 2.0,
-        ] {
+        for half in [moon_half, tunables.ship_symbol_px / 2.0] {
             let node = mark_root_node(half);
             assert_eq!(node.height, px(2.0 * half));
             assert_eq!(node.align_items, AlignItems::Center);
         }
     }
 
-    /// MOT-14: a shared orbit's mark is a pill; a lone body's is its own
-    /// symbol or marker; an empty ring has none.
+    /// MOT-14: a shared orbit's mark is a multi-marker; a lone body's is
+    /// its own symbol or marker; an empty ring has none.
     #[test]
-    fn shared_orbits_get_a_pill_and_lone_bodies_their_own_mark() {
+    fn shared_orbits_get_a_multi_marker_and_lone_bodies_their_own_mark() {
         let mut world = World::new();
         let member = |world: &mut World| Member {
             body: world.spawn_empty().id(),
@@ -525,6 +629,7 @@ mod tests {
             phase0: 0.0,
             period_days: 1.0,
             hidden: false,
+            joined: false,
             mode: MotionModeState::default(),
         };
         let ring = |world: &mut World, members: Vec<Member>| Ring {
@@ -539,7 +644,7 @@ mod tests {
         let b = member(&mut world);
         assert_eq!(
             identity_mark(&ring(&mut world, vec![a, b])),
-            Some(IdentityMark::Pill)
+            Some(IdentityMark::Multi)
         );
         assert_eq!(
             identity_mark(&ring(&mut world, vec![a])),

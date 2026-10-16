@@ -1,7 +1,9 @@
 //! Keyboard camera (CAM-14, CAM-15, CAM-17, CAM-20): W, A, S, D and the
 //! arrows pan relative to the screen, easing in and out, faster with
 //! Shift; a cursor at the window edge pans the same way when edge
-//! scrolling is on; Q and E turn, Page Up and Page Down tilt.
+//! scrolling is on; Q and E turn, Page Up and Page Down tilt. A focused
+//! slider takes Left and Right, and an open tray the tray's keys, from
+//! the pan.
 
 use bevy::prelude::*;
 
@@ -14,6 +16,7 @@ use super::rules::{
 };
 use super::state::{OrbitCamera, camera_fov};
 use crate::view::bindings::{Bindings, held};
+use crate::view::multi::OpenTray;
 use crate::view::planner::state::PlannerState;
 use crate::view::tunables::Tunables;
 use crate::view::world::WorldPositions;
@@ -76,6 +79,23 @@ impl KeyPanScreen<'_, '_> {
     }
 }
 
+/// PLNR-23 / CAM-14: the keys someone else has this frame: a focused
+/// slider's Left and Right, and an open tray's keys.
+pub fn taken_keys(bindings: &Bindings, slider_focused: bool, tray_open: bool) -> Vec<KeyCode> {
+    let mut taken = Vec::new();
+    if slider_focused {
+        taken.extend(&bindings.slider_down);
+        taken.extend(&bindings.slider_up);
+    }
+    if tray_open {
+        taken.extend(&bindings.tray_previous);
+        taken.extend(&bindings.tray_next);
+        taken.extend(&bindings.tray_open_row);
+        taken.extend(&bindings.tray_close_row);
+    }
+    taken
+}
+
 /// CAM-14 / CAM-17: pan at a fraction of the visible height per second,
 /// ramping in and out; panning moves the frame's offset (CAM-07).
 pub fn handle_key_pan(
@@ -83,21 +103,12 @@ pub fn handle_key_pan(
     input: CameraSettings,
     screen: KeyPanScreen,
     positions: Res<WorldPositions>,
-    planner: Res<PlannerState>,
+    (planner, tray): (Res<PlannerState>, Res<OpenTray>),
     mut key_pan: ResMut<KeyPan>,
     mut view: CameraControl,
 ) {
     let (keys, bindings, tunables) = (&input.keys, &input.bindings, &input.tunables);
-    // PLNR-23: a focused slider takes Left and Right in place of the pan.
-    let taken: Vec<KeyCode> = if planner.slider_focus.is_some() {
-        [
-            bindings.slider_down.as_slice(),
-            bindings.slider_up.as_slice(),
-        ]
-        .concat()
-    } else {
-        Vec::new()
-    };
+    let taken = taken_keys(bindings, planner.slider_focus.is_some(), tray.0.is_some());
     let direction = pan_direction(keys, bindings, tunables, screen.window(), &taken);
     // Only keys actually held are pan input (CAM-20): a ramp still easing
     // out gives way to a move started meanwhile.
@@ -166,6 +177,36 @@ mod tests {
         assert_eq!(
             pan_direction(&keys, &bindings, &tunables, None, &taken),
             -Vec2::X
+        );
+    }
+
+    /// CAM-14 / MUL-10: while a tray is open the arrow keys are the
+    /// tray's and do not pan; W, A, S and D still do. Closed, the arrows
+    /// pan again.
+    #[test]
+    fn an_open_tray_takes_the_arrow_keys_from_the_pan() {
+        let bindings = Bindings::default();
+        let tunables = Tunables::default();
+        let open = taken_keys(&bindings, false, true);
+        for arrow in [
+            KeyCode::ArrowUp,
+            KeyCode::ArrowDown,
+            KeyCode::ArrowLeft,
+            KeyCode::ArrowRight,
+        ] {
+            let mut keys = ButtonInput::<KeyCode>::default();
+            keys.press(arrow);
+            let direction =
+                |taken: &[KeyCode]| pan_direction(&keys, &bindings, &tunables, None, taken);
+            assert_eq!(direction(&open), Vec2::ZERO, "{arrow:?} pans");
+            assert_ne!(direction(&taken_keys(&bindings, false, false)), Vec2::ZERO);
+        }
+        let mut keys = ButtonInput::<KeyCode>::default();
+        keys.press(KeyCode::KeyW);
+        keys.press(KeyCode::KeyD);
+        assert_eq!(
+            pan_direction(&keys, &bindings, &tunables, None, &open),
+            Vec2::new(1.0, 1.0)
         );
     }
 }

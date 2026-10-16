@@ -112,10 +112,10 @@ mod tests {
         assert!((exit_distance(square, Vec2::X) - 4.0).abs() < 1e-5);
         let diagonal = Vec2::ONE.normalize();
         assert!((exit_distance(square, diagonal) - 4.0 * 2f32.sqrt()).abs() < 1e-4);
-        // A pill reaching further right than left.
-        let pill = Rect::new(-8.0, -8.0, 26.0, 8.0);
-        assert!((exit_distance(pill, Vec2::NEG_X) - 8.0).abs() < 1e-5);
-        assert!((exit_distance(pill, Vec2::X) - 26.0).abs() < 1e-5);
+        // A mark reaching further right than left.
+        let wide = Rect::new(-8.0, -8.0, 26.0, 8.0);
+        assert!((exit_distance(wide, Vec2::NEG_X) - 8.0).abs() < 1e-5);
+        assert!((exit_distance(wide, Vec2::X) - 26.0).abs() < 1e-5);
     }
 
     /// MOT-14: the chevron sits on the ring, `chevron_gap_px` beyond the

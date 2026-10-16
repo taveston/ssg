@@ -13,9 +13,10 @@ use std::collections::HashMap;
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
-use super::fold::{PillFlags, SatelliteFoldState, pill_flags};
+use super::fold::SatelliteFoldState;
 use super::hovered::HoveredBodies;
 use super::motion_mode::MotionModeState;
+use super::multi::JoinSlide;
 use super::rings::has_orbit_line;
 use super::scale::km_to_render;
 use super::selection::Selection;
@@ -68,6 +69,8 @@ pub struct Member {
     pub period_days: f64,
     /// GRP-01: folded into its parent, so not drawn.
     pub hidden: bool,
+    /// MUL-05: joined into a multi-marker, so it draws no tail of its own.
+    pub joined: bool,
     pub mode: MotionModeState,
 }
 
@@ -105,6 +108,23 @@ impl Ring {
         self.members.iter().filter(|m| !m.hidden)
     }
 
+    /// MOT-01 / MUL-05: the members whose tails are drawn: drawn, and not
+    /// joined into a multi-marker.
+    pub fn tails(&self) -> impl Iterator<Item = &Member> {
+        self.drawn().filter(|m| !m.joined)
+    }
+
+    /// MOT-01 / MOT-02: the angles the ring's brightness is laid from:
+    /// each tail's head in dot mode; in ring mode the exposure ring is
+    /// the ring itself, so every drawn member's, joined or not.
+    pub fn tail_angles(&self) -> Vec<f32> {
+        if self.mode().ring_mode {
+            self.drawn().map(|m| m.angle).collect()
+        } else {
+            self.tails().map(|m| m.angle).collect()
+        }
+    }
+
     /// Whether the frame body sits on this ring, which makes it no target
     /// (HOV-02).
     pub fn carries(&self, body: Option<Entity>) -> bool {
@@ -112,7 +132,7 @@ impl Ring {
     }
 
     /// HOV-03 / HOV-05: whether the ring is highlighted: any member is
-    /// selected or hovered, or (shared) the ring or its identity pill is
+    /// selected or hovered, or (shared) the ring or its identity mark is
     /// hovered. Returns (selected, hovered).
     pub fn highlight(&self, selection: &Selection, hovered: &HoveredBodies) -> (bool, bool) {
         let selected = self.members.iter().any(|m| selection.is_selected(m.body));
@@ -138,17 +158,6 @@ impl Ring {
     pub fn sense(&self) -> f32 {
         if self.period_days() < 0.0 { -1.0 } else { 1.0 }
     }
-
-    /// MOT-14: what the identity pill of a shared orbit shows: its member
-    /// count (groups once, GRP-09) and the fold pill's flags (GRP-06).
-    pub fn pill(&self) -> (usize, PillFlags) {
-        let folded: Vec<(BodyClass, Affiliation)> = self
-            .members
-            .iter()
-            .map(|m| (m.class, m.affiliation))
-            .collect();
-        (self.members.len(), pill_flags(&folded))
-    }
 }
 
 /// The bodies a ring is gathered from.
@@ -165,6 +174,7 @@ type RingBodies<'w, 's> = Query<
         Option<&'static InNamedOrbit>,
         Option<&'static SatelliteFoldState>,
         Option<&'static MotionModeState>,
+        Option<&'static JoinSlide>,
     ),
 >;
 
@@ -200,7 +210,8 @@ impl OrbitRings<'_, '_> {
     }
 
     fn member(&self, body: Entity) -> Option<Member> {
-        let (_, orbit, local, class, affiliation, _, _, fold, mode) = self.bodies.get(body).ok()?;
+        let (_, orbit, local, class, affiliation, _, _, fold, mode, slide) =
+            self.bodies.get(body).ok()?;
         Some(Member {
             body,
             class: *class,
@@ -209,6 +220,7 @@ impl OrbitRings<'_, '_> {
             phase0: orbit.phase0_rad as f32,
             period_days: orbit.period_days,
             hidden: fold.is_some_and(|f| f.effective_hidden),
+            joined: slide.is_some_and(|s| s.held),
             mode: mode.copied().unwrap_or_default(),
         })
     }
@@ -290,6 +302,7 @@ mod tests {
             phase0: 1.0,
             period_days: 1.0,
             hidden: false,
+            joined: false,
             mode: MotionModeState::default(),
         }
     }
@@ -306,7 +319,7 @@ mod tests {
     }
 
     /// HOV-03 / HOV-05: a shared ring lights up when the ring itself, its
-    /// pill or any member is hovered, and when any member is selected.
+    /// mark or any member is hovered, and when any member is selected.
     #[test]
     fn a_shared_ring_is_highlighted_through_any_of_its_members() {
         let mut world = World::new();
@@ -342,23 +355,20 @@ mod tests {
         assert!(!ring.carries(None));
     }
 
-    /// MOT-14: the identity pill counts the members and takes the fold
-    /// pill's flags: the most pressing affiliation, and own ships parked.
+    /// MUL-05: a member joined into a multi-marker is still on its ring
+    /// but draws no tail of its own.
     #[test]
-    fn the_identity_pill_counts_members_with_the_fold_pills_flags() {
+    fn joined_members_draw_no_tail() {
         let mut world = World::new();
-        let own = member(&mut world, BodyClass::Ship, Affiliation::Own);
-        let hostile = member(&mut world, BodyClass::Ship, Affiliation::Hostile);
-        let ring = ring(&mut world, vec![own, hostile]);
-        let (count, flags) = ring.pill();
-        assert_eq!(count, 2);
-        assert_eq!(
-            flags,
-            PillFlags {
-                pressing: Some(Affiliation::Hostile),
-                has_own_ship: true
-            }
-        );
+        let a = member(&mut world, BodyClass::Ship, Affiliation::Own);
+        let joined = Member {
+            joined: true,
+            ..member(&mut world, BodyClass::Ship, Affiliation::Own)
+        };
+        let ring = ring(&mut world, vec![a, joined]);
+        assert_eq!(ring.drawn().count(), 2);
+        let tails: Vec<Entity> = ring.tails().map(|m| m.body).collect();
+        assert_eq!(tails, [a.body]);
     }
 
     /// MOT-02 / MOT-14: a ring's period is its members', and its bodies

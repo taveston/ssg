@@ -1,6 +1,6 @@
 //! Fold state: whether each satellite is drawn on its own or folded into
 //! its parent, and what each parent has folded into it (GRP-01, GRP-03,
-//! GRP-06). Shared state, read by everything that draws a satellite
+//! GRP-05). Shared state, read by everything that draws a satellite
 //! (ARCH-03); `grouping.rs` is the one writer.
 //!
 //! The rules are plain functions here too, so they can be tested without a
@@ -9,8 +9,6 @@
 use std::collections::HashMap;
 
 use bevy::prelude::*;
-
-use crate::sim::body::{Affiliation, BodyClass};
 
 /// Per-satellite fold state. `folded` is the hysteresis latch;
 /// `effective_hidden` additionally accounts for a folded ancestor, so
@@ -35,55 +33,10 @@ impl Default for SatelliteFoldState {
     }
 }
 
+/// GRP-05: the satellites folded into one parent, for its fold marker.
 #[derive(Default)]
 pub struct FoldedGroup {
     pub members: Vec<Entity>,
-    /// The most pressing affiliation among the members, if any presses.
-    pub pressing: Option<Affiliation>,
-    pub has_own_ship: bool,
-}
-
-/// GRP-06: what the "+N" pill has to show besides the count - an outline
-/// in the colour of the most pressing affiliation among its folded
-/// satellites, and a blue dot if own ships are parked there.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub struct PillFlags {
-    pub pressing: Option<Affiliation>,
-    pub has_own_ship: bool,
-}
-
-/// GRP-06: how pressing an affiliation is for the pill's outline: hostile,
-/// then unknown, then neutral or allied; own presses not at all.
-fn urgency(affiliation: Affiliation) -> u8 {
-    match affiliation {
-        Affiliation::Hostile => 3,
-        Affiliation::Unknown => 2,
-        Affiliation::Neutral | Affiliation::Allied => 1,
-        Affiliation::Own => 0,
-    }
-}
-
-/// GRP-06: the more pressing of two, if either presses at all.
-pub fn more_pressing(a: Option<Affiliation>, b: Option<Affiliation>) -> Option<Affiliation> {
-    [a, b]
-        .into_iter()
-        .flatten()
-        .filter(|aff| urgency(*aff) > 0)
-        .max_by_key(|aff| urgency(*aff))
-}
-
-/// GRP-06, as a plain function over the folded satellites' class and
-/// affiliation. "Own ships parked there" is an own *ship*, not any own
-/// satellite: a faction-owned moon or station is not a parked ship.
-pub fn pill_flags(folded: &[(BodyClass, Affiliation)]) -> PillFlags {
-    PillFlags {
-        pressing: folded.iter().fold(None, |most, (_, affiliation)| {
-            more_pressing(most, Some(*affiliation))
-        }),
-        has_own_ship: folded.iter().any(|(class, affiliation)| {
-            *affiliation == Affiliation::Own && *class == BodyClass::Ship
-        }),
-    }
 }
 
 /// GRP-03: a satellite slides out to its true position when it unfolds and
@@ -293,45 +246,5 @@ mod tests {
             (elapsed - anim_ms / 1000.0).abs() < 2.0 / 60.0,
             "took {elapsed}s"
         );
-    }
-
-    /// GRP-06: the outline takes the most pressing affiliation - hostile,
-    /// then unknown, then neutral or allied - and the blue dot only an own
-    /// *ship*.
-    #[test]
-    fn pill_flags_follow_the_folded_satellites() {
-        use Affiliation::*;
-        let flags = |folded: &[(BodyClass, Affiliation)]| pill_flags(folded);
-        let halden = [
-            (BodyClass::Moon, Own),
-            (BodyClass::Ship, Neutral),
-            (BodyClass::Ship, Hostile),
-            (BodyClass::Ship, Unknown),
-            (BodyClass::Ship, Own),
-        ];
-        assert_eq!(
-            flags(&halden),
-            PillFlags {
-                pressing: Some(Hostile),
-                has_own_ship: true
-            }
-        );
-        assert_eq!(
-            flags(&[(BodyClass::Ship, Allied), (BodyClass::Ship, Unknown)]).pressing,
-            Some(Unknown)
-        );
-        assert_eq!(flags(&[(BodyClass::Ship, Allied)]).pressing, Some(Allied));
-        let own_only = flags(&[(BodyClass::Moon, Own), (BodyClass::Station, Own)]);
-        assert_eq!(
-            own_only,
-            PillFlags::default(),
-            "own moons and stations aren't parked ships"
-        );
-    }
-
-    /// GRP-06: a group with nothing in it raises neither flag.
-    #[test]
-    fn pill_flags_of_an_empty_group_are_clear() {
-        assert_eq!(pill_flags(&[]), PillFlags::default());
     }
 }

@@ -1,16 +1,17 @@
 //! The selection and hover marks (HOV-06, HOV-07): four white corner
 //! brackets round whatever stands for the selected object on the map, and
 //! the same brackets dimmer round each hovered one. What stands for an
-//! object is its marker, symbol or true-size disc; the fold pill that holds
-//! it while it is folded, the box sliding between the two as it folds or
-//! unfolds (INS-06); or its exposure ring's identity mark (MOT-14). A
-//! fold pill under the pointer is bracketed too (GRP-07), and a shared
-//! orbit's identity pill while the orbit or one of its members is hovered
-//! or selected (HOV-05).
+//! object is its marker, symbol or true-size disc; the multi-marker that
+//! holds it while it is folded or joined, the box sliding between the two
+//! as it folds, unfolds, joins or parts (INS-06, MUL-05); or its exposure
+//! ring's identity mark (MOT-14). A multi-marker's box takes in both its
+//! frames (HOV-07). A multi-marker under the pointer is bracketed too
+//! (MUL-11, GRP-07), and a shared orbit's identity mark while the orbit or
+//! one of its members is hovered or selected (HOV-05).
 //!
 //! Each frame the wanted marks are gathered as boxes with an alpha, then
-//! drawn by a small pool of bracket nodes in the labels-and-pills layer,
-//! above every marker (MRK-12). The frame body has no mark of its own.
+//! drawn by a small pool of bracket nodes in the labels layer, above every
+//! marker (MRK-12). The frame body has no mark of its own.
 
 use bevy::prelude::*;
 
@@ -21,11 +22,13 @@ use crate::view::fold::{FoldSummary, SatelliteFoldState};
 use crate::view::hovered::HoveredBodies;
 use crate::view::layers;
 use crate::view::motion_mode::MotionModeState;
-use crate::view::node_box::{node_min, node_size};
-use crate::view::rings::marks::{IdentityPill, RingMarkFor};
+use crate::view::multi::{
+    BackFrame, JoinSlide, MultiKey, MultiMarkers, MultiTarget, back_offset, frames_rect,
+};
+use crate::view::rings::marks::RingMarkFor;
 use crate::view::selection::Selection;
 use crate::view::shared_orbit::OrbitMembers;
-use crate::view::targets::{GroupPillFor, Hovered, MarkerFor, OrbitFor};
+use crate::view::targets::{Hovered, MarkerFor, OrbitFor};
 use crate::view::tunables::Tunables;
 use crate::{Boot, Stage};
 
@@ -52,17 +55,17 @@ impl BracketBox {
         }
     }
 
-    /// HOV-07: the rectangle that clears a pill whose top-left is `min` and
-    /// whose size is `size` by `margin` on every side.
-    pub fn around_rect(min: Vec2, size: Vec2, margin: f32) -> Self {
+    /// HOV-07: the box that clears what is drawn in `rect` by `margin` on
+    /// every side: for a multi-marker, the square round both its frames.
+    pub fn around_rect(rect: Rect, margin: f32) -> Self {
         Self {
-            centre: min + size / 2.0,
-            half: size / 2.0 + Vec2::splat(margin),
+            centre: rect.center(),
+            half: rect.half_size() + Vec2::splat(margin),
         }
     }
 
     /// INS-06: part way from `self` to `to`, so a mark moving between a
-    /// pill and a marker never jumps.
+    /// multi-marker and a marker never jumps.
     pub fn lerp(self, to: Self, t: f32) -> Self {
         let t = t.clamp(0.0, 1.0);
         Self {
@@ -103,22 +106,22 @@ pub fn mark_strength(selected: bool, hovered: bool, tunables: &Tunables) -> Opti
     }
 }
 
-/// INS-06 / HOV-06: where a satellite's mark goes: on its parent's pill
-/// while folded, on its marker once unfolded, and part way while it
-/// slides (`unfold` 0 to 1). With only one of the two, that one.
+/// INS-06 / HOV-06: where a thing's mark goes: on the multi-marker that
+/// holds it while folded or joined, on its marker once out, and part way
+/// while it slides (`out` 0 to 1). With only one of the two, that one.
 pub fn shown_box(
     marker: Option<BracketBox>,
-    pill: Option<BracketBox>,
-    unfold: f32,
+    holder: Option<BracketBox>,
+    out: f32,
 ) -> Option<BracketBox> {
-    match (marker, pill) {
-        (Some(marker), Some(pill)) => Some(pill.lerp(marker, unfold)),
-        (marker, pill) => marker.or(pill),
+    match (marker, holder) {
+        (Some(marker), Some(holder)) => Some(holder.lerp(marker, out)),
+        (marker, holder) => marker.or(holder),
     }
 }
 
 /// HOV-06: one mark per box: where two land on the same box (a hovered
-/// pill that holds the selection), the stronger stays.
+/// multi-marker that holds the selection), the stronger stays.
 pub fn merge_marks(marks: Vec<Mark>) -> Vec<Mark> {
     let mut merged: Vec<Mark> = Vec::new();
     for mark in marks {
@@ -214,8 +217,17 @@ fn corner_node(corner: BracketCorner, arm: f32, stroke: f32) -> Node {
     }
 }
 
-/// Where each marker is drawn, by body.
-type Markers<'w, 's> = Query<'w, 's, (&'static MarkerFor, &'static MarkerDrawn)>;
+/// Where each marker is drawn, by body, with a station marker's back
+/// frame.
+type Markers<'w, 's> = Query<
+    'w,
+    's,
+    (
+        &'static MarkerFor,
+        &'static MarkerDrawn,
+        Option<&'static BackFrame>,
+    ),
+>;
 
 /// What a body's mark depends on besides its marker.
 type BodyStates<'w, 's> = Query<
@@ -225,21 +237,9 @@ type BodyStates<'w, 's> = Query<
         Option<&'static ChildOf>,
         Option<&'static SatelliteFoldState>,
         Option<&'static MotionModeState>,
+        Option<&'static JoinSlide>,
     ),
     With<BodyClass>,
->;
-
-/// The fold pills, where they are drawn and whether they are hovered.
-type FoldPills<'w, 's> = Query<
-    'w,
-    's,
-    (
-        &'static GroupPillFor,
-        &'static Node,
-        &'static ComputedNode,
-        Has<Hovered>,
-    ),
-    (Without<Bracket>, Without<BracketCorner>),
 >;
 
 /// The exposure rings' identity marks.
@@ -261,12 +261,12 @@ pub struct MarkSources<'w, 's> {
     selection: Res<'w, Selection>,
     hovered: Res<'w, HoveredBodies>,
     folds: Res<'w, FoldSummary>,
+    multis: Res<'w, MultiMarkers>,
     members: Res<'w, OrbitMembers>,
     markers: Markers<'w, 's>,
     bodies: BodyStates<'w, 's>,
-    pills: FoldPills<'w, 's>,
+    hovered_multis: Query<'w, 's, &'static MultiTarget, With<Hovered>>,
     ring_marks: RingMarks<'w, 's>,
-    identity_pills: Query<'w, 's, (&'static IdentityPill, &'static ComputedNode)>,
 }
 
 impl MarkSources<'_, '_> {
@@ -278,19 +278,34 @@ impl MarkSources<'_, '_> {
         )
     }
 
-    /// The box round a parent's fold pill, while it is drawn.
-    fn pill_box(&self, parent: Entity, margin: f32) -> Option<BracketBox> {
-        let (_, node, computed, _) = self.pills.iter().find(|(pill, ..)| pill.0 == parent)?;
-        Some(BracketBox::around_rect(
-            node_min(node)?,
-            node_size(computed),
-            margin,
-        ))
+    /// HOV-07: the box round a body's marker as drawn, both frames of a
+    /// station marker included.
+    fn marker_box(&self, body: Entity, margin: f32) -> Option<BracketBox> {
+        let (_, drawn, back) = self.markers.iter().find(|(m, ..)| m.0 == body)?;
+        let (centre, half) = drawn.0?;
+        Some(match back.and_then(|b| b.0) {
+            Some(back) => BracketBox::around_rect(frames_rect(centre, half, Some(back)), margin),
+            None => BracketBox::around_square(centre, half, margin),
+        })
     }
 
-    /// INS-06: the pill that holds `body` while it is folded: its parent's,
-    /// or, while its parent is folded too, the one that holds the parent.
-    fn holding_pill(&self, body: Entity) -> Option<Entity> {
+    /// HOV-07: the box round a multi-marker's two frames, while it is
+    /// drawn; a station marker's is its station's marker's.
+    fn multi_box(&self, key: MultiKey, tunables: &Tunables) -> Option<BracketBox> {
+        let margin = tunables.bracket_margin_px;
+        if let MultiKey::Station(station) = key {
+            return self.marker_box(station, margin);
+        }
+        let marker = self.multis.get(key).filter(|m| m.drawn)?;
+        let back = back_offset(tunables.back_frame_offset_px);
+        let rect = frames_rect(marker.centre, tunables.ship_symbol_px / 2.0, Some(back));
+        Some(BracketBox::around_rect(rect, margin))
+    }
+
+    /// INS-06: the parent whose fold marker holds `body` while it is
+    /// folded: its own, or, while its parent is folded too, the one that
+    /// holds the parent.
+    fn holding_fold(&self, body: Entity) -> Option<Entity> {
         let mut at = body;
         loop {
             let parent = self.bodies.get(at).ok()?.0?.parent();
@@ -306,82 +321,84 @@ impl MarkSources<'_, '_> {
         }
     }
 
-    /// HOV-06 / INS-06: the mark round a body's marker, or the pill that
-    /// holds it, sliding between the two as it folds or unfolds. A marker
-    /// faded into its exposure ring fades its mark with it (MOT-11).
-    fn body_mark(&self, body: Entity, strength: f32, tunables: &Tunables) -> Option<Mark> {
-        let margin = tunables.bracket_margin_px;
-        let (child_of, fold, motion) = self.bodies.get(body).ok()?;
-        let marker = self
-            .markers
-            .iter()
-            .find(|(marker_for, _)| marker_for.0 == body)
-            .and_then(|(_, drawn)| drawn.0)
-            .map(|(centre, half)| BracketBox::around_square(centre, half, margin));
-        let unfold = fold.map_or(1.0, |fold| fold.anim_t);
-        let pill = match self.holding_pill(body) {
-            Some(holder) => self.pill_box(holder, margin),
-            // Unfolding out of a pill it has already left the count of.
-            None if unfold < 1.0 => child_of.and_then(|c| self.pill_box(c.parent(), margin)),
-            None => None,
+    /// INS-06: the multi-marker box a body's mark slides from or to, and
+    /// how far out of it the body is (0 in it, 1 on its own): the fold
+    /// marker that holds it, or that it is unfolding out of; or the
+    /// marker it is joined into, or parting from (MUL-05).
+    fn holder_box(&self, body: Entity, tunables: &Tunables) -> (Option<BracketBox>, f32) {
+        let Ok((child_of, fold, _, slide)) = self.bodies.get(body) else {
+            return (None, 1.0);
         };
-        let fade = match (marker, pill) {
+        let unfold = fold.map_or(1.0, |fold| fold.anim_t);
+        if let Some(parent) = self.holding_fold(body) {
+            return (self.multi_box(MultiKey::Fold(parent), tunables), unfold);
+        }
+        if unfold < 1.0 {
+            // Unfolding out of a fold marker it has already left the count of.
+            let parent = child_of.map(ChildOf::parent);
+            let held = parent.and_then(|p| self.multi_box(MultiKey::Fold(p), tunables));
+            return (held, unfold);
+        }
+        match slide {
+            Some(slide) if slide.t > 0.0 => {
+                let key = self.multis.joined.get(&body).copied();
+                (key.and_then(|k| self.multi_box(k, tunables)), 1.0 - slide.t)
+            }
+            _ => (None, 1.0),
+        }
+    }
+
+    /// HOV-06 / INS-06: the mark round a body's marker, or the
+    /// multi-marker that holds it, sliding between the two as it folds,
+    /// unfolds, joins or parts. A marker faded into its exposure ring
+    /// fades its mark with it (MOT-11).
+    fn body_mark(&self, body: Entity, strength: f32, tunables: &Tunables) -> Option<Mark> {
+        let (_, _, motion, _) = self.bodies.get(body).ok()?;
+        let marker = self.marker_box(body, tunables.bracket_margin_px);
+        let (holder, out) = self.holder_box(body, tunables);
+        let fade = match (marker, holder) {
             (Some(_), _) => motion.map_or(1.0, MotionModeState::dot_alpha),
             _ => 1.0,
         };
-        let bbox = shown_box(marker, pill, unfold)?;
+        let bbox = shown_box(marker, holder, out)?;
         Some(Mark {
             bbox,
             alpha: strength * fade,
         })
     }
 
-    /// GRP-07: a fold pill under the pointer is bracketed as a marker is.
-    fn hovered_pills(&self, tunables: &Tunables) -> Vec<Mark> {
-        let margin = tunables.bracket_margin_px;
-        self.pills
+    /// MUL-11 / HOV-01: a multi-marker under the pointer is bracketed as a
+    /// marker is.
+    fn hovered_multis(&self, tunables: &Tunables) -> Vec<Mark> {
+        self.hovered_multis
             .iter()
-            .filter(|(.., hovered)| *hovered)
-            .filter_map(|(_, node, computed, _)| {
-                Some(Mark {
-                    bbox: BracketBox::around_rect(node_min(node)?, node_size(computed), margin),
-                    alpha: tunables.bracket_hover_alpha,
-                })
+            .filter_map(|target| self.multi_box(target.0?, tunables))
+            .map(|bbox| Mark {
+                bbox,
+                alpha: tunables.bracket_hover_alpha,
             })
             .collect()
     }
 
     /// HOV-06 / HOV-05 / MOT-14: the marks round exposure rings' identity
-    /// marks: a lone body's mark for that body, a shared orbit's pill for
-    /// the orbit and every member on it. They fade with the mark.
+    /// marks: a lone body's mark for that body, a shared orbit's
+    /// multi-marker for the orbit and every member on it. They fade with
+    /// the mark.
     fn ring_marks(&self, tunables: &Tunables) -> Vec<Mark> {
         let margin = tunables.bracket_margin_px;
         let mut marks = Vec::new();
         for (mark, node, marker_for, orbit_for) in &self.ring_marks {
-            let Some(min) = node_min(node) else {
+            let Some(rect) = mark.mark.filter(|_| node.display != Display::None) else {
                 continue;
             };
-            let centre = min + Vec2::splat(mark.half);
-            let found = if let Some(body) = marker_for {
-                self.strength(body.0, tunables)
-                    .map(|s| (s, BracketBox::around_square(centre, mark.half, margin)))
-            } else if let Some(orbit) = orbit_for {
-                let pill = self
-                    .identity_pills
-                    .iter()
-                    .find(|(pill, _)| pill.0 == orbit.0)
-                    .map(|(_, computed)| node_size(computed));
-                let strength = self.orbit_strength(orbit.0, tunables);
-                pill.zip(strength).map(|(size, s)| {
-                    let pill_min = Vec2::new(min.x, centre.y - size.y / 2.0);
-                    (s, BracketBox::around_rect(pill_min, size, margin))
-                })
-            } else {
-                None
+            let strength = match (marker_for, orbit_for) {
+                (Some(body), _) => self.strength(body.0, tunables),
+                (None, Some(orbit)) => self.orbit_strength(orbit.0, tunables),
+                (None, None) => None,
             };
-            if let Some((strength, bbox)) = found {
+            if let Some(strength) = strength {
                 marks.push(Mark {
-                    bbox,
+                    bbox: BracketBox::around_rect(rect, margin),
                     alpha: strength * mark.shown,
                 });
             }
@@ -389,8 +406,9 @@ impl MarkSources<'_, '_> {
         marks
     }
 
-    /// HOV-05 / HOV-06: a shared orbit's pill stands for the orbit and for
-    /// each member on it, so it takes the strongest of their marks.
+    /// HOV-05 / HOV-06: a shared orbit's multi-marker stands for the
+    /// orbit and for each member on it, so it takes the strongest of their
+    /// marks.
     fn orbit_strength(&self, orbit: Entity, tunables: &Tunables) -> Option<f32> {
         let members = self.members.0.get(&orbit).into_iter().flatten();
         std::iter::once(self.strength(orbit, tunables))
@@ -412,7 +430,7 @@ impl MarkSources<'_, '_> {
                 self.body_mark(body, strength, tunables)
             })
             .collect();
-        marks.extend(self.hovered_pills(tunables));
+        marks.extend(self.hovered_multis(tunables));
         marks.extend(self.ring_marks(tunables));
         marks.retain(|mark| mark.alpha > 0.0);
         merge_marks(marks)
@@ -480,12 +498,27 @@ mod tests {
         assert_eq!(bbox.half * 2.0, Vec2::splat(side));
     }
 
-    /// HOV-07: a pill's box is the rectangle that clears it by the margin.
+    /// HOV-07: a multi-marker's box is the smallest square that clears
+    /// both its frames by the margin.
     #[test]
-    fn a_pills_box_is_a_rectangle_round_it() {
-        let bbox = BracketBox::around_rect(Vec2::new(10.0, 20.0), Vec2::new(30.0, 16.0), 4.0);
-        assert_eq!(bbox.centre, Vec2::new(25.0, 28.0));
-        assert_eq!(bbox.half, Vec2::new(19.0, 12.0));
+    fn a_multi_markers_box_clears_both_frames() {
+        let tunables = Tunables::default();
+        let half = tunables.ship_symbol_px / 2.0;
+        let offset = tunables.back_frame_offset_px;
+        let margin = tunables.bracket_margin_px;
+        let centre = Vec2::new(100.0, 50.0);
+        let frames = frames_rect(centre, half, Some(back_offset(offset)));
+        let bbox = BracketBox::around_rect(frames, margin);
+        let side = 2.0 * half + offset + 2.0 * margin;
+        assert_eq!(bbox.half * 2.0, Vec2::splat(side), "a square");
+        assert_eq!(bbox.centre, centre + Vec2::new(offset, -offset) / 2.0);
+        // Its left and bottom edges clear the front frame by the margin,
+        // its right and top edges the back frame.
+        assert_eq!(bbox.centre.x - bbox.half.x, centre.x - half - margin);
+        assert_eq!(
+            bbox.centre.y - bbox.half.y,
+            centre.y - offset - half - margin
+        );
     }
 
     /// HOV-06: each arm is `bracket_arm_fraction` of the box's shorter
@@ -522,23 +555,26 @@ mod tests {
         assert_eq!(mark_strength(false, false, &tunables), None);
     }
 
-    /// INS-06: folded, the mark is on the pill; unfolded, on the marker;
-    /// part way, part way, so it never jumps.
+    /// INS-06: folded or joined, the mark is on the multi-marker; out,
+    /// on the marker; part way, part way, so it never jumps.
     #[test]
-    fn the_mark_slides_between_the_pill_and_the_marker() {
+    fn the_mark_slides_between_the_multi_marker_and_the_marker() {
         let marker = BracketBox::around_square(Vec2::new(100.0, 0.0), 11.0, 4.0);
-        let pill = BracketBox::around_rect(Vec2::ZERO, Vec2::new(30.0, 16.0), 4.0);
-        assert_eq!(shown_box(Some(marker), Some(pill), 0.0), Some(pill));
-        assert_eq!(shown_box(Some(marker), Some(pill), 1.0), Some(marker));
-        let half = shown_box(Some(marker), Some(pill), 0.5).unwrap();
-        assert_eq!(half.centre, pill.centre.lerp(marker.centre, 0.5));
-        assert_eq!(shown_box(None, Some(pill), 0.3), Some(pill));
+        let held = BracketBox::around_rect(
+            frames_rect(Vec2::ZERO, 11.0, Some(Vec2::new(4.0, -4.0))),
+            4.0,
+        );
+        assert_eq!(shown_box(Some(marker), Some(held), 0.0), Some(held));
+        assert_eq!(shown_box(Some(marker), Some(held), 1.0), Some(marker));
+        let half = shown_box(Some(marker), Some(held), 0.5).unwrap();
+        assert_eq!(half.centre, held.centre.lerp(marker.centre, 0.5));
+        assert_eq!(shown_box(None, Some(held), 0.3), Some(held));
         assert_eq!(shown_box(Some(marker), None, 0.3), Some(marker));
         assert_eq!(shown_box(None, None, 1.0), None);
     }
 
-    /// HOV-06: two marks on one box (a hovered pill holding the selection)
-    /// draw once, at the stronger alpha.
+    /// HOV-06: two marks on one box (a hovered multi-marker holding the
+    /// selection) draw once, at the stronger alpha.
     #[test]
     fn marks_on_one_box_merge_to_the_stronger() {
         let bbox = BracketBox::around_square(Vec2::ZERO, 6.0, 4.0);

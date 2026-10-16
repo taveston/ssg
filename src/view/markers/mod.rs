@@ -10,11 +10,12 @@
 //! screen a hollow circle; ships and stations are symbols (section 3a of
 //! the spec, built in `symbols/mod.rs` and `symbols/draw.rs`). What's drawn is
 //! decided elsewhere - `fold.rs` says whether a satellite is folded into
-//! its parent (GRP-01, GRP-03), `motion_mode.rs` how far its dot has faded
-//! into the exposure ring (MOT-11), and `edge/mod.rs` whether a gate is pinned
-//! to the screen edge instead (EDGE-01). This module turns those into a
-//! position and a strength, which fades every coloured part (`Tint`) as
-//! one.
+//! its parent (GRP-01, GRP-03), `multi.rs` whether a symbol is joined into
+//! a multi-marker (MUL-05), `motion_mode.rs` how far its dot has faded
+//! into the exposure ring (MOT-11), and `edge/mod.rs` whether a gate is
+//! pinned to the screen edge instead (EDGE-01). This module turns those
+//! into a position and a strength, which fades every coloured part
+//! (`Tint`) as one.
 //!
 //! MRK-06 holds by construction: only satellites fold, so every planet
 //! keeps its own marker at every zoom.
@@ -32,11 +33,12 @@ use super::edge::GateEdgeTargets;
 use super::fold::SatelliteFoldState;
 use super::layers;
 use super::motion_mode::MotionModeState;
+use super::multi::{JoinSlide, MultiMarkers};
 use super::screen::ScreenPositions;
 use super::ship_groups::GroupFaces;
 use super::symbols::draw::{Tint, TintSlot};
 use super::symbols::shape::SymbolPart;
-use super::symbols::{SymbolSettings, label_second_line, with_countdown};
+use super::symbols::{SecondLineFacts, SymbolSettings, label_second_line, with_countdown};
 use super::targets::MarkerFor;
 use super::true_size::{DiscRadii, disc_half_px};
 use super::tunables::Tunables;
@@ -51,7 +53,6 @@ pub mod brackets;
 pub mod draw;
 pub mod labels;
 pub mod picking;
-pub mod pills;
 
 /// Half-size in pixels, so the update system can centre the node on its
 /// projected screen position without re-deriving size from class.
@@ -70,8 +71,8 @@ pub struct MarkerDrawn(pub Option<(Vec2, f32)>);
 #[derive(Component)]
 pub struct MarkerLabel;
 
-/// The markers, pills and ring marks have been laid out for this frame;
-/// the labels are placed after (LBL-01).
+/// The markers, multi-markers and ring marks have been laid out for this
+/// frame; the labels and brackets are placed after (LBL-01, HOV-06).
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct MarkersPlaced;
 
@@ -145,9 +146,23 @@ pub fn drawn_half(class_half: f32, is_disc: bool, true_radius_px: f32) -> f32 {
 
 /// HOV-07: how far a marker's bracket box reaches from its centre: the
 /// drawn marker (a symbol's square, SYM-14, or a disc to the outer edge of
-/// its rim) and the margin. A fold pill sits clear of it (GRP-05).
+/// its rim) and the margin. A fold marker sits clear of it (GRP-05).
 pub fn box_half(drawn_half: f32, tunables: &Tunables) -> f32 {
     drawn_half + tunables.bracket_margin_px
+}
+
+/// HOV-07 / GRP-05: how far a parent's bracket box reaches from its
+/// centre: its drawn marker, grown to a true-size disc when close (MRK-07),
+/// and the margin. Its fold marker sits clear of it.
+pub fn parent_clear_px(
+    class: BodyClass,
+    has_record: bool,
+    true_radius_px: f32,
+    tunables: &Tunables,
+) -> f32 {
+    let is_disc = marker_shape(class, has_record) == MarkerShape::Disc;
+    let drawn = drawn_half(marker_half_size(class, tunables), is_disc, true_radius_px);
+    box_half(drawn, tunables)
 }
 
 /// GRP-01 / GRP-03 / MOT-11: how strongly a body's marker is drawn. A
@@ -167,6 +182,17 @@ pub fn marker_position(own: Vec2, parent: Option<Vec2>, fold_anim_t: f32) -> Vec
     match parent {
         Some(parent) if fold_anim_t < 1.0 => parent.lerp(own, fold_anim_t),
         _ => own,
+    }
+}
+
+/// MUL-05: a symbol joining a multi-marker slides from its own place
+/// towards the marker's centre and fades as it goes; parting, it slides
+/// back out. Returns where it is drawn and how much of its strength it
+/// keeps.
+pub fn joined_place(own: Vec2, slide: Option<&JoinSlide>) -> (Vec2, f32) {
+    match slide {
+        Some(slide) => (own + slide.offset * slide.t, 1.0 - slide.t),
+        None => (own, 1.0),
     }
 }
 
@@ -194,7 +220,9 @@ pub struct MarkersPlugin;
 
 impl Plugin for MarkersPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_markers.in_set(Boot::Overlay))
+        // MUL-13: a station's second line reads its docked count.
+        app.init_resource::<MultiMarkers>()
+            .add_systems(Startup, spawn_markers.in_set(Boot::Overlay))
             .add_systems(
                 Update,
                 (
@@ -207,13 +235,14 @@ impl Plugin for MarkersPlugin {
     }
 }
 
-/// SYM-08 / SYM-13 / PLNR-66: keep each second line true as game time
-/// passes, so a stale track's age counts up and an order's countdown
-/// counts down.
+/// SYM-08 / SYM-13 / PLNR-66 / MUL-13: keep each second line true as
+/// game time passes, so a stale track's age counts up, an order's
+/// countdown counts down and a station's docked count follows what is
+/// docked.
 fn update_second_lines(
     clock: Res<GameClock>,
     bodies: Query<(&Affiliation, &ShipRecord)>,
-    groups: GroupFaces,
+    (groups, multis): (GroupFaces, Res<MultiMarkers>),
     countdowns: Countdowns,
     mut lines: Query<(&SecondLineFor, &mut Text)>,
 ) {
@@ -222,8 +251,13 @@ fn update_second_lines(
             continue;
         };
         let members = groups.member_classes(line_for.0);
+        let facts = SecondLineFacts {
+            members: &members,
+            docked: multis.docked_count(line_for.0),
+            now_day: clock.elapsed_days(),
+        };
         let line = with_countdown(
-            label_second_line(*affiliation, record, &members, clock.elapsed_days()),
+            label_second_line(*affiliation, record, facts),
             countdowns.of(line_for.0),
         )
         .unwrap_or_default();
@@ -270,6 +304,7 @@ type MarkerBodies<'w, 's> = Query<
         Option<&'static ChildOf>,
         Option<&'static SatelliteFoldState>,
         Option<&'static MotionModeState>,
+        Option<&'static JoinSlide>,
     ),
     With<BodyClass>,
 >;
@@ -371,15 +406,15 @@ struct MarkerScreen<'w> {
 }
 
 impl MarkerScreen<'_> {
-    /// MRK-03: a marker's centre, moving towards its parent's as it folds;
-    /// `None` while the body is off screen, faded out, or a gate pinned
-    /// to the edge.
+    /// MRK-03: a marker's centre, moving towards its parent's as it folds
+    /// and towards a multi-marker's as it joins one (MUL-05); `None` while
+    /// the body is off screen, faded out, or a gate pinned to the edge.
     fn centre(
         &self,
         body: Entity,
         parent: Option<Entity>,
         alpha: f32,
-        fold_anim_t: f32,
+        (fold_anim_t, slide): (f32, Option<&JoinSlide>),
     ) -> Option<Vec2> {
         let own = self
             .screen
@@ -387,7 +422,7 @@ impl MarkerScreen<'_> {
             .filter(|pos| self.screen.in_viewport(*pos))
             .filter(|_| alpha > MIN_VISIBLE_ALPHA && !self.edges.is_pinned(body))?;
         let parent = parent.and_then(|parent| self.screen.get(parent));
-        Some(marker_position(own, parent, fold_anim_t))
+        Some(joined_place(marker_position(own, parent, fold_anim_t), slide).0)
     }
 }
 
@@ -416,16 +451,20 @@ impl MarkerPaint<'_, '_> {
     }
 }
 
-/// A marker's alpha and how far its fold has run, from its body's fold
-/// and motion mode.
-fn marker_fade(fold: Option<&SatelliteFoldState>, motion: Option<&MotionModeState>) -> (f32, f32) {
+/// A marker's alpha and how far its fold has run, from its body's fold,
+/// join (MUL-05) and motion mode.
+fn marker_fade(
+    fold: Option<&SatelliteFoldState>,
+    motion: Option<&MotionModeState>,
+    slide: Option<&JoinSlide>,
+) -> (f32, f32) {
     let fold_anim_t = fold.map(|f| f.anim_t).unwrap_or(1.0);
     let alpha = marker_alpha(
         fold_anim_t,
         fold.map(|f| f.effective_hidden).unwrap_or(false),
         motion.map(MotionModeState::dot_alpha).unwrap_or(1.0),
     );
-    (alpha, fold_anim_t)
+    (alpha * joined_place(Vec2::ZERO, slide).1, fold_anim_t)
 }
 
 /// MRK-03 / MRK-07: place, fade and colour every marker for this frame.
@@ -438,13 +477,13 @@ fn update_markers(
     for (entity, marker_for, half, shape, mut node, mut drawn_at) in &mut markers {
         let body = marker_for.0;
         drawn_at.set_if_neq(MarkerDrawn(None));
-        let Ok((child_of, fold, motion)) = bodies.get(body) else {
+        let Ok((child_of, fold, motion, slide)) = bodies.get(body) else {
             node.display = Display::None;
             continue;
         };
-        let (alpha, fold_anim_t) = marker_fade(fold, motion);
+        let (alpha, fold_anim_t) = marker_fade(fold, motion, slide);
         let parent = child_of.map(ChildOf::parent);
-        let Some(pos) = place.centre(body, parent, alpha, fold_anim_t) else {
+        let Some(pos) = place.centre(body, parent, alpha, (fold_anim_t, slide)) else {
             node.display = Display::None;
             continue;
         };
@@ -580,6 +619,38 @@ mod tests {
         for part in [image, text] {
             assert_eq!(world.get::<BackgroundColor>(part).unwrap().0, Color::NONE);
         }
+    }
+
+    /// MUL-05: a joining symbol slides towards the marker's centre and
+    /// fades; a symbol held by none is where it is, at full strength.
+    #[test]
+    fn a_joining_symbol_slides_into_the_marker_and_fades() {
+        let own = Vec2::new(100.0, 50.0);
+        let slide = JoinSlide {
+            t: 0.25,
+            offset: Vec2::new(-8.0, 4.0),
+            held: true,
+        };
+        assert_eq!(
+            joined_place(own, Some(&slide)),
+            (Vec2::new(98.0, 51.0), 0.75)
+        );
+        let inside = JoinSlide { t: 1.0, ..slide };
+        assert_eq!(joined_place(own, Some(&inside)), (own + slide.offset, 0.0));
+        assert_eq!(joined_place(own, None), (own, 1.0));
+    }
+
+    /// GRP-05 / HOV-07: a fold marker sits clear of its parent's bracket
+    /// box, which grows with the parent's true-size disc.
+    #[test]
+    fn a_parents_box_grows_with_its_disc() {
+        let tunables = Tunables::default();
+        let margin = tunables.bracket_margin_px;
+        let planet = tunables.planet_marker_px / 2.0;
+        let far = parent_clear_px(BodyClass::Planet, false, 1.0, &tunables);
+        assert_eq!(far, planet + margin);
+        let close = parent_clear_px(BodyClass::Planet, false, 90.0, &tunables);
+        assert_eq!(close, 90.0 + margin);
     }
 
     /// GRP-03: the marker slides from its parent to its true position.

@@ -11,10 +11,11 @@
 //! one member, stands for that body (`MarkerFor`) with the ordinary marker
 //! observers, so a hit behaves exactly like a hit on the marker (white
 //! ring, select, double-click). A shared orbit's ring stands for the orbit
-//! (`OrbitFor`): hovering it highlights the ring and its identity pill, and
-//! clicking it selects the parent with that orbit's row revealed. Hits are
-//! reported below the markers' and the UI's order, so a marker, pill, label
-//! or panel still wins.
+//! (`OrbitFor`): hovering it highlights the ring and its identity mark,
+//! and clicking it selects the parent with that orbit's row revealed. Hits
+//! are reported below the markers' and the UI's order, so a marker,
+//! multi-marker, label or panel still wins. A thing joined into a
+//! multi-marker draws no tail, so it has none to hit (MUL-05).
 
 use std::collections::HashMap;
 
@@ -197,12 +198,12 @@ impl RingTrace<'_, '_> {
         if ring.carries(frame_body) || faded_out(&ring, fade, &self.view) {
             return Vec::new();
         }
-        let angles: Vec<f32> = ring.drawn().map(|m| m.angle).collect();
+        let angles = ring.tail_angles();
         let mode = ring.mode();
         let (selected, is_hovered) = ring.highlight(&self.selection, &self.hovered);
         let extent = ring_extent(
             ring.class(),
-            angles.is_empty(),
+            ring.drawn().next().is_none(),
             mode.ring_mode,
             selected || is_hovered,
         );
@@ -224,7 +225,7 @@ impl RingTrace<'_, '_> {
             return Vec::new();
         }
         let mode = ring.mode();
-        let Some(member) = ring.drawn().find(|m| m.body == tail.body) else {
+        let Some(member) = ring.tails().find(|m| m.body == tail.body) else {
             return Vec::new();
         };
         if mode.ring_mode || faded_out(&ring, fade, &self.view) {
@@ -236,7 +237,7 @@ impl RingTrace<'_, '_> {
 }
 
 /// HOV-02: trace every drawn ring and tail on screen. A folded satellite's
-/// ring isn't drawn, so it has no path (GRP-07: its pill stands for it),
+/// ring isn't drawn, so it has no path (GRP-07: its fold marker stands for it),
 /// and a ring carrying the frame body is left out, as is one faded out by
 /// its size (MRK-14). On a shared ring carrying the frame body, each other
 /// drawn member's tail is traced for that member instead.

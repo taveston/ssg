@@ -1,7 +1,8 @@
 //! Links from a pickable UI node back to the body it stands for. Shared by
-//! everything that draws a clickable node for a body (markers, pills, ring
-//! hit targets) and by the pointer handlers in `hover.rs`, so neither side
-//! has to import the other (ARCH-03).
+//! everything that draws a clickable node for a body (markers, ring hit
+//! targets, ring marks) and by the pointer handlers in `hover.rs`, so
+//! neither side has to import the other (ARCH-03). A multi-marker's own
+//! link is `MultiTarget` (`view/multi.rs`).
 
 use bevy::ecs::system::SystemParam;
 use bevy::picking::hover::HoverMap;
@@ -65,14 +66,9 @@ impl PointerTargets<'_, '_> {
     }
 }
 
-/// A "+N" count pill -> the parent whose folded satellites it counts.
-/// Clicking it does what clicking the parent does (GRP-07).
-#[derive(Component)]
-pub struct GroupPillFor(pub Entity);
-
 /// A stand-in for a shared orbit (HOV-05): its ring hit target or its
-/// identity pill (MOT-14) -> the named orbit. Hovering it highlights the
-/// ring and the pill; clicking it selects the orbit's parent and reveals
-/// the orbit's row in the inset.
+/// identity mark, a multi-marker (MOT-14) -> the named orbit. Hovering it
+/// highlights the ring and the mark; clicking it selects the orbit's
+/// parent and reveals the orbit's row in the inset.
 #[derive(Component)]
 pub struct OrbitFor(pub Entity);

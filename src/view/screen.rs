@@ -1,6 +1,6 @@
 //! Where every body lands on screen this frame (MRK-03), and the map area
 //! they land in. Projected once, in `Stage::Screen`, and shared by every
-//! overlay that sits on a body's position: markers, pills and gate edge
+//! overlay that sits on a body's position: markers, multi-markers and gate edge
 //! arrows.
 //!
 //! The **viewport** is the part of the window the camera draws in: the
@@ -73,7 +73,7 @@ pub fn ray_inside(origin: Vec2, dir: Vec2, rect: Rect) -> Option<(f32, f32)> {
 }
 
 /// SYM-16: `pos` moved to the nearest whole physical pixel, so a marker,
-/// symbol or pill centred there draws its outlines as sharply as the
+/// symbol or multi-marker centred there draws its outlines as sharply as the
 /// orbit rings. `scale` is physical pixels per logical pixel.
 pub fn snap_to_pixel(pos: Vec2, scale: f32) -> Vec2 {
     (pos * scale).round() / scale

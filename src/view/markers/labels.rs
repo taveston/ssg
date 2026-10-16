@@ -1,5 +1,6 @@
 //! Label placement (LBL-01 to LBL-04): where each marker's label sits so
-//! that labels never overprint one another or any marker, symbol or pill.
+//! that labels never overprint one another or any marker, symbol or
+//! multi-marker.
 //!
 //! Each label tries the positions right, left, above and below its
 //! marker, `label_gap_px` from the edge of the marker's box (the box the
@@ -22,8 +23,10 @@
 //! (MOT-02, MOT-14); its period line is its second line.
 //!
 //! The placement is a pure function of the candidates and the obstacles
-//! (`place_labels`); the system gathers them from the markers and pills
-//! laid out this frame and writes the result back to the label nodes.
+//! (`place_labels`); the system gathers them from the markers and
+//! multi-markers laid out this frame and writes the result back to the
+//! label nodes. A station marker's label is placed beside the box round
+//! both its frames (MUL-13); no other multi-marker has a label.
 
 use bevy::prelude::*;
 
@@ -34,14 +37,15 @@ use crate::sim::track::ShipRecord;
 use crate::view::anim::{advance_towards, step_per_frame};
 use crate::view::frame::Frame;
 use crate::view::hovered::HoveredBodies;
-use crate::view::node_box::{node_rect, node_size};
+use crate::view::multi::{BackFrame, MultiNode, frames_rect};
+use crate::view::node_box::{node_min, node_rect, node_size};
 use crate::view::paths::marks::PathLabel;
 use crate::view::rings::marks::{PeriodLine, RingLabelBox, RingMarkFor};
 use crate::view::selection::Selection;
 use crate::view::shared_orbit::OrbitMembers;
 use crate::view::symbols::draw::AmplifierReach;
 use crate::view::symbols::own_flag_civilian;
-use crate::view::targets::{GroupPillFor, MarkerFor, OrbitFor};
+use crate::view::targets::{MarkerFor, OrbitFor};
 use crate::view::tunables::Tunables;
 use crate::view::world::ViewNow;
 
@@ -141,7 +145,7 @@ pub fn label_rank(
 }
 
 /// LBL-01 to LBL-04: where each candidate's label goes, given the boxes
-/// it must keep clear of (every marker, symbol and pill). Candidates are
+/// it must keep clear of (every marker, symbol and multi-marker). Candidates are
 /// taken in rank order, nearer first within a rank; each keeps its
 /// previous place if still free, else takes the first free slot with its
 /// second line, then without, else hides - unless pinned, when it takes
@@ -271,7 +275,7 @@ type RankedBodies<'w, 's> = Query<
 >;
 
 /// The markers, by node and body, with how far a symbol's amplifiers
-/// reach beyond it.
+/// reach beyond it and a station marker's back frame.
 type Markers<'w, 's> = Query<
     'w,
     's,
@@ -280,7 +284,7 @@ type Markers<'w, 's> = Query<
         &'static MarkerFor,
         &'static Node,
         &'static ComputedNode,
-        Option<&'static AmplifierReach>,
+        (Option<&'static AmplifierReach>, Option<&'static BackFrame>),
     ),
     (With<MarkerHalfSize>, Without<MarkerLabel>),
 >;
@@ -290,14 +294,24 @@ type Markers<'w, 's> = Query<
 /// to the node's, which is what a label's offset is measured from.
 type MarkerBox = (Entity, Entity, Rect, Vec2);
 
-/// LBL-01 / SYM-13: the box a marker's label is placed beside and other
-/// labels keep clear of: the marker's box (`margin` round what is drawn,
-/// HOV-07), with a symbol's amplifiers. Returns the box and the shift
-/// from the node's top-left to the box's.
-pub fn marker_box(drawn: Rect, reach: Option<&AmplifierReach>, margin: f32) -> (Rect, Vec2) {
+/// LBL-01 / SYM-13 / MUL-13: the box a marker's label is placed beside
+/// and other labels keep clear of: the marker's box (`margin` round what
+/// is drawn, both frames of a station marker, HOV-07), with a symbol's
+/// amplifiers. Returns the box and the shift from the node's top-left to
+/// the box's.
+pub fn marker_box(
+    drawn: Rect,
+    (reach, back): (Option<&AmplifierReach>, Option<Vec2>),
+    margin: f32,
+) -> (Rect, Vec2) {
     let grown = reach.map_or(drawn.inflate(margin), |reach| {
         reach.label_box(drawn, margin)
     });
+    let grown = match back {
+        Some(back) => grown
+            .union(frames_rect(drawn.center(), drawn.half_size().x, Some(back)).inflate(margin)),
+        None => grown,
+    };
     (grown, grown.min - drawn.min)
 }
 
@@ -333,7 +347,7 @@ type PathLabels<'w, 's> = Query<
         Without<MarkerLabel>,
         Without<MarkerHalfSize>,
         Without<SecondLineFor>,
-        Without<GroupPillFor>,
+        Without<MultiNode>,
         Without<RingMarkFor>,
         Without<RingLabelBox>,
         Without<PeriodLine>,
@@ -356,7 +370,7 @@ type RingLabels<'w, 's> = Query<
         With<RingLabelBox>,
         Without<MarkerLabel>,
         Without<MarkerHalfSize>,
-        Without<GroupPillFor>,
+        Without<MultiNode>,
         Without<RingMarkFor>,
     ),
 >;
@@ -377,19 +391,20 @@ type SecondLines<'w, 's> = Query<
         Without<MarkerLabel>,
         Without<MarkerHalfSize>,
         Without<RingLabelBox>,
-        Without<GroupPillFor>,
+        Without<MultiNode>,
         Without<RingMarkFor>,
     ),
 >;
 
-/// The other things a label must keep clear of: fold pills and ring marks.
+/// The other things a label must keep clear of: multi-markers and ring
+/// marks.
 type Obstacles<'w, 's> = (
     Query<
         'w,
         's,
-        (&'static Node, &'static ComputedNode),
+        (&'static Node, &'static BackFrame),
         (
-            With<GroupPillFor>,
+            With<MultiNode>,
             Without<MarkerLabel>,
             Without<SecondLineFor>,
         ),
@@ -461,19 +476,22 @@ impl Ranking<'_, '_> {
     }
 }
 
-/// LBL-01: the boxes every marker, pill and ring mark takes this frame;
-/// a ring mark's is its box (HOV-07, `margin` round it).
+/// LBL-01: the boxes every marker, multi-marker and ring mark takes this
+/// frame; a multi-marker's and a ring mark's is its box (HOV-07, `margin`
+/// round it).
 fn gather_obstacles(
     markers: &[MarkerBox],
-    (pills, ring_marks): &Obstacles,
+    (multis, ring_marks): &Obstacles,
     margin: f32,
 ) -> Vec<Rect> {
     let mut obstacles: Vec<Rect> = markers.iter().map(|&(_, _, rect, _)| rect).collect();
-    obstacles.extend(
-        pills
-            .iter()
-            .filter_map(|(node, computed)| node_rect(node, computed)),
-    );
+    obstacles.extend(multis.iter().filter_map(|(node, back)| {
+        let (min, Val::Px(width)) = (node_min(node)?, node.width) else {
+            return None;
+        };
+        let half = width / 2.0;
+        Some(frames_rect(min + Vec2::splat(half), half, back.0).inflate(margin))
+    }));
     for (node, mark, ..) in ring_marks {
         if node.display == Display::None {
             continue;
@@ -503,10 +521,10 @@ fn place_marker_labels(
 ) {
     let marker_rects: Vec<MarkerBox> = markers
         .iter()
-        .filter_map(|(entity, marker_for, node, computed, reach)| {
+        .filter_map(|(entity, marker_for, node, computed, (reach, back))| {
             let (rect, shift) = marker_box(
                 node_rect(node, computed)?,
-                reach,
+                (reach, back.and_then(|b| b.0)),
                 tunables.bracket_margin_px,
             );
             Some((entity, marker_for.0, rect, shift))

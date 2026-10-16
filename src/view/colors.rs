@@ -71,8 +71,8 @@ pub const HOSTILE: Color = Color::srgb(
 /// orange.
 pub const UNKNOWN: Color = WARNING;
 
-/// SYM-02: a symbol's colour by affiliation, as frames and the pill's
-/// outline (GRP-06) use it. Own-flag civilians are paler (`CIVILIAN`).
+/// SYM-02: a symbol's colour by affiliation, as frames and multi-markers
+/// (MUL-02) use it. Own-flag civilians are paler (`CIVILIAN`).
 pub fn symbol_color(affiliation: Affiliation) -> Color {
     match affiliation {
         Affiliation::Own => OWN,

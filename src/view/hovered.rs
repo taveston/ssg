@@ -1,6 +1,6 @@
 //! Which bodies and shared orbits the pointer is over this frame, through
 //! any of their pickable stand-ins - marker hit area, label, orbit ring or
-//! identity pill (HOV-01, HOV-03, HOV-05). Shared state, so the hover
+//! identity mark (HOV-01, HOV-03, HOV-05). Shared state, so the hover
 //! brackets and the orbit rings' highlight agree without importing each
 //! other (ARCH-03).
 
@@ -34,7 +34,7 @@ impl Plugin for HoveredPlugin {
 
 /// HOV-03 / HOV-05: hovering any stand-in for a body - its marker, its
 /// label or its ring - hovers the body; hovering a shared orbit's ring or
-/// identity pill hovers the orbit. While the transfer planner is open,
+/// identity mark hovers the orbit. While the transfer planner is open,
 /// what it can't pick takes no hover mark (PLNR-11).
 fn collect_hovered(
     targets: Query<&MarkerFor, With<Hovered>>,

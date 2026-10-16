@@ -1,10 +1,10 @@
-//! Hover and click on the map (HOV-01, HOV-05, INS-01, GRP-07): the
-//! pointer handlers every pickable node (marker, pill, ring hit target,
-//! ring mark) is observed by; `markers/brackets.rs` draws the hover mark. Nothing
-//! has a tooltip: a marker's name and type are on the map already, and a
-//! fold pill's satellites are in the inset's outline once its parent is
-//! selected. A shared orbit's ring or pill selects the orbit's parent
-//! with that orbit's row revealed in the inset.
+//! Hover and click on the map (HOV-01, HOV-05, INS-01): the pointer
+//! handlers every pickable node (marker, multi-marker, ring hit target,
+//! ring mark) is observed by; `markers/brackets.rs` draws the hover mark.
+//! Nothing has a tooltip: a marker's name and type are on the map
+//! already. A shared orbit's ring or identity mark selects the orbit's
+//! parent with that orbit's row revealed in the inset. A click on a
+//! multi-marker is `multi_markers/click.rs`, through `BodyClick`.
 //!
 //! A click selects (`selection.rs`); a double-click also makes the body the
 //! frame and moves to it (ZOOM-16), or on the frame body is the
@@ -19,7 +19,7 @@ use super::frame::Frame;
 use super::gesture::{PressStart, was_click};
 use super::planner::state::{PickTarget, PlannerState};
 use super::selection::Selection;
-use super::targets::{GroupPillFor, Hovered, MarkerFor, OrbitFor, PointerTargets};
+use super::targets::{Hovered, MarkerFor, OrbitFor, PointerTargets};
 use super::tunables::Tunables;
 use crate::Stage;
 use crate::sim::named_orbit::NamedOrbit;
@@ -33,7 +33,7 @@ impl Plugin for HoverPlugin {
 }
 
 /// INS-03: a click on empty map space - a primary press and release within
-/// `drag_threshold_px` that hits no marker, pill, ring or panel - clears
+/// `drag_threshold_px` that hits no marker, multi-marker, ring or panel - clears
 /// the selection and closes the inset. While the transfer planner is open
 /// it does nothing (PLNR-03).
 fn clear_on_empty_click(
@@ -52,8 +52,8 @@ fn clear_on_empty_click(
     }
 }
 
-/// HOV-01 / GRP-07: hovering a marker, label, ring or pill marks it, so
-/// it takes the hover brackets (HOV-06).
+/// HOV-01 / MUL-11: hovering a marker, label, ring or multi-marker marks
+/// it, so it takes the hover brackets (HOV-06).
 pub fn on_marker_over(over: On<PointerOver>, mut commands: Commands) {
     commands.entity(over.entity).insert(Hovered);
 }
@@ -83,14 +83,14 @@ impl ClickCheck<'_, '_> {
 
     /// A click that selects: the primary button, and not the release of a
     /// drag (CAM-10). Right-clicks are reserved for context menus (CAM-13).
-    fn selects(&self, click: &On<PointerClick>) -> bool {
+    pub fn selects(&self, click: &On<PointerClick>) -> bool {
         let release = self.windows.single().ok().and_then(Window::cursor_position);
         click.button == PointerButton::Primary
             && release.is_none_or(|at| was_click(&self.press, at, self.tunables.drag_threshold_px))
     }
 }
 
-/// What a click on a body does, from its marker or its pill alike. A
+/// What a click on a body does, from its marker or its fold marker alike. A
 /// click selects (INS-01), or, while the transfer planner is open, picks
 /// a destination instead (PLNR-03); a double-click also makes it the
 /// frame, or, on the frame body other than the star, is the
@@ -106,10 +106,28 @@ pub struct BodyClick<'w> {
 }
 
 impl BodyClick<'_> {
-    fn click(&mut self, body: Entity, count: u8) {
+    pub fn click(&mut self, body: Entity, count: u8) {
         if !self.planner.pick(PickTarget::Body(body)) {
             self.selection.select(body);
         }
+        if count >= 2 {
+            double_click(
+                &self.frame,
+                body,
+                &mut self.frame_request,
+                &mut self.planetary,
+            );
+        }
+    }
+
+    /// MUL-07: select `body` and, on a double-click, focus it (ZOOM-16),
+    /// without picking it for the planner: a click on a multi-marker other
+    /// than a fold marker picks nothing (MUL-12).
+    pub fn select_only(&mut self, body: Entity, count: u8) {
+        if self.planner.is_open() {
+            return;
+        }
+        self.selection.select(body);
         if count >= 2 {
             double_click(
                 &self.frame,
@@ -168,7 +186,7 @@ pub fn on_marker_click(
     }
 }
 
-/// HOV-05: clicking a shared orbit's ring or identity pill selects the
+/// HOV-05: clicking a shared orbit's ring or identity mark selects the
 /// orbit's parent with the orbit's row revealed.
 pub fn on_orbit_click(
     click: On<PointerClick>,
@@ -187,22 +205,6 @@ pub fn on_orbit_click(
     }
 }
 
-/// Clicking a "+N" pill does exactly what clicking its parent does
-/// (GRP-07).
-pub fn on_pill_click(
-    click: On<PointerClick>,
-    pills: Query<&GroupPillFor>,
-    check: ClickCheck,
-    mut body_click: BodyClick,
-) {
-    if !check.selects(&click) {
-        return;
-    }
-    if let Ok(pill) = pills.get(click.entity) {
-        body_click.click(pill.0, click.count);
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
@@ -214,8 +216,8 @@ mod tests {
     use super::*;
 
     /// A world with the click handlers' resources, a body, and a marker
-    /// and a pill that both stand for it.
-    fn click_world() -> (World, Entity, Entity, Entity) {
+    /// that stands for it.
+    fn click_world() -> (World, Entity, Entity) {
         let mut world = World::new();
         world.init_resource::<Frame>();
         world.init_resource::<Selection>();
@@ -226,8 +228,7 @@ mod tests {
         world.init_resource::<Tunables>();
         let body = world.spawn_empty().id();
         let marker = world.spawn(MarkerFor(body)).observe(on_marker_click).id();
-        let pill = world.spawn(GroupPillFor(body)).observe(on_pill_click).id();
-        (world, body, marker, pill)
+        (world, body, marker)
     }
 
     fn mouse() -> bevy::picking::events::Pointer {
@@ -265,26 +266,19 @@ mod tests {
         )
     }
 
-    /// GRP-07: clicking a pill does exactly what clicking its parent's
-    /// marker does - select on one click, ask for a frame jump on a
-    /// double-click, and the planetary view on a double-click of the frame
-    /// body.
-    /// Covers ZOOM-16, ZOOM-17.
+    /// INS-01 / ZOOM-16 / ZOOM-17: clicking a marker selects its body on
+    /// one click, asks for a frame jump on a double-click, and for the
+    /// planetary view on a double-click of the frame body.
     #[test]
-    fn clicking_a_pill_is_clicking_its_parent() {
+    fn clicking_a_marker_selects_and_a_double_click_focuses() {
         for (count, framed) in [(1, false), (2, false), (2, true)] {
-            let mut results = Vec::new();
-            for on_pill in [false, true] {
-                let (mut world, body, marker, pill) = click_world();
-                if framed {
-                    let frame = *world.resource::<Frame>();
-                    *world.resource_mut::<Frame>() = frame.on(body, Vec3::ZERO);
-                }
-                click(&mut world, if on_pill { pill } else { marker }, count);
-                results.push((outcome(&world), body));
+            let (mut world, body, marker) = click_world();
+            if framed {
+                let frame = *world.resource::<Frame>();
+                *world.resource_mut::<Frame>() = frame.on(body, Vec3::ZERO);
             }
-            assert_eq!(results[0], results[1], "{count} clicks, framed {framed}");
-            let ((selected, frame_request, planetary), body) = results[0];
+            click(&mut world, marker, count);
+            let (selected, frame_request, planetary) = outcome(&world);
             assert_eq!(selected, Some(body));
             assert_eq!(frame_request.is_some(), count == 2 && !framed);
             assert_eq!(planetary.is_some(), count == 2 && framed);
@@ -318,7 +312,7 @@ mod tests {
     /// selection as it was.
     #[test]
     fn an_open_planner_picks_what_is_clicked_instead_of_selecting_it() {
-        let (mut world, body, marker, _) = click_world();
+        let (mut world, body, marker) = click_world();
         let ship = world.spawn_empty().id();
         world.resource_mut::<Selection>().select(ship);
         world.resource_mut::<PlannerState>().open(ship);

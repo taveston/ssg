@@ -225,17 +225,18 @@ fn ships_parked_in_one_named_orbit_share_one_ring() {
     );
 }
 
-/// MOT-02 / MOT-14 / SYM-16: every ring has a mark and label: a "+N" pill
-/// targeting the orbit for a shared orbit, a symbol for a lone ship or
-/// station, a body marker for a lone moon. At 0.2 d/s in Halden IV's
-/// frame IVa's ring (1.5 d, 7.5 s apparent) is an exposure ring, so its
-/// mark shows, centred on a whole pixel; the parked ships' High band
-/// (about 12 d, 60 s) is in dot mode, so its pill is hidden, and the
+/// MOT-02 / MOT-14 / SYM-16: every ring has a mark and label: a
+/// multi-marker targeting the orbit for a shared orbit, counting its
+/// things (MUL-04, the TEST-12 convoy three of them), a symbol for a lone
+/// ship or station, a body marker for a lone moon. At 0.2 d/s in Halden
+/// IV's frame IVa's ring (1.5 d, 7.5 s apparent) is an exposure ring, so
+/// its mark shows, centred on a whole pixel; the parked ships' High band
+/// (about 12 d, 60 s) is in dot mode, so its mark is hidden, and the
 /// highport, folded at that fit, shows no mark either.
 #[test]
 fn an_exposure_ring_carries_an_identity_mark() {
-    use crate::view::markers::pills::PillCountText;
-    use crate::view::rings::marks::{IdentityPill, RingMarkFor, RingMarksPlugin};
+    use crate::view::multi_markers::draw::{MultiCount, MultiPart};
+    use crate::view::rings::marks::{RingMarkFor, RingMarksPlugin};
     use crate::view::symbols::shape::SymbolPart;
     use crate::view::targets::OrbitFor;
 
@@ -268,14 +269,14 @@ fn an_exposure_ring_carries_an_identity_mark() {
     let (high_mark, _, orbit_for, marker_for) = mark_of(&mut app, high);
     assert_eq!((orbit_for, marker_for), (Some(high), None));
     let parts = descendants(&mut app, high_mark);
-    let pill = parts
+    let frames = parts
         .iter()
-        .find(|&&e| app.world().get::<IdentityPill>(e).is_some())
-        .expect("a shared orbit's mark is a pill");
-    assert_eq!(app.world().get::<IdentityPill>(*pill).unwrap().0, high);
+        .filter(|&&e| app.world().get::<MultiPart>(e).is_some())
+        .count();
+    assert_eq!(frames, 4, "a shared orbit's mark is a multi-marker");
     let count = parts
         .iter()
-        .find(|&&e| app.world().get::<PillCountText>(e).is_some())
+        .find(|&&e| app.world().get::<MultiCount>(e).is_some())
         .unwrap();
     let in_high = app
         .world()
@@ -285,13 +286,13 @@ fn an_exposure_ring_carries_an_identity_mark() {
     assert!(in_high >= 13);
     assert_eq!(
         app.world().get::<Text>(*count).unwrap().0,
-        format!("+{in_high}")
+        in_high.to_string()
     );
     assert!(
         parts
             .iter()
             .any(|&e| app.world().get::<Text>(e).is_some_and(|t| t.0 == "High")),
-        "the pill is labelled with the orbit's name"
+        "the mark is labelled with the orbit's name"
     );
 
     let low = app.world().get::<InNamedOrbit>(highport).unwrap().0;
@@ -353,7 +354,6 @@ fn an_exposure_ring_carries_an_identity_mark() {
 fn an_exposure_ring_label_is_placed_like_any_label() {
     use crate::view::markers::labels::{LabelState, LabelsPlugin, Slot, label_rect, overlaps};
     use crate::view::rings::marks::{PeriodLine, RingLabelBox, RingMarkFor, RingMarksPlugin};
-    use crate::view::targets::GroupPillFor;
 
     const FULL: Vec2 = Vec2::new(60.0, 26.0);
     const PERIOD: Vec2 = Vec2::new(60.0, 12.0);
@@ -447,9 +447,13 @@ fn an_exposure_ring_label_is_placed_like_any_label() {
         Rect::new(-far, -far, bbox.min.x - side, far),
         Rect::new(bbox.max.x + side, -far, far, far),
     ];
+    // Each wall stands as a marker, whose box is its node grown by the
+    // margin.
     for wall in walls {
+        let wall = wall.inflate(-tunables.bracket_margin_px);
         app.world_mut().spawn((
-            GroupPillFor(halden),
+            MarkerFor(halden),
+            MarkerHalfSize(Vec2::ZERO),
             Node {
                 left: px(wall.min.x),
                 top: px(wall.min.y),

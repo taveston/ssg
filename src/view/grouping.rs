@@ -1,6 +1,7 @@
 //! Satellite grouping (`docs/spec/system-view.md`, GRP-01 to GRP-05,
 //! GRP-08): measures each satellite's orbit on screen and folds or unfolds
-//! it, then summarises what each parent carries for its "+N" pill.
+//! it, then summarises what each parent carries for its fold marker
+//! (`multi_markers/`).
 //!
 //! A satellite is anything orbiting a body other than the star - moons,
 //! stations, ships parked in orbit. Satellites are identified structurally:
@@ -18,12 +19,11 @@ use bevy::prelude::*;
 use super::anim::step_per_frame;
 use super::fold::{
     FoldSummary, SatelliteFoldState, advance_fold_anim, fully_folded, hidden_by_ancestry,
-    more_pressing, next_folded, pill_flags,
+    next_folded,
 };
 use super::scale::km_to_render;
 use super::tunables::Tunables;
 use super::world::ViewNow;
-use crate::sim::body::{Affiliation, BodyClass};
 use crate::sim::orbit::Orbit;
 use crate::{Boot, Stage};
 
@@ -132,17 +132,16 @@ fn resolve_hidden(mut satellites: Query<(Entity, &ChildOf, &mut SatelliteFoldSta
     }
 }
 
-/// GRP-05 / GRP-06: what each parent's "+N" pill counts and flags.
+/// GRP-05: what each parent's fold marker holds.
 fn summarise_folds(
     satellites: Query<(Entity, &ChildOf, &SatelliteFoldState)>,
-    classes: Query<(&BodyClass, &Affiliation)>,
     mut summary: ResMut<FoldSummary>,
 ) {
     summary.0.clear();
     for (entity, child_of, fold) in &satellites {
         // Count by the latch, not by `effective_hidden`: a satellite joins
         // or leaves the count the moment it starts folding or unfolding,
-        // so the "+N" and the sliding marker hand over cleanly.
+        // so the fold marker and the sliding marker hand over cleanly.
         if !fold.folded {
             continue;
         }
@@ -155,15 +154,6 @@ fn summarise_folds(
         if parent_folded {
             continue;
         }
-        let group = summary.0.entry(parent).or_default();
-        group.members.push(entity);
-        if let Ok((class, affiliation)) = classes.get(entity) {
-            // GRP-06, one member at a time: the flags are a disjunction, so
-            // folding each member's own flags in is the same as asking
-            // `pill_flags` about the whole group.
-            let flags = pill_flags(&[(*class, *affiliation)]);
-            group.pressing = more_pressing(group.pressing, flags.pressing);
-            group.has_own_ship |= flags.has_own_ship;
-        }
+        summary.0.entry(parent).or_default().members.push(entity);
     }
 }

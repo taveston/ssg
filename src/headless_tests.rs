@@ -47,10 +47,12 @@ use crate::view::frame::{Frame, FramePlugin};
 use crate::view::gesture::PressStart;
 use crate::view::grouping::GroupingPlugin;
 use crate::view::hovered::HoveredPlugin;
-use crate::view::markers::pills::PillsPlugin;
 use crate::view::markers::{MarkerHalfSize, MarkersPlugin};
 use crate::view::motion::MotionPlugin;
 use crate::view::motion_mode::MotionModeState;
+use crate::view::multi::{MultiKey, MultiMarkers, MultiNode, MultiTarget};
+use crate::view::multi_markers::MultiMarkersPlugin;
+use crate::view::node_box::node_min;
 use crate::view::planner::state::PlannerState;
 use crate::view::plot_marks::{NorthArrow, PlotMarksPlugin, ScaleBarLine};
 use crate::view::projection::ProjectionPlugin;
@@ -59,7 +61,7 @@ use crate::view::screen::{ScreenPlugin, ScreenPositions};
 use crate::view::selection::Selection;
 use crate::view::shared_orbit::SharedOrbitPlugin;
 use crate::view::symbols::draw::Tint;
-use crate::view::targets::{GroupPillFor, Hovered, MarkerFor};
+use crate::view::targets::{Hovered, MarkerFor};
 use crate::view::topbar::TOP_BAR_HEIGHT_PX;
 use crate::view::topbar::breadcrumb::{BreadcrumbPlugin, BreadcrumbRoot};
 use crate::view::true_size::{TrueSizePlugin, projected_radius_px};
@@ -73,6 +75,7 @@ mod frame_cue;
 mod grouping;
 mod inset;
 mod markers;
+mod multi;
 mod paths;
 mod planner;
 mod rings;
@@ -255,6 +258,8 @@ fn camera_app_with(extra: impl FnOnce(&mut App)) -> App {
         .add_plugins((ScreenPlugin, TrueSizePlugin))
         .init_resource::<Selection>()
         .init_resource::<PlannerState>()
+        .init_resource::<crate::view::multi::OpenTray>()
+        .init_resource::<crate::view::multi::MultiMarkers>()
         .add_plugins((FramePlugin, crate::view::sidebar::SidebarPlugin))
         .init_resource::<PressStart>();
     app.world_mut().spawn(Window {
@@ -446,7 +451,7 @@ fn close(a: Vec2, b: Vec2) -> bool {
     (a - b).abs().max_element() < 0.01
 }
 
-/// Corvane in a headless app with markers, pills and labels.
+/// Corvane in a headless app with markers, multi-markers and labels.
 fn symbols_app_with(extra: impl FnOnce(&mut App)) -> App {
     use crate::view::markers::labels::LabelsPlugin;
     camera_app_with(|app| {
@@ -455,12 +460,56 @@ fn symbols_app_with(extra: impl FnOnce(&mut App)) -> App {
             GroupingPlugin,
             MotionPlugin,
             MarkersPlugin,
-            PillsPlugin,
+            MultiMarkersPlugin,
             HoveredPlugin,
             LabelsPlugin,
         ));
         extra(app);
     })
+}
+
+/// The drawn node of the multi-marker `key`, and the target that takes
+/// its pointer events; `None` while it isn't drawn.
+fn multi_node(app: &mut App, key: MultiKey) -> Option<(Entity, Entity)> {
+    let mut nodes = app.world_mut().query::<(Entity, &MultiNode, &Node)>();
+    let found: Vec<(Entity, Entity)> = nodes
+        .iter(app.world())
+        .filter(|(_, _, node)| node.display == Display::Flex)
+        .map(|(e, multi, _)| (e, multi.target))
+        .collect();
+    found
+        .into_iter()
+        .find(|&(_, target)| app.world().get::<MultiTarget>(target).and_then(|t| t.0) == Some(key))
+}
+
+/// Zoom in a notch at a time until `done` holds; fails after `notches`.
+fn zoom_in_until(app: &mut App, notches: usize, done: impl Fn(&mut App) -> bool) {
+    for _ in 0..notches {
+        if done(app) {
+            return;
+        }
+        scroll(app, 1.0);
+        run(app, SETTLE_FRAMES);
+    }
+    assert!(done(app), "never reached after {notches} notches");
+}
+
+/// Whether `body`'s own marker is drawn this frame, joined into no
+/// multi-marker (MUL-05).
+fn drawn_alone(app: &mut App, body: Entity) -> bool {
+    use crate::view::markers::MarkerDrawn;
+    let marker = marker_of(app, body);
+    let joined = app
+        .world()
+        .resource::<MultiMarkers>()
+        .joined
+        .contains_key(&body);
+    !joined && app.world().get::<MarkerDrawn>(marker).unwrap().0.is_some()
+}
+
+/// The multi-marker `key` this frame, if there is one.
+fn multi_marker(app: &App, key: MultiKey) -> Option<crate::view::multi::MultiMarker> {
+    app.world().resource::<MultiMarkers>().get(key).cloned()
 }
 
 /// The marker node that stands for `body` (not its label).
