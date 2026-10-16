@@ -22,6 +22,7 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 - [ ] **Orbit membership follows the ship** · F-242, F-201 · RAIL-09, SCL-07, HOV-04, INS-05, MRK-09, HOV-02
   - The spec already says it: a ship on a Parked segment is a member of its named orbit and nothing else (RAIL-09), wherever that orbit is. The build fixes membership at spawn, so a ship that arrives in an orbit isn't one of its members: after a transfer to another body its symbol and outline entry stay with the old body (F-242), and its new ring draws no tail and doesn't reach it on hover or click (F-201).
   - Keep each orbit's members, ring strokes, ring targets, identity mark, outline rows and fold parent up to date as ships leave and arrive, including an orbit that had no members before and one left empty.
+  - Leads from the clean-up: `index_members` in `shared_orbit.rs` runs only at Startup, so `OrbitMembers` never changes (F-201). Arrival already moves the ship's `ChildOf` to the new body (`sim/transfer/plan.rs`), but `fill_outline` refills only when the selection or the expanded rows change, which may be why the outline lags (F-242). Check both.
   - Tests: Earth Low to Moon Low moves the ship's symbol, fold parent and outline entry to the Moon; a ship arriving in an empty orbit gets a ring with its tail, and hover and click on that ring reach it; the orbit it left loses it.
   - Delete F-242 and F-201 when done.
 
