@@ -441,3 +441,28 @@ fn a_joined_things_mark_is_on_its_multi_marker() {
     ));
     assert!(close(shown[0].size(), Vec2::splat(side)));
 }
+
+/// MUL-01 / MUL-06: with the clock paused and the camera still, the
+/// multi-markers' pool nodes aren't written from frame to frame, so a
+/// still marker costs no layout.
+#[test]
+fn still_multi_markers_leave_their_nodes_unwritten() {
+    let mut app = symbols_app_with(|_| {});
+    run(&mut app, SETTLE_FRAMES);
+    let halden = body(&mut app, "Halden IV");
+    assert!(multi_node(&mut app, MultiKey::Fold(halden)).is_some());
+    let written = |app: &mut App| {
+        let mut nodes = app
+            .world_mut()
+            .query_filtered::<(Entity, Ref<Node>), With<MultiNode>>();
+        let mut ticks: Vec<_> = nodes
+            .iter(app.world())
+            .map(|(e, node)| (e, node.last_changed()))
+            .collect();
+        ticks.sort_by_key(|(e, _)| *e);
+        ticks
+    };
+    let before = written(&mut app);
+    run(&mut app, 3);
+    assert_eq!(written(&mut app), before);
+}

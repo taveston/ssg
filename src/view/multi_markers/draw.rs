@@ -350,14 +350,21 @@ pub fn place_multi_markers(
         let Ok((_, _, mut node, mut back_frame)) = pool.get_mut(node_entity) else {
             continue;
         };
+        // A node is written only when it changes, so still markers cost
+        // no layout.
         let Some(marker) = marker else {
-            node.display = Display::None;
+            if node.display != Display::None {
+                node.display = Display::None;
+            }
             back_frame.set_if_neq(BackFrame(None));
             continue;
         };
-        node.display = Display::Flex;
-        node.left = px(marker.centre.x - half);
-        node.top = px(marker.centre.y - half);
+        let (left, top) = (px(marker.centre.x - half), px(marker.centre.y - half));
+        if (node.display, node.left, node.top) != (Display::Flex, left, top) {
+            node.display = Display::Flex;
+            node.left = left;
+            node.top = top;
+        }
         back_frame.set_if_neq(BackFrame(Some(back)));
         let alpha = marker.alpha;
         write_look(
