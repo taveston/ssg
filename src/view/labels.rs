@@ -2,10 +2,14 @@
 //! that labels never overprint one another or any marker, symbol or pill.
 //!
 //! Each label tries the positions right, left, above and below its
-//! marker, `label_gap_px` from the marker's edge, and takes the first
-//! that is free. A symbol's edge is the outer edge of its frame and its
-//! amplifiers (SYM-13), which also keep other labels off them. Labels are placed in priority order (the selection, the
-//! hovered object, the frame body, the star and planets, ships by
+//! marker, `label_gap_px` from the edge of the marker's box (the box the
+//! selection brackets go round, HOV-07), and takes the first that is
+//! free. The gap is measured from the box whether or not the brackets
+//! show, so a label never moves when its object is hovered or selected.
+//! A symbol's box takes in its amplifiers too (SYM-13), which also keep
+//! other labels off them. Labels are placed in priority order (the
+//! selection, the hovered object, the frame body, the star and planets,
+//! ships by
 //! affiliation, moons), nearer the camera first within a rank, so a
 //! label that matters more is placed first and the rest give way. A
 //! label with no free position drops its second line and tries again,
@@ -295,13 +299,15 @@ type Markers<'w, 's> = Query<
 /// to the node's, which is what a label's offset is measured from.
 type MarkerBox = (Entity, Entity, Rect, Vec2);
 
-/// SYM-13: a marker's box: a symbol's is its frame's box (`margin` round
-/// its square, HOV-07) with its amplifiers; any other marker's is the
-/// marker itself. Returns the box and the shift from the node's top-left
-/// to the box's.
-pub fn marker_box(square: Rect, reach: Option<&AmplifierReach>, margin: f32) -> (Rect, Vec2) {
-    let grown = reach.map_or(square, |reach| reach.label_box(square, margin));
-    (grown, grown.min - square.min)
+/// LBL-01 / SYM-13: the box a marker's label is placed beside and other
+/// labels keep clear of: the marker's box (`margin` round what is drawn,
+/// HOV-07), with a symbol's amplifiers. Returns the box and the shift
+/// from the node's top-left to the box's.
+pub fn marker_box(drawn: Rect, reach: Option<&AmplifierReach>, margin: f32) -> (Rect, Vec2) {
+    let grown = reach.map_or(drawn.inflate(margin), |reach| {
+        reach.label_box(drawn, margin)
+    });
+    (grown, grown.min - drawn.min)
 }
 
 /// The label nodes under the markers.

@@ -71,9 +71,10 @@ impl BracketBox {
     }
 
     /// HOV-06: how long each bracket arm is: `fraction` of the box's
-    /// shorter side.
-    pub fn arm_px(&self, fraction: f32) -> f32 {
-        fraction * 2.0 * self.half.min_element()
+    /// shorter side, but never more than `max_px`, so the corners stay
+    /// small round a close disc's large box.
+    pub fn arm_px(&self, fraction: f32, max_px: f32) -> f32 {
+        (fraction * 2.0 * self.half.min_element()).min(max_px)
     }
 
     fn same_as(&self, other: &Self) -> bool {
@@ -460,7 +461,9 @@ fn draw_marks(
         node.top = px(centre.y - half.y);
         node.width = px(2.0 * half.x);
         node.height = px(2.0 * half.y);
-        let arm = mark.bbox.arm_px(tunables.bracket_arm_fraction);
+        let arm = mark
+            .bbox
+            .arm_px(tunables.bracket_arm_fraction, tunables.bracket_arm_max_px);
         let color = colors::SELECTION.with_alpha(mark.alpha);
         for child in children.iter() {
             if let Ok((corner, mut corner_node_now, mut border)) = corners.get_mut(child) {
@@ -499,14 +502,24 @@ mod tests {
         assert_eq!(bbox.half, Vec2::new(19.0, 12.0));
     }
 
-    /// HOV-06: each arm is `bracket_arm_fraction` of the box's shorter side.
+    /// HOV-06: each arm is `bracket_arm_fraction` of the box's shorter
+    /// side, up to `bracket_arm_max_px`: round a close disc's large box the
+    /// corners stay that small.
     #[test]
-    fn arms_are_a_share_of_the_shorter_side() {
-        let bbox = BracketBox {
-            centre: Vec2::ZERO,
-            half: Vec2::new(19.0, 12.0),
+    fn arms_are_a_share_of_the_shorter_side_up_to_a_cap() {
+        let tunables = Tunables::default();
+        let arm = |half: Vec2| {
+            BracketBox {
+                centre: Vec2::ZERO,
+                half,
+            }
+            .arm_px(tunables.bracket_arm_fraction, tunables.bracket_arm_max_px)
         };
-        assert!((bbox.arm_px(0.3) - 7.2).abs() < 1e-5);
+        let small = arm(Vec2::new(19.0, 12.0));
+        assert!((small - tunables.bracket_arm_fraction * 24.0).abs() < 1e-5);
+        assert!(small < tunables.bracket_arm_max_px);
+        // A disc 300 px across.
+        assert_eq!(arm(Vec2::splat(154.0)), tunables.bracket_arm_max_px);
     }
 
     /// HOV-06: the selection mark is full white, the hover mark dimmer, and

@@ -32,7 +32,9 @@ use super::layers;
 use super::motion_mode::MotionModeState;
 use super::screen::ScreenPositions;
 use super::ship_groups::GroupFaces;
-use super::symbol_draw::{Tint, TintSlot, amplifier_gap, amplifier_reach, spawn_symbol_parts};
+use super::symbol_draw::{
+    AmplifierStyle, Tint, TintSlot, amplifier_gap, amplifier_reach, spawn_symbol_parts,
+};
 use super::symbol_shape::SymbolPart;
 use super::symbols::{
     GroupFace, SymbolSettings, label_second_line, symbol_look, with_countdown, with_group,
@@ -349,11 +351,14 @@ fn spawn_shape(marker: &mut EntityCommands, assets: MarkerAssets, look: BodyLook
                     symbol_look(look.affiliation, record, symbol_settings(tunables)),
                     look.group,
                 );
-                let gap = amplifier_gap(tunables.bracket_margin_px);
+                let style = AmplifierStyle {
+                    gap: amplifier_gap(tunables.bracket_margin_px, tunables.amplifier_gap_px),
+                    track_mix: tunables.condition_track_mix,
+                };
                 // SYM-13: the label keeps clear of the amplifiers too.
-                marker.insert(amplifier_reach(&symbol, half * 2.0, gap));
+                marker.insert(amplifier_reach(&symbol, half * 2.0, style.gap));
                 marker.with_children(|parent| {
-                    spawn_symbol_parts(parent, fonts, &symbol, half * 2.0, gap);
+                    spawn_symbol_parts(parent, fonts, &symbol, half * 2.0, style);
                 });
             }
         }
@@ -493,7 +498,7 @@ fn spawn_label(
             GlobalZIndex(layers::LABELS),
             Node {
                 position_type: PositionType::Absolute,
-                left: px(half * 2.0 + tunables.label_gap_px),
+                left: px(half * 2.0 + tunables.bracket_margin_px + tunables.label_gap_px),
                 top: px(0),
                 flex_direction: FlexDirection::Column,
                 ..default()

@@ -73,20 +73,24 @@ const BRACKET_STROKE_PX: f32 = 1.5;
 const BRACKET_GAP_PX: f32 = 2.0;
 /// The condition bar's height in pixels (SYM-12).
 pub const CONDITION_BAR_HEIGHT_PX: f32 = 3.0;
-/// The space between the selection brackets' box and an amplifier
-/// outside it, in pixels.
-const AMPLIFIER_CLEARANCE_PX: f32 = 1.0;
-/// How much of the bar's colour is mixed into the ground for the empty
-/// part of the condition bar, so a part-full bar still shows its length.
-const CONDITION_TRACK_MIX: f32 = 0.25;
 
 /// SYM-09 / SYM-12 / HOV-07: how far outside the frame the condition bar,
 /// a group's count and a task force's bracket start. The selection and
 /// hover brackets are drawn inside a box that clears the frame by
-/// `bracket_margin_px`, so these amplifiers start just outside that box
-/// and the brackets never cover them.
-pub fn amplifier_gap(bracket_margin_px: f32) -> f32 {
-    bracket_margin_px + AMPLIFIER_CLEARANCE_PX
+/// `bracket_margin_px`, so these amplifiers start `amplifier_gap_px`
+/// outside that box and the brackets never cover them.
+pub fn amplifier_gap(bracket_margin_px: f32, amplifier_gap_px: f32) -> f32 {
+    bracket_margin_px + amplifier_gap_px
+}
+
+/// How a symbol's amplifiers are spaced and drawn, from the tunables:
+/// how far outside the frame they start (`amplifier_gap`), and how much
+/// of the condition bar's colour its unfilled part keeps
+/// (`condition_track_mix`, SYM-12).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct AmplifierStyle {
+    pub gap: f32,
+    pub track_mix: f32,
 }
 
 /// How far a symbol's amplifiers reach beyond its square on each side, in
@@ -206,15 +210,16 @@ fn full() -> Node {
 
 /// SYM-02 to SYM-09, SYM-12: the parts of a symbol, spawned under
 /// `parent`, which is the `size`-pixel square they fill; the condition
-/// bar, a group's count and a task force's bracket start `gap` pixels
-/// outside it (`amplifier_gap`).
+/// bar, a group's count and a task force's bracket start `style.gap`
+/// pixels outside it (`amplifier_gap`).
 pub fn spawn_symbol_parts(
     parent: &mut ChildSpawnerCommands,
     fonts: &Fonts,
     look: &SymbolLook,
     size: f32,
-    gap: f32,
+    style: AmplifierStyle,
 ) {
+    let gap = style.gap;
     let color = look.color.with_alpha(look.alpha);
     let mut image = |mask: SymbolMask, tint: Color| {
         parent.spawn((
@@ -283,7 +288,7 @@ pub fn spawn_symbol_parts(
         ));
     }
     if let Some(bar) = look.condition {
-        spawn_condition_bar(parent, bar, look.alpha, size, gap);
+        spawn_condition_bar(parent, bar, look.alpha, size, style);
     }
     if let Some(count) = look.count {
         spawn_count(parent, fonts, count, color, (size, gap));
@@ -352,26 +357,31 @@ fn spawn_task_force_bracket(parent: &mut ChildSpawnerCommands, color: Color, siz
     ));
 }
 
+/// SYM-12: the bar's unfilled part: its colour mixed into the ground at
+/// `mix`, so a part-full bar still shows its whole length.
+pub fn condition_track_color(bar_color: Color, mix: f32) -> Color {
+    colors::GROUND.mix(&bar_color, mix)
+}
+
 /// SYM-12: the condition bar under the frame: as wide as the symbol and
-/// `CONDITION_BAR_HEIGHT_PX` high, an empty track of the bar's colour
-/// dimmed into the ground, filled from the left to the condition.
+/// `CONDITION_BAR_HEIGHT_PX` high, `style.gap` below the frame, an
+/// unfilled track of the bar's colour mixed into the ground, filled from
+/// the left to the condition.
 fn spawn_condition_bar(
     parent: &mut ChildSpawnerCommands,
     bar: ConditionBar,
     alpha: f32,
     size: f32,
-    gap: f32,
+    style: AmplifierStyle,
 ) {
-    let track = colors::GROUND
-        .mix(&bar.color, CONDITION_TRACK_MIX)
-        .with_alpha(alpha);
+    let track = condition_track_color(bar.color, style.track_mix).with_alpha(alpha);
     let fill = bar.color.with_alpha(alpha);
     parent
         .spawn((
             Node {
                 position_type: PositionType::Absolute,
                 left: px(0),
-                top: px(size + gap),
+                top: px(size + style.gap),
                 width: px(size),
                 height: px(CONDITION_BAR_HEIGHT_PX),
                 ..default()
@@ -445,7 +455,7 @@ mod tests {
         let tunables = Tunables::default();
         let half = tunables.ship_symbol_px / 2.0;
         let bbox = BracketBox::around_square(Vec2::ZERO, half, tunables.bracket_margin_px);
-        let gap = amplifier_gap(tunables.bracket_margin_px);
+        let gap = amplifier_gap(tunables.bracket_margin_px, tunables.amplifier_gap_px);
         let bar_top = half + gap;
         assert!(bar_top > bbox.centre.y + bbox.half.y);
         let count_left = half + gap;

@@ -156,6 +156,9 @@ pub struct Tunables {
     /// Each bracket arm is this share of its box's shorter side long
     /// (HOV-06).
     pub bracket_arm_fraction: f32,
+    /// A bracket arm is never longer than this, so the corners stay small
+    /// round a close disc's large box (HOV-06).
+    pub bracket_arm_max_px: f32,
     /// Width of a bracket arm's stroke (HOV-06).
     pub bracket_stroke_px: f32,
     /// The bracket box clears what is drawn by this much on every side
@@ -225,6 +228,14 @@ pub struct Tunables {
     /// An own ship's condition bar turns orange below this condition
     /// (SYM-12).
     pub condition_warn_fraction: f32,
+    /// The space between a symbol's box (HOV-07) and the amplifiers
+    /// outside it: a group's count, a task force's bracket and the
+    /// condition bar (SYM-09, SYM-12).
+    pub amplifier_gap_px: f32,
+    /// How much of the condition bar's colour is mixed into the ground for
+    /// its unfilled part, so a part-full bar shows its whole length
+    /// (SYM-12).
+    pub condition_track_mix: f32,
 
     // --- The sidebar ---
     /// The sidebar's running text, facts' values and outline entries
@@ -239,7 +250,8 @@ pub struct Tunables {
     pub list_marker_px: f32,
 
     // --- Labels ---
-    /// A label sits this far from its marker's edge (LBL-01).
+    /// A label sits this far from the edge of its marker's box (HOV-07),
+    /// so it doesn't move when the brackets appear (LBL-01).
     pub label_gap_px: f32,
     /// A label's change of place or visibility fades over this (LBL-04).
     pub label_fade_ms: f32,
@@ -352,6 +364,7 @@ impl Default for Tunables {
             orbit_selected_alpha: 0.85,
             bracket_hover_alpha: 0.6,
             bracket_arm_fraction: 0.3,
+            bracket_arm_max_px: 10.0,
             bracket_stroke_px: 2.0,
             bracket_margin_px: 4.0,
             inset_width_px: 320.0,
@@ -380,13 +393,15 @@ impl Default for Tunables {
             symbol_fill_other: 0.16,
             stale_symbol_alpha: 0.55,
             condition_warn_fraction: 0.5,
+            amplifier_gap_px: 1.0,
+            condition_track_mix: 0.25,
 
             sidebar_text_px: 13.0,
             sidebar_caps_px: 11.0,
             sidebar_header_px: 17.0,
             list_marker_px: 10.0,
 
-            label_gap_px: 6.0,
+            label_gap_px: 4.0,
             label_fade_ms: 150.0,
 
             slider_track_px: 10.0,

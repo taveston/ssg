@@ -3117,12 +3117,13 @@ fn labels_keep_clear_of_each_other_and_of_markers() {
             return None;
         };
         let square = Rect::from_corners(Vec2::new(l, t), Vec2::new(l + w, t + h));
-        // SYM-13: a symbol's box is its frame's box with its amplifiers.
+        // LBL-01 / SYM-13: a label sits beside the marker's box, with a
+        // symbol's amplifiers.
         let reach = app
             .world()
             .get::<crate::view::symbol_draw::AmplifierReach>(marker);
         let margin = app.world().resource::<Tunables>().bracket_margin_px;
-        Some(reach.map_or(square, |reach| reach.label_box(square, margin)))
+        Some(crate::view::labels::marker_box(square, reach, margin).0)
     };
     let gap = app.world().resource::<Tunables>().label_gap_px;
     let mut shown: Vec<(Entity, Entity, Rect)> = Vec::new();
@@ -4549,23 +4550,7 @@ fn a_group_label_keeps_clear_of_its_amplifiers() {
     app.world_mut().resource_mut::<Selection>().select(tf1);
 
     const LABEL_SIZE: Vec2 = Vec2::new(80.0, 28.0);
-    for _ in 0..3 {
-        let mut markers = app
-            .world_mut()
-            .query_filtered::<(&Node, &mut ComputedNode), With<MarkerHalfSize>>();
-        for (node, mut computed) in markers.iter_mut(app.world_mut()) {
-            if let (Val::Px(w), Val::Px(h)) = (node.width, node.height) {
-                computed.size = Vec2::new(w, h);
-            }
-        }
-        let mut labels = app
-            .world_mut()
-            .query_filtered::<&mut ComputedNode, With<MarkerLabel>>();
-        for mut computed in labels.iter_mut(app.world_mut()) {
-            computed.size = LABEL_SIZE;
-        }
-        run(&mut app, 2);
-    }
+    settle_labels(&mut app, LABEL_SIZE);
 
     let marker = marker_of(&mut app, tf1);
     let reach = *app.world().get::<AmplifierReach>(marker).unwrap();
@@ -4592,6 +4577,168 @@ fn a_group_label_keeps_clear_of_its_amplifiers() {
         "label at ({left}, {top}), want {want} ({:?})",
         placement.slot
     );
+}
+
+/// No layout runs headless: give every marker the size its node asks
+/// for and every label `label_size`, and let the labels settle.
+fn settle_labels(app: &mut App, label_size: Vec2) {
+    use crate::view::markers::MarkerLabel;
+    for _ in 0..3 {
+        let mut markers = app
+            .world_mut()
+            .query_filtered::<(&Node, &mut ComputedNode), With<MarkerHalfSize>>();
+        for (node, mut computed) in markers.iter_mut(app.world_mut()) {
+            if let (Val::Px(w), Val::Px(h)) = (node.width, node.height) {
+                computed.size = Vec2::new(w, h);
+            }
+        }
+        let mut labels = app
+            .world_mut()
+            .query_filtered::<&mut ComputedNode, With<MarkerLabel>>();
+        for mut computed in labels.iter_mut(app.world_mut()) {
+            computed.size = label_size;
+        }
+        run(app, 2);
+    }
+}
+
+/// Where `body`'s label sits relative to its marker's node, and in which
+/// slot.
+fn label_place(app: &mut App, body: Entity) -> (Vec2, crate::view::labels::Placement) {
+    use crate::view::labels::LabelState;
+    use crate::view::markers::MarkerLabel;
+    let marker = marker_of(app, body);
+    let mut labels = app
+        .world_mut()
+        .query_filtered::<(&ChildOf, &Node, &LabelState), With<MarkerLabel>>();
+    let (node, state) = labels
+        .iter(app.world())
+        .find(|(child_of, ..)| child_of.parent() == marker)
+        .map(|(_, node, state)| (node.clone(), *state))
+        .expect("every marker has a label");
+    let (Val::Px(left), Val::Px(top)) = (node.left, node.top) else {
+        panic!("label not placed in pixels");
+    };
+    (
+        Vec2::new(left, top),
+        state.shown.expect("the label is shown"),
+    )
+}
+
+/// LBL-01 / HOV-07: a label sits `label_gap_px` from its marker's box
+/// (the box the brackets go round), whether or not the brackets show, so
+/// a moon's and a task force's labels stay put when each is hovered and
+/// then selected.
+#[test]
+fn labels_do_not_move_when_their_object_is_hovered_or_selected() {
+    use crate::view::labels::{label_rect, marker_box};
+    use crate::view::symbol_draw::AmplifierReach;
+
+    let mut app = symbols_app_with(|_| {});
+    let halden = body(&mut app, "Halden IV");
+    let ivc = body(&mut app, "Halden IVc");
+    let tf1 = body(&mut app, "TF-1");
+    app.world_mut().resource_mut::<FrameRequest>().0 = Some(halden);
+    run(&mut app, 60 + move_frames());
+    const LABEL_SIZE: Vec2 = Vec2::new(70.0, 14.0);
+    settle_labels(&mut app, LABEL_SIZE);
+
+    let tunables = app.world().resource::<Tunables>().clone();
+    for object in [ivc, tf1] {
+        let before = label_place(&mut app, object);
+        // The label's place is measured from the box, not the marker.
+        let marker = marker_of(&mut app, object);
+        let half = app.world().get::<MarkerHalfSize>(marker).unwrap().0;
+        let drawn = Rect::from_corners(Vec2::ZERO, half * 2.0);
+        let reach = app.world().get::<AmplifierReach>(marker).copied();
+        let (bbox, _) = marker_box(drawn, reach.as_ref(), tunables.bracket_margin_px);
+        assert!(bbox.min.x <= -tunables.bracket_margin_px);
+        let want = label_rect(bbox, LABEL_SIZE, before.1.slot, tunables.label_gap_px).min;
+        assert!(
+            (before.0 - want).length() < 1e-3,
+            "label at {}, want {want}",
+            before.0
+        );
+
+        let pointer = app.world_mut().spawn((MarkerFor(object), Hovered)).id();
+        settle_labels(&mut app, LABEL_SIZE);
+        assert_eq!(label_place(&mut app, object), before, "moved on hover");
+        app.world_mut().entity_mut(pointer).despawn();
+        app.world_mut().resource_mut::<Selection>().select(object);
+        settle_labels(&mut app, LABEL_SIZE);
+        assert_eq!(label_place(&mut app, object), before, "moved on select");
+        app.world_mut().resource_mut::<Selection>().clear();
+        settle_labels(&mut app, LABEL_SIZE);
+    }
+}
+
+/// SYM-09 / SYM-12: TF-1's count sits `amplifier_gap_px` right of its
+/// symbol's box (HOV-07), its task-force bracket's feet that far above
+/// it, and its condition bar starts that far below it, with the unfilled
+/// part in the bar's colour mixed into the ground at
+/// `condition_track_mix`. An own ship whose condition isn't known has no
+/// bar.
+#[test]
+fn group_amplifiers_sit_just_outside_the_symbols_box() {
+    use crate::view::colors;
+    use crate::view::symbol_draw::{
+        ConditionFill, GroupCount, TaskForceBracket, condition_track_color,
+    };
+
+    let mut app = symbols_app_with(|_| {});
+    let tunables = app.world().resource::<Tunables>().clone();
+    let tf1 = body(&mut app, "TF-1");
+    let marker = marker_of(&mut app, tf1);
+    let size = tunables.ship_symbol_px;
+    let outside = tunables.bracket_margin_px + tunables.amplifier_gap_px;
+    let parts = descendants(&mut app, marker);
+    let part_with = |app: &App, has: fn(EntityRef) -> bool| {
+        *parts
+            .iter()
+            .find(|&&node| has(app.world().entity(node)))
+            .expect("part drawn")
+    };
+    let count = part_with(&app, |e| e.contains::<GroupCount>());
+    let holder = app.world().get::<ChildOf>(count).unwrap().parent();
+    assert_eq!(
+        app.world().get::<Node>(holder).unwrap().left,
+        px(size + outside)
+    );
+    let bracket = part_with(&app, |e| e.contains::<TaskForceBracket>());
+    assert_eq!(
+        app.world().get::<Node>(bracket).unwrap().bottom,
+        px(size + outside)
+    );
+    let fill = part_with(&app, |e| e.contains::<ConditionFill>());
+    let track = app.world().get::<ChildOf>(fill).unwrap().parent();
+    assert_eq!(
+        app.world().get::<Node>(track).unwrap().top,
+        px(size + outside)
+    );
+    // TF-1's bar warns (SYM-12, TEST-06).
+    assert_eq!(
+        app.world().get::<Tint>(track).unwrap().color,
+        condition_track_color(colors::WARNING, tunables.condition_track_mix)
+    );
+
+    // An own ship with no known condition has no bar.
+    let mut own = app
+        .world_mut()
+        .query::<(Entity, &Affiliation, &ShipRecord)>();
+    let unknown: Vec<Entity> = own
+        .iter(app.world())
+        .filter(|(_, a, r)| **a == Affiliation::Own && r.condition.is_none())
+        .map(|(e, ..)| e)
+        .collect();
+    assert!(!unknown.is_empty());
+    for ship in unknown {
+        let marker = marker_of(&mut app, ship);
+        let bars = descendants(&mut app, marker)
+            .into_iter()
+            .filter(|&node| app.world().get::<ConditionFill>(node).is_some())
+            .count();
+        assert_eq!(bars, 0);
+    }
 }
 
 // --- Transfer planner rules (docs/spec/planner.md, section 7) ---

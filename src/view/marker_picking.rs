@@ -185,12 +185,13 @@ mod tests {
         }
     }
 
-    /// MRK-08 / MRK-07: with the game's two cameras (map and overlay), a
-    /// body drawn as an 80 px true-size disc is hit anywhere on the disc,
-    /// 30 px from its centre, and the hit sits above the overlay camera's
-    /// rings and below its UI.
+    /// MRK-08 / MRK-07 / MRK-11: with the game's two cameras (map and
+    /// overlay), a body drawn as an 80 px true-size disc is hit anywhere
+    /// on the disc out to the outer edge of its rim (the node's edge, as
+    /// the rim is drawn inside it), and not beyond; the hit sits above the
+    /// overlay camera's rings and below its UI.
     #[test]
-    fn a_true_size_disc_is_hit_anywhere_on_it() {
+    fn a_true_size_disc_is_hit_out_to_its_rim() {
         use bevy::camera::NormalizedRenderTarget;
         use bevy::ecs::system::RunSystemOnce;
         use bevy::picking::pointer::{Location, PointerMap};
@@ -241,5 +242,11 @@ mod tests {
         let mut ui = world.query_filtered::<&Camera, With<IsDefaultUiCamera>>();
         let ui_order = ui.single(world).unwrap().order as f32;
         assert!(hits[0].order > ui_order && hits[0].order < ui_order + 0.5);
+
+        // On the rim's outer edge, and just past it.
+        let spots = &world.resource::<MarkerSpots>().0;
+        let rim = centre + Vec2::new(0.0, 40.0);
+        assert_eq!(marker_under(rim, spots).map(|h| h.0), Some(target));
+        assert_eq!(marker_under(rim + Vec2::new(0.0, 0.5), spots), None);
     }
 }
