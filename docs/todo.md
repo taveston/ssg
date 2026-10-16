@@ -17,10 +17,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Other
 
-- [ ] **Group the view folder and the headless tests** · ARCH-01, ARCH-31
-  - From the code review (2026-10-16). Group `src/view/`'s 60 modules into subfolders by area (`rings/`, `symbols/`, `markers/`, `inset/` for inspect, outline and sidebar), keeping shared state modules at the top (ARCH-03).
-  - Move the rest of `src/headless_tests.rs` (about 4,900 lines) into `headless_tests/` by area (camera and zoom, grouping and motion, markers and labels, inset and outline), keeping the shared app builders where they are. Moves only, no behaviour change (ARCH-35).
-  - Move the frame-shape constants that `leaders.rs` copies from `symbol_shape.wesl` next to the shader binding in `symbol_shape.rs`.
 - [ ] **`OW_SHOT` fails fast when its order can't be planned**
   - With `planner=<body>;fly=<days>`, a destination the ship can't reach (over budget, or rejected by the solver) leaves the shot waiting in its Scheduling phase until the timeout. Instead, exit at once with an error that gives the planner's reason (the PLNR-92 sentence) and what was asked.
   - Also exit at once when `planner` is given but nothing is selected, or the selected body isn't a ship that can open the planner (PLNR-01).
