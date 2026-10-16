@@ -238,11 +238,6 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** PLNR-106, PLNR-96 · **Type:** spec gap
 - **Disposition:** open. Accept, and add the sentence to PLNR-106.
 
-### F-229 · Where the fold marker sits
-- **Observation:** GRP-05 and MUL-06 say only that the fold marker sits beside its parent. The build puts its front frame level with the parent's centre, to its right, with the two boxes just touching, as mock-up 18 does. Labels take the right slot first, so planet labels now sit on the left. In Halden IV's own frame its label had no free slot and was hidden. The old pill sat lower right and left the right slot free.
-- **Affects:** GRP-05, MUL-06, LBL-01 · **Type:** spec gap
-- **Disposition:** open. Keep it level and to the right; move it below right like the pill (about 27 px down to clear a one-line label); or put it on the left.
-
 ### F-230 · Do docked things colour a larger marker's frames?
 - **Observation:** MUL-04 says things docked at a station inside a larger marker sit under its row and aren't counted. MUL-02 doesn't say whether they count for the frames. The build leaves them out of the frames too, for fold markers, overlap clusters and shared-orbit identity marks. So Iver's fold marker reads as an own "1", not a neutral one. A hostile ship docked inside a larger marker then shows only in the tray.
 - **Affects:** MUL-02, MUL-04 · **Type:** spec gap
@@ -287,11 +282,6 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** HOV-05 opens the identity mark's tray, but in dot mode there is no identity mark, so a click on a shared ring opens no tray; it only closes any tray that is open. The identity mark's tray uses the "N OBJECTS" header meant for any other marker, rather than naming the orbit.
 - **Affects:** HOV-05, MUL-08 · **Type:** spec gap
 - **Disposition:** open. Say what a shared ring's click opens in dot mode. A header such as "HIGH ORBIT · N THINGS" may read better.
-
-### F-239 · A fold marker's tray opening left covers its parent
-- **Observation:** The fold marker sits to the right of its parent. When its tray opens to the left (for example Morrow with the inset open), the tray covers the parent's marker and label.
-- **Affects:** MUL-08, GRP-05 · **Type:** spec wrong
-- **Disposition:** open. Keep it, or for a fold marker open the tray above or below instead of to the left. Bears on F-229.
 
 ### F-240 · The panel fill shows the map through the tray
 - **Observation:** The panel fill is 0.97 alpha, and blending happens in linear light, so bright labels and the belt under the tray show faintly through it (about 15% on a white label). The inset uses the same fill, but it seldom sits over the map.
