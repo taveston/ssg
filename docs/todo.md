@@ -16,7 +16,7 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - The symbols are built; the bar adds to them (`view/symbols.rs`, `symbol_draw.rs`).
   - Build a group's mean as a function of its members' conditions, tested on its own, so **Ship groups** can use it.
 - [ ] **Ship groups** · SYM-09, SYM-10, GRP-09, TEST-06
-  - Nothing forms groups in play yet (F-158), so only the test content (TEST-06) has them.
+  - Nothing forms groups in play yet (F-159), so only the test content (TEST-06) has them.
   - The symbols are built; groups add to them (`view/symbols.rs`, `symbol_draw.rs`).
   - A group holds its members and takes its class, armed status, load and condition from them (SYM-01, SYM-09). Add `group_offset_px` to `Tunables`.
   - SYM-13 is still open for the order countdown (**Transfer planner**). Its group parts come with this item: the member count by class, and the label clear of the symbol's amplifiers.
