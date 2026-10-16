@@ -4,8 +4,9 @@
 //! ghosts; then natural bodies, ordered by depth so nearer discs sit on
 //! top of farther ones; then the cue's upper vertical half; then symbols
 //! and multi-markers; then labels and the selection and hover brackets;
-//! then edge arrows; then panels. Draw order is only what's on top:
-//! picking is decided by `markers/picking.rs` (MRK-08).
+//! then a multi-marker's tray; then edge arrows; then panels. Draw order
+//! is only what's on top: picking is decided by `markers/picking.rs`
+//! (MRK-08).
 //!
 //! Every layer is named here, so no two kinds of node share one by
 //! accident: nodes in the same layer have no defined order.
@@ -39,6 +40,9 @@ pub const SYMBOLS: i32 = 10_000;
 /// Labels and the selection and hover brackets, above all markers
 /// (HOV-06).
 pub const LABELS: i32 = 20_000;
+/// A multi-marker's tray (MUL-08): above every marker, label and bracket,
+/// beneath the edge arrows and the panels.
+pub const TRAY: i32 = 25_000;
 /// Edge arrows and their labels.
 pub const EDGE: i32 = 30_000;
 /// Panels: the top bar, the inset and anything floating over the map.
@@ -77,14 +81,14 @@ mod tests {
 
     /// MRK-12 / REF-09 / PLNR-69: the layers stack the frame cue's arms
     /// and its "N", the paths' dots and ghosts, bodies, the cue's upper
-    /// vertical half, symbols and multi-markers, labels and brackets,
-    /// edge arrows, panels, from the bottom.
+    /// vertical half, symbols and multi-markers, labels and brackets, the
+    /// tray, edge arrows, panels, from the bottom.
     #[test]
     fn layers_stack_in_order() {
         const { assert!(CUE < CUE_LABEL && CUE_LABEL < PATH_DOTS) };
         const { assert!(PATH_DOTS < GHOSTS && GHOSTS < BODIES) };
         const { assert!(BODIES < CUE_UPPER && CUE_UPPER < SYMBOLS) };
         const { assert!(BODIES < SYMBOLS && SYMBOLS < LABELS) };
-        const { assert!(LABELS < EDGE && EDGE < PANELS) };
+        const { assert!(LABELS < TRAY && TRAY < EDGE && EDGE < PANELS) };
     }
 }

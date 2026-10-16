@@ -259,6 +259,7 @@ fn camera_app_with(extra: impl FnOnce(&mut App)) -> App {
         .init_resource::<Selection>()
         .init_resource::<PlannerState>()
         .init_resource::<crate::view::multi::OpenTray>()
+        .init_resource::<crate::view::multi::TrayRequest>()
         .init_resource::<crate::view::multi::MultiMarkers>()
         .add_plugins((FramePlugin, crate::view::sidebar::SidebarPlugin))
         .init_resource::<PressStart>();

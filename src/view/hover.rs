@@ -3,8 +3,11 @@
 //! ring mark) is observed by; `markers/brackets.rs` draws the hover mark.
 //! Nothing has a tooltip: a marker's name and type are on the map
 //! already. A shared orbit's ring or identity mark selects the orbit's
-//! parent with that orbit's row revealed in the inset. A click on a
-//! multi-marker is `multi_markers/click.rs`, through `BodyClick`.
+//! parent with that orbit's row revealed in the inset, and asks for the
+//! identity mark's tray. A click on a multi-marker is
+//! `multi_markers/click.rs`, through `BodyClick`; a station's marker with
+//! things docked is a multi-marker, so a click on it asks for its tray
+//! and selects the station without picking it (MUL-07, MUL-12).
 //!
 //! A click selects (`selection.rs`); a double-click also makes the body the
 //! frame and moves to it (ZOOM-16), or on the frame body is the
@@ -17,6 +20,7 @@ use super::bindings::Bindings;
 use super::camera::requests::{FrameRequest, PlanetaryViewRequest};
 use super::frame::Frame;
 use super::gesture::{PressStart, was_click};
+use super::multi::{MultiKey, MultiMarkers, TrayFor, TrayRequest};
 use super::planner::state::{PickTarget, PlannerState};
 use super::selection::Selection;
 use super::targets::{Hovered, MarkerFor, OrbitFor, PointerTargets};
@@ -33,7 +37,7 @@ impl Plugin for HoverPlugin {
 }
 
 /// INS-03: a click on empty map space - a primary press and release within
-/// `drag_threshold_px` that hits no marker, multi-marker, ring or panel - clears
+/// `drag_threshold_px` that hits no marker, multi-marker, ring, tray or panel - clears
 /// the selection and closes the inset. While the transfer planner is open
 /// it does nothing (PLNR-03).
 fn clear_on_empty_click(
@@ -76,7 +80,7 @@ pub struct ClickCheck<'w, 's> {
 impl ClickCheck<'_, '_> {
     /// Whether the cursor is in the window and still within the drag
     /// threshold of where the press started (CAM-10).
-    fn released_as_click(&self) -> bool {
+    pub fn released_as_click(&self) -> bool {
         let release = self.windows.single().ok().and_then(Window::cursor_position);
         release.is_some_and(|at| was_click(&self.press, at, self.tunables.drag_threshold_px))
     }
@@ -103,9 +107,15 @@ pub struct BodyClick<'w> {
     planner: ResMut<'w, PlannerState>,
     frame_request: ResMut<'w, FrameRequest>,
     planetary: ResMut<'w, PlanetaryViewRequest>,
+    tray: ResMut<'w, TrayRequest>,
 }
 
 impl BodyClick<'_> {
+    /// MUL-07: ask for a multi-marker's tray, in place of any open one.
+    pub fn open_tray(&mut self, tray: TrayFor) {
+        self.tray.0 = Some(tray);
+    }
+
     pub fn click(&mut self, body: Entity, count: u8) {
         if !self.planner.pick(PickTarget::Body(body)) {
             self.selection.select(body);
@@ -172,22 +182,38 @@ pub fn double_click(
     }
 }
 
+/// INS-01 / MUL-07 / MUL-12: a click on a body's marker, label or lone
+/// ring selects the body, or picks it while the planner is open. A
+/// station with things docked is drawn as a station marker (MUL-03), a
+/// multi-marker: the click opens its tray and selects the station, its
+/// first row, and with the planner open picks nothing.
 pub fn on_marker_click(
     click: On<PointerClick>,
     markers: Query<&MarkerFor>,
+    multis: Res<MultiMarkers>,
     check: ClickCheck,
     mut body_click: BodyClick,
 ) {
     if !check.selects(&click) {
         return;
     }
-    if let Ok(marker_for) = markers.get(click.entity) {
-        body_click.click(marker_for.0, click.count);
+    let Ok(marker_for) = markers.get(click.entity) else {
+        return;
+    };
+    let body = marker_for.0;
+    let station = MultiKey::Station(body);
+    if multis.get(station).is_some() {
+        body_click.open_tray(TrayFor::Marker(station));
+        body_click.select_only(body, click.count);
+    } else {
+        body_click.click(body, click.count);
     }
 }
 
 /// HOV-05: clicking a shared orbit's ring or identity mark selects the
-/// orbit's parent with the orbit's row revealed.
+/// orbit's parent with the orbit's row revealed, and opens the identity
+/// mark's tray (MUL-07). While the planner is open it picks the orbit's
+/// band, as the ring does (PLNR-11).
 pub fn on_orbit_click(
     click: On<PointerClick>,
     orbits: Query<&OrbitFor>,
@@ -202,6 +228,7 @@ pub fn on_orbit_click(
         && let Ok(orbit) = named.get(orbit_for.0)
     {
         body_click.click_orbit(orbit_for.0, orbit.parent, click.count);
+        body_click.open_tray(TrayFor::Orbit(orbit_for.0));
     }
 }
 
@@ -224,6 +251,8 @@ mod tests {
         world.init_resource::<PlannerState>();
         world.init_resource::<FrameRequest>();
         world.init_resource::<PlanetaryViewRequest>();
+        world.init_resource::<TrayRequest>();
+        world.init_resource::<MultiMarkers>();
         world.init_resource::<PressStart>();
         world.init_resource::<Tunables>();
         let body = world.spawn_empty().id();

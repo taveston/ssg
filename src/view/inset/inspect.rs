@@ -40,6 +40,7 @@ use crate::view::camera::requests::FrameRequest;
 use crate::view::colors;
 use crate::view::fonts::Fonts;
 use crate::view::motion_mode::MotionModeState;
+use crate::view::multi::OpenTray;
 use crate::view::planner::state::PlannerState;
 use crate::view::planner::words::TRANSFER;
 use crate::view::selection::Selection;
@@ -136,7 +137,9 @@ fn dim_focus_buttons(
 
 impl Plugin for InspectPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_sidebar.in_set(Boot::Overlay))
+        // INS-03: Esc reads whether a tray is open, to close it first.
+        app.init_resource::<OpenTray>()
+            .add_systems(Startup, spawn_sidebar.in_set(Boot::Overlay))
             .add_systems(
                 Update,
                 (
@@ -329,15 +332,21 @@ fn slide_panel(
     }
 }
 
-/// INS-03: Esc closes the inset. While the transfer planner is open, Esc
-/// ends the planner first and the inset stays (PLNR-02, PLNR-03).
+/// INS-03: Esc closes the inset. While a multi-marker's tray is open, Esc
+/// closes the tray first and leaves the selection (MUL-10); while the
+/// transfer planner is open, Esc ends the planner before the inset closes
+/// (PLNR-02, PLNR-03).
 fn handle_escape(
     keys: Res<ButtonInput<KeyCode>>,
     bindings: Res<Bindings>,
+    mut tray: ResMut<OpenTray>,
     mut planner: ResMut<PlannerState>,
     mut selection: ResMut<Selection>,
 ) {
-    if pressed(&keys, &bindings.close_inset) && !planner.end() {
+    if !pressed(&keys, &bindings.close_inset) {
+        return;
+    }
+    if tray.0.take().is_none() && !planner.end() {
         selection.clear();
     }
 }

@@ -13,7 +13,8 @@
 //!
 //! Features with several modules have a folder each: `camera/`, `markers/`
 //! (markers, their picking, labels and brackets), `multi_markers/`
-//! (several objects on one marker), `rings/` (orbit rings, their marks,
+//! (several objects on one marker), `tray/` (the list a multi-marker
+//! opens), `rings/` (orbit rings, their marks,
 //! picking and near arcs), `symbols/` (ship symbols,
 //! their drawing, shader and leaders), `edge/` (edge arrows and tabs),
 //! `inset/` (the inspection sidebar's contents), `topbar/`, `frame_cue/`,
@@ -64,6 +65,7 @@ pub mod sidebar;
 pub mod symbols;
 pub mod targets;
 pub mod topbar;
+pub mod tray;
 pub mod true_size;
 pub mod tunables;
 pub mod world;
@@ -78,6 +80,7 @@ impl Plugin for ViewPlugin {
         app.init_resource::<selection::Selection>()
             .init_resource::<planner::state::PlannerState>()
             .init_resource::<multi::OpenTray>()
+            .init_resource::<multi::TrayRequest>()
             .init_resource::<multi::MultiMarkers>()
             .init_resource::<gesture::PressStart>()
             .add_plugins((
@@ -129,6 +132,7 @@ impl Plugin for ViewPlugin {
                 symbols::leaders::LeadersPlugin,
                 frame_cue::FrameCuePlugin,
                 frame_cue::stroke::CueStrokeMaterialPlugin,
+                tray::TrayPlugin,
             ));
     }
 }

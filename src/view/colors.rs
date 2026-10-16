@@ -49,6 +49,15 @@ pub const REFERENCE: Color = Color::srgb(
 /// brackets and of a highlighted orbit ring.
 pub const SELECTION: Color = Color::WHITE;
 
+/// INS-05 / MUL-09: the selected row's highlight in a list (the outline,
+/// a tray): the secondary colour, faint.
+pub const LIST_HIGHLIGHT: Color = Color::srgba(
+    0x9F as f32 / 255.0,
+    0xB6 as f32 / 255.0,
+    0xC4 as f32 / 255.0,
+    0.18,
+);
+
 /// SYM-02: the paler blue of an own-flag civilian ship.
 pub const CIVILIAN: Color = Color::srgb(
     0xA9 as f32 / 255.0,

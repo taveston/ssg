@@ -45,15 +45,10 @@ const INDENT_PX: f32 = 14.0;
 const TOGGLE_PX: f32 = 14.0;
 const ROW_PADDING_Y_PX: f32 = 2.0;
 /// The toggle glyphs: collapsed and expanded.
-const COLLAPSED_GLYPH: &str = ">";
-const EXPANDED_GLYPH: &str = "v";
-/// The selected row's highlight: the secondary colour, faint.
-const HIGHLIGHT: Color = Color::srgba(
-    0x9F as f32 / 255.0,
-    0xB6 as f32 / 255.0,
-    0xC4 as f32 / 255.0,
-    0.18,
-);
+pub const COLLAPSED_GLYPH: &str = ">";
+pub const EXPANDED_GLYPH: &str = "v";
+/// The selected row's highlight.
+const HIGHLIGHT: Color = colors::LIST_HIGHLIGHT;
 
 /// One body as the outline sees it.
 #[derive(Debug, Clone, PartialEq)]

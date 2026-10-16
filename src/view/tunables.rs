@@ -289,6 +289,19 @@ pub struct Tunables {
     pub back_frame_offset_px: f32,
     /// The size of a multi-marker's count, in the data face (MUL-01).
     pub multi_count_px: f32,
+    /// A tray is never narrower than this, and otherwise as wide as its
+    /// widest row (MUL-08).
+    pub tray_min_width_px: f32,
+    /// The height of each row of a tray (MUL-08).
+    pub tray_row_px: f32,
+    /// The height of a tray's header, which says what the marker holds
+    /// (MUL-08).
+    pub tray_header_px: f32,
+    /// The height of a tray's footer, with the key hint (MUL-08).
+    pub tray_footer_px: f32,
+    /// The space between a tray and its marker's box (HOV-07), on the
+    /// side the tray opens (MUL-08).
+    pub tray_gap_px: f32,
 
     // --- The sidebar ---
     /// The sidebar's running text, facts' values and outline entries
@@ -473,6 +486,11 @@ impl Default for Tunables {
             cluster_split_px: 28.0,
             back_frame_offset_px: 4.0,
             multi_count_px: 10.5,
+            tray_min_width_px: 240.0,
+            tray_row_px: 26.0,
+            tray_header_px: 28.0,
+            tray_footer_px: 26.0,
+            tray_gap_px: 8.0,
 
             sidebar_text_px: 13.0,
             sidebar_caps_px: 11.0,

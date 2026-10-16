@@ -25,6 +25,10 @@
 //! - `planner`: opens the transfer planner for the selected ship: `open`
 //!   leaves it choosing; a body's name picks that body as the destination,
 //!   as a click on it would (PLNR-02, PLNR-11).
+//! - `tray`: a body's name; once the view is set, opens the tray of the
+//!   multi-marker that holds it (MUL-07): the body's fold marker if it has
+//!   one, its station marker if it is a station with things docked, or
+//!   else the marker it is joined, docked or folded into.
 //! - `fly`: with `planner` naming a destination, schedules the planner's
 //!   order as Schedule would (PLNR-50), then moves the clock on to this
 //!   many days after the ship leaves its orbit (PLNR-21), so the shot
@@ -45,6 +49,9 @@
 //!   be scheduled once the planner has searched and solved it: the log
 //!   gives the planner's own reason (PLNR-92), such as "Needs 13.2 km/s,
 //!   has 9.9" for a trip over the ship's budget.
+//!
+//! A shot with `tray` whose tray never opened fails at the capture,
+//! naming the body.
 
 use std::path::PathBuf;
 
@@ -57,6 +64,7 @@ use super::camera::rules::clamp_tilt;
 use super::camera::state::{ActiveMove, CameraRig, MAX_DISTANCE, MIN_DISTANCE};
 use super::inset::content::is_commanded_ship;
 use super::inset::inspect::{OrderableShip, may_take_order};
+use super::multi::{MultiKey, MultiMarkers, OpenTray, TrayFor, TrayRequest};
 use super::planner::input::{order_to_schedule, schedule_order};
 use super::planner::model::blocking_reason;
 use super::planner::state::{PickTarget, PlannerState};
@@ -103,6 +111,8 @@ pub struct ShotPlan {
     /// Days after the leave day to move the clock to, once the planner's
     /// order is scheduled.
     pub fly_days: Option<f64>,
+    /// The body whose multi-marker's tray to open.
+    pub tray: Option<String>,
 }
 
 /// The `planner` value that opens the planner without picking.
@@ -126,6 +136,7 @@ impl ShotPlan {
             timeout_secs: DEFAULT_TIMEOUT_SECS,
             planner: None,
             fly_days: None,
+            tray: None,
         };
         let pairs = spec.split(';').map(str::trim).filter(|p| !p.is_empty());
         for pair in pairs {
@@ -146,6 +157,7 @@ impl ShotPlan {
                 "timeout" => plan.timeout_secs = number(key, value)?,
                 "planner" => plan.planner = Some(value.to_string()),
                 "fly" => plan.fly_days = Some(number(key, value)?),
+                "tray" => plan.tray = Some(value.to_string()),
                 _ => return Err(format!("unknown key `{key}`")),
             }
         }
@@ -224,7 +236,7 @@ impl Plugin for DebugShotPlugin {
         }
         app.add_systems(
             Update,
-            (fly_order, refuse_unplannable, run_shot)
+            (fly_order, refuse_unplannable, open_tray, run_shot)
                 .chain()
                 .run_if(resource_exists::<Shot>)
                 .after(Stage::Simulation)
@@ -291,7 +303,7 @@ impl ShotScene<'_, '_> {
     /// a body that doesn't exist, or a planner that can't open.
     fn start(&mut self, plan: &ShotPlan) -> Result<ShotPhase, String> {
         let destination = plan.planner.as_ref().filter(|p| *p != PLANNER_OPEN);
-        let wanted = [&plan.frame, &plan.select, &plan.hover]
+        let wanted = [&plan.frame, &plan.select, &plan.hover, &plan.tray]
             .into_iter()
             .flatten()
             .chain(destination);
@@ -351,7 +363,7 @@ fn run_shot(
     mut scene: ShotScene,
     active: Res<ActiveMove>,
     mut rig: ResMut<CameraRig>,
-    tunables: Res<Tunables>,
+    (tunables, tray): (Res<Tunables>, Res<OpenTray>),
     mut exit: MessageWriter<AppExit>,
 ) {
     let now = time.elapsed_secs();
@@ -373,6 +385,10 @@ fn run_shot(
             shot.phase = ShotPhase::Settling { since: now };
         }
         ShotPhase::Settling { since } if now - since >= shot.plan.wait_secs => {
+            if let Some(name) = shot.plan.tray.clone().filter(|_| tray.0.is_none()) {
+                shot.fail(&format!("no multi-marker holds `{name}`"), &mut exit);
+                return;
+            }
             scene
                 .commands
                 .spawn(Screenshot::primary_window())
@@ -432,6 +448,39 @@ fn fly_order(
             shot.phase = ShotPhase::Framing;
         }
         _ => {}
+    }
+}
+
+/// `tray`: once the view is set, ask for the tray of the multi-marker
+/// holding the named body, and again if it closes, until the capture.
+fn open_tray(
+    shot: Res<Shot>,
+    names: Query<(Entity, &DisplayName)>,
+    multis: Res<MultiMarkers>,
+    open: Res<OpenTray>,
+    mut request: ResMut<TrayRequest>,
+) {
+    let (ShotPhase::Settling { .. }, Some(name)) = (shot.phase, shot.plan.tray.as_deref()) else {
+        return;
+    };
+    if open.0.is_some() {
+        return;
+    }
+    let Some(body) = names.iter().find(|(_, n)| n.0 == name).map(|(e, _)| e) else {
+        return;
+    };
+    let own = [MultiKey::Fold(body), MultiKey::Station(body)]
+        .into_iter()
+        .find(|&key| multis.get(key).is_some());
+    let holder = || {
+        multis
+            .markers
+            .iter()
+            .find(|m| m.all_things().any(|t| t == body))
+            .map(|m| m.key)
+    };
+    if let Some(key) = own.or_else(holder) {
+        request.0 = Some(TrayFor::Marker(key));
     }
 }
 
@@ -545,7 +594,8 @@ mod tests {
     fn a_full_spec_parses_every_key() {
         let plan = ShotPlan::parse(
             "out=shots/a.png; frame=Halden IV;select=Halden IV I;hover=Morrow;\
-             distance=2e6;tilt=40;heading=-15;rate=0;wait=3.5;planner=Iver;fly=12",
+             distance=2e6;tilt=40;heading=-15;rate=0;wait=3.5;planner=Iver;fly=12;\
+             tray=Halden IV",
         )
         .unwrap();
         assert_eq!(plan.out, PathBuf::from("shots/a.png"));
@@ -559,6 +609,7 @@ mod tests {
         assert_eq!(plan.wait_secs, 3.5);
         assert_eq!(plan.planner.as_deref(), Some("Iver"));
         assert_eq!(plan.fly_days, Some(12.0));
+        assert_eq!(plan.tray.as_deref(), Some("Halden IV"));
     }
 
     #[test]

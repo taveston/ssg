@@ -4,8 +4,8 @@
 //! group or a station.
 //!
 //! Shared state (ARCH-03): `multi_markers/gather.rs` is the one writer;
-//! the markers, brackets, labels, picking and clicks read it, and so will
-//! the tray that lists a marker's things.
+//! the markers, brackets, labels, picking, clicks and the tray that lists
+//! a marker's things read it.
 
 use std::collections::HashMap;
 
@@ -147,10 +147,29 @@ pub struct MultiNode {
 #[derive(Component, Debug, Clone, Copy, Default, PartialEq)]
 pub struct MultiTarget(pub Option<MultiKey>);
 
-/// The multi-marker whose tray is open, if any (MUL-07, MUL-10). While
-/// one is, the arrow keys are the tray's and do not pan (CAM-14).
+/// What a tray lists (MUL-08): the things of a multi-marker gathered
+/// here, or the members of a shared orbit at its exposure ring's identity
+/// mark (MOT-14, HOV-05), which `rings/marks.rs` draws, by the named
+/// orbit.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TrayFor {
+    Marker(MultiKey),
+    Orbit(Entity),
+}
+
+/// The tray that is open, if any (MUL-07, MUL-10). At most one is. While
+/// one is, the arrow keys are the tray's and do not pan (CAM-14), and Esc
+/// closes it before anything else (INS-03). The tray (`view/tray/`)
+/// opens and closes it.
 #[derive(Resource, Default, Debug, Clone, Copy, PartialEq)]
-pub struct OpenTray(pub Option<MultiKey>);
+pub struct OpenTray(pub Option<TrayFor>);
+
+/// A click this frame on a multi-marker, or on a shared orbit's ring or
+/// identity mark, asks for its tray (MUL-07, HOV-05). The tray opens it
+/// in place of any other; a click elsewhere, which asks for none, closes
+/// the open one (MUL-10).
+#[derive(Resource, Default, Debug, Clone, Copy, PartialEq)]
+pub struct TrayRequest(pub Option<TrayFor>);
 
 #[cfg(test)]
 mod tests {

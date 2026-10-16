@@ -42,9 +42,15 @@ impl TrayOrder<'_, '_> {
     /// MUL-09: a marker's things in tray order. Docked things are listed
     /// under their station's row and are not among them.
     pub fn things(&self, marker: &MultiMarker) -> Vec<Entity> {
+        self.sorted(&marker.things)
+    }
+
+    /// MUL-09: any things in tray order, such as those docked at a
+    /// station, listed under it.
+    pub fn sorted(&self, things: &[Entity]) -> Vec<Entity> {
         let positions = outline_positions(&self.outline.nodes());
         tray_order(
-            &marker.things,
+            things,
             |t| self.classes.get(t) == Ok(&BodyClass::Station),
             &positions,
         )
