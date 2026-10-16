@@ -2,7 +2,7 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-243.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-244.
 
 ---
 
@@ -317,6 +317,11 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** In play, a ship sent from one body's band to another body's (for example Earth's Low band to the Moon's Low band) arrives, but its symbol isn't moved to the new body and the "In orbit" outline still lists it under the old one. A transfer between two bands of the same body works as expected. Likely the same root as F-201: what a ship orbits, and which orbit it belongs to, is fixed at spawn and only the band is updated on arrival.
 - **Affects:** XFER-01, SCL-07, INS-05, GRP-01 · **Type:** bug
 - **Disposition:** open. Seen by the user in play (build 907d98e).
+
+### F-243 · Velocity leaders in the system view
+- **Observation:** In play, a ship's velocity leader (SYM-11) doesn't seem to point the right way. SYM-11 measures the velocity relative to the star, so inside a planet's frame the leader mostly shows the planet's own motion round the star, not the ship's motion on screen. The user finds the leaders no longer useful: the drawn trajectory (PLNR-61, PLNR-68) shows everything they did.
+- **Affects:** SYM-11, PLNR-68 · **Type:** spec wrong
+- **Disposition:** user's direction: drop velocity leaders from the system view. They will be useful in the combat view, so the work may be reused there; the code can be found in git history once deleted. Withdraw SYM-11 and its `leader_*` tunables, and drop "with its velocity leader" from PLNR-68.
 
 ## Parked
 
