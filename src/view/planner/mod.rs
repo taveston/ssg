@@ -12,7 +12,7 @@
 //! - `model.rs`: what the panel says, as plain values.
 //! - `slider.rs`: the sliders' rules and the tracks' colours (PLNR-23,
 //!   PLNR-28).
-//! - `panel.rs`: the panel's nodes, rebuilt by shape and written each
+//! - `panel/`: the panel's nodes, rebuilt by shape and written each
 //!   frame; the order shown on a ship's inset (PLNR-51, PLNR-54).
 //! - `input.rs`: the panel's buttons, sliders and keys, and scheduling
 //!   and changing orders (PLNR-50 to PLNR-53).
