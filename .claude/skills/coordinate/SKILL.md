@@ -17,6 +17,7 @@ You plan, dispatch, merge and talk. Agents build. Each to-do item ends as a gree
 
 ## 2. Dispatch
 
+- Before starting agents, look for a running `orphan_worlds.exe` (`Get-Process orphan_worlds`, check `Path`). One started from `target/` is a leftover run, not a playtest: stop it, since it locks the exe and blocks agents' builds and screenshots. Leave one running from `play/` alone. Do the same check whenever an agent reports "Access is denied".
 - Copy `brief.md` (next to this file) into the session scratchpad. Fill in the repo path, and add any new Bevy pitfalls from memory.
 - Start each agent with `isolation: "worktree"`, `run_in_background: true` and the approved `effort`. The prompt says: read the brief at <scratch path> first; then gives the item text and spec IDs, what's already on master that it builds on, and which parallel agents touch nearby files. Agents don't touch `docs/todo.md`, `docs/findings.md` or Built cells, and they number findings `F-NEW-n`: the brief says so.
 - When something an agent depends on lands, tell it with SendMessage (for example "X is on master; rebase before your final commit"). When a pitfall shows up, add it to the brief so later agents get it.
