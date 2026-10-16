@@ -616,16 +616,20 @@ pub fn clip_to_front((from, to): (Vec3, Vec3), view: RingView) -> Option<(Vec3, 
 mod tests {
     use super::*;
 
-    /// MRK-14: a ring is whole up to `orbit_fade_from` times half the
-    /// diagonal, fades evenly to nothing at `orbit_fade_to`, and stays gone
-    /// beyond it.
+    /// MRK-14: with the default limits (4 and 12), a ring is whole up to
+    /// `orbit_fade_from` times half the diagonal, fades evenly to nothing at
+    /// `orbit_fade_to`, and stays gone beyond it.
     #[test]
     fn large_rings_fade_out_between_the_two_limits() {
-        assert_eq!(orbit_fade(0.2, 1.5, 3.0), 1.0);
-        assert_eq!(orbit_fade(1.5, 1.5, 3.0), 1.0);
-        assert!((orbit_fade(2.25, 1.5, 3.0) - 0.5).abs() < 1e-6);
-        assert_eq!(orbit_fade(3.0, 1.5, 3.0), 0.0);
-        assert_eq!(orbit_fade(40.0, 1.5, 3.0), 0.0);
+        let tunables = crate::view::tunables::Tunables::default();
+        let (from, to) = (tunables.orbit_fade_from, tunables.orbit_fade_to);
+        assert_eq!((from, to), (4.0, 12.0));
+        assert_eq!(orbit_fade(0.2, from, to), 1.0);
+        assert_eq!(orbit_fade(3.0, from, to), 1.0);
+        assert_eq!(orbit_fade(4.0, from, to), 1.0);
+        assert!((orbit_fade(8.0, from, to) - 0.5).abs() < 1e-6);
+        assert_eq!(orbit_fade(12.0, from, to), 0.0);
+        assert_eq!(orbit_fade(40.0, from, to), 0.0);
     }
 
     /// MRK-14: seen from straight above, a ring's screen radius is its

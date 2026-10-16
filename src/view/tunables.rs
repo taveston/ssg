@@ -251,8 +251,8 @@ impl Default for Tunables {
             orbit_ring_width_px: 1.0,
             orbit_ring_alpha: 0.35,
             orbit_highlight_width_px: 1.0,
-            orbit_fade_from: 1.5,
-            orbit_fade_to: 3.0,
+            orbit_fade_from: 4.0,
+            orbit_fade_to: 12.0,
 
             zoom_step_factor: 2.0,
             zoom_anim_ms: 200.0,
