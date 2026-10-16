@@ -27,15 +27,8 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Other
 
-- [ ] **Planner: clean-up after review**
-  - `legs.rs` `lambert_burns` repeats the ends and Lambert solve of `lambert_crossing`: share one helper.
-  - Rename `Search.windows` (window timings) to `window_starts`, since `Sliders.windows` means something else.
-  - `Search::soonest` has an unreachable `_ =>` arm, kept only by a presets test that builds a `Range` Depart slider. Change the test to `Days` and drop the arm.
-  - `presets.rs` `refine` solves about 9 depart days for phasing legs, where every day costs the same. Refine on Soonest only.
-  - Split the long functions: `leave_at_window` (about 70 lines), `move_thumb` and `depart_model` (about 50 each).
-  - `tooltip.rs` `show_tooltips` writes the tooltip box's `Node` every frame. Write it only on change.
-  - `debug_shot.rs` `Refusal::Refused` falls back to "Schedule refused the order" when the planner holds no reason. If that can't happen, drop the fallback and treat it as a bug; if it can, keep the shot in `Refused` until the planner has an answer.
-  - `an_arrival_change_moves_a_thumb_off_a_setting_it_rejects` checks the thumb lands on an accepted setting, not the nearest one (PLNR-33). Assert that no accepted travel time is closer to the old setting.
+- [ ] **Planner: a Depart slider type of its own**
+  - Depart is always in whole days now, but `Sliders::depart` is still the general `Slider`, so `model.rs` `depart_columns` keeps a dead `_ =>` arm (and its `setting` parameter only for that), and `Search::soonest` has an `unreachable!`. Give Depart its own days-slider type (soonest, end, step) and drop the `Range` and `Positions` cases for it. Behaviour unchanged.
 - [ ] **Multi-markers and tray: clean-up after review**
   - Work per frame grows with the square of the ship count (`multi_markers/gather.rs`: `together_sets`, `link_groups`, `overlap_clusters`, `slide_things`, `fold_markers`; `MultiMarkers::get` is a linear search). Link only neighbours in phase, bucket overlap candidates into a grid of `cluster_split_px` cells, and index markers by key.
   - `place_multi_markers` writes every pool node's `Node` each frame. Write only on change.
