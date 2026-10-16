@@ -8,11 +8,6 @@
 //! setting. Refining solves every slider step within one grid spacing of
 //! it and picks again, so the sliders land on a setting they can show.
 
-#![cfg_attr(
-    not(test),
-    expect(dead_code, reason = "read by the planner panel, built next (PLNR-29)")
-)]
-
 use std::cmp::Ordering;
 
 use super::grid::{Grid, Sample, Setting, least_delta_v};

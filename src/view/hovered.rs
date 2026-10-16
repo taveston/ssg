@@ -8,6 +8,7 @@ use std::collections::HashSet;
 
 use bevy::prelude::*;
 
+use super::planner_state::PlannerState;
 use super::targets::{Hovered, MarkerFor, OrbitFor};
 use crate::Stage;
 
@@ -33,16 +34,19 @@ impl Plugin for HoveredPlugin {
 
 /// HOV-03 / HOV-05: hovering any stand-in for a body - its marker, its
 /// label or its ring - hovers the body; hovering a shared orbit's ring or
-/// identity pill hovers the orbit.
+/// identity pill hovers the orbit. While the transfer planner is open,
+/// what it can't pick takes no hover mark (PLNR-11).
 fn collect_hovered(
     targets: Query<&MarkerFor, With<Hovered>>,
     orbits: Query<&OrbitFor, With<Hovered>>,
+    planner: Res<PlannerState>,
     mut hovered: ResMut<HoveredBodies>,
 ) {
     let now: HashSet<Entity> = targets
         .iter()
         .map(|target| target.0)
         .chain(orbits.iter().map(|orbit| orbit.0))
+        .filter(|entity| !planner.unpickable.contains(entity))
         .collect();
     if hovered.0 != now {
         hovered.0 = now;

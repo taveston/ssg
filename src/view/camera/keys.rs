@@ -13,6 +13,7 @@ use super::rules::{
 use super::state::{OrbitCamera, camera_fov};
 use super::stops::ZoomStops;
 use crate::view::bindings::{Bindings, held};
+use crate::view::planner_state::PlannerState;
 use crate::view::tunables::Tunables;
 use crate::view::world::WorldPositions;
 
@@ -21,15 +22,25 @@ use crate::view::world::WorldPositions;
 #[derive(Resource, Default)]
 pub struct KeyPan(Vec2);
 
-/// The direction the pan keys and the window edge ask for.
+/// The direction the pan keys and the window edge ask for. Keys in
+/// `taken` are someone else's this frame: a focused slider's (PLNR-23).
 fn pan_direction(
     keys: &ButtonInput<KeyCode>,
     bindings: &Bindings,
     tunables: &Tunables,
     window: Option<&Window>,
+    taken: &[KeyCode],
 ) -> Vec2 {
-    let axis =
-        |plus: &[KeyCode], minus: &[KeyCode]| held(keys, plus) as i32 - held(keys, minus) as i32;
+    let free = |bound: &[KeyCode]| -> Vec<KeyCode> {
+        bound
+            .iter()
+            .copied()
+            .filter(|k| !taken.contains(k))
+            .collect()
+    };
+    let axis = |plus: &[KeyCode], minus: &[KeyCode]| {
+        held(keys, &free(plus)) as i32 - held(keys, &free(minus)) as i32
+    };
     let mut direction = Vec2::new(
         axis(&bindings.pan_right, &bindings.pan_left) as f32,
         axis(&bindings.pan_up, &bindings.pan_down) as f32,
@@ -57,10 +68,21 @@ pub fn handle_key_pan(
     windows: Query<&Window>,
     camera: Query<&Projection, With<OrbitCamera>>,
     positions: Res<WorldPositions>,
+    planner: Res<PlannerState>,
     mut key_pan: ResMut<KeyPan>,
     mut view: CameraControl,
 ) {
-    let direction = pan_direction(&keys, &bindings, &tunables, windows.single().ok());
+    // PLNR-23: a focused slider takes Left and Right in place of the pan.
+    let taken: Vec<KeyCode> = if planner.slider_focus.is_some() {
+        [
+            bindings.slider_down.as_slice(),
+            bindings.slider_up.as_slice(),
+        ]
+        .concat()
+    } else {
+        Vec::new()
+    };
+    let direction = pan_direction(&keys, &bindings, &tunables, windows.single().ok(), &taken);
     // Only keys actually held are pan input (CAM-20): a ramp still easing
     // out gives way to a move started meanwhile.
     if direction == Vec2::ZERO && view.active.0.is_some() {

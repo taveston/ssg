@@ -3,11 +3,6 @@
 //! read from it (PLNR-28, PLNR-85). Plain data and pure functions
 //! (ARCH-20); the search that fills it is `search.rs`.
 
-#![cfg_attr(
-    not(test),
-    expect(dead_code, reason = "read by the planner panel, built next (PLNR-20)")
-)]
-
 use std::mem::discriminant;
 
 use super::order::Infeasible;

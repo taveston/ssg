@@ -61,6 +61,8 @@ pub struct Leg {
     pub intercept_speed_kms: Option<f64>,
     /// XFER-14 / XFER-10: an Intercept's closing speed at its target.
     pub closing_speed_kms: Option<f64>,
+    /// PLNR-26: the speed the arrival row and the ghost's label show.
+    pub arrival_speed_kms: Option<f64>,
     /// XFER-13: the turn of an Intercept through another body's Low band.
     pub turn_rad: Option<f64>,
     /// PHAS-03: days waited in the departure orbit for the exit point.
@@ -93,6 +95,7 @@ impl Leg {
             landing: solved.landing,
             intercept_speed_kms: solved.intercept_speed_kms,
             closing_speed_kms: solved.closing_speed_kms,
+            arrival_speed_kms: solved.arrival_speed_kms,
             turn_rad: solved.turn_rad,
             departure_wait_days: solved.departure_wait_days,
             arrival_wait_days: solved.arrival_wait_days,
@@ -347,6 +350,14 @@ impl Planner<'_, '_> {
         })
     }
 
+    /// What a search for `ship` depends on besides its request (PLNR-87):
+    /// its drive and its available delta-v (PLAN-21), without taking a
+    /// snapshot of the system.
+    pub fn budget(&self, ship: Entity) -> Option<(Drive, f64)> {
+        let (drive, account, _) = self.ships.get(ship).ok()?;
+        Some((*drive, account.available_kms()))
+    }
+
     /// The leg `order` would give `ship` today, without scheduling it.
     pub fn preview(&self, ship: Entity, order: &Order) -> Result<SolvedLeg, Infeasible> {
         let context = self.search_context(ship)?;
@@ -433,10 +444,6 @@ impl Planner<'_, '_> {
 /// ARCH-14: an order given to a ship, as a message the simulation reads.
 /// A Transfer with `Place::Hold` as its destination holds (PLAN-13).
 #[derive(Message, Debug, Clone, Copy, PartialEq)]
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "sent by the planner UI, not yet specced")
-)]
 pub enum ShipOrder {
     Transfer {
         ship: Entity,
@@ -711,6 +718,7 @@ mod tests {
             },
             intercept_speed_kms: (!rendezvous).then_some(4.0),
             closing_speed_kms: None,
+            arrival_speed_kms: Some(4.0),
             turn_rad: None,
             departure_wait_days: 0.0,
             arrival_wait_days: 0.0,

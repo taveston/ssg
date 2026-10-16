@@ -228,6 +228,29 @@ pub struct Tunables {
     pub label_gap_px: f32,
     /// A label's change of place or visibility fades over this (LBL-04).
     pub label_fade_ms: f32,
+
+    // --- Transfer planner (docs/spec/planner.md) ---
+    /// A slider's track is this high (PLNR-23).
+    pub slider_track_px: f32,
+    /// A slider's thumb is this wide (PLNR-23).
+    pub slider_thumb_w_px: f32,
+    /// A slider's thumb is this high (PLNR-23).
+    pub slider_thumb_h_px: f32,
+    /// The dimmest an affordable setting is drawn on a track: own blue
+    /// mixed into the empty colour at this, for a setting that needs all
+    /// the ship has (PLNR-28).
+    pub track_dim_mix: f32,
+    /// A setting over budget is drawn on a track in the warning colour at
+    /// this opacity (PLNR-28).
+    pub track_over_alpha: f32,
+    /// The selected option of a two-way choice is filled with the neutral
+    /// colour mixed into the ground at this (PLNR-14).
+    pub segment_fill_mix: f32,
+    /// The Delta-v bar is this high (PLNR-27).
+    pub delta_bar_px: f32,
+    /// A label's tooltip shows after the pointer has rested on it this
+    /// long (PLNR-91, PLNR-94).
+    pub tooltip_delay_ms: f32,
 }
 
 impl Default for Tunables {
@@ -313,6 +336,15 @@ impl Default for Tunables {
 
             label_gap_px: 6.0,
             label_fade_ms: 150.0,
+
+            slider_track_px: 10.0,
+            slider_thumb_w_px: 14.0,
+            slider_thumb_h_px: 18.0,
+            track_dim_mix: 0.35,
+            track_over_alpha: 0.45,
+            segment_fill_mix: 0.30,
+            delta_bar_px: 8.0,
+            tooltip_delay_ms: 400.0,
         }
     }
 }

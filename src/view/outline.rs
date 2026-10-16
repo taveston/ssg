@@ -26,6 +26,7 @@ use super::fonts::Fonts;
 use super::frame::Frame;
 use super::hover::double_click;
 use super::markers::{BodyLook, MarkerAssets, spawn_list_icon};
+use super::planner_state::{PickTarget, PlannerState};
 use super::selection::Selection;
 use super::tunables::Tunables;
 use crate::Stage;
@@ -533,7 +534,10 @@ fn spawn_entry(
 }
 
 /// INS-05 / HOV-04: a named orbit's row, "High orbit · N", with its
-/// toggle; clicking it expands or collapses the members under it.
+/// toggle; clicking it expands or collapses the members under it. While
+/// the transfer planner is open it also picks that orbit's band as the
+/// destination (PLNR-10, PLNR-11), and still opens, so the ships in the
+/// orbit stay within reach.
 fn spawn_orbit_row(
     list: &mut ChildSpawnerCommands,
     assets: MarkerAssets,
@@ -554,9 +558,12 @@ fn spawn_orbit_row(
             ));
         })
         .observe(
-            move |click: On<PointerClick>, mut expanded: ResMut<Expanded>| {
+            move |click: On<PointerClick>,
+                  mut expanded: ResMut<Expanded>,
+                  mut planner: ResMut<PlannerState>| {
                 if click.button == PointerButton::Primary {
                     toggle(&mut expanded.orbits, orbit);
+                    planner.pick(PickTarget::Orbit(orbit));
                 }
             },
         );
@@ -567,19 +574,23 @@ fn spawn_orbit_row(
 pub struct EntryActions<'w> {
     frame: Res<'w, Frame>,
     selection: ResMut<'w, Selection>,
+    planner: ResMut<'w, PlannerState>,
     frame_request: ResMut<'w, FrameRequest>,
     planetary: ResMut<'w, PlanetaryViewRequest>,
 }
 
 impl EntryActions<'_> {
-    /// INS-05: a click selects at once; a double-click also makes the
-    /// body the frame (ZOOM-16), or on the frame body calls the
-    /// planetary-view hook (ZOOM-17).
+    /// INS-05: a click selects at once, or, while the transfer planner is
+    /// open, picks the entry as the destination (PLNR-10); a double-click
+    /// also makes the body the frame (ZOOM-16), or on the frame body calls
+    /// the planetary-view hook (ZOOM-17).
     fn clicked(&mut self, body: Entity, click: &On<PointerClick>) {
         if click.button != PointerButton::Primary {
             return;
         }
-        self.selection.select(body);
+        if !self.planner.pick(PickTarget::Body(body)) {
+            self.selection.select(body);
+        }
         if click.count >= 2 {
             double_click(
                 &self.frame,

@@ -9,11 +9,6 @@
 //! least fuel on the half ellipse that touches both, so the Travel range
 //! is spread round that ellipse's travel time.
 
-#![cfg_attr(
-    not(test),
-    expect(dead_code, reason = "read by the planner panel, built next (PLNR-20)")
-)]
-
 use std::f64::consts::PI;
 
 use bevy::prelude::*;

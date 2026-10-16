@@ -63,10 +63,6 @@ pub enum Place {
     /// A belt or salvage site's own orbit.
     Site { site: Entity },
     /// Wherever a ship is on the arrival day.
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "ordered by the planner UI, not yet specced")
-    )]
     Ship { ship: Entity },
     /// No destination: stop burning (PLAN-13).
     Hold,

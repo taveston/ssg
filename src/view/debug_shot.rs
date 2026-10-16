@@ -19,6 +19,9 @@
 //! - `heading`: heading in degrees; 0 is north up.
 //! - `rate`: clock rate in days per second; 0 pauses the clock.
 //! - `wait`: seconds to let the view settle before the capture (default 2).
+//! - `planner`: opens the transfer planner for the selected ship: `open`
+//!   leaves it choosing; a body's name picks that body as the destination,
+//!   as a click on it would (PLNR-02, PLNR-11).
 //!
 //! Names are the bodies' display names. The app starts, waits a moment for
 //! the world to load, applies the selection, the rate and the frame, waits
@@ -34,6 +37,7 @@ use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured, save_to_dis
 use super::camera::requests::FrameRequest;
 use super::camera::rules::clamp_tilt;
 use super::camera::state::{ActiveMove, CameraRig, MAX_DISTANCE, MIN_DISTANCE};
+use super::planner_state::{PickTarget, PlannerState};
 use super::scale::km_to_render;
 use super::selection::Selection;
 use super::targets::{Hovered, MarkerFor};
@@ -63,7 +67,12 @@ pub struct ShotPlan {
     pub heading_deg: Option<f32>,
     pub rate_days_per_sec: Option<f64>,
     pub wait_secs: f32,
+    /// `open`, or the name of a destination to pick.
+    pub planner: Option<String>,
 }
+
+/// The `planner` value that opens the planner without picking.
+const PLANNER_OPEN: &str = "open";
 
 impl ShotPlan {
     /// Parse `key=value;key=value`. Unknown keys, bad numbers and a
@@ -80,6 +89,7 @@ impl ShotPlan {
             heading_deg: None,
             rate_days_per_sec: None,
             wait_secs: DEFAULT_WAIT_SECS,
+            planner: None,
         };
         let pairs = spec.split(';').map(str::trim).filter(|p| !p.is_empty());
         for pair in pairs {
@@ -97,6 +107,7 @@ impl ShotPlan {
                 "heading" => plan.heading_deg = Some(number(key, value)?),
                 "rate" => plan.rate_days_per_sec = Some(number(key, value)?),
                 "wait" => plan.wait_secs = number(key, value)?,
+                "planner" => plan.planner = Some(value.to_string()),
                 _ => return Err(format!("unknown key `{key}`")),
             }
         }
@@ -172,6 +183,7 @@ fn run_shot(
     names: Query<(Entity, &DisplayName)>,
     markers: Query<(Entity, &MarkerFor)>,
     mut selection: ResMut<Selection>,
+    mut planner: ResMut<PlannerState>,
     mut clock: ResMut<GameClock>,
     mut frame_request: ResMut<FrameRequest>,
     active: Res<ActiveMove>,
@@ -189,14 +201,24 @@ fn run_shot(
     match shot.phase {
         ShotPhase::Starting if now >= START_AFTER_SECS => {
             let plan = &shot.plan;
-            let wanted = [&plan.frame, &plan.select, &plan.hover];
-            if let Some(missing) = wanted.into_iter().flatten().find(|n| find(n).is_none()) {
+            let destination = plan.planner.as_ref().filter(|p| *p != PLANNER_OPEN);
+            let wanted = [&plan.frame, &plan.select, &plan.hover]
+                .into_iter()
+                .flatten()
+                .chain(destination);
+            if let Some(missing) = wanted.into_iter().find(|n| find(n).is_none()) {
                 error!("{SHOT_ENV}: no body is named `{missing}`");
                 exit.write(AppExit::error());
                 return;
             }
             if let Some(body) = plan.select.as_deref().and_then(find) {
                 selection.select(body);
+                if plan.planner.is_some() {
+                    planner.open(body);
+                }
+                if let Some(place) = destination.and_then(|name| find(name)) {
+                    planner.pick(PickTarget::Body(place));
+                }
             }
             if let Some(body) = plan.hover.as_deref().and_then(find) {
                 for (marker, _) in markers.iter().filter(|(_, m)| m.0 == body) {
@@ -258,7 +280,7 @@ mod tests {
     fn a_full_spec_parses_every_key() {
         let plan = ShotPlan::parse(
             "out=shots/a.png; frame=Halden IV;select=Halden IV I;hover=Morrow;\
-             distance=2e6;tilt=40;heading=-15;rate=0;wait=3.5",
+             distance=2e6;tilt=40;heading=-15;rate=0;wait=3.5;planner=Iver",
         )
         .unwrap();
         assert_eq!(plan.out, PathBuf::from("shots/a.png"));
@@ -270,6 +292,7 @@ mod tests {
         assert_eq!(plan.heading_deg, Some(-15.0));
         assert_eq!(plan.rate_days_per_sec, Some(0.0));
         assert_eq!(plan.wait_secs, 3.5);
+        assert_eq!(plan.planner.as_deref(), Some("Iver"));
     }
 
     #[test]

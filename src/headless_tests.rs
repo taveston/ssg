@@ -54,6 +54,7 @@ use crate::view::markers::{BodyDetail, BodyRim, MarkerHalfSize, MarkersPlugin, b
 use crate::view::motion::MotionPlugin;
 use crate::view::motion_mode::MotionModeState;
 use crate::view::pills::{PillsPlugin, parent_clear_px};
+use crate::view::planner_state::PlannerState;
 use crate::view::plot_marks::{NorthArrow, NorthDial, PlotMarksPlugin, ScaleBarLine};
 use crate::view::projection::ProjectionPlugin;
 use crate::view::scale::{km_to_render, km_to_render_vec3};
@@ -310,6 +311,7 @@ fn motion_mode_after_a_rate_change() {
         .add_plugins((TunablesPlugin, ProjectionPlugin, MotionPlugin))
         // Shared view state the ring labels read; `ViewPlugin` owns it.
         .init_resource::<Selection>()
+        .init_resource::<PlannerState>()
         .insert_resource(placeholder_fonts());
     let ring = |app: &mut App, name: &str| {
         let entity = body(app, name);
@@ -360,6 +362,7 @@ fn morrows_moons_straddle_both_motion_modes() {
     app.add_plugins((ContentPlugin, SimPlugin))
         .add_plugins((TunablesPlugin, ProjectionPlugin, MotionPlugin))
         .init_resource::<Selection>()
+        .init_resource::<PlannerState>()
         .insert_resource(placeholder_fonts());
     run(&mut app, 2);
     let morrow = body(&mut app, "Morrow");
@@ -417,6 +420,7 @@ fn every_gate_has_an_arrow_when_zoomed_in() {
         .add_plugins((TunablesPlugin, ProjectionPlugin, StopsPlugin))
         .add_plugins((ScreenPlugin, EdgePlugin))
         .init_resource::<Selection>()
+        .init_resource::<PlannerState>()
         .add_plugins(crate::view::sidebar::SidebarPlugin)
         .insert_resource(placeholder_fonts());
     app.world_mut().spawn(Window {
@@ -547,6 +551,7 @@ fn the_frame_body_keeps_its_place_on_screen() {
         ))
         .add_plugins((ScreenPlugin, TrueSizePlugin))
         .init_resource::<Selection>()
+        .init_resource::<PlannerState>()
         .add_plugins((FramePlugin, crate::view::sidebar::SidebarPlugin))
         .init_resource::<PressStart>();
     app.world_mut().spawn(Window {
@@ -657,6 +662,7 @@ fn camera_app_with(extra: impl FnOnce(&mut App)) -> App {
         ))
         .add_plugins((ScreenPlugin, TrueSizePlugin))
         .init_resource::<Selection>()
+        .init_resource::<PlannerState>()
         .add_plugins((FramePlugin, crate::view::sidebar::SidebarPlugin))
         .init_resource::<PressStart>();
     app.world_mut().spawn(Window {
@@ -1005,6 +1011,7 @@ fn the_rule_applies_to_every_orbiting_object() {
     app.add_plugins((ContentPlugin, SimPlugin))
         .add_plugins((TunablesPlugin, ProjectionPlugin, MotionPlugin))
         .init_resource::<Selection>()
+        .init_resource::<PlannerState>()
         .insert_resource(placeholder_fonts());
     run(&mut app, 2);
     for name in [
@@ -2522,6 +2529,7 @@ fn the_outline_shows_the_system_tree_and_opens_the_selections_path() {
     let mut app = headless_app(FRAME);
     app.add_plugins((ContentPlugin, SimPlugin, TunablesPlugin, OutlinePlugin))
         .init_resource::<Selection>()
+        .init_resource::<PlannerState>()
         .init_resource::<Frame>()
         .init_resource::<FrameRequest>()
         .init_resource::<PlanetaryViewRequest>()
@@ -2646,6 +2654,7 @@ fn the_sidebar_keeps_its_outline_across_selections() {
         InspectPlugin,
     ))
     .init_resource::<Selection>()
+    .init_resource::<PlannerState>()
     .init_resource::<Frame>()
     .init_resource::<FrameRequest>()
     .init_resource::<crate::view::camera::requests::PlanetaryViewRequest>()
@@ -2729,6 +2738,7 @@ fn key_facts_are_label_over_value_pairs_under_headed_sections() {
         InspectPlugin,
     ))
     .init_resource::<Selection>()
+    .init_resource::<PlannerState>()
     .init_resource::<Frame>()
     .init_resource::<FrameRequest>()
     .init_resource::<crate::view::camera::requests::PlanetaryViewRequest>()

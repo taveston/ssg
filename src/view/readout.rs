@@ -41,10 +41,6 @@ pub fn format_duration(days: f64) -> String {
 /// A speed or a delta-v in km/s as a bare figure: one decimal place at 1
 /// km/s or more, two below ("9.9", "0.29"). A figure that rounds up to 1
 /// reads as one ("1.0") (UNIT-04).
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "shown by the planner panel, built next (PLNR-27)")
-)]
 pub fn format_speed_figure(kms: f64) -> String {
     if (kms.abs() * 100.0).round() >= 100.0 {
         format!("{kms:.1}")
@@ -55,10 +51,6 @@ pub fn format_speed_figure(kms: f64) -> String {
 
 /// A speed or a delta-v as a readout, with its unit: "9.9 km/s",
 /// "0.29 km/s" (UNIT-04).
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "shown by the planner panel, built next (PLNR-27)")
-)]
 pub fn format_speed(kms: f64) -> String {
     format!("{} km/s", format_speed_figure(kms))
 }

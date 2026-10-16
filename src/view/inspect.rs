@@ -1,4 +1,5 @@
-//! The inspection sidebar (INS-01 to INS-04, INS-07, INS-09, MOT-07): one panel
+//! The inspection sidebar (INS-01 to INS-04, INS-07, INS-09, MOT-07,
+//! PLNR-01, PLNR-02, PLNR-05): one panel
 //! for the one selection (INS-03), at the right of the window from the
 //! top bar to the bottom (INS-07). It slides in and out with the selection
 //! (`sidebar.rs` holds the slide; the map area follows it). The details
@@ -13,6 +14,11 @@
 //! pairs in wrapping rows, and each section below them has a heading in
 //! small spaced capitals over a hairline (INS-09). Bevy's text has no
 //! letter spacing, so spaced capitals are spawned a letter at a time.
+//!
+//! A ship the faction commands has a Transfer button that opens the
+//! transfer planner (`view/planner/`); while it is open, the image, the
+//! description and the key facts give way to the planner's panel, which
+//! sits between them and the outline.
 
 use bevy::input::mouse::{AccumulatedMouseScroll, MouseScrollUnit};
 use bevy::prelude::*;
@@ -27,6 +33,8 @@ use super::fidelity::FidelityImages;
 use super::fonts::Fonts;
 use super::motion_mode::MotionModeState;
 use super::outline::OutlineRoot;
+use super::planner_state::PlannerState;
+use super::planner_words::{DELTA_V, DRIVE, TRANSFER, delta_v_fact};
 use super::readout::{format_distance, format_duration};
 use super::selection::Selection;
 use super::sidebar::SidebarState;
@@ -38,8 +46,12 @@ use crate::sim::body::{
     Affiliation, BodyClass, Description, DisplayName, KeyFacts, Knowledge, PhysicalRadius,
     StellarMass,
 };
+use crate::sim::group::ShipGroup;
+use crate::sim::named_orbit::InNamedOrbit;
 use crate::sim::orbit::Orbit;
+use crate::sim::ship::{DeltaV, Drive, InFlight};
 use crate::sim::track::ShipRecord;
+use crate::sim::transfer::plan::{Plan, Status};
 use crate::sim::units::SOLAR_MASS_KG;
 use crate::{Boot, Stage};
 
@@ -70,6 +82,13 @@ struct FocusButton(Entity);
 /// The inset line MOT-07 asks for, for the body it describes.
 #[derive(Component)]
 struct PositionNote(Entity);
+/// PLNR-01: the inset's Transfer button, for the ship it plans for.
+#[derive(Component)]
+pub struct TransferButton(pub Entity);
+/// PLNR-02: the part of the details that gives way to the planner: the
+/// image, the description, the key facts and what follows them.
+#[derive(Component)]
+struct InsetBody;
 
 /// MOT-07: what an inset says for the position of a body in ring mode.
 const POSITION_SHOWN_WHEN_PAUSED: &str = "Position: shown when paused";
@@ -139,6 +158,35 @@ struct InsetContent {
     image: InsetImage,
     description: String,
     facts: Vec<(String, String)>,
+    /// PLNR-01: a ship the faction commands, which may be given orders.
+    commanded_ship: bool,
+}
+
+/// PLNR-05: the key facts a ship the faction commands adds: its delta-v
+/// less what it has spent, with what is reserved, and its drive's name.
+pub fn ship_facts(account: &DeltaV, drive: &Drive) -> Vec<(String, String)> {
+    vec![
+        (
+            DELTA_V.to_string(),
+            delta_v_fact(
+                account.delta_v_kms - account.spent_kms,
+                account.reserved_kms,
+            ),
+        ),
+        (DRIVE.to_string(), drive.name.to_string()),
+    ]
+}
+
+/// PLNR-01: whether a ship the faction commands shows the Transfer
+/// button: it is not a group, it is parked in a named orbit (not in
+/// flight or coasting), and it has no plan that is Scheduled, InFlight or
+/// Holding. `plan` is its plan's status, if it has one.
+pub fn offers_transfer(group: bool, parked: bool, plan: Option<Status>) -> bool {
+    let busy = matches!(
+        plan,
+        Some(Status::Scheduled | Status::InFlight | Status::Holding)
+    );
+    !group && parked && !busy
 }
 
 type InsetBodies<'w, 's> = Query<
@@ -153,8 +201,17 @@ type InsetBodies<'w, 's> = Query<
         &'static Knowledge,
         Option<&'static ShipRecord>,
         PhysicalFacts,
+        ShipFacts,
     ),
 >;
+
+/// What PLNR-01 and PLNR-05 read of a ship: its class, its delta-v and
+/// drive, and whether it is a group.
+type ShipFacts = (
+    Option<&'static DeltaV>,
+    Option<&'static Drive>,
+    Has<ShipGroup>,
+);
 
 /// What INS-08 reports of a body's physics: its orbit, a star's mass and
 /// its radius.
@@ -227,6 +284,8 @@ impl Plugin for InspectPlugin {
                     rebuild_inset.in_set(InsetRebuilt),
                     update_position_notes,
                     dim_focus_buttons,
+                    show_transfer_buttons,
+                    make_way_for_planner,
                     scroll_inset,
                 )
                     .chain()
@@ -295,7 +354,7 @@ pub fn spaced_capitals(text: &str) -> Vec<Option<char>> {
 }
 
 /// INS-09: a line of small spaced capitals in the secondary colour.
-fn spawn_spaced_capitals(
+pub fn spawn_spaced_capitals(
     parent: &mut ChildSpawnerCommands,
     (fonts, tunables): PanelAssets,
     text: &str,
@@ -409,20 +468,70 @@ fn slide_panel(
     }
 }
 
-/// INS-03: Esc closes the inset.
+/// INS-03: Esc closes the inset. While the transfer planner is open, Esc
+/// ends the planner first and the inset stays (PLNR-02, PLNR-03).
 fn handle_escape(
     keys: Res<ButtonInput<KeyCode>>,
     bindings: Res<Bindings>,
+    mut planner: ResMut<PlannerState>,
     mut selection: ResMut<Selection>,
 ) {
-    if pressed(&keys, &bindings.close_inset) {
+    if pressed(&keys, &bindings.close_inset) && !planner.end() {
         selection.clear();
+    }
+}
+
+/// What PLNR-01 reads of a ship: whether it is a group, parked, in
+/// flight, and its plan.
+type OrderableShip = (
+    Has<ShipGroup>,
+    Has<InNamedOrbit>,
+    Has<InFlight>,
+    Option<&'static Plan>,
+);
+
+/// PLNR-01: the Transfer button shows while its ship may be given an
+/// order, and not while the planner is open for it.
+fn show_transfer_buttons(
+    planner: Res<PlannerState>,
+    ships: Query<OrderableShip>,
+    mut buttons: Query<(&TransferButton, &mut Node)>,
+) {
+    for (button, mut node) in &mut buttons {
+        let shown = ships
+            .get(button.0)
+            .is_ok_and(|(group, parked, flying, plan)| {
+                offers_transfer(group, parked && !flying, plan.map(|p| p.status))
+            })
+            && !planner.is_open_for(button.0);
+        let display = if shown { Display::Flex } else { Display::None };
+        if node.display != display {
+            node.display = display;
+        }
+    }
+}
+
+/// PLNR-02: while the planner is open, the image, description and key
+/// facts give way to it; they come back when it ends.
+fn make_way_for_planner(planner: Res<PlannerState>, mut bodies: Query<&mut Node, With<InsetBody>>) {
+    let display = if planner.is_open() {
+        Display::None
+    } else {
+        Display::Flex
+    };
+    for mut node in &mut bodies {
+        if node.display != display {
+            node.display = display;
+        }
     }
 }
 
 /// INS-01 / INS-03: whenever the selection changes, the details are
 /// replaced in place; the outline below them stays (INS-05). With nothing
-/// selected the details are emptied and the sidebar slides out.
+/// selected the details are emptied and the sidebar slides out. A ship's
+/// details are also rebuilt when its facts change, as when an order
+/// reserves delta-v (PLNR-05).
+#[allow(clippy::too_many_arguments)]
 fn rebuild_inset(
     selection: Res<Selection>,
     mut commands: Commands,
@@ -431,13 +540,19 @@ fn rebuild_inset(
     bodies: InsetBodies,
     tunables: Res<Tunables>,
     details: Query<Entity, With<InsetDetails>>,
+    mut shown_facts: Local<Vec<(String, String)>>,
 ) {
-    if !selection.is_changed() {
-        return;
-    }
     let content = selection
         .selected
         .and_then(|body| gather_content(body, &bodies, &tunables));
+    let facts = content
+        .as_ref()
+        .map(|c| c.facts.clone())
+        .unwrap_or_default();
+    if !selection.is_changed() && facts == *shown_facts {
+        return;
+    }
+    *shown_facts = facts;
     let Ok(details) = details.single() else {
         return;
     };
@@ -475,9 +590,11 @@ pub fn scrolled(offset: f32, delta: f32, max: f32) -> f32 {
 }
 
 fn gather_content(body: Entity, bodies: &InsetBodies, tunables: &Tunables) -> Option<InsetContent> {
-    let (name, description, facts, class, affiliation, knowledge, record, physics) =
+    let (name, description, facts, class, affiliation, knowledge, record, physics, ship) =
         bodies.get(body).ok()?;
     let (orbit, mass, radius) = physics;
+    let (account, drive, group) = ship;
+    let commanded_ship = *class == BodyClass::Ship && record.is_some_and(|r| r.commanded);
     let radius = radius.filter(|_| is_natural(*class));
     let mut facts = facts.0.clone();
     facts.extend(astronomical_facts(
@@ -486,6 +603,9 @@ fn gather_content(body: Entity, bodies: &InsetBodies, tunables: &Tunables) -> Op
         radius,
         tunables.distance_au_threshold_au,
     ));
+    if commanded_ship && let (Some(account), Some(drive)) = (account, drive) {
+        facts.extend(ship_facts(account, drive));
+    }
     let image = knowledge_image(*knowledge);
     Some(InsetContent {
         body,
@@ -498,6 +618,7 @@ fn gather_content(body: Entity, bodies: &InsetBodies, tunables: &Tunables) -> Op
         image,
         description: description.0.clone(),
         facts,
+        commanded_ship: commanded_ship && !group,
     })
 }
 
@@ -517,16 +638,27 @@ fn fill_panel(
         fonts.label(tunables.sidebar_text_px),
         colors::PANEL_BORDER,
     );
-    spawn_image(panel, fidelity, content.image);
-    spawn_text(
-        panel,
-        &content.description,
-        fonts.label(tunables.sidebar_text_px),
-        colors::NEUTRAL,
-    );
-    spawn_facts(panel, assets, &content.facts);
-    spawn_position_note(panel, assets, content.body);
-    spawn_planetary_view_button(panel, assets);
+    panel
+        .spawn((
+            InsetBody,
+            Node {
+                flex_direction: FlexDirection::Column,
+                row_gap: px(PANEL_ROW_GAP_PX),
+                ..default()
+            },
+        ))
+        .with_children(|body| {
+            spawn_image(body, fidelity, content.image);
+            spawn_text(
+                body,
+                &content.description,
+                fonts.label(tunables.sidebar_text_px),
+                colors::NEUTRAL,
+            );
+            spawn_facts(body, assets, &content.facts);
+            spawn_position_note(body, assets, content.body);
+            spawn_planetary_view_button(body, assets);
+        });
 }
 
 /// MOT-07: the line that stands in for a position while the body is an
@@ -586,11 +718,18 @@ fn spawn_header(panel: &mut ChildSpawnerCommands, assets: PanelAssets, content: 
                     column_gap: px(8),
                     ..default()
                 })
-                .with_children(|actions| spawn_actions(actions, assets, content.body));
+                .with_children(|actions| {
+                    spawn_actions(actions, assets, content.body, content.commanded_ship)
+                });
         });
 }
 
-fn spawn_actions(actions: &mut ChildSpawnerCommands, (fonts, tunables): PanelAssets, body: Entity) {
+fn spawn_actions(
+    actions: &mut ChildSpawnerCommands,
+    (fonts, tunables): PanelAssets,
+    body: Entity,
+    commanded_ship: bool,
+) {
     spawn_button(
         actions,
         fonts,
@@ -614,7 +753,28 @@ fn spawn_actions(actions: &mut ChildSpawnerCommands, (fonts, tunables): PanelAss
             request.0 = Some(body);
         },
     );
-    // INS-03: Close clears the selection and closes the inset.
+    // PLNR-01 / PLNR-02: Transfer opens the planner for the ship, which
+    // stays selected. Shown while the ship may be given an order
+    // (`show_transfer_buttons`).
+    if commanded_ship {
+        spawn_button(
+            actions,
+            fonts,
+            TRANSFER,
+            tunables.sidebar_text_px,
+            ConsoleButton::new(ButtonStyle::Secondary),
+        )
+        .insert(TransferButton(body))
+        .observe(
+            move |click: On<PointerClick>, mut planner: ResMut<PlannerState>| {
+                if click.button == PointerButton::Primary {
+                    planner.open(body);
+                }
+            },
+        );
+    }
+    // INS-03 / PLNR-02: Close clears the selection and closes the inset,
+    // which ends the planner.
     spawn_button(
         actions,
         fonts,

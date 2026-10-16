@@ -15,10 +15,6 @@ pub enum Arrival {
     /// Capture into the destination's orbit.
     Rendezvous,
     /// Fly past through `band` and coast on.
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "ordered by the planner UI, not yet specced")
-    )]
     Intercept { band: Band },
 }
 
@@ -150,6 +146,12 @@ pub struct SolvedLeg {
     /// a ship goes by it, in km/s; `None` for an Intercept at a body or a
     /// Rendezvous.
     pub closing_speed_kms: Option<f64>,
+    /// PLNR-26: the speed the planner's arrival row shows, in km/s. For a
+    /// Rendezvous, the path's speed relative to its end state (the
+    /// destination body, or the target where the crossing ends at it)
+    /// before capture; for an Intercept, its closing speed at a target,
+    /// else its speed past the body. `None` for a phasing leg.
+    pub arrival_speed_kms: Option<f64>,
     /// XFER-13: how far an Intercept through another body's Low band
     /// turned the ship, in radians; `None` for any other leg.
     pub turn_rad: Option<f64>,

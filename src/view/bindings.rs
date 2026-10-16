@@ -1,4 +1,5 @@
-//! Every camera and clock key and mouse button, in one resource (CAM-18).
+//! Every camera and clock key and mouse button, and the planner's slider
+//! keys, in one resource (CAM-18, PLNR-23).
 //!
 //! No other module names a `KeyCode` or a `MouseButton`: systems ask this
 //! resource whether an action's binding is pressed. A rebinding screen is not yet specced;
@@ -60,6 +61,14 @@ pub struct Bindings {
     /// INS-03: close the unpinned inset.
     pub close_inset: Vec<KeyCode>,
 
+    // --- Transfer planner (PLNR-23) ---
+    /// A focused slider moves one step back, in place of the pan.
+    pub slider_down: Vec<KeyCode>,
+    /// A focused slider moves one step on, in place of the pan.
+    pub slider_up: Vec<KeyCode>,
+    /// Held, a focused slider moves ten steps at a time.
+    pub slider_fast: Vec<KeyCode>,
+
     // --- Debug ---
     /// CLK-06: show or hide the frames-per-second readout.
     pub toggle_fps: Vec<KeyCode>,
@@ -102,6 +111,10 @@ impl Default for Bindings {
             select_drag_reserved: vec![KeyCode::ShiftLeft, KeyCode::ShiftRight],
 
             close_inset: vec![KeyCode::Escape],
+
+            slider_down: vec![KeyCode::ArrowLeft],
+            slider_up: vec![KeyCode::ArrowRight],
+            slider_fast: vec![KeyCode::ShiftLeft, KeyCode::ShiftRight],
 
             toggle_fps: vec![KeyCode::F3],
         }

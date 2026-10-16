@@ -7,8 +7,9 @@
 //! The view reads the simulation and changes it only through its API
 //! (ARCH-14). State that several view modules share lives in its own small
 //! module - `selection`, `fold`, `motion_mode`, `targets`, `screen`,
-//! `shared_orbit`, `sidebar` - so no two feature modules import each other
-//! (ARCH-03).
+//! `shared_orbit`, `sidebar`, `planner_state` - so no two feature modules
+//! import each other (ARCH-03). The transfer planner's panel is
+//! `planner/`.
 
 use bevy::prelude::*;
 
@@ -43,6 +44,8 @@ pub mod near_arcs;
 pub mod outline;
 pub mod parent_tab;
 pub mod pills;
+pub mod planner;
+pub mod planner_state;
 pub mod planner_words;
 pub mod plot_marks;
 pub mod projection;
@@ -73,6 +76,7 @@ impl Plugin for ViewPlugin {
         // and the inset's buttons, the frame by the camera, and both are
         // read across the view.
         app.init_resource::<selection::Selection>()
+            .init_resource::<planner_state::PlannerState>()
             .init_resource::<gesture::PressStart>()
             .add_plugins((
                 frame::FramePlugin,
@@ -116,6 +120,7 @@ impl Plugin for ViewPlugin {
                 brackets::BracketsPlugin,
                 true_size::TrueSizePlugin,
                 debug_shot::DebugShotPlugin,
+                planner::PlannerPlugin,
             ));
     }
 }

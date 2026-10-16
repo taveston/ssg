@@ -761,6 +761,14 @@ pub fn solve_leg(
             setup.closest_approach(crossing),
         )
     };
+    // PLNR-26: what the arrival row reads.
+    let arrival_speed_kms = if setup.rendezvous {
+        Some(km_per_day_to_km_per_s(
+            crossing.arrival_relative_velocity().length(),
+        ))
+    } else {
+        closing_speed_kms.or(intercept_speed_kms)
+    };
     let low_pass = setup.low_pass(crossing)?;
     let last = match &low_pass {
         Some(pass) => Some(SegmentKind::Conic {
@@ -792,6 +800,7 @@ pub fn solve_leg(
         landing: arrived.landing,
         intercept_speed_kms,
         closing_speed_kms,
+        arrival_speed_kms,
         turn_rad: low_pass.map(|pass| pass.turn_rad),
         departure_wait_days: flight.departure_wait,
         arrival_wait_days: arrived.wait_days,
@@ -1746,5 +1755,35 @@ mod tests {
         let from = l.parked(l.capital, Band::High);
         let (order, leg) = l.cheapest(&from, rendezvous_with(l.inner, Band::High, 111.0), &l.ntr);
         assert_eq!(l.solve(&from, &order, &l.ntr).unwrap(), leg);
+    }
+
+    /// PLNR-26: a Rendezvous arrives at its speed relative to the body
+    /// before capture (burn 2 matches it); an Intercept's arrival speed is
+    /// its speed past the body (XFER-09).
+    #[test]
+    fn the_arrival_speed_is_the_speed_relative_to_the_destination() {
+        let l = layout();
+        let from = l.parked(l.capital, Band::High);
+        let (order, leg) = l.cheapest(&from, rendezvous_with(l.inner, Band::High, 111.0), &l.ntr);
+        let v_inf = km_per_day_to_km_per_s(arrival_v_inf(&l, &leg, l.inner).length());
+        within(leg.arrival_speed_kms.unwrap(), v_inf, 1e-6, "arrival speed");
+        let capture_cost = l.charges(l.inner, Band::High).0;
+        within(
+            leg.burns.end_kms - capture_cost,
+            v_inf,
+            1e-6,
+            "burn 2 matches it",
+        );
+        let intercept = l
+            .solve(
+                &from,
+                &Order {
+                    arrival: Arrival::Intercept { band: Band::High },
+                    ..order
+                },
+                &l.ntr,
+            )
+            .unwrap();
+        assert_eq!(intercept.arrival_speed_kms, intercept.intercept_speed_kms);
     }
 }

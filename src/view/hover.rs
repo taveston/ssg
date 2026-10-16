@@ -16,6 +16,7 @@ use super::bindings::Bindings;
 use super::camera::requests::{FrameRequest, PlanetaryViewRequest};
 use super::frame::Frame;
 use super::gesture::{PressStart, was_click};
+use super::planner_state::{PickTarget, PlannerState};
 use super::selection::Selection;
 use super::targets::{GroupPillFor, Hovered, MarkerFor, OrbitFor, PointerTargets};
 use super::tunables::Tunables;
@@ -32,7 +33,9 @@ impl Plugin for HoverPlugin {
 
 /// INS-03: a click on empty map space - a primary press and release within
 /// `drag_threshold_px` that hits no marker, pill, ring or panel - clears
-/// the selection and closes the inset.
+/// the selection and closes the inset. While the transfer planner is open
+/// it does nothing (PLNR-03).
+#[allow(clippy::too_many_arguments)]
 fn clear_on_empty_click(
     buttons: Res<ButtonInput<MouseButton>>,
     bindings: Res<Bindings>,
@@ -40,9 +43,10 @@ fn clear_on_empty_click(
     press: Res<PressStart>,
     tunables: Res<Tunables>,
     targets: PointerTargets,
+    planner: Res<PlannerState>,
     mut selection: ResMut<Selection>,
 ) {
-    if !buttons.just_released(bindings.select_button) {
+    if !buttons.just_released(bindings.select_button) || planner.is_open() {
         return;
     }
     let Some(release) = windows.single().ok().and_then(Window::cursor_position) else {
@@ -85,20 +89,25 @@ impl ClickCheck<'_, '_> {
 }
 
 /// What a click on a body does, from its marker or its pill alike. A
-/// click selects (INS-01); a double-click also makes it the frame, or, on
-/// the frame body other than the star, is the planetary-view trigger
-/// (ZOOM-16, ZOOM-17). The frame, not selection, decides.
+/// click selects (INS-01), or, while the transfer planner is open, picks
+/// a destination instead (PLNR-03); a double-click also makes it the
+/// frame, or, on the frame body other than the star, is the
+/// planetary-view trigger (ZOOM-16, ZOOM-17). The frame, not selection,
+/// decides.
 #[derive(SystemParam)]
 pub struct BodyClick<'w> {
     frame: Res<'w, Frame>,
     selection: ResMut<'w, Selection>,
+    planner: ResMut<'w, PlannerState>,
     frame_request: ResMut<'w, FrameRequest>,
     planetary: ResMut<'w, PlanetaryViewRequest>,
 }
 
 impl BodyClick<'_> {
     fn click(&mut self, body: Entity, count: u8) {
-        self.selection.select(body);
+        if !self.planner.pick(PickTarget::Body(body)) {
+            self.selection.select(body);
+        }
         if count >= 2 {
             double_click(
                 &self.frame,
@@ -113,7 +122,9 @@ impl BodyClick<'_> {
     /// inset with that orbit's row expanded; a double-click is a
     /// double-click on the parent (ZOOM-16).
     fn click_orbit(&mut self, orbit: Entity, parent: Entity, count: u8) {
-        self.selection.select_through_orbit(parent, orbit);
+        if !self.planner.pick(PickTarget::Orbit(orbit)) {
+            self.selection.select_through_orbit(parent, orbit);
+        }
         if count >= 2 {
             double_click(
                 &self.frame,
@@ -206,6 +217,7 @@ mod tests {
         let mut world = World::new();
         world.init_resource::<Frame>();
         world.init_resource::<Selection>();
+        world.init_resource::<PlannerState>();
         world.init_resource::<FrameRequest>();
         world.init_resource::<PlanetaryViewRequest>();
         world.init_resource::<PressStart>();
@@ -297,6 +309,38 @@ mod tests {
         assert_eq!(world.resource::<Selection>().revealed_orbit, Some(orbit));
         click(&mut world, target, 2);
         assert_eq!(outcome(&world), (Some(parent), Some(parent), None));
+    }
+
+    /// PLNR-03 / INS-01: while the planner is open, a click on a marker
+    /// or a shared ring picks it as the destination and leaves the
+    /// selection as it was.
+    #[test]
+    fn an_open_planner_picks_what_is_clicked_instead_of_selecting_it() {
+        let (mut world, body, marker, _) = click_world();
+        let ship = world.spawn_empty().id();
+        world.resource_mut::<Selection>().select(ship);
+        world.resource_mut::<PlannerState>().open(ship);
+        click(&mut world, marker, 1);
+        assert_eq!(world.resource::<Selection>().selected, Some(ship));
+        assert_eq!(
+            world.resource::<PlannerState>().clicked,
+            Some(PickTarget::Body(body))
+        );
+        let orbit = world
+            .spawn(NamedOrbit {
+                parent: body,
+                name: "High".to_string(),
+                radius_km: 1.0,
+                period_days: 1.0,
+            })
+            .id();
+        let ring = world.spawn(OrbitFor(orbit)).observe(on_orbit_click).id();
+        click(&mut world, ring, 1);
+        assert_eq!(world.resource::<Selection>().selected, Some(ship));
+        assert_eq!(
+            world.resource::<PlannerState>().clicked,
+            Some(PickTarget::Orbit(orbit))
+        );
     }
 
     /// ZOOM-16 / ZOOM-17: a double-click on the star asks for a frame jump

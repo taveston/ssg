@@ -8,11 +8,6 @@
 //! for still has a delta-v: the tracks show it over budget, and Cheapest
 //! may be over budget. Affordability is a comparison with the budget.
 
-#![cfg_attr(
-    not(test),
-    expect(dead_code, reason = "read by the planner panel, built next (PLNR-20)")
-)]
-
 use std::f64::consts::TAU;
 
 use orbits::meeting_days;
