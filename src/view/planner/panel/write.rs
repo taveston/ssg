@@ -7,10 +7,11 @@ use bevy::prelude::*;
 
 use super::super::model::{TrackModel, TuningModel};
 use super::super::state::{PlannerState, SliderKind};
-use super::super::tooltip::Stretches;
+use super::super::tooltip::{Stretches, Tooltip};
+use super::super::words::preset_tooltip;
 use super::{
-    Choice, DeltaFill, Field, NoticeLine, PanelView, PresetButton, ScheduleButton, Segment, Thumb,
-    Track, segment_look, tone_colour,
+    Choice, DeltaFill, Field, NoticeLine, PanelView, PresetButton, ScheduleButton, Segment,
+    SliderLabel, Thumb, Track, segment_look, tone_colour,
 };
 use crate::view::buttons::ConsoleButton;
 use crate::view::colors;
@@ -31,8 +32,18 @@ pub struct PanelWrites<'w, 's> {
     >,
     thumbs: Query<'w, 's, (&'static Thumb, &'static mut Node), Without<DeltaFill>>,
     fills: Query<'w, 's, (&'static mut Node, &'static mut BackgroundColor), With<DeltaFill>>,
-    presets:
-        Query<'w, 's, (&'static PresetButton, &'static mut ConsoleButton), Without<ScheduleButton>>,
+    presets: Query<
+        'w,
+        's,
+        (
+            &'static PresetButton,
+            &'static mut ConsoleButton,
+            &'static mut Tooltip,
+        ),
+        Without<ScheduleButton>,
+    >,
+    slider_labels:
+        Query<'w, 's, (&'static SliderLabel, &'static mut Tooltip), Without<PresetButton>>,
     schedule: Query<'w, 's, &'static mut ConsoleButton, With<ScheduleButton>>,
     segments: Query<'w, 's, (&'static Choice, &'static mut Segment)>,
 }
@@ -63,7 +74,7 @@ impl PanelWrites<'_, '_> {
                 background.set_if_neq(BackgroundColor(colour));
             }
         }
-        for (preset, mut button) in &mut self.presets {
+        for (preset, mut button, mut tooltip) in &mut self.presets {
             let enabled = model
                 .presets
                 .iter()
@@ -71,6 +82,8 @@ impl PanelWrites<'_, '_> {
             if button.disabled == enabled {
                 button.disabled = !enabled;
             }
+            // PLNR-103: a disabled Fastest says why instead.
+            tooltip.set_if_neq(Tooltip(preset_tooltip(preset.0, enabled)));
             // PLNR-29: the preset the sliders sit on is drawn selected.
             let selected = model.selected_preset == Some(preset.0);
             if button.selected != selected {
@@ -99,6 +112,16 @@ impl PanelWrites<'_, '_> {
                 SliderKind::Travel => model.travel.as_ref()?.track.as_ref(),
             }
         };
+        // PLNR-104 to PLNR-106: the labels' tooltips follow the leg.
+        for (label, mut tooltip) in &mut self.slider_labels {
+            let slider = match label.0 {
+                SliderKind::Depart => model.depart.as_ref(),
+                SliderKind::Travel => model.travel.as_ref(),
+            };
+            if let Some(slider) = slider {
+                tooltip.set_if_neq(Tooltip(slider.tooltip));
+            }
+        }
         for (track, mut gradient, mut stretches) in &mut self.tracks {
             if let Some(model) = track_of(track.0) {
                 let stops = model

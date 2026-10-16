@@ -152,6 +152,24 @@ pub fn next_window(grid: &Grid, margin_kms: f64) -> Option<Sample> {
         .flatten()
 }
 
+/// PLNR-106: whether every sampled depart day is in a window, as
+/// `next_window` judges one: each day's cheapest trip is within
+/// `margin_kms` of the best of all. A day with no trip at all is not, nor
+/// is an empty grid.
+pub fn every_day_in_window(grid: &Grid, margin_kms: f64) -> bool {
+    let per_day: Vec<Option<f64>> = grid
+        .cheapest_per_day()
+        .iter()
+        .map(|day| day.and_then(|s| s.cost()).map(|c| c.delta_v_kms))
+        .collect();
+    let Some(overall) = per_day.iter().flatten().copied().min_by(f64::total_cmp) else {
+        return false;
+    };
+    per_day
+        .iter()
+        .all(|kms| kms.is_some_and(|kms| kms <= overall + margin_kms))
+}
+
 /// What refining a preset picks among the settings near it (PLNR-86).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Refine {
@@ -243,6 +261,26 @@ mod tests {
     use crate::sim::transfer::grid::tests::{rejected, sample};
     use crate::sim::transfer::order::Infeasible;
     use crate::sim::transfer::ranges::Slider;
+
+    /// PLNR-106: every day is in a window only when each day's cheapest
+    /// trip is within the margin of the best; a day with no trip breaks
+    /// it, and so does an empty grid.
+    #[test]
+    fn every_day_is_in_a_window_only_when_all_cost_about_the_same() {
+        let grid = |rows: Vec<Vec<Sample>>| Grid { rows };
+        let steady = grid(vec![
+            vec![sample(0.0, 5.0, 4.0, 5.0), sample(0.0, 9.0, 6.0, 9.0)],
+            vec![sample(1.0, 5.0, 4.4, 6.0)],
+        ]);
+        assert!(every_day_in_window(&steady, 0.5));
+        assert!(!every_day_in_window(&steady, 0.3));
+        let gap = grid(vec![
+            vec![sample(0.0, 5.0, 4.0, 5.0)],
+            vec![rejected(1.0, 5.0, Infeasible::NoPath)],
+        ]);
+        assert!(!every_day_in_window(&gap, 0.5));
+        assert!(!every_day_in_window(&grid(vec![]), 0.5));
+    }
 
     /// PLNR-83: Fastest is the earliest affordable arrival, the cheaper on
     /// a tie, and doesn't exist when nothing is affordable.

@@ -7,12 +7,13 @@ use super::super::input;
 use super::super::state::{PlannerState, SliderKind};
 use super::super::tooltip::{Stretches, Tooltip};
 use super::super::words::{
-    CANCEL, CHANGE, CHEAPEST, CHOOSE_PROMPT, DELTA_V, DELTA_V_TOOLTIP, FASTEST, HEADING, HIGH,
-    INTERCEPT, INTERCEPT_TOOLTIP, LOW, NEXT_WINDOW, RENDEZVOUS, RENDEZVOUS_TOOLTIP, SCHEDULE,
+    CANCEL, CHANGE, CHEAPEST, CHOOSE_PROMPT, DELTA_V, DELTA_V_TOOLTIP, DEPART_TOOLTIP, FASTEST,
+    HEADING, HIGH, HIGH_TOOLTIP, INTERCEPT, INTERCEPT_TOOLTIP, LOW, LOW_TOOLTIP, NEXT_WINDOW,
+    RENDEZVOUS, RENDEZVOUS_TOOLTIP, SCHEDULE, TRAVEL_TOOLTIP, preset_tooltip,
 };
 use super::{
     Choice, DeltaFill, Field, NoticeLine, PlannerRoot, PresetButton, ScheduleButton, Segment,
-    Shape, Thumb, Track, segment_look,
+    Shape, SliderLabel, Thumb, Track, segment_look,
 };
 use crate::sim::transfer::places::Band;
 use crate::sim::transfer::plan::{Plan, ShipOrder};
@@ -119,15 +120,15 @@ fn spawn_field(
         .id()
 }
 
-/// A label on the left and a figure on the right.
+/// A label on the left and a figure on the right. `tooltip` goes on the
+/// label: a `Tooltip` and what else it needs, or `()` for none.
 fn spawn_row(
     panel: &mut ChildSpawnerCommands,
     assets: Assets,
     label: Result<&'static str, Field>,
     value: Field,
-    tooltip: Option<&'static str>,
+    tooltip: impl Bundle,
 ) {
-    // Only a fixed label carries a tooltip (PLNR-91).
     let (fonts, tunables) = assets;
     panel
         .spawn(Node {
@@ -139,17 +140,16 @@ fn spawn_row(
         .with_children(|row| {
             match label {
                 Ok(text) => {
-                    let mut label = row.spawn((
+                    row.spawn((
                         Text::new(text),
                         fonts.label(tunables.sidebar_text_px),
                         TextColor(colors::SECONDARY),
+                        tooltip,
                     ));
-                    if let Some(tip) = tooltip {
-                        label.insert(Tooltip(tip));
-                    }
                 }
                 Err(field) => {
-                    spawn_field(row, assets, field, false);
+                    let label = spawn_field(row, assets, field, false);
+                    row.commands().entity(label).insert(tooltip);
                 }
             }
             spawn_field(row, assets, value, true);
@@ -235,17 +235,11 @@ fn spawn_tuning(panel: &mut ChildSpawnerCommands, assets: Assets, shape: &Shape)
             assets,
             Err(Field::ArrivalLabel),
             Field::ArrivalValue,
-            None,
+            (),
         );
     }
     if *speed {
-        spawn_row(
-            panel,
-            assets,
-            Err(Field::SpeedLabel),
-            Field::SpeedValue,
-            None,
-        );
+        spawn_row(panel, assets, Err(Field::SpeedLabel), Field::SpeedValue, ());
     }
     if *delta_v {
         spawn_delta_v(panel, assets);
@@ -257,41 +251,43 @@ fn spawn_tuning(panel: &mut ChildSpawnerCommands, assets: Assets, shape: &Shape)
     spawn_schedule(panel, assets);
 }
 
-/// PLNR-14: the High / Low band choice.
+/// PLNR-14 / PLNR-98 / PLNR-99: the High / Low band choice, each with
+/// its tooltip.
 fn spawn_band_choice(panel: &mut ChildSpawnerCommands, assets: Assets) {
     spawn_choice(
         panel,
         assets,
         [
-            (Choice::Band(Band::High), HIGH, None),
-            (Choice::Band(Band::Low), LOW, None),
+            (Choice::Band(Band::High), HIGH, Some(HIGH_TOOLTIP)),
+            (Choice::Band(Band::Low), LOW, Some(LOW_TOOLTIP)),
         ],
     );
 }
 
-/// PLNR-21 / PLNR-23: the Depart row and its track.
+/// PLNR-21 / PLNR-23 / PLNR-95: the Depart row, its label's tooltip and
+/// its track.
 fn spawn_depart(panel: &mut ChildSpawnerCommands, assets: Assets, track: bool) {
     spawn_row(
         panel,
         assets,
         Err(Field::DepartLabel),
         Field::DepartValue,
-        None,
+        (Tooltip(DEPART_TOOLTIP), SliderLabel(SliderKind::Depart)),
     );
     if track {
         spawn_track(panel, assets, SliderKind::Depart);
     }
 }
 
-/// PLNR-22 / PLNR-23: the Travel time row, its track if it has one, and
-/// its note if it has one.
+/// PLNR-22 / PLNR-23 / PLNR-95: the Travel time row, its label's
+/// tooltip, its track if it has one, and its note if it has one.
 fn spawn_travel(panel: &mut ChildSpawnerCommands, assets: Assets, track: bool, note: bool) {
     spawn_row(
         panel,
         assets,
         Ok(super::super::words::TRAVEL_TIME),
         Field::TravelValue,
-        None,
+        (Tooltip(TRAVEL_TOOLTIP), SliderLabel(SliderKind::Travel)),
     );
     if track {
         spawn_track(panel, assets, SliderKind::Travel);
@@ -418,7 +414,7 @@ fn spawn_delta_v(panel: &mut ChildSpawnerCommands, assets: Assets) {
         assets,
         Ok(DELTA_V),
         Field::DeltaVValue,
-        Some(DELTA_V_TOOLTIP),
+        Tooltip(DELTA_V_TOOLTIP),
     );
     panel
         .spawn((
@@ -447,7 +443,8 @@ fn spawn_delta_v(panel: &mut ChildSpawnerCommands, assets: Assets) {
 /// the fill reads against it.
 const HAIRLINE_ALPHA: f32 = 0.25;
 
-/// PLNR-29: the presets, as secondary buttons in a row.
+/// PLNR-29 / PLNR-100 to PLNR-102: the presets, as secondary buttons in
+/// a row, each with its tooltip.
 fn spawn_presets(panel: &mut ChildSpawnerCommands, (fonts, tunables): Assets, presets: &[Preset]) {
     if presets.is_empty() {
         return;
@@ -466,7 +463,7 @@ fn spawn_presets(panel: &mut ChildSpawnerCommands, (fonts, tunables): Assets, pr
                 tunables.sidebar_text_px,
                 ConsoleButton::new(ButtonStyle::Secondary),
             )
-            .insert(PresetButton(preset))
+            .insert((PresetButton(preset), Tooltip(preset_tooltip(preset, true))))
             .observe(
                 move |click: On<PointerClick>, mut state: ResMut<PlannerState>| {
                     if click.button == PointerButton::Primary {
@@ -515,16 +512,16 @@ fn spawn_order(panel: &mut ChildSpawnerCommands, assets: Assets, ship: Entity, s
         assets,
         Err(Field::OrderDepartsLabel),
         Field::OrderDepartsValue,
-        None,
+        (),
     );
     spawn_row(
         panel,
         assets,
         Err(Field::OrderArrivalLabel),
         Field::OrderArrivalValue,
-        None,
+        (),
     );
-    spawn_row(panel, assets, Ok(DELTA_V), Field::OrderDeltaV, None);
+    spawn_row(panel, assets, Ok(DELTA_V), Field::OrderDeltaV, ());
     if !scheduled {
         return;
     }

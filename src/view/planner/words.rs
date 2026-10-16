@@ -1,5 +1,5 @@
 //! Every line of text the transfer planner shows, as plain functions of
-//! the search's results (PLNR-90 to PLNR-94, PLNR-04): labels, readouts,
+//! the search's results (PLNR-90 to PLNR-106, PLNR-04): labels, readouts,
 //! reasons, tooltips and the map's labels. The panel and the map marks
 //! call these and never write words of their own, so the planner speaks
 //! one plain language: Depart, Travel time, Arrive, Delta-v and Window,
@@ -11,6 +11,7 @@
 use crate::sim::transfer::order::Infeasible;
 use crate::sim::transfer::places::{Band, Place};
 use crate::sim::transfer::plan::Leg;
+use crate::sim::transfer::presets::Preset;
 use crate::view::date::{date_from_elapsed_days, format_date};
 use crate::view::readout::{format_distance, format_duration, format_speed, format_speed_figure};
 
@@ -55,10 +56,43 @@ pub const CHANGE: &str = "Change";
 /// The tooltip on the Delta-v label (PLNR-91).
 pub const DELTA_V_TOOLTIP: &str = "Delta-v is how much a ship can change its speed before its tanks are dry. Every trip spends some.";
 /// The tooltip on Rendezvous (PLNR-94).
-pub const RENDEZVOUS_TOOLTIP: &str =
-    "Match the target's orbit and stay with it. This costs the most delta-v.";
+pub const RENDEZVOUS_TOOLTIP: &str = "Match the target's orbit and stay with it. This costs the most delta-v, because the ship has to slow down to join the target.";
 /// The tooltip on Intercept (PLNR-94).
 pub const INTERCEPT_TOOLTIP: &str = "Fly through at speed without slowing down. This saves delta-v, and the ship keeps going afterwards.";
+/// The tooltip on the Depart label (PLNR-96). Its colour words name the
+/// track's colours (PLNR-28).
+pub const DEPART_TOOLTIP: &str = "When the ship sets off. Planets and moons keep moving, so some days are much cheaper to leave on than others. A run of cheap days is a window. Bright blue is a cheap day, dim blue costs more, orange is more than the ship can afford, and blank means no trip works.";
+/// The tooltip on the Depart label when every day costs about the same,
+/// so there is no window to explain (PLNR-106).
+pub const DEPART_STEADY_TOOLTIP: &str = "How long until the ship leaves.";
+/// The tooltip on the Travel time label (PLNR-97).
+pub const TRAVEL_TOOLTIP: &str = "Colours show what each travel time costs: bright blue is cheap, dim blue costs more, orange is more than the ship can afford, and blank can't be flown at all.";
+/// The tooltip on the Travel time label for a low-thrust drive (PLNR-104).
+pub const TRAVEL_FIXED_TOOLTIP: &str =
+    "This drive pushes gently the whole way, so its travel time is set by the drive.";
+/// The tooltip on the Travel time label for a phasing leg (PLNR-105).
+pub const TRAVEL_LAPS_TOOLTIP: &str = "More laps take longer but cost less delta-v.";
+/// The tooltips on the band choice (PLNR-98, PLNR-99).
+pub const HIGH_TOOLTIP: &str = "A wide orbit far above the surface. It costs less delta-v to reach and to leave, so ships park here cheaply.";
+pub const LOW_TOOLTIP: &str = "A tight orbit close above the surface. It costs more delta-v to get into and out of than a high orbit.";
+/// The tooltips on the presets (PLNR-100 to PLNR-103).
+pub const FASTEST_TOOLTIP: &str =
+    "Sets both sliders to the trip that gets there soonest with the delta-v your ship has.";
+pub const FASTEST_DISABLED_TOOLTIP: &str = "Your ship doesn't have enough delta-v for any trip here. Cheapest shows the least it would need.";
+pub const CHEAPEST_TOOLTIP: &str = "Sets both sliders to the trip that uses the least delta-v. It may take longer. If even this shows in orange, the ship can't afford to go.";
+pub const NEXT_WINDOW_TOOLTIP: &str = "Sets both sliders to the first cheap day to leave. Windows come when two places are well placed for the trip, so waiting for one saves delta-v.";
+
+/// PLNR-100 to PLNR-103: a preset button's tooltip; a disabled Fastest
+/// says why there is no trip it could pick.
+pub fn preset_tooltip(preset: Preset, enabled: bool) -> &'static str {
+    match preset {
+        Preset::Fastest if enabled => FASTEST_TOOLTIP,
+        Preset::Fastest => FASTEST_DISABLED_TOOLTIP,
+        Preset::Cheapest => CHEAPEST_TOOLTIP,
+        Preset::NextWindow => NEXT_WINDOW_TOOLTIP,
+    }
+}
+
 /// The line when an order departs while it is being changed (PLNR-53).
 pub const DEPARTED_WHILE_CHANGING: &str = "Departed while you were changing it";
 /// The line when an order fails while it is being changed (PLNR-53).
@@ -429,6 +463,17 @@ mod tests {
             DELTA_V_TOOLTIP,
             RENDEZVOUS_TOOLTIP,
             INTERCEPT_TOOLTIP,
+            DEPART_TOOLTIP,
+            DEPART_STEADY_TOOLTIP,
+            TRAVEL_TOOLTIP,
+            TRAVEL_FIXED_TOOLTIP,
+            TRAVEL_LAPS_TOOLTIP,
+            HIGH_TOOLTIP,
+            LOW_TOOLTIP,
+            FASTEST_TOOLTIP,
+            FASTEST_DISABLED_TOOLTIP,
+            CHEAPEST_TOOLTIP,
+            NEXT_WINDOW_TOOLTIP,
             DEPARTED_WHILE_CHANGING,
             ORDER_FAILED,
         ]

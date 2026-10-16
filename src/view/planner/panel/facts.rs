@@ -238,6 +238,7 @@ impl PanelFacts<'_, '_> {
             available_kms,
             today: self.clock.elapsed_days(),
             gap_km: self.gap_km(ship, request.destination),
+            window_margin_kms: self.sim_tunables.window_margin_kms,
         };
         tuning_model(&facts, tunables)
     }

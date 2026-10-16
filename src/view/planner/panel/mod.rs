@@ -71,6 +71,10 @@ pub enum Field {
     Coasting,
 }
 
+/// PLNR-95: the label of a slider's row, whose tooltip is written with
+/// the view, since it changes with the leg (PLNR-104 to PLNR-106).
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SliderLabel(pub SliderKind);
 /// A slider's track, coloured by cost (PLNR-28).
 #[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Track(pub SliderKind);

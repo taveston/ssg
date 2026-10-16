@@ -8,14 +8,15 @@ use bevy::prelude::Color;
 
 use super::state::{HoverOutcome, HoverPreview};
 use super::words::{
-    DELTA_V, DEPART, DEPARTED, DEPARTS, LegWords, TRAVEL_FIXED, TRAVEL_TIME, cant_reach_line, date,
-    dated, delta_v_readout, fastest_line, gap_line, leave_readout, reason, travel_with_laps,
-    trim_line,
+    DELTA_V, DEPART, DEPART_STEADY_TOOLTIP, DEPART_TOOLTIP, DEPARTED, DEPARTS, LegWords,
+    TRAVEL_FIXED, TRAVEL_FIXED_TOOLTIP, TRAVEL_LAPS_TOOLTIP, TRAVEL_TIME, TRAVEL_TOOLTIP,
+    cant_reach_line, date, dated, delta_v_readout, fastest_line, gap_line, leave_readout, reason,
+    travel_with_laps, trim_line,
 };
 use crate::sim::transfer::grid::{Sample, Setting, any_accepted, commonest_reason};
 use crate::sim::transfer::order::{Infeasible, SolvedLeg};
 use crate::sim::transfer::places::Band;
-use crate::sim::transfer::presets::Preset;
+use crate::sim::transfer::presets::{Preset, every_day_in_window};
 use crate::sim::transfer::ranges::Slider;
 use crate::sim::transfer::search::{Request, Search};
 use crate::view::readout::{format_duration, format_speed};
@@ -75,10 +76,12 @@ pub struct TrackModel {
 }
 
 /// A slider's row: its readout, its track (none for a setting the drive
-/// or the leg fixes) and the line beneath it.
+/// or the leg fixes), the line beneath it, and its label's tooltip
+/// (PLNR-95).
 #[derive(Debug, Clone, PartialEq)]
 pub struct SliderModel {
     pub row: Row,
+    pub tooltip: &'static str,
     pub track: Option<TrackModel>,
     pub note: Option<Line>,
 }
@@ -152,6 +155,9 @@ pub struct TuningFacts<'a> {
     /// PLNR-41: the gap to a target in the ship's own orbit, in km, and
     /// whether it is ahead.
     pub gap_km: Option<(f64, bool)>,
+    /// PLNR-85 / PLNR-106: how far above the cheapest day a day may cost
+    /// and still be in a window, in km/s.
+    pub window_margin_kms: f64,
 }
 
 impl TuningFacts<'_> {
@@ -315,11 +321,19 @@ fn depart_model(
     let samples: Vec<(f64, Option<&Sample>)> = columns.iter().map(|(d, b, _)| (*d, *b)).collect();
     let reasons: Vec<(f64, Option<Infeasible>)> =
         columns.iter().map(|(d, _, w)| (*d, *w)).collect();
+    // PLNR-96 / PLNR-106: where every day costs about the same there is
+    // no window to explain, so the tooltip says only what Depart is.
+    let tooltip = if every_day_in_window(&search.grid, facts.window_margin_kms) {
+        DEPART_STEADY_TOOLTIP
+    } else {
+        DEPART_TOOLTIP
+    };
     SliderModel {
         row: Row::new(
             DEPART,
             leave_readout(setting.depart_day + wait, facts.today),
         ),
+        tooltip,
         track: Some(TrackModel {
             thumb: fraction_of(slider, setting.depart_day),
             stops: track_stops(slider, &samples, least, facts.available_kms, tunables),
@@ -367,8 +381,18 @@ fn travel_model(
         leg.and_then(|leg| leg.trim_days)
             .map(|trim| Line::new(trim_line(trim, facts.destination), Tone::Secondary))
     };
+    // PLNR-97 / PLNR-104 / PLNR-105: the tooltip explains what this
+    // slider's positions are.
+    let tooltip = if matches!(slider, Slider::Fixed(_)) {
+        TRAVEL_FIXED_TOOLTIP
+    } else if search.sliders.phasing() {
+        TRAVEL_LAPS_TOOLTIP
+    } else {
+        TRAVEL_TOOLTIP
+    };
     SliderModel {
         row: Row::new(TRAVEL_TIME, readout),
+        tooltip,
         track,
         note,
     }
@@ -635,6 +659,7 @@ mod tests {
             available_kms: 9.9,
             today: 10.0,
             gap_km: None,
+            window_margin_kms: 0.5,
         }
     }
 
@@ -700,6 +725,61 @@ mod tests {
             travel_days: 50.0,
         });
         assert_eq!(tuning_model(&facts, &tunables).selected_preset, None);
+    }
+
+    /// PLNR-96 / PLNR-97 / PLNR-104 to PLNR-106: the slider labels'
+    /// tooltips: Depart explains windows only when some day costs more
+    /// than the margin above the cheapest; Travel time explains its
+    /// colours, a phasing leg's laps or a fixed drive's time.
+    #[test]
+    fn the_slider_labels_tooltips_follow_the_leg() {
+        use crate::view::planner::words::{
+            DEPART_STEADY_TOOLTIP, DEPART_TOOLTIP, TRAVEL_FIXED_TOOLTIP, TRAVEL_LAPS_TOOLTIP,
+            TRAVEL_TOOLTIP,
+        };
+        let tunables = Tunables::default();
+        let leg = Ok(leg(7.5));
+        let tooltips = |found: Search| {
+            let found = Ok(found);
+            let model = tuning_model(&facts(&found, &leg, &[], Arrival::Rendezvous), &tunables);
+            (model.depart.unwrap().tooltip, model.travel.unwrap().tooltip)
+        };
+        // Every day's cheapest trip costs 4.0 km/s.
+        assert_eq!(
+            tooltips(search(false)),
+            (DEPART_STEADY_TOOLTIP, TRAVEL_TOOLTIP)
+        );
+        let mut costly_day = search(false);
+        for sample in &mut costly_day.grid.rows[1] {
+            if let Ok(cost) = &mut sample.result {
+                cost.delta_v_kms += 1.0;
+            }
+        }
+        assert_eq!(tooltips(costly_day).0, DEPART_TOOLTIP);
+        assert_eq!(tooltips(search(true)).1, TRAVEL_LAPS_TOOLTIP);
+        let mut fixed = search(false);
+        fixed.sliders.travel = Slider::Fixed(100.0);
+        assert_eq!(tooltips(fixed).1, TRAVEL_FIXED_TOOLTIP);
+    }
+
+    /// PLNR-100 to PLNR-103: each preset's tooltip, and a disabled
+    /// Fastest's.
+    #[test]
+    fn a_disabled_fastest_has_its_own_tooltip() {
+        use crate::view::planner::words::{
+            CHEAPEST_TOOLTIP, FASTEST_DISABLED_TOOLTIP, FASTEST_TOOLTIP, NEXT_WINDOW_TOOLTIP,
+            preset_tooltip,
+        };
+        assert_eq!(preset_tooltip(Preset::Fastest, true), FASTEST_TOOLTIP);
+        assert_eq!(
+            preset_tooltip(Preset::Fastest, false),
+            FASTEST_DISABLED_TOOLTIP
+        );
+        assert_eq!(preset_tooltip(Preset::Cheapest, true), CHEAPEST_TOOLTIP);
+        assert_eq!(
+            preset_tooltip(Preset::NextWindow, true),
+            NEXT_WINDOW_TOOLTIP
+        );
     }
 
     /// PLNR-30: a destination that offers no Intercept shows no choice.

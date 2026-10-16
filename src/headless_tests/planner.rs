@@ -16,8 +16,13 @@ use crate::view::inset::outline::{OutlinePlugin, OutlineRow};
 use crate::view::planner::PlannerPlugin;
 use crate::view::planner::panel::{Choice, Field, NoticeLine, ScheduleButton};
 use crate::view::planner::state::{PickTarget, PlannerSession, SliderKind};
-use crate::view::planner::tooltip::{Tooltip, TooltipBox};
-use crate::view::planner::words::{DELTA_V_TOOLTIP, INTERCEPT_TOOLTIP};
+use crate::view::planner::tooltip::TooltipBox;
+use crate::view::planner::words::{
+    CHEAPEST_TOOLTIP, DELTA_V_TOOLTIP, DEPART_STEADY_TOOLTIP, DEPART_TOOLTIP,
+    FASTEST_DISABLED_TOOLTIP, FASTEST_TOOLTIP, HIGH_TOOLTIP, INTERCEPT_TOOLTIP, LOW_TOOLTIP,
+    NEXT_WINDOW_TOOLTIP, RENDEZVOUS_TOOLTIP, TRAVEL_FIXED_TOOLTIP, TRAVEL_LAPS_TOOLTIP,
+    TRAVEL_TOOLTIP,
+};
 use crate::view::sidebar::SidebarPlugin;
 
 /// Corvane with the inset, its outline and the planner, paused.
@@ -617,6 +622,29 @@ fn schedule_is_disabled_over_budget() {
     );
 }
 
+/// PLNR-96 / PLNR-103: no Rendezvous at Iver is within Orison's budget,
+/// so Fastest is disabled, and its tooltip says why and points to
+/// Cheapest. Iver's leave days differ in cost, so the Depart label
+/// explains windows.
+#[test]
+fn a_disabled_fastest_says_why() {
+    let mut app = planner_app();
+    let orison = body(&mut app, "Orison");
+    let iver = body(&mut app, "Iver");
+    select(&mut app, orison);
+    app.world_mut().resource_mut::<PlannerState>().open(orison);
+    run(&mut app, 1);
+    app.world_mut()
+        .resource_mut::<PlannerState>()
+        .pick(PickTarget::Body(iver));
+    settle(&mut app);
+    let fastest = button(&mut app, "Fastest").expect("Fastest, disabled");
+    assert!(app.world().get::<ConsoleButton>(fastest).unwrap().disabled);
+    assert_tooltip(&mut app, fastest, FASTEST_DISABLED_TOOLTIP);
+    let depart = slider_label(&mut app, SliderKind::Depart);
+    assert_tooltip(&mut app, depart, DEPART_TOOLTIP);
+}
+
 /// PLNR-05 / PLNR-31 / PLNR-50 / PLNR-51 / PLNR-52 / PLNR-53: Schedule
 /// gives Orison a Scheduled one-leg plan that reserves its delta-v, and
 /// the inset shows the order with Cancel and Change in place of
@@ -789,49 +817,162 @@ fn a_coasting_ship_says_what_it_intercepted() {
     assert_eq!(button(&mut app, "Transfer"), None);
 }
 
-/// PLNR-91 / PLNR-94: resting the pointer on the Delta-v label or on
-/// Intercept shows its tooltip once `tooltip_delay_ms` has passed, and
-/// not before.
-#[test]
-fn tooltips_show_after_the_delay() {
+/// The tooltip box: whether it shows, and its text.
+fn tooltip_box(app: &mut App) -> (Display, String) {
+    let mut boxes = app
+        .world_mut()
+        .query_filtered::<(&Node, &Children), With<TooltipBox>>();
+    let (node, children) = boxes.single(app.world()).unwrap();
+    let text = app.world().get::<Text>(children[0]).unwrap().0.clone();
+    (node.display, text)
+}
+
+/// Rests the mouse on `node` until just before `tooltip_delay_ms` has
+/// passed and then until just after it, and returns the tooltip box at
+/// each time; then moves the mouse off.
+fn rest_on(app: &mut App, node: Entity) -> ((Display, String), (Display, String)) {
     use bevy::picking::backend::HitData;
     use bevy::picking::hover::HoverMap;
     use bevy::picking::pointer::PointerId;
 
+    let camera = app.world_mut().spawn_empty().id();
+    let mut map = HoverMap::default();
+    map.0.insert(
+        PointerId::Mouse,
+        [(node, HitData::new(camera, 0.0, None, None))]
+            .into_iter()
+            .collect(),
+    );
+    app.insert_resource(map);
+    run(app, 12);
+    let before = tooltip_box(app);
+    run(app, 20);
+    let after = tooltip_box(app);
+    app.insert_resource(HoverMap::default());
+    run(app, 2);
+    assert_eq!(tooltip_box(app).0, Display::None, "gone once off it");
+    (before, after)
+}
+
+/// The text node a control shows its name in: the label itself, or the
+/// text inside a button.
+fn text_of(app: &App, control: Entity) -> Entity {
+    if app.world().get::<Text>(control).is_some() {
+        return control;
+    }
+    app.world().get::<Children>(control).unwrap()[0]
+}
+
+/// The shown label of `kind`'s slider row.
+fn slider_label(app: &mut App, kind: SliderKind) -> Entity {
+    use crate::view::planner::panel::SliderLabel;
+    let mut labels = app.world_mut().query::<(Entity, &SliderLabel)>();
+    labels
+        .iter(app.world())
+        .find(|(_, l)| l.0 == kind)
+        .map(|(e, _)| e)
+        .expect("the slider's label")
+}
+
+/// The label with text `text`.
+fn label(app: &mut App, text: &str) -> Entity {
+    let mut labels = app.world_mut().query::<(Entity, &Text)>();
+    labels
+        .iter(app.world())
+        .find(|(_, t)| t.0 == text)
+        .map(|(e, _)| e)
+        .expect("the label")
+}
+
+/// Asserts that resting the mouse on `control`'s name shows `text` once
+/// `tooltip_delay_ms` has passed, and not before.
+fn assert_tooltip(app: &mut App, control: Entity, text: &str) {
+    let name = text_of(app, control);
+    let (before, after) = rest_on(app, name);
+    assert_eq!(before.0, Display::None, "not yet: {text}");
+    assert_eq!(after, (Display::Flex, text.to_string()));
+}
+
+/// PLNR-91 / PLNR-94 / PLNR-95 / PLNR-97 to PLNR-102 / PLNR-106: resting the pointer on the Depart and
+/// Travel time labels, the Delta-v label, High, Low, each preset shown,
+/// Rendezvous and Intercept shows that control's tooltip once
+/// `tooltip_delay_ms` has passed, and not before.
+#[test]
+fn each_control_shows_its_tooltip_after_the_delay() {
     let mut app = planner_app();
     plan_to_halden_iva(&mut app);
-    for text in [DELTA_V_TOOLTIP, INTERCEPT_TOOLTIP] {
-        let mut labels = app.world_mut().query::<(Entity, &Tooltip)>();
-        let label = labels
-            .iter(app.world())
-            .find(|(_, t)| t.0 == text)
-            .map(|(e, _)| e)
-            .expect("a label with the tooltip");
-        let camera = app.world_mut().spawn_empty().id();
-        let mut map = HoverMap::default();
-        map.0.insert(
-            PointerId::Mouse,
-            [(label, HitData::new(camera, 0.0, None, None))]
-                .into_iter()
-                .collect(),
-        );
-        app.insert_resource(map);
-        let tooltip_box = |app: &mut App| {
-            let mut boxes = app
-                .world_mut()
-                .query_filtered::<(&Node, &Children), With<TooltipBox>>();
-            let (node, children) = boxes.single(app.world()).unwrap();
-            let text = app.world().get::<Text>(children[0]).unwrap().0.clone();
-            (node.display, text)
-        };
-        run(&mut app, 12);
-        assert_eq!(tooltip_box(&mut app).0, Display::None, "not yet");
-        run(&mut app, 20);
-        assert_eq!(tooltip_box(&mut app), (Display::Flex, text.to_string()));
-        app.insert_resource(HoverMap::default());
-        run(&mut app, 2);
-        assert_eq!(tooltip_box(&mut app).0, Display::None);
+    run(&mut app, 2);
+    let depart = slider_label(&mut app, SliderKind::Depart);
+    // Every day to Halden IVa costs about the same (PLNR-106).
+    assert_tooltip(&mut app, depart, DEPART_STEADY_TOOLTIP);
+    let travel = slider_label(&mut app, SliderKind::Travel);
+    assert_tooltip(&mut app, travel, TRAVEL_TOOLTIP);
+    let delta_v = label(&mut app, "Delta-v");
+    assert_tooltip(&mut app, delta_v, DELTA_V_TOOLTIP);
+    for (choice, text) in [
+        (Choice::Band(Band::High), HIGH_TOOLTIP),
+        (Choice::Band(Band::Low), LOW_TOOLTIP),
+        (Choice::Arrival { intercept: false }, RENDEZVOUS_TOOLTIP),
+        (Choice::Arrival { intercept: true }, INTERCEPT_TOOLTIP),
+    ] {
+        let control = option(&mut app, choice);
+        assert_tooltip(&mut app, control, text);
     }
+    let mut presets = 0;
+    for (name, text) in [
+        ("Fastest", FASTEST_TOOLTIP),
+        ("Cheapest", CHEAPEST_TOOLTIP),
+        ("Next window", NEXT_WINDOW_TOOLTIP),
+    ] {
+        if let Some(control) = button(&mut app, name) {
+            assert_tooltip(&mut app, control, text);
+            presets += 1;
+        }
+    }
+    assert!(presets >= 2, "the presets shown");
+}
+
+/// PLNR-105 / PLNR-106: Ardent is met by phasing, so the Travel time
+/// label speaks of laps, and since every day costs the same the Depart
+/// label says only what Depart is.
+#[test]
+fn a_phasing_legs_labels_speak_of_laps_and_not_of_windows() {
+    let mut app = planner_app();
+    let orison = body(&mut app, "Orison");
+    let ardent = body(&mut app, "Ardent");
+    select(&mut app, orison);
+    app.world_mut().resource_mut::<PlannerState>().open(orison);
+    run(&mut app, 1);
+    app.world_mut()
+        .resource_mut::<PlannerState>()
+        .pick(PickTarget::Body(ardent));
+    settle(&mut app);
+    let travel = slider_label(&mut app, SliderKind::Travel);
+    assert_tooltip(&mut app, travel, TRAVEL_LAPS_TOOLTIP);
+    let depart = slider_label(&mut app, SliderKind::Depart);
+    assert_tooltip(&mut app, depart, DEPART_STEADY_TOOLTIP);
+}
+
+/// PLNR-104: RFA Tolland's drive is low-thrust, so its Travel time label
+/// says the drive sets the travel time.
+#[test]
+fn a_low_thrust_drives_travel_time_says_the_drive_sets_it() {
+    let mut app = planner_app();
+    let tolland = body(&mut app, "RFA Tolland");
+    let iva = body(&mut app, "Halden IVa");
+    select(&mut app, tolland);
+    app.world_mut().resource_mut::<PlannerState>().open(tolland);
+    run(&mut app, 1);
+    app.world_mut()
+        .resource_mut::<PlannerState>()
+        .pick(PickTarget::Body(iva));
+    settle(&mut app);
+    assert_eq!(
+        fields(&mut app)[&Field::TravelNote],
+        "Travel time is fixed by this drive"
+    );
+    let travel = slider_label(&mut app, SliderKind::Travel);
+    assert_tooltip(&mut app, travel, TRAVEL_FIXED_TOOLTIP);
 }
 
 /// PLNR-35 / PLNR-92: resting the pointer on a rejected stretch of the
@@ -866,14 +1007,6 @@ fn a_rejected_stretch_of_a_track_says_why() {
                 .collect(),
         );
         app.insert_resource(map);
-    };
-    let tooltip_box = |app: &mut App| {
-        let mut boxes = app
-            .world_mut()
-            .query_filtered::<(&Node, &Children), With<TooltipBox>>();
-        let (node, children) = boxes.single(app.world()).unwrap();
-        let text = app.world().get::<Text>(children[0]).unwrap().0.clone();
-        (node.display, text)
     };
     hover_at(&mut app, (stretch.from + stretch.to) / 2.0);
     run(&mut app, 12);

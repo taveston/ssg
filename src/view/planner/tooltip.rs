@@ -1,4 +1,4 @@
-//! Label tooltips (PLNR-35, PLNR-91, PLNR-94): a label that carries a
+//! Label tooltips (PLNR-35, PLNR-91, PLNR-94, PLNR-95): a label that carries a
 //! `Tooltip` shows its text in a small box by the pointer once the
 //! pointer has rested on it for `tooltip_delay_ms`. A node that carries
 //! `Stretches` (a slider's track) shows the text of the stretch under
