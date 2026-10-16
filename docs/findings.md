@@ -238,11 +238,6 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** PLNR-106, PLNR-96 · **Type:** spec gap
 - **Disposition:** open. Accept, and add the sentence to PLNR-106.
 
-### F-230 · Do docked things colour a larger marker's frames?
-- **Observation:** MUL-04 says things docked at a station inside a larger marker sit under its row and aren't counted. MUL-02 doesn't say whether they count for the frames. The build leaves them out of the frames too, for fold markers, overlap clusters and shared-orbit identity marks. So Iver's fold marker reads as an own "1", not a neutral one. A hostile ship docked inside a larger marker then shows only in the tray.
-- **Affects:** MUL-02, MUL-04 · **Type:** spec gap
-- **Disposition:** open. Accept, or count docked things for the frames, at the cost of a "1" in another thing's colour.
-
 ### F-231 · The identity mark of an orbit holding one station with ships docked
 - **Observation:** MOT-14 gives a shared orbit a multi-marker. If the orbit's only thing is a station with ships docked at it (Iver's High band: Iver Yard, Corvid and the Pellam trader), MUL-04 would make that a plain multi-marker counting 1. The build draws the station's own station marker instead: its frame and bar, the docked count and a back frame.
 - **Affects:** MOT-14, MUL-03, MUL-04 · **Type:** spec gap
