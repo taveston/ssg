@@ -59,17 +59,49 @@ Drawn inside the frame. **Filled icon = armed; outline icon = unarmed.** That on
 - An armed hauler gets the warship icon once it is known to be armed. The icon shows the role as observed, not the hull type.
 - More icons later as types appear (survey ship, salvage tug, gate tender, courier). Keep each a simple shape that reads at about 10 px.
 
-## 4. Groups of vessels
+## 4. Several objects on one marker
 
-Two kinds, drawn differently because they mean different things:
+Several things can stand for one place on screen. There are three cases, and only the third has a design today:
 
-- **Task force:** ships under one commander with shared orders. The NATO task-force bracket over the frame, a count at the upper right, and the icon of the most significant member (warship > transport > supply > cargo > unknown).
-- **Loose group or convoy:** ships moving together without a formation. A second frame stacked behind, with a count.
+- **Always on one point.** A task force's ships, a ship docked at a station, an escort that shares the phase of the convoy it covers (PHAS-02, PHAS-14). Zooming never pulls them apart.
+- **On one point by chance.** Ships in one band whose symbols overlap at this zoom, or on a paused frame. Zooming does separate them.
+- **Folded.** Satellites inside the fold radius of their parent (GRP-01), shown by the "+N" pill (GRP-05).
 
-- An escorted convoy is two symbols: the convoy stack and the escort task force. Merging them would hide the escort's strength.
-- A group parked at a body folds into the body's pill as one entry, like any satellite.
-- **Open:** whether unrelated ships that overlap on screen should also fold into a loose group automatically (like GRP folding). Not specced: groups come from game state only (SYM-10).
-- **Open: two symbols at one point.** The ships of a group share a phase, and so do an escort and the convoy it covers, so their two symbols sit exactly on top of each other. The same holds for a station and a ship docked at it (PHAS-02). SYM-10 keeps them apart but doesn't say how they are drawn, hovered or clicked, and the test content (TEST-06, TEST-10) has no escorted convoy to try it on. Candidates: fan the symbols out by a few pixels; draw one over the other and let a repeat click cycle; list them in the inset only; or treat ships that are together (PHAS-02) and share an affiliation and command as a loose group. The last covers ships docked together, but not an escort and its convoy (SYM-10 keeps them apart, and they differ in command), a station and its docked ships (a station isn't a ship), or ships of mixed affiliation.
+**Decided 2026-10-16: no loose groups.** SYM-09 once drew "ships moving together with no formation" as a stacked frame with a count, taken from game state. Nothing forms such groups (F-159), and the problem it was meant for is the first two cases above. SYM-09's loose-group clause, SYM-10's convoy example, the TEST-06 haulers and `group_offset_px` are withdrawn.
+
+**Task force (specced).** Ships under one commander with shared orders: the NATO task-force bracket over the frame, a count at the upper right, and the icon of the most significant member (warship > transport > supply > cargo > unknown). It stays a symbol of its own: two groups are never merged (SYM-10).
+
+### Candidate: one idiom (mock-up 18)
+
+The pill was drawn before the symbols settled. One idiom for anything that stands for several objects would replace it:
+
+- A normal frame with the **count where the icon would be**, and a **second frame behind it** to say "several".
+- The front frame has the most pressing affiliation among the members (hostile, then unknown, then neutral or allied, then own), as the pill's outline does now (GRP-06). It reads without colour. Own ships show as the frame behind, in place of the pill's blue dot.
+- Bodies only (moons and the like): a plain neutral circle with the count, as bodies are drawn (MRK-10).
+- A task force keeps its bracket and corner count. It counts as **one thing** in any marker it is part of.
+- A station is never folded into a ship count: it keeps its own frame and installation bar, with the number of things docked where an icon would be. Its frame keeps the station's own affiliation.
+
+### Candidate: the member tray
+
+Picking one member through the inset's "In orbit" outline takes several clicks and moves the eye away from the map. A marker with several members opens a **tray** beside it:
+
+- Opens on click. Each row is the member's symbol (or body marker) and its name. A task force is one row that opens in place to show its members; a station is the first row, as the place.
+- Clicking a row selects that member and the inset follows. The tray stays open. Up and Down step the selection, Right and Left open and close a task force, Esc or a click elsewhere closes it.
+- The tray lists only what is on the marker. The outline stays the whole-system view.
+
+### Candidate: two sources, one marker
+
+- **Structural.** Task-force membership and docking come from game state, so the markers they make never split with zoom. Zoom does not matter for them; the tray is the only way in.
+- **Incidental.** Symbols that would overlap on screen collapse by proximity, as satellites fold by orbit size, with the same kind of hysteresis (GRP-01). A cluster may hold ships from different orbits, so it cannot be read from one branch of the outline.
+
+### Open
+
+- Whether small overlaps collapse into a marker or fan out by a few pixels. Mock-up 18 shows collapse only.
+- Whether a click on a marker also selects the parent (HOV-05, INS-01) or only opens the tray.
+- How a mixed cluster shows its own ships: the back frame, or a pill-style dot.
+- Whether a station's back frame shows the most pressing docked affiliation, and what a docked task force can be ordered to do (F-159).
+- The distance at which symbols collapse. A frame's width plus a gap is the first guess.
+- What the count means beside a task force: ships or things (the mock-up counts things).
 
 ## 5. Stations
 
@@ -124,4 +156,4 @@ Steps can come in other orders (a ship's transponder may give the owner before t
 
 ## Rendering the mock-up
 
-`7-symbology.html` builds every symbol from one function, `sym()`, so changes to the rules stay consistent. The sheet predates the opaque insides (SYM-03) and the group rules of SYM-09: it draws the frames and the stacked copy translucent, puts the count nearer the frame, and shows a commander's name in TF-1's label. The spec decides. To regenerate the PNG, open the page in a browser at 1440 px wide and take a full-page screenshot (or use Playwright, pointing the fonts at `assets/fonts/`).
+`7-symbology.html` builds every symbol from one function, `sym()`, so changes to the rules stay consistent. The sheet predates the opaque insides (SYM-03) and the group rules of SYM-09: it draws the frames translucent, puts the count nearer the frame, shows a commander's name in TF-1's label, and still has the loose-group stack and Convoy C-12, which are withdrawn (section 4). The spec decides. To regenerate the PNG, open the page in a browser at 1440 px wide and take a full-page screenshot (or use Playwright, pointing the fonts at `assets/fonts/`).

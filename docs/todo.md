@@ -16,9 +16,9 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - The symbols are built; the bar adds to them (`view/symbols.rs`, `symbol_draw.rs`).
   - Build a group's mean as a function of its members' conditions, tested on its own, so **Ship groups** can use it.
 - [ ] **Ship groups** · SYM-09, SYM-10, GRP-09, TEST-06
-  - Nothing forms groups in play yet (F-159), so only the test content (TEST-06) has them.
+  - Nothing forms groups in play yet (F-159), so only the test content (TEST-06) has them. TEST-06 now has the one task force; give the own ships of TEST-03 and TEST-05 conditions above `condition_warn_fraction`.
   - The symbols are built; groups add to them (`view/symbols.rs`, `symbol_draw.rs`).
-  - A group holds its members and takes its class, armed status, load and condition from them (SYM-01, SYM-09). Add `group_offset_px` to `Tunables`.
+  - A group holds its members and takes its class, armed status, load and condition from them (SYM-01, SYM-09).
   - SYM-13 is still open for the order countdown (**Transfer planner**). Its group parts come with this item: the member count by class, and the label clear of the symbol's amplifiers.
   - The ships of a group share one phase (PHAS-14, TEST-10), so TEST-10's check that no two ships share a phase must skip ships of one group.
 - [ ] **Stations in bands** · SCL-07, BAND-02, TEST-02, TEST-09, TEST-10
