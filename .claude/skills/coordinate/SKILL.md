@@ -12,7 +12,7 @@ You plan, dispatch, merge and talk. Agents build. Each to-do item ends as a gree
 - Read `docs/todo.md`. Skip blocked items, anything under Parked, and items that only touch docs. Say which you skip and why.
 - Order by the dependencies the items name ("build after …"). Group them into streams that touch different areas (for example view vs `sim/transfer`, `content`, `crates/orbits`). Run at most 2–3 agents at once.
 - Split a very large item into parts run one after another (for example rules → panel → map). Each part marks ✓ only what it built and edits the item to list what's left. Write each part's API summary to a scratch file for the next part.
-- Effort per agent, in the plan for the user to approve: **low** for mechanical renames, **medium** for content and small view items, **high** for orbital maths, large UI and wide changes.
+- Effort per agent: **low** for mechanical renames, **medium** for content and small view items, **high** for orbital maths, large UI and wide changes. Weigh risk as well as kind: subtle per-frame state can need high even when the diff is small. Reviews run at medium, or high for large or orbital diffs. Tell the user the level whenever you start an agent; no approval needed.
 - Write the plan, then exit plan mode for approval.
 
 ## 2. Dispatch
