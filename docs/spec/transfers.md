@@ -105,7 +105,7 @@ Orders are the truth; a trajectory is derived from its order and can be rebuilt 
 
 | ID | Requirement | Built |
 |---|---|---|
-| TEST-20 | Corvane's "High" orbit of Halden IV (TEST-10) is the High band of BAND-01, and every star, planet and moon in Corvane carries its two bands. The parked warship of TEST-03 holds a hydrogen NTR drive (9.0 km/s exhaust, 0.2 g, impulsive) with 9.9 km/s of delta-v; the own fleet tanker of TEST-05 holds an NEP ion/Hall drive (35 km/s, 0.048 mg, low-thrust) with 24 km/s. | ✓ |
+| TEST-20 | Corvane's "High" orbit of Halden IV (TEST-10) is the High band of BAND-01, and every star, planet and moon in Corvane carries its two bands, except Morrow I and II: their Hill spheres are too small for a High band (BAND-01), so they have a Low band only. A Corvane moon's mass is that of a rocky ball of its radius, at 3,000 kg/m³. The parked warship of TEST-03 holds a hydrogen NTR drive (9.0 km/s exhaust, 0.2 g, impulsive) with 9.9 km/s of delta-v; the own fleet tanker of TEST-05 holds an NEP ion/Hall drive (35 km/s, 0.048 mg, low-thrust) with 24 km/s. | ✓ |
 
 ## Tunables
 
