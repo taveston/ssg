@@ -219,8 +219,35 @@ pub fn spawn_symbol_parts(
     size: f32,
     style: AmplifierStyle,
 ) {
-    let gap = style.gap;
     let color = look.color.with_alpha(look.alpha);
+    spawn_frame_and_icon(parent, fonts, look, size, color);
+    if let Some(echelon) = look.echelon {
+        spawn_echelon(parent, fonts, echelon, size, color);
+    }
+    if look.installation_bar {
+        spawn_installation_bar(parent, size, color);
+    }
+    if let Some(bar) = look.condition {
+        spawn_condition_bar(parent, bar, look.alpha, size, style);
+    }
+    if let Some(count) = look.count {
+        spawn_count(parent, fonts, count, color, (size, style.gap));
+    }
+    if look.task_force {
+        let rise = task_force_bracket_rise(look, size, style.gap);
+        spawn_task_force_bracket(parent, color, size, rise);
+    }
+}
+
+/// SYM-02 / SYM-03: the frame's inside, the frame, and the icon in
+/// `color`, all filling the symbol square.
+fn spawn_frame_and_icon(
+    parent: &mut ChildSpawnerCommands,
+    fonts: &Fonts,
+    look: &SymbolLook,
+    size: f32,
+    color: Color,
+) {
     let mut image = |mask: SymbolMask, tint: Color| {
         parent.spawn((
             full(),
@@ -256,47 +283,47 @@ pub fn spawn_symbol_parts(
             full(),
         );
     }
-    if let Some(echelon) = look.echelon {
-        let above = Node {
+}
+
+/// The echelon mark, centred just above the frame.
+fn spawn_echelon(
+    parent: &mut ChildSpawnerCommands,
+    fonts: &Fonts,
+    echelon: &str,
+    size: f32,
+    color: Color,
+) {
+    let above = Node {
+        position_type: PositionType::Absolute,
+        bottom: percent(100),
+        width: percent(100),
+        justify_content: JustifyContent::Center,
+        ..default()
+    };
+    spawn_text(
+        parent,
+        fonts.data(size * ECHELON_SCALE),
+        echelon,
+        color,
+        above,
+    );
+}
+
+/// An installation's bar across the top of the frame.
+fn spawn_installation_bar(parent: &mut ChildSpawnerCommands, size: f32, color: Color) {
+    parent.spawn((
+        Node {
             position_type: PositionType::Absolute,
-            bottom: percent(100),
-            width: percent(100),
-            justify_content: JustifyContent::Center,
+            left: percent(50.0 - BAR_WIDTH * 50.0),
+            top: px(size * (BAR_OVERLAP - BAR_HEIGHT)),
+            width: percent(BAR_WIDTH * 100.0),
+            height: px(size * BAR_HEIGHT),
             ..default()
-        };
-        spawn_text(
-            parent,
-            fonts.data(size * ECHELON_SCALE),
-            echelon,
-            color,
-            above,
-        );
-    }
-    if look.installation_bar {
-        parent.spawn((
-            Node {
-                position_type: PositionType::Absolute,
-                left: percent(50.0 - BAR_WIDTH * 50.0),
-                top: px(size * (BAR_OVERLAP - BAR_HEIGHT)),
-                width: percent(BAR_WIDTH * 100.0),
-                height: px(size * BAR_HEIGHT),
-                ..default()
-            },
-            BackgroundColor(color),
-            Tint::new(color, TintSlot::Background),
-            Pickable::IGNORE,
-        ));
-    }
-    if let Some(bar) = look.condition {
-        spawn_condition_bar(parent, bar, look.alpha, size, style);
-    }
-    if let Some(count) = look.count {
-        spawn_count(parent, fonts, count, color, (size, gap));
-    }
-    if look.task_force {
-        let rise = task_force_bracket_rise(look, size, gap);
-        spawn_task_force_bracket(parent, color, size, rise);
-    }
+        },
+        BackgroundColor(color),
+        Tint::new(color, TintSlot::Background),
+        Pickable::IGNORE,
+    ));
 }
 
 /// SYM-09: a group's member count in the data face, just outside the

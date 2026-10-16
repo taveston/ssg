@@ -4,6 +4,7 @@
 //! map, and both are placed in the map area (`MapArea`), so they move with
 //! anything that narrows it.
 
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
 use super::camera::requests::NorthUpRequest;
@@ -182,19 +183,24 @@ fn spawn_scale_bar(mut commands: Commands, fonts: Res<Fonts>) {
         });
 }
 
+/// The scale bar's nodes: the bar, its line and its length's text.
+#[derive(SystemParam)]
+struct ScaleBarNodes<'w, 's> {
+    bars: Query<'w, 's, &'static mut Node, (With<ScaleBar>, Without<ScaleBarLine>)>,
+    lines: Query<'w, 's, &'static mut Node, (With<ScaleBarLine>, Without<ScaleBar>)>,
+    lengths: Query<'w, 's, &'static mut Text, With<ScaleBarLength>>,
+}
+
 /// MRK-16: the bar's length on the plane at the pivot, measured along the
 /// screen's horizontal, kept to the longest round distance that fits; the
 /// distance is shared for the frame cue's ticks (REF-05).
-#[allow(clippy::type_complexity, clippy::too_many_arguments)]
 fn update_scale_bar(
     view: ViewNow,
     rig: Res<CameraRig>,
     tunables: Res<Tunables>,
     map_view: MapView,
     mut scale_km: ResMut<ScaleBarKm>,
-    mut bars: Query<&mut Node, (With<ScaleBar>, Without<ScaleBarLine>)>,
-    mut lines: Query<&mut Node, (With<ScaleBarLine>, Without<ScaleBar>)>,
-    mut lengths: Query<&mut Text, With<ScaleBarLength>>,
+    mut nodes: ScaleBarNodes,
 ) {
     let (Some((viewport, map)), Some((_, camera))) = (map_area(&map_view), view.camera()) else {
         return;
@@ -217,16 +223,16 @@ fn update_scale_bar(
     let length_px = (km_to_render(km) * px_per_render).round();
     scale_km.0 = km;
 
-    for mut node in &mut bars {
+    for mut node in &mut nodes.bars {
         node.display = Display::Flex;
         node.left = px(map.offset.x + tunables.plot_margin_px);
         node.bottom = px(viewport.y - (map.offset.y + map.size.y) + tunables.plot_margin_px);
     }
-    for mut node in &mut lines {
+    for mut node in &mut nodes.lines {
         node.width = px(length_px);
     }
     let text = format_distance(km, tunables.distance_au_threshold_au);
-    for mut label in &mut lengths {
+    for mut label in &mut nodes.lengths {
         if label.0 != text {
             label.0 = text.clone();
         }
@@ -271,61 +277,70 @@ fn spawn_north_dial(mut commands: Commands, fonts: Res<Fonts>, tunables: Res<Tun
             },
         )
         .with_children(|dial| {
-            // The head hangs from the top of a full-size holder that turns
-            // about the dial's centre, so its tip stays on the rim.
-            dial.spawn((
-                NorthArrow,
-                Node {
-                    position_type: PositionType::Absolute,
-                    left: px(0),
-                    top: px(0),
-                    width: percent(100),
-                    height: percent(100),
-                    ..default()
-                },
-                Pickable::IGNORE,
-            ))
-            .with_children(|holder| {
-                holder.spawn((
-                    Node {
-                        position_type: PositionType::Absolute,
-                        top: px(0),
-                        left: percent(50),
-                        margin: UiRect::left(px(-head / 2.0)),
-                        width: px(head),
-                        height: px(head),
-                        ..default()
-                    },
-                    SymbolPart {
-                        mask: SymbolMask::Head,
-                        color: colors::NEUTRAL,
-                        size_px: head,
-                    },
-                    Pickable::IGNORE,
-                ));
-            });
-            dial.spawn((
-                NorthLabel,
-                Node {
-                    position_type: PositionType::Absolute,
-                    width: px(N_BOX_PX),
-                    height: px(N_BOX_PX),
-                    justify_content: JustifyContent::Center,
-                    align_items: AlignItems::Center,
-                    ..default()
-                },
-                Pickable::IGNORE,
-            ))
-            .with_children(|label| {
-                label.spawn((
-                    Text::new("N"),
-                    TextLayout::linebreak(LineBreak::NoWrap),
-                    fonts.data(LABEL_FONT_PX),
-                    TextColor(colors::NEUTRAL),
-                    Pickable::IGNORE,
-                ));
-            });
+            spawn_north_arrow(dial, head);
+            spawn_north_label(dial, &fonts);
         });
+}
+
+/// MRK-17: the dial's head. It hangs from the top of a full-size holder
+/// that turns about the dial's centre, so its tip stays on the rim.
+fn spawn_north_arrow(dial: &mut ChildSpawnerCommands, head: f32) {
+    dial.spawn((
+        NorthArrow,
+        Node {
+            position_type: PositionType::Absolute,
+            left: px(0),
+            top: px(0),
+            width: percent(100),
+            height: percent(100),
+            ..default()
+        },
+        Pickable::IGNORE,
+    ))
+    .with_children(|holder| {
+        holder.spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                top: px(0),
+                left: percent(50),
+                margin: UiRect::left(px(-head / 2.0)),
+                width: px(head),
+                height: px(head),
+                ..default()
+            },
+            SymbolPart {
+                mask: SymbolMask::Head,
+                color: colors::NEUTRAL,
+                size_px: head,
+            },
+            Pickable::IGNORE,
+        ));
+    });
+}
+
+/// MRK-17: the dial's upright "N", in a box placed beyond the head's tip.
+fn spawn_north_label(dial: &mut ChildSpawnerCommands, fonts: &Fonts) {
+    dial.spawn((
+        NorthLabel,
+        Node {
+            position_type: PositionType::Absolute,
+            width: px(N_BOX_PX),
+            height: px(N_BOX_PX),
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            ..default()
+        },
+        Pickable::IGNORE,
+    ))
+    .with_children(|label| {
+        label.spawn((
+            Text::new("N"),
+            TextLayout::linebreak(LineBreak::NoWrap),
+            fonts.data(LABEL_FONT_PX),
+            TextColor(colors::NEUTRAL),
+            Pickable::IGNORE,
+        ));
+    });
 }
 
 /// MRK-17: place the dial and turn its arrow to the on-screen direction of
