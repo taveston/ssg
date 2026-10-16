@@ -31,11 +31,6 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Affects:** BAND-04, BAND-01 · **Type:** spec gap
 - **Disposition:** open. Copy the clamp into BAND-04, or decide that a Low band outside the Hill sphere should not exist (which bears on F-146).
 
-### F-157 · What `--system` does with other arguments
-- **Observation:** SOL-22 says how `--system <name>` picks the system but not what happens to other arguments. The build ignores them, so `cargo run -- --verbose` still starts on Corvane. Only an unknown or missing name after `--system` stops the program. Names are matched exactly, so `--system Sol` is unknown.
-- **Affects:** SOL-22 · **Type:** spec gap
-- **Disposition:** open. Accept, or say whether unknown arguments and other capitalisations should be errors.
-
 ### F-158 · Departure and capture costs add up to far more than a real trip
 - **Observation:** Raised while sizing Marlin for Sol (SOL-15). BAND-03 and XFER-04 charge a ship the cost of escaping its band to rest at infinity, then the burn that sets its speed round the primary, and the same again at the far end. A real burn deep in a gravity well does both at once and is much cheaper (the Oberth effect). From Earth's Low band to a Low band at the target, with a Hohmann crossing, the spec's cost against a patched-conic figure for the same bands: Venus 11.3 against 6.7 km/s, Mars 10.1 against 5.6, Ceres 14.4 against 9.5, Mercury 21.4 against 13.2. The spec is 1.5 to 1.8 times too high. The low-thrust crossing (XFER-06) adds the same escape cost, which for a spiral is too low: a spiral escape costs the full circular speed, not √2 − 1 of it.
 - **Affects:** BAND-03, XFER-04, XFER-06, XFER-12, SOL-15 · **Type:** spec wrong
