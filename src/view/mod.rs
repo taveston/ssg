@@ -32,6 +32,7 @@ pub mod colors;
 pub mod countdown;
 pub mod date;
 pub mod debug_shot;
+pub mod double_click;
 pub mod edge;
 pub mod fold;
 pub mod fonts;
@@ -85,6 +86,7 @@ impl Plugin for ViewPlugin {
             .init_resource::<multi::TrayRequest>()
             .init_resource::<multi::MultiMarkers>()
             .init_resource::<gesture::PressStart>()
+            .init_resource::<double_click::MapClicks>()
             .add_plugins((
                 frame::FramePlugin,
                 hovered::HoveredPlugin,

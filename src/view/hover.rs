@@ -11,13 +11,18 @@
 //!
 //! A click selects (`selection.rs`); a double-click also makes the body the
 //! frame and moves to it (ZOOM-16), or on the frame body is the
-//! planetary-view hook (ZOOM-17), through `camera/requests.rs`.
+//! planetary-view hook (ZOOM-17), through `camera/requests.rs`. The second
+//! click of a double-click acts on what the first click hit, wherever on
+//! the map it lands (`double_click.rs`).
 
 use bevy::ecs::system::SystemParam;
+use bevy::input::InputSystems;
+use bevy::picking::{PickingSettings, PickingSystems};
 use bevy::prelude::*;
 
 use super::bindings::Bindings;
 use super::camera::requests::{FrameRequest, PlanetaryViewRequest};
+use super::double_click::{MapClicks, double_click_interval, record_press};
 use super::frame::Frame;
 use super::gesture::{PressStart, was_click};
 use super::multi::{MultiKey, MultiMarkers, TrayFor, TrayRequest};
@@ -32,27 +37,35 @@ pub struct HoverPlugin;
 
 impl Plugin for HoverPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, clear_on_empty_click.in_set(Stage::Overlay));
+        app.init_resource::<MapClicks>()
+            .add_systems(
+                PreUpdate,
+                record_press
+                    .after(InputSystems)
+                    .before(PickingSystems::ProcessInput),
+            )
+            .add_systems(Update, clear_on_empty_click.in_set(Stage::Overlay));
     }
 }
 
 /// INS-03: a click on empty map space - a primary press and release within
 /// `drag_threshold_px` that hits no marker, multi-marker, ring, tray or panel - clears
 /// the selection and closes the inset. While the transfer planner is open
-/// it does nothing (PLNR-03).
+/// it does nothing (PLNR-03). The second click of a double-click whose
+/// target slid away meanwhile lands here too, and completes the
+/// double-click instead (ZOOM-16).
 fn clear_on_empty_click(
     buttons: Res<ButtonInput<MouseButton>>,
     bindings: Res<Bindings>,
     check: ClickCheck,
     targets: PointerTargets,
-    planner: Res<PlannerState>,
-    mut selection: ResMut<Selection>,
+    mut body_click: BodyClick,
 ) {
-    if !buttons.just_released(bindings.select_button) || planner.is_open() {
-        return;
-    }
-    if check.released_as_click() && targets.over_nothing() {
-        selection.clear();
+    if buttons.just_released(bindings.select_button)
+        && check.released_as_click()
+        && targets.over_nothing()
+    {
+        body_click.empty_click();
     }
 }
 
@@ -100,6 +113,10 @@ impl ClickCheck<'_, '_> {
 /// frame, or, on the frame body other than the star, is the
 /// planetary-view trigger (ZOOM-16, ZOOM-17). The frame, not selection,
 /// decides.
+///
+/// A click counts as a double-click when Bevy counts it so (a second click
+/// on the same node), or when it follows a click on a map target soon
+/// enough (`double_click.rs`): then it acts on that first click's target.
 #[derive(SystemParam)]
 pub struct BodyClick<'w> {
     frame: Res<'w, Frame>,
@@ -108,9 +125,53 @@ pub struct BodyClick<'w> {
     frame_request: ResMut<'w, FrameRequest>,
     planetary: ResMut<'w, PlanetaryViewRequest>,
     tray: ResMut<'w, TrayRequest>,
+    clicks: ResMut<'w, MapClicks>,
+    time: Res<'w, Time<Real>>,
+    picking: Option<Res<'w, PickingSettings>>,
 }
 
 impl BodyClick<'_> {
+    /// ZOOM-16: if this click is the second click of a double-click, whose
+    /// first click hit this target or another one that has since moved,
+    /// complete the double-click on what the first click hit and say so.
+    /// This click's own target then does nothing more: the first click
+    /// already selected what it hit and opened its tray.
+    pub fn completes_double(&mut self) -> bool {
+        let interval = double_click_interval(self.picking.as_deref());
+        let Some(body) = self.clicks.take_double(interval) else {
+            return false;
+        };
+        double_click(
+            &self.frame,
+            body,
+            &mut self.frame_request,
+            &mut self.planetary,
+        );
+        true
+    }
+
+    /// INS-03 / PLNR-03: a click on empty map space clears the selection,
+    /// unless the planner is open or the click completes a double-click.
+    fn empty_click(&mut self) {
+        if self.completes_double() {
+            return;
+        }
+        self.clicks.forget();
+        if !self.planner.is_open() {
+            self.selection.clear();
+        }
+    }
+
+    /// Note a click on a map target standing for `body`: a single click
+    /// may start a double-click on it; a double-click ends one.
+    fn note(&mut self, body: Entity, count: u8) {
+        if count >= 2 {
+            self.clicks.forget();
+        } else {
+            self.clicks.remember(body, self.time.elapsed());
+        }
+    }
+
     /// MUL-07: ask for a multi-marker's tray, in place of any open one.
     pub fn open_tray(&mut self, tray: TrayFor) {
         self.tray.0 = Some(tray);
@@ -120,6 +181,7 @@ impl BodyClick<'_> {
         if !self.planner.pick(PickTarget::Body(body)) {
             self.selection.select(body);
         }
+        self.note(body, count);
         if count >= 2 {
             double_click(
                 &self.frame,
@@ -138,6 +200,7 @@ impl BodyClick<'_> {
             return;
         }
         self.selection.select(body);
+        self.note(body, count);
         if count >= 2 {
             double_click(
                 &self.frame,
@@ -155,6 +218,7 @@ impl BodyClick<'_> {
         if !self.planner.pick(PickTarget::Orbit(orbit)) {
             self.selection.select_through_orbit(parent, orbit);
         }
+        self.note(parent, count);
         if count >= 2 {
             double_click(
                 &self.frame,
@@ -194,7 +258,7 @@ pub fn on_marker_click(
     check: ClickCheck,
     mut body_click: BodyClick,
 ) {
-    if !check.selects(&click) {
+    if !check.selects(&click) || body_click.completes_double() {
         return;
     }
     let Ok(marker_for) = markers.get(click.entity) else {
@@ -221,7 +285,7 @@ pub fn on_orbit_click(
     check: ClickCheck,
     mut body_click: BodyClick,
 ) {
-    if !check.selects(&click) {
+    if !check.selects(&click) || body_click.completes_double() {
         return;
     }
     if let Ok(orbit_for) = orbits.get(click.entity)
@@ -255,6 +319,8 @@ mod tests {
         world.init_resource::<MultiMarkers>();
         world.init_resource::<PressStart>();
         world.init_resource::<Tunables>();
+        world.init_resource::<MapClicks>();
+        world.init_resource::<Time<Real>>();
         let body = world.spawn_empty().id();
         let marker = world.spawn(MarkerFor(body)).observe(on_marker_click).id();
         (world, body, marker)

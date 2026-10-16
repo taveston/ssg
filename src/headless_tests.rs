@@ -71,6 +71,7 @@ use crate::{Boot, Stage};
 
 mod brackets;
 mod camera;
+mod double_click;
 mod frame_cue;
 mod grouping;
 mod inset;
@@ -267,7 +268,8 @@ fn camera_app_with(extra: impl FnOnce(&mut App)) -> App {
         .init_resource::<crate::view::multi::TrayRequest>()
         .init_resource::<crate::view::multi::MultiMarkers>()
         .add_plugins((FramePlugin, crate::view::sidebar::SidebarPlugin))
-        .init_resource::<PressStart>();
+        .init_resource::<PressStart>()
+        .init_resource::<crate::view::double_click::MapClicks>();
     app.world_mut().spawn(Window {
         resolution: WindowResolution::new(VIEWPORT.x, VIEWPORT.y),
         ..default()
