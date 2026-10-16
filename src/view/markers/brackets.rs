@@ -8,9 +8,8 @@
 //! or parts (INS-06, MUL-05, GRP-10); or its exposure ring's identity
 //! mark (MOT-14). A multi-marker's box takes in both its frames, and a
 //! body marker's its moon ring (HOV-07). A multi-marker under the pointer
-//! is bracketed too
-//! (MUL-11, GRP-07), and a shared orbit's identity mark while the orbit or
-//! one of its members is hovered or selected (HOV-05).
+//! is bracketed too (MUL-11, GRP-07), and a shared orbit's identity mark
+//! while the orbit or one of its members is hovered or selected (HOV-05).
 //!
 //! Each frame the wanted marks are gathered as boxes with an alpha, then
 //! drawn by a small pool of bracket nodes in the labels layer, above every
