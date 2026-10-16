@@ -80,7 +80,9 @@
 
 mod circular;
 mod conic;
+mod hyperbola;
 mod lambert;
+mod phasing;
 mod spiral;
 mod state;
 mod trajectory;
@@ -91,7 +93,9 @@ pub use circular::{
     escape_cost, hill_radius, hohmann, synodic_period,
 };
 pub use conic::Conic;
+pub use hyperbola::{capture_angle, exit_angle, pass_eccentricity};
 pub use lambert::{Lambert, lambert};
+pub use phasing::{PhasingOrbit, PhasingSide, meeting_days, phasing_orbit};
 pub use spiral::Spiral;
 pub use state::{Sense, State, angle_of, point_in_plane, wrap_angle};
 pub use trajectory::{Path, Rail, Segment, Trajectory, TrajectoryError};

@@ -2,7 +2,7 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-168.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-174.
 
 ---
 
@@ -37,6 +37,36 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** SYM-12 puts the bar "under the frame" but gives no gap. Directly under the frame, the selection and hover brackets (HOV-07, 4 px clear of the frame) would cross it. The build starts the bar 1 px below the bracket box, so 5 px below the frame. The spec doesn't say how the unfilled part looks either. The build draws it in the bar's colour mixed 25 % into the ground, so a part-full bar shows its whole length. An own ship with no known condition (Corvane's own-flag civilians) has no bar.
 - **Affects:** SYM-12, HOV-07 · **Type:** spec gap
 - **Disposition:** open. Accept, or give the gap and the empty part's look.
+
+### F-168 · Capture and closest approach inside the primary's frame
+- **Observation:** BAND-06 and PHAS-11 read the point from the hyperbola a ship arrives on from outside a body's frame. A crossing round the body itself (band to band, or to a gate round the star) has no such hyperbola: its arc ends at a real place. The build lands a Rendezvous where the arc ends, and gives an Intercept there the angle of the arc's end as its closest-approach phase. The old rule (the angle of the arrival velocity) put the ship somewhere it never flew.
+- **Affects:** BAND-06, PHAS-11 · **Type:** spec gap
+- **Disposition:** open. Accept, and say so in BAND-06.
+
+### F-169 · "Already there" is a reason to the planner and done at once to an order
+- **Observation:** PHAS-04 says the plan is Done at once, and PLNR-42 and PLNR-92 make "Already there" a reason the solver gives. The build does both: the solver (`preview`) returns `AlreadyThere`, and `schedule` accepts the order and changes nothing, as Hold does for a parked ship. No Done plan is kept on the ship.
+- **Affects:** PHAS-04, PLNR-42 · **Type:** spec gap
+- **Disposition:** open. Accept, or say whether a Done plan should be recorded.
+
+### F-170 · How a low-thrust Intercept is trimmed
+- **Observation:** PHAS-15 trims an Intercept by lengthening `travel_days`, but a low-thrust drive's travel time is fixed by the drive (XFER-06). The build adds the trim to the spiral's length: same delta-v, gentler thrust, ending at the body a little later. Separately, the trim can fail on an impulsive leg when a small change of travel time moves the exit point past the ship, so the departure wait (PHAS-03) jumps by a period; the leg is then "Can't line up".
+- **Affects:** PHAS-15, XFER-06, PHAS-03 · **Type:** spec gap
+- **Disposition:** open. Accept, make a low-thrust Intercept at a station infeasible, or trim it by waiting before departure.
+
+### F-171 · Which band an Intercept at a station passes through
+- **Observation:** XFER-10 says an Intercept at a station or parked ship takes the target's band, but the order also carries `Intercept { band }`. The build uses the target's band and ignores the order's. So an Intercept at a station in a Low band (Arden Highport) is refused as "through Low" until **Intercept through Low** is built. Its speed (XFER-09) is taken at the target's band; for a station round the crossing's primary it is the plain relative speed (XFER-10).
+- **Affects:** XFER-10, XFER-08, XFER-09 · **Type:** spec gap
+- **Disposition:** open. Accept, or say what the order's band means for a station.
+
+### F-172 · The phasing rule of thumb holds only near half a turn
+- **Observation:** PHAS-13's rule of thumb (delta-v × meeting time within 3% of ⅔ × r × angle, for k ≥ 2) holds for the half-turn gap the check gives. For other gaps it can miss: at a gap of 0.8 of a turn, k = 2, inner orbit, it is 3.1% off. The test checks the half-turn case only.
+- **Affects:** PHAS-13 · **Type:** spec wrong
+- **Disposition:** open. Limit the rule to the half-turn case, or widen the tolerance.
+
+### F-173 · Groups are together, but nothing forms them yet
+- **Observation:** PHAS-14 needs the ships of a group to be together, but nothing in play forms a group (F-159). The build adds the check only: `SystemTree::all_together` says whether ships could be one group (all parked in one orbit, every two together). Whatever forms or merges groups should call it. The departure wait, the arrival wait and docking all read phase, so ships that are together leave and arrive together.
+- **Affects:** PHAS-14 · **Type:** spec gap
+- **Disposition:** open. Use the check when group orders are specced.
 
 ## Parked
 

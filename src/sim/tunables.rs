@@ -26,6 +26,16 @@ pub struct SimTunables {
     /// A conic's eccentricity is kept at least this far from 1, so there
     /// is never a parabolic path (RAIL-05).
     pub parabola_epsilon: f64,
+    /// Two things in one named orbit closer than this, in km, are
+    /// together: a ship this close to a station is docked at it (PHAS-02).
+    pub together_km: f64,
+    /// A phasing leg tries meetings up to this many passes of the burn
+    /// point before it gives up (PHAS-08).
+    pub max_phasing_laps: u32,
+    /// An Intercept trimmed to meet a station or ship is solved again at
+    /// most this many times before it counts as unable to line up
+    /// (PHAS-15).
+    pub trim_max_iterations: u32,
 }
 
 impl Default for SimTunables {
@@ -37,6 +47,9 @@ impl Default for SimTunables {
             lost_beyond_au: 6.0,
             min_periapsis_radii: 2.0,
             parabola_epsilon: 1e-6,
+            together_km: 10.0,
+            max_phasing_laps: 50,
+            trim_max_iterations: 8,
         }
     }
 }
