@@ -14,7 +14,7 @@ This folder is the single source of truth for the design. Ideas are worked out i
 | `ideas/scratch.md` | Half-formed notes | Anything goes. |
 | `spec/` | The committed design, written to code from | Every requirement has a stable ID. No open questions inside a requirement. |
 | `todo.md` | What to build next: spec changes, fixes and other work | Ordered by priority. Done items are deleted. |
-| `findings.md` | Open observations from building and playing | Deleted once decided. |
+| `findings.md` | Observations from building and playing: those to triage, and those parked until a later feature | Deleted once decided. |
 
 Status tags in `ideas/`: **Decided** = settled. **Direction** = settled in principle, details open. **Candidate** = under consideration. These describe the idea, not whether it's built: only `spec/` is built from.
 
@@ -24,7 +24,7 @@ Status tags in `ideas/`: **Decided** = settled. **Direction** = settled in princ
 2. **Spec** it: copy the settled rules into `spec/` with IDs, add a **Specced** note in the idea doc, and add an item to `todo.md` under "Spec changes" naming the IDs. A spec change is never committed without its to-do item, in the same commit. This includes existing requirements whose meaning changes, even slightly: clear their ✓ and list them. A rewording that leaves the behaviour the same needs neither.
 3. **Build:** you pick items from `todo.md` for a coding session. The session builds them with automated tests, marks the requirements ✓ in the spec's Built column, logs any findings and deletes the finished items.
 4. **Play** the build whenever you like, and note anything that looks or feels wrong in `findings.md` (or tell a session to). There's no fixed checklist.
-5. **Triage** at the start of a design session: decide each open finding. The outcome goes into the spec (with a to-do item), into `todo.md` under "Fixes", or into `ideas/`, and the finding is deleted.
+5. **Triage** at the start of a design session: decide each finding under "To triage". The outcome goes into the spec (with a to-do item), into `todo.md` under "Fixes", or into `ideas/`, and the finding is deleted. A finding that can't be decided until a later feature is designed moves to "Parked", with a line saying what brings it back. Review the parked ones when that happens, not every session.
 
 **Check before committing a spec change** (no test does this): every requirement with an empty Built cell is named on the to-do list (ranges like `IDEO-01 to IDEO-31` count), and every requirement whose meaning changed has its ✓ cleared and is on the list too. Coding sessions run the same check when they finish an item.
 
@@ -48,6 +48,8 @@ Each entry in `findings.md`:
 - **Affects:** spec IDs, or "new" · **Type:** see below
 - **Disposition:** open, plus the options if there are any
 ```
+
+A parked finding says "parked" instead of "open" and adds a line, `- **Revisit when:** the feature or decision that brings it back`. New findings go under "To triage".
 
 Types: **bug** (the build doesn't match the spec), **spec gap** (the spec says nothing), **spec wrong** (the build follows the spec and the result feels bad: the most valuable kind), **idea** (a new thought for `ideas/`), **conflict** (two docs, or a doc and the build, disagree).
 

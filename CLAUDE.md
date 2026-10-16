@@ -22,7 +22,7 @@ Hard sci-fi space strategy game for PC. This repo holds the prototype and the wh
 
 - Implement each item's spec IDs as written. Plan your own steps; keep the app runnable and `cargo test` green after each step, and commit after each.
 - When a requirement is withdrawn, delete its code and tests. Never keep old behaviour alongside new.
-- If the spec is ambiguous or doesn't work on screen, make a sensible choice and **add a finding** to `docs/findings.md` (type "spec gap" or "spec wrong", saying what you chose). Don't edit `docs/spec/` or `docs/ideas/` beyond the Built column unless asked.
+- If the spec is ambiguous or doesn't work on screen, make a sensible choice and **add a finding** under "To triage" in `docs/findings.md` (type "spec gap" or "spec wrong", saying what you chose). Don't edit `docs/spec/` or `docs/ideas/` beyond the Built column unless asked.
 - Check that every requirement with an empty Built cell is named on `docs/todo.md` (ranges like `IDEO-01 to IDEO-31` count), and that any requirement whose meaning changed has its ✓ cleared and is listed. Do it whenever you touch the spec or the to-do list, and when you finish an item. No test checks this. If one is missing, don't build it: add an item under "Spec changes" and mention it in your summary.
 - When an item is done: mark its requirements ✓ in the spec's Built column, delete the item from `docs/todo.md`, and delete any finding it resolves.
 - Every number the spec marks as a tunable lives in the `Tunables` resource (`src/view/tunables.rs`), documented field by field. Never hard-code one.
