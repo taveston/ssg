@@ -335,7 +335,26 @@ pub struct OutlineBodies<'w, 's> {
     named: Query<'w, 's, &'static NamedOrbit>,
 }
 
+/// Where a body sits in the outline's tree: the body, what it orbits and
+/// the named orbit it is in, if any.
+pub type TreePlace = (Entity, Option<Entity>, Option<Entity>);
+
 impl OutlineBodies<'_, '_> {
+    /// RAIL-09: every body's place in the tree, in a fixed order, so a
+    /// change from one frame to the next says a ship has left or joined
+    /// an orbit. Cheaper than the nodes: nothing is cloned.
+    pub fn tree(&self) -> Vec<TreePlace> {
+        let mut tree: Vec<TreePlace> = self
+            .bodies
+            .iter()
+            .map(|(entity, _, _, _, _, _, child_of, in_orbit, _)| {
+                (entity, child_of.map(ChildOf::parent), in_orbit.map(|o| o.0))
+            })
+            .collect();
+        tree.sort_unstable_by_key(|(entity, ..)| *entity);
+        tree
+    }
+
     /// INS-05: every body as an outline node. The star is the root;
     /// anything else with no parent orbits the star.
     pub fn nodes(&self) -> Vec<OutlineNode> {
@@ -413,19 +432,27 @@ fn reveal_on_selection(
     scroll.0 = true;
 }
 
-/// INS-05: fill a new outline, and refill it when the selection or the
-/// expansion changes, in place.
+/// INS-05 / RAIL-09: fill a new outline, and refill it in place when the
+/// selection or the expansion changes, or when a ship leaves an orbit or
+/// arrives in one, so it is listed where it is now.
 fn fill_outline(
     mut commands: Commands,
     (fonts, tunables): (Res<Fonts>, Res<Tunables>),
     selection: Res<Selection>,
     expanded: Res<Expanded>,
-    roots: Query<Entity, With<OutlineRoot>>,
-    new_roots: Query<(), Added<OutlineRoot>>,
+    (roots, new_roots): (
+        Query<Entity, With<OutlineRoot>>,
+        Query<(), Added<OutlineRoot>>,
+    ),
     bodies: OutlineBodies,
+    mut last_tree: Local<Vec<TreePlace>>,
 ) {
+    let tree = bodies.tree();
+    let moved = *last_tree != tree;
+    *last_tree = tree;
     for root in &roots {
-        if !selection.is_changed() && !expanded.is_changed() && !new_roots.contains(root) {
+        if !moved && !selection.is_changed() && !expanded.is_changed() && !new_roots.contains(root)
+        {
             continue;
         }
         let nodes = bodies.nodes();

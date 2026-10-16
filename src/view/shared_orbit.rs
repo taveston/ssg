@@ -21,14 +21,17 @@ use super::rings::has_orbit_line;
 use super::scale::km_to_render;
 use super::selection::Selection;
 use super::world::ViewNow;
-use crate::Boot;
 use crate::sim::body::{Affiliation, BodyClass};
 use crate::sim::named_orbit::{InNamedOrbit, NamedOrbit};
 use crate::sim::orbit::{Orbit, OrbitPositionKm};
+use crate::{Boot, Stage};
 
-/// Each named orbit's members, fixed at spawn (SCL-07). A named orbit with
-/// no members has no entry and draws nothing.
-#[derive(Resource, Default, Debug)]
+/// Each named orbit's members this frame (SCL-07, RAIL-09): the ships and
+/// stations parked in it, in spawn order. Kept up to date as ships leave
+/// and arrive, and written only when the membership changes, so what is
+/// built from it can be rebuilt on change. A named orbit with no members
+/// has no entry and draws nothing.
+#[derive(Resource, Default, Debug, PartialEq)]
 pub struct OrbitMembers(pub HashMap<Entity, Vec<Entity>>);
 
 pub struct SharedOrbitPlugin;
@@ -36,22 +39,28 @@ pub struct SharedOrbitPlugin;
 impl Plugin for SharedOrbitPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<OrbitMembers>()
-            .add_systems(Startup, index_members.in_set(Boot::Derive));
+            .add_systems(Startup, index_members.in_set(Boot::Derive))
+            // Once the simulation has moved ships between orbits, before
+            // anything on screen reads who is where.
+            .add_systems(Update, index_members.in_set(Stage::Projection));
     }
 }
 
-/// SCL-07: which bodies sit in which named orbit, in spawn order (an
-/// entity's index rises with its spawn).
+/// SCL-07 / RAIL-09: which bodies sit in which named orbit, in spawn order
+/// (an entity's index rises with its spawn). A ship that leaves an orbit
+/// drops out of it and one that arrives joins it, whatever body the orbit
+/// circles. The resource is written only when this changes.
 fn index_members(bodies: Query<(Entity, &InNamedOrbit)>, mut members: ResMut<OrbitMembers>) {
     let mut sorted: Vec<(Entity, Entity)> = bodies
         .iter()
         .map(|(body, in_orbit)| (body, in_orbit.0))
         .collect();
     sorted.sort_by_key(|(body, _)| body.index_u32());
-    members.0.clear();
+    let mut now = OrbitMembers::default();
     for (body, orbit) in sorted {
-        members.0.entry(orbit).or_default().push(body);
+        now.0.entry(orbit).or_default().push(body);
     }
+    members.set_if_neq(now);
 }
 
 /// One body on a ring, with what decides how it is drawn this frame.
@@ -209,6 +218,21 @@ impl OrbitRings<'_, '_> {
             .collect();
         owners.sort();
         owners
+    }
+
+    /// Whether `owner` can stand for a ring at all, with members or not: a
+    /// named orbit, or a natural body with an orbit line of its own. What
+    /// is kept for a ring (its stroke, its identity mark) is kept while
+    /// this holds, so an orbit that empties and fills again picks up where
+    /// it was.
+    pub fn stands(&self, owner: Entity) -> bool {
+        self.named.contains(owner)
+            || self
+                .bodies
+                .get(owner)
+                .is_ok_and(|(_, _, _, class, _, _, in_orbit, ..)| {
+                    in_orbit.is_none() && has_orbit_line(*class)
+                })
     }
 
     fn member(&self, body: Entity) -> Option<Member> {

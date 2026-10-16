@@ -696,8 +696,10 @@ fn a_shared_orbits_identity_mark_follows_ships_that_move_dock_and_leave() {
 
 /// MOT-14: a lone body's identity mark is drawn again when its look
 /// changes: Iver Yard, alone on its band once the ships have left, turns
-/// hostile and its mark is rebuilt in the hostile colour. A mark whose
-/// ring is gone is removed.
+/// hostile and its mark is rebuilt in the hostile colour. RAIL-09: once
+/// the yard leaves too, the empty band keeps its mark (to fade out, and in
+/// again from there if a ship comes back); a mark whose orbit is gone is
+/// removed.
 #[test]
 fn a_lone_bodys_mark_follows_its_look_and_goes_with_its_ring() {
     use crate::sim::body::Affiliation;
@@ -754,9 +756,17 @@ fn a_lone_bodys_mark_follows_its_look_and_goes_with_its_ring() {
     assert!(tints(&mut app, after).contains(&crate::view::colors::HOSTILE));
 
     app.world_mut()
-        .resource_mut::<OrbitMembers>()
-        .0
-        .remove(&band);
+        .entity_mut(yard)
+        .remove::<(Orbit, InNamedOrbit)>()
+        .insert(InFlight);
     app.update();
-    assert!(marks(&mut app).is_empty(), "no ring, no mark");
+    assert!(
+        !app.world().resource::<OrbitMembers>().0.contains_key(&band),
+        "the band is empty"
+    );
+    assert_eq!(marks(&mut app).len(), 1, "an empty orbit keeps its mark");
+
+    app.world_mut().entity_mut(band).despawn();
+    app.update();
+    assert!(marks(&mut app).is_empty(), "no orbit, no mark");
 }

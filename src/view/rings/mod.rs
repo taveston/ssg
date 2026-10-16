@@ -28,7 +28,7 @@ use crate::view::motion_mode::{MotionModeState, degrees_behind, tail_brightness}
 use crate::view::scale::km_to_render;
 use crate::view::screen::{MapArea, ScreenPositions};
 use crate::view::selection::Selection;
-use crate::view::shared_orbit::OrbitRings;
+use crate::view::shared_orbit::{OrbitMembers, OrbitRings};
 use crate::view::tunables::Tunables;
 use crate::view::world::{RenderOrigin, WorldPositions};
 use crate::{Boot, Stage};
@@ -88,24 +88,40 @@ pub struct RingsPlugin;
 impl Plugin for RingsPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<DrawnRings>()
-            .add_systems(Startup, spawn_ring_strokes.in_set(Boot::Overlay))
+            .add_systems(Startup, sync_ring_strokes.in_set(Boot::Overlay))
             // Drawn with the rest of the overlay, once grouping and motion
             // have decided what shows.
             .add_systems(
                 Update,
-                draw_orbit_rings.in_set(RingsDrawn).in_set(Stage::Overlay),
+                (
+                    sync_ring_strokes.run_if(resource_changed::<OrbitMembers>),
+                    draw_orbit_rings.in_set(RingsDrawn),
+                )
+                    .chain()
+                    .in_set(Stage::Overlay),
             );
     }
 }
 
-/// HOV-04: one retained gizmo per ring: a natural body's own, or a named
-/// orbit's, shared by everything in it.
-fn spawn_ring_strokes(
+/// HOV-04 / RAIL-09: one retained gizmo per ring: a natural body's own, or
+/// a named orbit's, shared by everything in it. A named orbit gets its
+/// stroke when its first member arrives, and keeps it while it is empty,
+/// drawing nothing; a stroke whose owner is gone is removed.
+fn sync_ring_strokes(
     mut commands: Commands,
     mut assets: ResMut<Assets<GizmoAsset>>,
     rings: OrbitRings,
+    strokes: Query<(Entity, &RingStrokeFor)>,
 ) {
+    for (stroke, stroke_for) in &strokes {
+        if !rings.stands(stroke_for.0) {
+            commands.entity(stroke).despawn();
+        }
+    }
     for owner in rings.owners() {
+        if strokes.iter().any(|(_, stroke_for)| stroke_for.0 == owner) {
+            continue;
+        }
         commands.spawn((
             RingStrokeFor(owner),
             Gizmo {

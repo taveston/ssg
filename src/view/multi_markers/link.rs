@@ -59,9 +59,23 @@ fn link_groups(count: usize, links: impl IntoIterator<Item = (usize, usize)>) ->
     groups
 }
 
+#[cfg(test)]
+thread_local! {
+    /// How many pairs this thread's linking has compared, for the test
+    /// that neither rule compares every pair.
+    static COMPARED: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+/// Notes one comparison of a pair; counted only in tests.
+fn note_comparison() {
+    #[cfg(test)]
+    COMPARED.with(|compared| compared.set(compared.get() + 1));
+}
+
 /// PHAS-02: whether two things of one orbit are together, by the shorter
 /// way round between them.
 fn slots_together(a: &OrbitSlot, b: &OrbitSlot, together_km: f64) -> bool {
+    note_comparison();
     let gap = gap_rad(a.phase_rad, b.phase_rad).min(gap_rad(b.phase_rad, a.phase_rad));
     together(a.radius_km, gap, together_km)
 }
@@ -182,13 +196,28 @@ fn near_pairs(points: &[Vec2], reach: f32) -> Vec<(usize, usize)> {
                 pairs.extend(
                     others
                         .iter()
-                        .filter(|&&b| b > a && pos.distance(points[b]) <= reach)
+                        .filter(|&&b| b > a)
+                        .filter(|&&b| {
+                            note_comparison();
+                            pos.distance(points[b]) <= reach
+                        })
                         .map(|&b| (a, b)),
                 );
             }
         }
     }
     pairs
+}
+
+/// What the latch relies on: no thing is in two spots, and each spot's
+/// lead is one of its own things, so no two spots share a lead.
+fn spots_are_distinct(spots: &[Spot]) -> bool {
+    let mut seen = HashSet::new();
+    spots.iter().all(|s| s.things.contains(&s.lead))
+        && spots
+            .iter()
+            .flat_map(|s| &s.things)
+            .all(|t| seen.insert(*t))
 }
 
 /// MUL-05: the overlap clusters among `spots`: every symbol joined to
@@ -203,6 +232,10 @@ pub fn overlap_clusters(
     join_px: f32,
     split_px: f32,
 ) -> (Vec<Vec<usize>>, OverlapLatch) {
+    debug_assert!(
+        spots_are_distinct(spots),
+        "each thing in one spot at most, each spot led by one of its own things, no lead twice"
+    );
     let points: Vec<Vec2> = spots.iter().map(|s| s.pos).collect();
     let leads: Vec<Vec<Entity>> = spots.iter().map(|s| latch.leads_of(&s.things)).collect();
     let mut links = Vec::new();
@@ -469,8 +502,9 @@ mod tests {
     }
 
     /// MUL-05: both rules keep up with far more ships than any scene has.
-    /// 40,000 things in one orbit and 40,000 symbols on screen take well
-    /// under the bound; testing every pair (800 million) would not.
+    /// 40,000 things in one orbit and 40,000 symbols on screen are linked
+    /// with a few comparisons each; testing every pair would take 800
+    /// million. Counted, not timed, so a slow machine can't fail it.
     #[test]
     fn linking_many_things_does_not_test_every_pair() {
         let count = 40_000;
@@ -493,12 +527,13 @@ mod tests {
                 spot(thing, pos)
             })
             .collect();
-        let start = std::time::Instant::now();
+        COMPARED.with(|compared| compared.set(0));
         let sets = together_sets(&slots, 10.0);
         let (clusters, latch) = overlap_clusters(&spots, &OverlapLatch::default(), 24.0, 28.0);
         overlap_clusters(&spots, &latch, 24.0, 28.0);
-        let elapsed = start.elapsed();
+        let compared = COMPARED.with(std::cell::Cell::get);
         assert!(!sets.is_empty() && clusters.len() < count, "some link");
-        assert!(elapsed.as_secs_f32() < 3.0, "took {elapsed:?}");
+        assert!(compared > 0, "the comparisons are counted");
+        assert!(compared < 10 * count, "{compared} comparisons");
     }
 }

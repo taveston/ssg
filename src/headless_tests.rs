@@ -75,6 +75,7 @@ mod frame_cue;
 mod grouping;
 mod inset;
 mod markers;
+mod membership;
 mod multi;
 mod paths;
 mod planner;

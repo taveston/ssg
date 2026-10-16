@@ -275,7 +275,7 @@ fn plane_point_under(app: &mut App, screen: Vec2) -> Vec3 {
     crate::view::camera::rules::plane_point(ray).unwrap()
 }
 
-fn move_cursor(app: &mut App, to: Vec2) {
+pub(super) fn move_cursor(app: &mut App, to: Vec2) {
     let window = the_window(app);
     app.world_mut()
         .get_mut::<Window>(window)

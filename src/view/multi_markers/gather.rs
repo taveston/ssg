@@ -155,7 +155,8 @@ impl GatherInputs<'_, '_> {
     }
 
     /// MUL-05: the sets of things together, from where each sits in its
-    /// named orbit.
+    /// named orbit. The radius is the orbit's, one for all its members;
+    /// a thing whose orbit can't be found is together with nothing.
     fn together(&self) -> Vec<Vec<Entity>> {
         let mut slots: Vec<OrbitSlot> = self
             .things
@@ -166,10 +167,7 @@ impl GatherInputs<'_, '_> {
                 Some(OrbitSlot {
                     thing,
                     orbit: in_orbit.0,
-                    radius_km: self
-                        .named
-                        .get(in_orbit.0)
-                        .map_or(orbit.radius_km, |n| n.radius_km),
+                    radius_km: self.named.get(in_orbit.0).ok()?.radius_km,
                     phase_rad: orbit.phase0_rad,
                 })
             })

@@ -7,7 +7,8 @@
 //! members' tails still target those members.
 //!
 //! Gizmo-drawn rings aren't pickable on their own. Each ring gets one
-//! invisible target entity. A natural body's ring, or a named orbit with
+//! invisible target entity, kept in step with its members as ships leave
+//! and arrive. A natural body's ring, or a named orbit with
 //! one member, stands for that body (`MarkerFor`) with the ordinary marker
 //! observers, so a hit behaves exactly like a hit on the marker (white
 //! ring, select, double-click). A shared orbit's ring stands for the orbit
@@ -32,7 +33,7 @@ use crate::view::hovered::HoveredBodies;
 use crate::view::scale::km_to_render;
 use crate::view::screen::ScreenPositions;
 use crate::view::selection::Selection;
-use crate::view::shared_orbit::{OrbitRings, Ring, ring_screen_point};
+use crate::view::shared_orbit::{OrbitMembers, OrbitRings, Ring, ring_screen_point};
 use crate::view::targets::{MarkerFor, OrbitFor};
 use crate::view::tunables::Tunables;
 use crate::view::world::ViewNow;
@@ -92,47 +93,111 @@ pub struct RingPickingPlugin;
 impl Plugin for RingPickingPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<RingPaths>()
-            .add_systems(Startup, spawn_ring_targets.in_set(Boot::Overlay))
-            .add_systems(Update, trace_rings.in_set(Stage::Overlay))
+            .add_systems(Startup, sync_ring_targets.in_set(Boot::Overlay))
+            .add_systems(
+                Update,
+                (
+                    sync_ring_targets.run_if(resource_changed::<OrbitMembers>),
+                    trace_rings,
+                )
+                    .chain()
+                    .in_set(Stage::Overlay),
+            )
             .add_systems(PreUpdate, pick_rings.in_set(PickingSystems::Backend));
     }
 }
 
-/// HOV-02 / HOV-05: one target per ring. A ring with one body on it is
-/// that body's; a shared orbit's targets its members together, and has a
-/// target per member for its tail, for when the frame body is on it.
-fn spawn_ring_targets(mut commands: Commands, rings: OrbitRings) {
+/// What a ring's hit target stands for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum TargetFor {
+    /// A shared orbit's ring, for the orbit.
+    Orbit(Entity),
+    /// A ring with one body on it, for that body: (owner, body).
+    Body(Entity, Entity),
+    /// One member's tail on a shared orbit's ring: (orbit, body).
+    Tail(Entity, Entity),
+}
+
+/// HOV-02 / HOV-05: the targets the rings want: one per ring. A ring with
+/// one body on it is that body's; a shared orbit's targets its members
+/// together, and has a target per member for its tail, for when the frame
+/// body is on it.
+fn wanted_targets(rings: &OrbitRings) -> Vec<TargetFor> {
+    let mut wanted = Vec::new();
     for owner in rings.owners() {
         let Some(ring) = rings.ring(owner) else {
             continue;
         };
         if ring.shared {
-            commands
-                .spawn((RingTarget(owner), OrbitFor(owner)))
-                .observe(hover::on_marker_over)
-                .observe(hover::on_marker_out)
-                .observe(hover::on_orbit_click);
-            for member in &ring.members {
-                commands
-                    .spawn((
-                        MemberTailTarget {
-                            orbit: owner,
-                            body: member.body,
-                        },
-                        MarkerFor(member.body),
-                    ))
-                    .observe(hover::on_marker_over)
-                    .observe(hover::on_marker_out)
-                    .observe(hover::on_marker_click);
-            }
+            wanted.push(TargetFor::Orbit(owner));
+            wanted.extend(ring.members.iter().map(|m| TargetFor::Tail(owner, m.body)));
         } else if let Some(member) = ring.members.first() {
-            commands
-                .spawn((RingTarget(owner), MarkerFor(member.body)))
-                .observe(hover::on_marker_over)
-                .observe(hover::on_marker_out)
-                .observe(hover::on_marker_click);
+            wanted.push(TargetFor::Body(owner, member.body));
         }
     }
+    wanted
+}
+
+/// The ring targets there are, with what each stands for.
+type ExistingTargets<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        Option<&'static RingTarget>,
+        Option<&'static MemberTailTarget>,
+        Option<&'static MarkerFor>,
+    ),
+    Or<(With<RingTarget>, With<MemberTailTarget>)>,
+>;
+
+/// HOV-02 / HOV-05 / RAIL-09: keep one target per ring as ships come and
+/// go: a ship arriving in an orbit is reached through its ring, one that
+/// leaves no longer is, and a ring that turns shared or lone again swaps
+/// its target. Targets that still stand for the same thing are kept.
+fn sync_ring_targets(mut commands: Commands, rings: OrbitRings, existing: ExistingTargets) {
+    let wanted = wanted_targets(&rings);
+    let mut have = std::collections::HashSet::new();
+    for (entity, ring, tail, marker_for) in &existing {
+        let stands_for = match (ring, tail, marker_for) {
+            (Some(ring), _, Some(body)) => TargetFor::Body(ring.0, body.0),
+            (Some(ring), _, None) => TargetFor::Orbit(ring.0),
+            (None, Some(tail), _) => TargetFor::Tail(tail.orbit, tail.body),
+            (None, None, _) => continue,
+        };
+        if wanted.contains(&stands_for) && have.insert(stands_for) {
+            continue;
+        }
+        commands.entity(entity).despawn();
+    }
+    for target in wanted.into_iter().filter(|t| !have.contains(t)) {
+        spawn_target(&mut commands, target);
+    }
+}
+
+/// One ring target, with the observers that make a hit on it behave as a
+/// hit on what it stands for.
+fn spawn_target(commands: &mut Commands, target: TargetFor) {
+    let mut entity = match target {
+        TargetFor::Orbit(orbit) => {
+            let mut entity = commands.spawn((RingTarget(orbit), OrbitFor(orbit)));
+            entity.observe(hover::on_orbit_click);
+            entity
+        }
+        TargetFor::Body(owner, body) => {
+            let mut entity = commands.spawn((RingTarget(owner), MarkerFor(body)));
+            entity.observe(hover::on_marker_click);
+            entity
+        }
+        TargetFor::Tail(orbit, body) => {
+            let mut entity = commands.spawn((MemberTailTarget { orbit, body }, MarkerFor(body)));
+            entity.observe(hover::on_marker_click);
+            entity
+        }
+    };
+    entity
+        .observe(hover::on_marker_over)
+        .observe(hover::on_marker_out);
 }
 
 /// The arc of a body's orbit that is drawn, as (start angle, sweep) in

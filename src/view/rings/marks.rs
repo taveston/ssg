@@ -278,8 +278,10 @@ struct MarkAssets<'w, 's> {
 /// when its count, frames or docked split change; a lone body's mark is
 /// built again when its look does, and so is a mark that changes kind (a
 /// shared orbit down to one member, or back), keeping how far it has
-/// faded in. A ring with no members this frame keeps its mark, hidden
-/// while it is placed; a mark whose ring is gone is removed.
+/// faded in. A named orbit whose last member leaves keeps its mark, which
+/// fades out while it is placed (RAIL-09), so a ship coming back fades it
+/// in from where it was; a mark is removed only once what it stands for
+/// is gone.
 fn sync_ring_marks(
     mut commands: Commands,
     assets: MarkAssets,
@@ -288,13 +290,12 @@ fn sync_ring_marks(
     icons: Query<(Entity, &ChildOf), With<MarkIcon>>,
 ) {
     let tunables = &assets.tunables;
-    let owners = rings.owners();
     for (root, mark, _) in &marks {
-        if owners.binary_search(&mark.owner).is_err() {
+        if !rings.stands(mark.owner) {
             commands.entity(root).despawn();
         }
     }
-    for owner in owners {
+    for owner in rings.owners() {
         let Some(ring) = rings.ring(owner) else {
             continue;
         };
