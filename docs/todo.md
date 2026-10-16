@@ -28,6 +28,10 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 - [ ] **A shared orbit with one station shows the station's marker** · F-231 · MOT-14
   - MOT-14 now says a shared orbit whose only thing is a station shows that station's marker, with its docked count, as the build already does. Clear the check on the build's behaviour only if it differs; add a test for Iver's High band.
 
+- [ ] **A joined marker draws one tail in dot mode** · F-232 · MUL-05
+  - In dot mode a together or overlap marker draws the tail of its first tray row's thing, behind its centre, so a convoy or cluster no longer looks still on a running clock. Joined things still draw no tail of their own, and a fold marker has none. Ring mode is unchanged.
+  - Tests: the TEST-12 convoy shows one tail in dot mode; an overlap cluster shows its lead's tail; the tail follows the lead when the tray order changes; no tail in ring mode beyond the exposure ring.
+
 ## Fixes
 
 - [ ] **Orbit membership follows the ship** · F-242, F-201 · RAIL-09, SCL-07, HOV-04, INS-05, MRK-09, HOV-02

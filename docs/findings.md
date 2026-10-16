@@ -238,11 +238,6 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** PLNR-106, PLNR-96 · **Type:** spec gap
 - **Disposition:** open. Accept, and add the sentence to PLNR-106.
 
-### F-232 · Things joined into a marker have no tail
-- **Observation:** MUL-05 says a joined thing draws no tail of its own and leaves its orbit ring unchanged. In dot mode the build drops joined things' tails; in ring mode they still light the exposure ring. So in dot mode a together or overlap marker (the TEST-12 convoy, a cluster in the High band) has no tail, and on a running clock it reads as standing still.
-- **Affects:** MUL-05, MOT-01 · **Type:** spec wrong
-- **Disposition:** open. Give a together or overlap marker one tail of its own, from its centre.
-
 ### F-233 · Two stations together
 - **Observation:** MUL-03 defines docking only for ships and groups. When two stations are together (PHAS-02), the build makes the first the lead and treats the other as docked at it: it is counted as docked and its own symbol is hidden. No content has this case yet.
 - **Affects:** MUL-03, MUL-05 · **Type:** spec gap
