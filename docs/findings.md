@@ -2,7 +2,7 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-191.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-192.
 
 ---
 
@@ -132,6 +132,11 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** Seen in play. The belt's band has hard edges, and as a whole it doesn't convey a field of rocks.
 - **Affects:** MRK-05 · **Type:** spec wrong
 - **Disposition:** open. Options: soft edges that fade in and out, a density falling off towards the edges, or a scatter of faint points.
+
+### F-191 · An exposure ring doesn't say what it is
+- **Observation:** Seen in play. An exposure ring reads as an orbit ring drawn slightly thicker. Nothing tells the player that the object is moving too fast to show as a dot, so the identity mark sitting still on the ring looks like a parked object, not a stand-in for one that is circling.
+- **Affects:** MOT-08 to MOT-14 · **Type:** spec wrong
+- **Disposition:** open. Options: a distinct look for the ring (dashes, a gradient or a sweep in the sense of motion), a motion cue on the identity mark (a small arrow or a trail), or a word on hover ("orbiting, period 2 h").
 
 ## Parked
 
