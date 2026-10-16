@@ -22,11 +22,6 @@ use crate::view::screen::ScreenPositions;
 use crate::view::tunables::Tunables;
 use crate::view::world::ViewNow;
 
-/// The dots at the paths' starts sit just above the lines (PLNR-69).
-pub const DOT_LAYER: i32 = layers::BODIES - 2;
-/// Ghosts sit with the natural bodies, beneath every real marker
-/// (PLNR-69).
-pub const GHOST_LAYER: i32 = layers::BODIES - 1;
 /// The size of the paths' labels' text, as a marker's name.
 const PATH_LABEL_FONT_PX: f32 = 12.0;
 
@@ -250,7 +245,7 @@ fn write_dots(commands: &mut Commands, wanted: &[DotMark], nodes: &mut DotNodes,
             PathDot,
             node,
             BackgroundColor(dot.color),
-            GlobalZIndex(DOT_LAYER),
+            GlobalZIndex(layers::PATH_DOTS),
             Pickable::IGNORE,
         ));
     }
@@ -277,7 +272,7 @@ fn write_ghosts(commands: &mut Commands, wanted: &[GhostMark], nodes: &mut Ghost
             node,
             ghost.look,
             BackgroundColor(Color::NONE),
-            GlobalZIndex(GHOST_LAYER),
+            GlobalZIndex(layers::GHOSTS),
             Pickable::IGNORE,
         ));
     }

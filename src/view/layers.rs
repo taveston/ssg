@@ -1,21 +1,31 @@
 //! Draw order (MRK-12): which UI layer each kind of overlay node is drawn
 //! in, from the bottom. The frame cue's arms come first, with the orbit
-//! rings under the whole overlay; then natural bodies, ordered by depth so
-//! nearer discs sit on top of farther ones; then the cue's upper vertical
-//! half; then symbols; then labels and pills; then edge arrows; then
-//! panels. Draw order is only
-//! what's on top: picking is decided by `marker_picking.rs` (MRK-08).
+//! rings under the whole overlay; then the paths' start dots and their
+//! ghosts; then natural bodies, ordered by depth so nearer discs sit on
+//! top of farther ones; then the cue's upper vertical half; then symbols;
+//! then labels and pills; then edge arrows; then panels. Draw order is
+//! only what's on top: picking is decided by `marker_picking.rs`
+//! (MRK-08).
+//!
+//! Every layer is named here, so no two kinds of node share one by
+//! accident: nodes in the same layer have no defined order.
 //!
 //! Shared by every module that spawns overlay nodes (ARCH-03).
 
 use bevy::prelude::*;
 
 /// The frame cue's arms, ticks and the lower half of its vertical axis,
-/// under every natural body; the orbit rings are world lines drawn under
-/// all of the overlay (REF-09).
-pub const CUE: i32 = BODIES - 2;
+/// with the orbit rings at the bottom; the rings are world lines drawn
+/// under all of the overlay (REF-09).
+pub const CUE: i32 = BODIES - 4;
 /// The frame cue's "N", over its arms and under every body (REF-04).
-pub const CUE_LABEL: i32 = BODIES - 1;
+pub const CUE_LABEL: i32 = BODIES - 3;
+/// The dots at the paths' starts, just above the rings and the cue
+/// (PLNR-69).
+pub const PATH_DOTS: i32 = BODIES - 2;
+/// The paths' ghosts, with the natural bodies but beneath every real
+/// marker (PLNR-69).
+pub const GHOSTS: i32 = BODIES - 1;
 /// Natural bodies, two steps per body by depth; the step between is for a
 /// satellite ring's near side drawn over its body.
 pub const BODIES: i32 = 0;
@@ -64,12 +74,14 @@ mod tests {
         assert!(layers.iter().all(|&(_, l)| (BODIES..SYMBOLS).contains(&l)));
     }
 
-    /// MRK-12 / REF-09: the layers stack the frame cue's arms and its "N",
-    /// bodies, the cue's upper vertical half, symbols, labels, edge
-    /// arrows, panels, from the bottom.
+    /// MRK-12 / REF-09 / PLNR-69: the layers stack the frame cue's arms
+    /// and its "N", the paths' dots and ghosts, bodies, the cue's upper
+    /// vertical half, symbols, labels, edge arrows, panels, from the
+    /// bottom.
     #[test]
     fn layers_stack_in_order() {
-        const { assert!(CUE < CUE_LABEL && CUE_LABEL < BODIES) };
+        const { assert!(CUE < CUE_LABEL && CUE_LABEL < PATH_DOTS) };
+        const { assert!(PATH_DOTS < GHOSTS && GHOSTS < BODIES) };
         const { assert!(BODIES < CUE_UPPER && CUE_UPPER < SYMBOLS) };
         const { assert!(BODIES < SYMBOLS && SYMBOLS < LABELS) };
         const { assert!(LABELS < EDGE && EDGE < PANELS) };

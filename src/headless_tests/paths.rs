@@ -7,12 +7,13 @@ use super::*;
 use crate::sim::transfer::plan::ShipOrder;
 use crate::sim::transfer::search::Request;
 use crate::view::labels::LabelState;
+use crate::view::layers::{BODIES, GHOSTS, PATH_DOTS};
 use crate::view::markers::SecondLineFor;
 use crate::view::paths::PathsPlugin;
 use crate::view::paths::gather::{MapPaths, PathDraw};
 use crate::view::paths::ghost::GhostLook;
 use crate::view::paths::look::Emphasis;
-use crate::view::paths::marks::{DOT_LAYER, GHOST_LAYER, PathDot, PathGhost, PathLabel};
+use crate::view::paths::marks::{PathDot, PathGhost, PathLabel};
 use crate::view::paths::strokes::DrawnPaths;
 use crate::view::planner::PlannerPlugin;
 use crate::view::planner::input::order_to_schedule;
@@ -247,8 +248,8 @@ fn a_planned_path_is_dashed_with_a_start_dot_and_ghosts() {
     let dots = shown_nodes::<PathDot>(&mut app);
     assert_eq!(dots.len(), 1);
     let (dot, node, layer) = &dots[0];
-    assert_eq!(*layer, DOT_LAYER);
-    const { assert!(DOT_LAYER < crate::view::layers::BODIES) };
+    assert_eq!(*layer, PATH_DOTS);
+    const { assert!(PATH_DOTS < BODIES) };
     assert_eq!(node.width, px(tunables.departure_dot_px));
     let start = project(&mut app, laid.start.unwrap()).unwrap();
     assert!(node_centre(node).distance(start) < 0.01);
@@ -258,8 +259,8 @@ fn a_planned_path_is_dashed_with_a_start_dot_and_ghosts() {
     assert_eq!(ghosts.len(), 2);
     let mut sizes: Vec<f32> = Vec::new();
     for (ghost, _, layer) in &ghosts {
-        assert_eq!(*layer, GHOST_LAYER);
-        const { assert!(GHOST_LAYER < crate::view::layers::BODIES) };
+        assert_eq!(*layer, GHOSTS);
+        const { assert!(GHOSTS < BODIES) };
         let look = *app.world().get::<GhostLook>(*ghost).unwrap();
         assert!((look.color.alpha() - tunables.ghost_alpha).abs() < 1e-6);
         assert_eq!(look.width_px, tunables.ghost_width_px);
