@@ -4,22 +4,22 @@
 //! the parent's body marker at list size, so it never reads as a gate, and
 //! its name.
 //!
-//! It is placed and styled as a gate's edge tab is (`edge_tab.rs`). The
+//! It is placed and styled as a gate's edge tab is (`edge/tab.rs`). The
 //! marker inside is rebuilt whenever the parent changes.
 
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
-use super::edge::{edge_arrow_angle, edge_point};
-use super::edge_tab::{TabChevron, place_tab, spawn_tab, tab_label};
-use super::fonts::Fonts;
-use super::frame::Frame;
-use super::markers::draw::{BodyLook, spawn_list_icon};
-use super::screen::{MapArea, ScreenPositions};
-use super::tunables::Tunables;
-use super::world::ViewNow;
+use super::tab::{TabChevron, place_tab, spawn_tab, tab_label};
+use super::{edge_arrow_angle, edge_point};
 use crate::sim::body::{BodyClass, DisplayName};
 use crate::sim::track::Affiliation;
+use crate::view::fonts::Fonts;
+use crate::view::frame::Frame;
+use crate::view::markers::draw::{BodyLook, spawn_list_icon};
+use crate::view::screen::{MapArea, ScreenPositions};
+use crate::view::tunables::Tunables;
+use crate::view::world::ViewNow;
 use crate::{Boot, Stage};
 
 /// The tab itself.

@@ -6,18 +6,18 @@
 
 use bevy::prelude::Color;
 
+use super::state::{HoverOutcome, HoverPreview};
+use super::words::{
+    DELTA_V, DEPART, DEPARTED, DEPARTS, LegWords, NOW, TRAVEL_FIXED, TRAVEL_TIME, cant_reach_line,
+    date, dated, delta_v_readout, fastest_line, gap_line, leave_readout, reason, travel_with_laps,
+    trim_line,
+};
 use crate::sim::transfer::grid::{Sample, Setting};
 use crate::sim::transfer::order::{Infeasible, SolvedLeg};
 use crate::sim::transfer::places::Band;
 use crate::sim::transfer::presets::Preset;
 use crate::sim::transfer::ranges::{Slider, Sliders};
 use crate::sim::transfer::search::{Request, Search};
-use crate::view::planner::state::{HoverOutcome, HoverPreview};
-use crate::view::planner::words::{
-    DELTA_V, DEPART, DEPARTED, DEPARTS, LegWords, NOW, TRAVEL_FIXED, TRAVEL_TIME, cant_reach_line,
-    date, dated, delta_v_readout, fastest_line, gap_line, leave_readout, reason, travel_with_laps,
-    trim_line,
-};
 use crate::view::readout::{format_duration, format_speed};
 use crate::view::tunables::Tunables;
 
@@ -182,7 +182,7 @@ pub fn tuning_model(facts: &TuningFacts, tunables: &Tunables) -> TuningModel {
     };
     let (schedule, reason) = schedule_state(facts);
     let mut model = TuningModel {
-        route: crate::view::planner::words::route(facts.ship, facts.destination),
+        route: super::words::route(facts.ship, facts.destination),
         place: facts.place.to_string(),
         bands,
         depart: None,
@@ -434,7 +434,7 @@ pub fn order_model(
         leg.arrival_day
     };
     OrderModel {
-        heading: crate::view::planner::words::order_heading(words.destination),
+        heading: super::words::order_heading(words.destination),
         departs,
         arrival: Row::new(words.arrival_label(), dated(end, today)),
         delta_v: Row::new(DELTA_V, format_speed(leg.delta_v_kms)),

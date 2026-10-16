@@ -11,7 +11,7 @@
 //! the spec, built in `symbols/mod.rs` and `symbols/draw.rs`). What's drawn is
 //! decided elsewhere - `fold.rs` says whether a satellite is folded into
 //! its parent (GRP-01, GRP-03), `motion_mode.rs` how far its dot has faded
-//! into the exposure ring (MOT-11), and `edge.rs` whether a gate is pinned
+//! into the exposure ring (MOT-11), and `edge/mod.rs` whether a gate is pinned
 //! to the screen edge instead (EDGE-01). This module turns those into a
 //! position and a strength, which fades every coloured part (`Tint`) as
 //! one.
@@ -31,7 +31,6 @@ use super::countdown::Countdowns;
 use super::edge::GateEdgeTargets;
 use super::fold::SatelliteFoldState;
 use super::layers;
-use super::markers::draw::spawn_markers;
 use super::motion_mode::MotionModeState;
 use super::screen::ScreenPositions;
 use super::ship_groups::GroupFaces;
@@ -46,6 +45,7 @@ use crate::sim::body::{Affiliation, BodyClass};
 use crate::sim::clock::GameClock;
 use crate::sim::track::ShipRecord;
 use crate::{Boot, Stage};
+use draw::spawn_markers;
 
 pub mod brackets;
 pub mod draw;

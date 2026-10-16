@@ -1,6 +1,6 @@
 //! Gate edge indicators (EDGE-01 to EDGE-03): a gate outside the viewport
 //! shows as an arrow pinned to the screen edge in its direction, beside a
-//! tab with its destination's name (`edge_tab.rs`).
+//! tab with its destination's name (`edge/tab.rs`).
 //!
 //! `GateEdgeTargets` says which gates are pinned this frame and where; the
 //! marker overlay reads it to hide those gates' ordinary markers.
@@ -9,13 +9,16 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
-use super::edge_tab::{TabChevron, place_tab, spawn_tab, tab_label};
 use super::fonts::Fonts;
 use super::screen::{MapArea, ScreenPositions, screen_angle};
 use super::tunables::Tunables;
 use super::world::ViewNow;
 use crate::sim::body::{BodyClass, GateDestination};
 use crate::{Boot, Stage};
+use tab::{TabChevron, place_tab, spawn_tab, tab_label};
+
+pub mod parent_tab;
+pub mod tab;
 
 /// How far inside the viewport edge a pinned arrow sits.
 pub const EDGE_MARGIN_PX: f32 = 28.0;

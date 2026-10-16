@@ -9,6 +9,7 @@
 use bevy::prelude::*;
 
 use super::pick::Pickables;
+use super::state::{Found, HoverOutcome, HoverPreview, PickTarget, PlannerState};
 use crate::sim::clock::GameClock;
 use crate::sim::named_orbit::NamedOrbit;
 use crate::sim::transfer::grid::Setting;
@@ -18,7 +19,6 @@ use crate::sim::transfer::plan::Planner;
 use crate::sim::transfer::ranges::{Slider, Sliders, crossing_orbits};
 use crate::sim::transfer::search::{Request, Search, SearchContext, SearchKey};
 use crate::view::hovered::HoveredBodies;
-use crate::view::planner::state::{Found, HoverOutcome, HoverPreview, PickTarget, PlannerState};
 
 /// PLNR-11: what can't be picked takes no hover mark and no click, so
 /// the set is kept up to date while the planner is open.

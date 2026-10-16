@@ -20,12 +20,12 @@ use bevy::prelude::*;
 
 use super::model::{Line, OrderModel, Row, Tone, TuningModel};
 use super::slider::mix;
+use super::state::SliderKind;
 use crate::sim::transfer::places::Band;
 use crate::sim::transfer::presets::Preset;
 use crate::view::buttons::ButtonLook;
 use crate::view::colors;
 use crate::view::fonts::Fonts;
-use crate::view::planner::state::SliderKind;
 use crate::view::tunables::Tunables;
 
 mod facts;

@@ -10,11 +10,11 @@
 
 use bevy::prelude::*;
 
-use super::colors;
-use super::fonts::Fonts;
-use super::layers;
-use super::node_box::node_size;
-use super::screen::MapArea;
+use crate::view::colors;
+use crate::view::fonts::Fonts;
+use crate::view::layers;
+use crate::view::node_box::node_size;
+use crate::view::screen::MapArea;
 
 /// Half the chevron's box. The same footprint as a gate's own marker, so
 /// the hand-over between the two doesn't change size.

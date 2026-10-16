@@ -10,6 +10,7 @@ use bevy::prelude::*;
 
 use super::panel::{Choice, Track};
 use super::slider::{FAST_STEPS, stepped, value_at};
+use super::state::{PlannerSession, PlannerState, SliderKind};
 use crate::sim::transfer::order::{Arrival, Order};
 use crate::sim::transfer::places::{Band, Place};
 use crate::sim::transfer::plan::{Plan, ShipOrder, Status};
@@ -17,7 +18,6 @@ use crate::sim::transfer::presets::Preset;
 use crate::sim::transfer::ranges::Slider;
 use crate::sim::transfer::search::Request;
 use crate::view::bindings::{Bindings, held, pressed};
-use crate::view::planner::state::{PlannerSession, PlannerState, SliderKind};
 use crate::view::targets::PointerTargets;
 
 /// PLNR-02: the quiet Cancel ends the planner and drops its settings.
@@ -286,8 +286,8 @@ pub fn watch_changed_order(mut state: ResMut<PlannerState>, plans: Query<&Plan>)
     let status = plans.get(session.ship).map(|plan| plan.status).ok();
     let notice = match status {
         Some(Status::Scheduled) => return,
-        Some(Status::Failed) | None => crate::view::planner::words::ORDER_FAILED,
-        Some(_) => crate::view::planner::words::DEPARTED_WHILE_CHANGING,
+        Some(Status::Failed) | None => super::words::ORDER_FAILED,
+        Some(_) => super::words::DEPARTED_WHILE_CHANGING,
     };
     state.end();
     state.notice = Some(notice);

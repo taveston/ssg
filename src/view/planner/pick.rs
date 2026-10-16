@@ -6,6 +6,7 @@
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
+use super::state::PickTarget;
 use crate::sim::body::BodyClass;
 use crate::sim::group::ShipGroup;
 use crate::sim::named_orbit::{DockingOrbitOf, NamedOrbit};
@@ -13,7 +14,6 @@ use crate::sim::ship::InFlight;
 use crate::sim::track::{ShipRecord, Track};
 use crate::sim::transfer::places::{Band, BandRadii, Place};
 use crate::sim::transfer::plan::{Plan, Status};
-use crate::view::planner::state::PickTarget;
 
 /// What PLNR-11 reads of a body to decide what a click on it picks.
 #[derive(Debug, Clone, Copy, PartialEq)]

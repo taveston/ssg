@@ -6,13 +6,13 @@ use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
 use super::super::model::{TrackModel, TuningModel};
+use super::super::state::{PlannerState, SliderKind};
 use super::{
     Choice, DeltaFill, Field, NoticeLine, PanelView, PresetButton, ScheduleButton, Segment, Thumb,
     Track, segment_look, tone_colour,
 };
 use crate::view::buttons::ConsoleButton;
 use crate::view::colors;
-use crate::view::planner::state::{PlannerState, SliderKind};
 use crate::view::tunables::Tunables;
 
 /// The nodes `update_panel` writes into.

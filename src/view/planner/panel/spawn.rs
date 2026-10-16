@@ -4,7 +4,12 @@
 use bevy::prelude::*;
 
 use super::super::input;
+use super::super::state::{PlannerState, SliderKind};
 use super::super::tooltip::Tooltip;
+use super::super::words::{
+    CANCEL, CHANGE, CHEAPEST, CHOOSE_PROMPT, DELTA_V, DELTA_V_TOOLTIP, FASTEST, HEADING, HIGH,
+    INTERCEPT, INTERCEPT_TOOLTIP, LOW, NEXT_WINDOW, RENDEZVOUS, RENDEZVOUS_TOOLTIP, SCHEDULE,
+};
 use super::{
     Choice, DeltaFill, Field, NoticeLine, PlannerRoot, PresetButton, ScheduleButton, Segment,
     Shape, Thumb, Track, segment_look,
@@ -16,11 +21,6 @@ use crate::view::buttons::{ButtonStyle, ConsoleButton, spawn_button};
 use crate::view::colors;
 use crate::view::fonts::Fonts;
 use crate::view::inset::inspect::{InsetPanel, spawn_spaced_capitals};
-use crate::view::planner::state::{PlannerState, SliderKind};
-use crate::view::planner::words::{
-    CANCEL, CHANGE, CHEAPEST, CHOOSE_PROMPT, DELTA_V, DELTA_V_TOOLTIP, FASTEST, HEADING, HIGH,
-    INTERCEPT, INTERCEPT_TOOLTIP, LOW, NEXT_WINDOW, RENDEZVOUS, RENDEZVOUS_TOOLTIP, SCHEDULE,
-};
 use crate::view::tunables::Tunables;
 
 /// The panel's root and the notice line, put into the sidebar once it
@@ -289,7 +289,7 @@ fn spawn_travel(panel: &mut ChildSpawnerCommands, assets: Assets, track: bool, n
     spawn_row(
         panel,
         assets,
-        Ok(crate::view::planner::words::TRAVEL_TIME),
+        Ok(super::super::words::TRAVEL_TIME),
         Field::TravelValue,
         None,
     );

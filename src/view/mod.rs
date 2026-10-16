@@ -24,7 +24,6 @@ pub mod countdown;
 pub mod date;
 pub mod debug_shot;
 pub mod edge;
-pub mod edge_tab;
 pub mod fold;
 pub mod fonts;
 pub mod frame;
@@ -40,7 +39,6 @@ pub mod markers;
 pub mod motion;
 pub mod motion_mode;
 pub mod node_box;
-pub mod parent_tab;
 pub mod paths;
 pub mod planner;
 pub mod plot_marks;
@@ -85,7 +83,7 @@ impl Plugin for ViewPlugin {
                 buttons::ButtonsPlugin,
                 plot_marks::PlotMarksPlugin,
                 markers::picking::MarkerPickingPlugin,
-                parent_tab::ParentTabPlugin,
+                edge::parent_tab::ParentTabPlugin,
             ))
             .add_plugins((
                 shared_orbit::SharedOrbitPlugin,
