@@ -2772,8 +2772,8 @@ fn click_node(app: &mut App, node: Entity, count: u8) {
 /// INS-05 / HOV-05 / ZOOM-16: the outline is the system from the star
 /// down. Selecting Halden IV opens the path to it and its satellites,
 /// inside out, with Arden Highport under a "Low orbit · 1" row and the
-/// parked ships under one "High orbit · N" row that a ring click opens; the selected row is highlighted. A click on an
-/// entry selects it at once, a double-click asks for a frame jump, and
+/// parked ships under one "High orbit · N" row that a ring click opens;
+/// the selected row is highlighted. A click on an entry selects it at once, a double-click asks for a frame jump, and
 /// the toggle folds an entry's satellites away while the rest stays.
 #[test]
 fn the_outline_shows_the_system_tree_and_opens_the_selections_path() {
@@ -3176,8 +3176,8 @@ fn the_sidebar_narrows_the_map_and_keeps_the_frame_body_centred() {
 
 /// LBL-01 / LBL-03 / LBL-04 / SYM-13: in Halden IV's frame with its
 /// satellites unfolded, every shown label sits clear of every other label
-/// and of every marker (with a symbol's amplifiers) but its own, the selection's label is never hidden, and
-/// labels fade in over `label_fade_ms` rather than appearing at once.
+/// and of every marker (with a symbol's amplifiers) but its own, the
+/// selection's label is never hidden, and labels fade in over `label_fade_ms` rather than appearing at once.
 #[test]
 fn labels_keep_clear_of_each_other_and_of_markers() {
     use crate::view::labels::{LabelState, LabelsPlugin, label_rect, overlaps};

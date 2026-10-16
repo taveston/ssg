@@ -1,8 +1,8 @@
 //! The top bar and the clock controls (CLK-02, CLK-05): the breadcrumb's
-//! slot (filled by `breadcrumb.rs`), date,
-//! the Pause, 1 d/s and 5 d/s buttons with the active rate highlighted, and
-//! the clock keys (CLK-05: Space, `.` and `,`). Every change goes through the clock's
-//! own API (ARCH-14). A debug frames-per-second readout sits at the end,
+//! slot (filled by `breadcrumb.rs`), the date, the Pause, 1 d/s and 5 d/s
+//! buttons with the active rate highlighted, and the clock keys (CLK-05:
+//! Space, `.` and `,`). Every change goes through the clock's own API
+//! (ARCH-14). A debug frames-per-second readout sits at the end,
 //! hidden until its binding toggles it (CLK-06).
 
 use bevy::diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin};

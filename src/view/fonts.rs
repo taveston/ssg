@@ -1,8 +1,9 @@
 //! The three type roles (MRK-02) and the one place that names a font file.
 //! The **label face** is for names on the map, labels, buttons, headings
-//! and the breadcrumb; the **text face** for running prose (nothing uses it yet; `Fonts::face` reaches it); the **data
-//! face** for dates, figures, status readouts and stamps. Everything else
-//! asks for a role through `Fonts`, never for a font.
+//! and the breadcrumb; the **text face** for running prose (nothing uses
+//! it yet; `Fonts::face` reaches it); the **data face** for dates,
+//! figures, status readouts and stamps. Everything else asks for a role
+//! through `Fonts`, never for a font.
 
 use bevy::prelude::*;
 

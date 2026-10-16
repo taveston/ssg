@@ -1,6 +1,7 @@
 //! Ship and station symbol parts as vector geometry (SYM-02 to SYM-08,
-//! SYM-17), and the north dial's head (MRK-17). Each part is a UI node carrying a `SymbolPart`: which shape it
-//! is, its colour and the size it is drawn at. A UI material evaluates the
+//! SYM-17), and the north dial's head (MRK-17). Each part is a UI node
+//! carrying a `SymbolPart`: which shape it is, its colour and the size it
+//! is drawn at. A UI material evaluates the
 //! shape per screen pixel in `symbol_shape.wesl`, so outlines are exactly
 //! `symbol_stroke_px` wide and as sharp as the orbit rings at any size or
 //! UI scale; nothing is a bitmap scaled to fit.

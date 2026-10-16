@@ -25,8 +25,9 @@ pub enum Boot {
 /// The per-frame pipeline. The simulation runs first; its positions are
 /// turned into render space; then the camera settles on this frame's
 /// positions (CAM-05), grouping decides what is folded, motion what is a
-/// ring, and the overlay is laid out and drawn on top. Plugins tag their systems with these instead of reaching across
-/// module boundaries with `.after()`.
+/// ring, and the overlay is laid out and drawn on top. Plugins tag their
+/// systems with these instead of reaching across module boundaries with
+/// `.after()`.
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Stage {
     Simulation,

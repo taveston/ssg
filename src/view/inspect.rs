@@ -1,8 +1,8 @@
 //! The inspection sidebar (INS-01 to INS-04, INS-07, INS-09, MOT-07,
-//! PLNR-01, PLNR-02, PLNR-05): one panel
-//! for the one selection (INS-03), at the right of the window from the
-//! top bar to the bottom (INS-07). It slides in and out with the selection
-//! (`sidebar.rs` holds the slide; the map area follows it). The details
+//! PLNR-01, PLNR-02, PLNR-05): one panel for the one selection (INS-03),
+//! at the right of the window from the top bar to the bottom (INS-07). It
+//! slides in and out with the selection (`sidebar.rs` holds the slide;
+//! the map area follows it). The details
 //! are rebuilt in place whenever the selection changes; the "In orbit"
 //! outline below them (`outline.rs`) is built once and refilled. Content
 //! taller than the sidebar scrolls inside it, and the wheel over it scrolls

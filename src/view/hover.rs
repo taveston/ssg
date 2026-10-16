@@ -1,8 +1,9 @@
 //! Hover and click on the map (HOV-01, HOV-05, INS-01, GRP-07): the
 //! pointer handlers every pickable node (marker, pill, ring hit target,
-//! ring mark) is observed by; `brackets.rs` draws the hover mark. Nothing has a tooltip: a
-//! marker's name and type are on the map already, and a fold pill's
-//! satellites are in the inset's outline once its parent is selected. A shared orbit's ring or pill selects the orbit's parent
+//! ring mark) is observed by; `brackets.rs` draws the hover mark. Nothing
+//! has a tooltip: a marker's name and type are on the map already, and a
+//! fold pill's satellites are in the inset's outline once its parent is
+//! selected. A shared orbit's ring or pill selects the orbit's parent
 //! with that orbit's row revealed in the inset.
 //!
 //! A click selects (`selection.rs`); a double-click also makes the body the

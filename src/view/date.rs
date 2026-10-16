@@ -1,5 +1,6 @@
 //! A small hand-rolled proleptic Gregorian calendar, just enough to turn a
-//! day-count into a readable date for the top bar (CLK-02). No date/time crate needed for this.
+//! day-count into a readable date for the top bar (CLK-02). No date/time
+//! crate needed for this.
 
 const EPOCH_YEAR: i64 = 2341;
 const EPOCH_MONTH: u32 = 3;

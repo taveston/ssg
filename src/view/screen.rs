@@ -20,8 +20,8 @@ use crate::Stage;
 
 /// Each body's projected screen position, in logical pixels from the
 /// window's top left and snapped to a whole screen pixel (SYM-16), plus
-/// the viewport it was projected into. A body
-/// behind the camera has no entry.
+/// the viewport it was projected into. A body behind the camera has no
+/// entry.
 #[derive(Resource, Default)]
 pub struct ScreenPositions {
     pub viewport: Vec2,

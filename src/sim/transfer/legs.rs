@@ -1,6 +1,6 @@
 //! Solving one leg (XFER-01 to XFER-10, XFER-13, XFER-14, PHAS-03,
-//! PHAS-10, PHAS-11, PHAS-15): from where a ship is and the order it was given to the
-//! crossing it will fly, its timing, its trajectory and its delta-v, or
+//! PHAS-10, PHAS-11, PHAS-15): from where a ship is and the order it was
+//! given to the crossing it will fly, its timing, its trajectory and its delta-v, or
 //! the reason it can't be flown. Pure functions over the system snapshot
 //! (`tree.rs`) and plain values (ARCH-20, XFER-11); the maths is the
 //! `orbits` crate's.

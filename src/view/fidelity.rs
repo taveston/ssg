@@ -1,7 +1,7 @@
 //! Procedural placeholder imagery for the inspection inset's fidelity
 //! states (INS-04). There are no art assets yet, so these are generated in
-//! code: a shaded
-//! gradient globe for surveyed and seeded grain for unsurveyed. One image
+//! code: a shaded gradient globe for surveyed and seeded grain for
+//! unsurveyed. One image
 //! per *state*, shared by every body in that state.
 
 use bevy::asset::RenderAssetUsages;
