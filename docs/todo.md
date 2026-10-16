@@ -14,11 +14,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 - [ ] **Velocity leaders** · SYM-11
   - Ships in flight are drawn now (PLNR-68, `view/paths/`); SYM-11 adds the leader PLNR-68 names. `OW_SHOT`'s `fly` key shows a ship in flight.
-- [ ] **Bracket and label spacing** · LBL-01, SYM-09, SYM-12, HOV-06, INS-06, MRK-08
-  - Settles the bracket and label spacing findings. Most of it is already how the build behaves; the spec now says so. The ✓ on these is cleared until the code is checked against the new text.
-  - What changes: a label's gap is measured from the box (HOV-07) for every marker, so labels no longer move on hover, and `label_gap_px` drops to 4. Bracket arms are capped by `bracket_arm_max_px`. New tunables: `amplifier_gap_px`, `condition_track_mix`.
-  - SYM-13's wording on the gap changed too; it is built (`AmplifierReach::label_box`).
-  - The playtest bug fixes are built (e3192a2). MRK-08 now measures a disc's hit area out to the edge of its rim (MRK-11); check `marker_picking.rs` against that and re-tick it.
 - [ ] **Label halo** · LBL-05
   - A 2 px ground-colour outline round every label's glyphs (`label_halo_px`), not a box. Mock-up 19, last board.
 - [ ] **Reference frame cue** · REF-01 to REF-10, MRK-01, MRK-12, CAM-25

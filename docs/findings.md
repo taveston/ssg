@@ -2,7 +2,7 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-206.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-208.
 
 ---
 
@@ -158,14 +158,19 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** PLNR-63, PLNR-65, PLNR-67, PLNR-69 · **Type:** spec gap
 - **Disposition:** open. Accept.
 
-### F-204 · An exposure ring's label never drops its period line
-- **Observation:** MOT-02 says the period line is the first part to go when there is no room (LBL-03). But a ring's label isn't placed by LBL-01 to LBL-03: it always sits beside its mark, so the build always shows the period. Seen on screen: in Halden IV's frame at 2 d/s, IVa's "1.5 d" runs into Halden IV's "+1" pill. A ring label can also overlap other labels, as before.
-- **Affects:** MOT-02, LBL-01, LBL-03 · **Type:** spec gap
-- **Disposition:** open. Bring ring labels into label placement with the label spacing item.
-
 ### F-205 · Where the direction chevron sits exactly
 - **Observation:** MOT-14 doesn't say how "`chevron_gap_px` beyond the mark's edge" is measured on a curved ring. The build walks round the ring to the point whose straight-line distance from the mark's point is the mark's reach that way, plus the gap, plus half the arrowhead's length; the arrowhead has a right-angled tip, so it is half as long as it is wide. It turns along the ring there. A ring too small on screen to reach that far shows no chevron. The label moves to the mark's left only when the chevron's box would overlap the label's box on the right. On a selected moon the chevron sits close to the brackets.
 - **Affects:** MOT-14 · **Type:** spec gap
+- **Disposition:** open. Accept.
+
+### F-206 · How an exposure ring's label is placed
+- **Observation:** F-204 is fixed: a ring's label is now placed by LBL-01 to LBL-04 like any other label, so it keeps clear of other labels and pills and drops its period line first (LBL-03). Its gap is measured from the mark's box (HOV-07), and the chevron counts as part of the mark (MOT-14). Three choices the spec doesn't make. The whole label (name and period) is centred beside the mark, as a symbol's two-line label is; before, the name alone was centred on the ring point. On the mark's left the lines are left-aligned, as other labels are. A shared orbit's label ranks as its highest-ranked member, or as hovered while the orbit is hovered (LBL-02).
+- **Affects:** LBL-01, LBL-02, MOT-02, MOT-14 · **Type:** spec gap
+- **Disposition:** open. Accept.
+
+### F-207 · Labels keep clear of other markers' boxes
+- **Observation:** LBL-01 says labels never overlap any marker. The build keeps every label clear of each marker's box (HOV-07, `bracket_margin_px` round it), not just the drawn marker, so the brackets round a hovered or selected marker never cross another object's label. Symbols already worked this way (SYM-13). In a crowded view a few more labels drop their second line or hide.
+- **Affects:** LBL-01, HOV-07 · **Type:** spec gap
 - **Disposition:** open. Accept.
 
 ## Parked
