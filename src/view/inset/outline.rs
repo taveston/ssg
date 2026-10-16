@@ -417,7 +417,7 @@ impl Plugin for OutlinePlugin {
 /// INS-05 / HOV-05: a new selection opens the path to it and its own
 /// satellites, and the orbit a ring click came through. A selected ship
 /// that moves to another orbit or body has its new path opened too, so
-/// its row stays in view (F-NEW-1).
+/// its row stays in view (F-245).
 fn reveal_on_selection(
     selection: Res<Selection>,
     bodies: OutlineBodies,

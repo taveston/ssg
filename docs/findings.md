@@ -2,7 +2,7 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-250.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-254.
 
 ---
 
@@ -190,12 +190,12 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Disposition:** open. Seen by the user in play (build 776cc34), who says it is minor. Bring the pip closer; letting it overlap the parent's marker would be fine and makes the link clearer.
 
 ### F-247 · A double-click with nothing selected misses its object
-- **Observation:** In play, with nothing selected, a double-click on an object doesn't work. The first click selects it and opens the inset (INS-01), and the map area narrows and slides (INS-07). That moves the object away from the pointer before the second click lands, so the second click falls elsewhere and ZOOM-16 never fires.
+- **Observation:** In play, with nothing selected, a double-click on an object doesn't work. The first click selects it and opens the inset (INS-01), and the map area narrows and slides (INS-07). That moves the object away from the pointer before the second click lands, so the second click falls elsewhere and ZOOM-16 never fires. The same happens with the clock running: a moving body slides out from under a still pointer between the clicks (seen by the user in play).
 - **Affects:** ZOOM-16, INS-07, INS-01 · **Type:** bug
 - **Disposition:** fix code (on todo.md). Seen by the user in play (build 776cc34). Options: treat the second click of a double-click as hitting what the first click hit, or hold the map still until the double-click time has passed.
 
 ### F-248 · A popped marker holding one thing looks like a group
-- **Observation:** In play, when the pip pops out into the fold marker, it shows a back frame (MUL-01) even when the parent holds only one thing, so a single ship reads as a group.
+- **Observation:** In play, when the pip pops out into the fold marker, it shows a back frame (MUL-01) even when the parent holds only one thing, so a single ship reads as a group. The builder followed MUL-01: a single thing has no back pip at rest, and as it pops its back frame slides out to `back_frame_offset_px`.
 - **Affects:** MUL-01, GRP-12, GRP-13 · **Type:** spec wrong
 - **Disposition:** open. Seen by the user in play (build 776cc34). A popped marker holding one thing should show no group indicator. Mock-up 27 shows it that way.
 
@@ -203,6 +203,26 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** REF-07 makes the lower half `ref_down_fraction` of the upper half's length, but doesn't say which length once REF-06 clips the upper half at the map edge. The build uses the unclipped length, so with the frame body high on the map the lower half keeps its full length and can be longer than the clipped upper half. The lower half then doesn't jump as the body nears the edge.
 - **Affects:** REF-06, REF-07 · **Type:** spec gap
 - **Disposition:** open. Accept, and say so in REF-07.
+
+### F-250 · Does the object marker fade out, or vanish at once?
+- **Observation:** GRP-12 says the pip "appears and disappears over `fold_unfold_anim_ms`". INS-06 says a multi-marker whose last thing leaves "hides at once". The build fades the pip in, but drops it at once when its last ship, group or station starts to unfold; the unfolding thing's own slide covers the change.
+- **Affects:** GRP-12, INS-06 · **Type:** spec gap
+- **Disposition:** open. Pick one rule for a fold marker's last thing: drop "and disappears" from GRP-12, or say how it fades out with nothing left in it.
+
+### F-251 · Which parents count for "nearest" when popping, and a tray above
+- **Observation:** GRP-13 pops a marker only when the pointer is nearer its parent than "any other parent's". The build counts every body that has anything folded into it, moons included and on screen or not, so a moons-only planet close by can stop a neighbour's pip from popping. MUL-08 puts a fold marker's tray "above it" when it doesn't fit below; just above the marker it would cover the parent, so the build places it above the parent's box too.
+- **Affects:** GRP-13, MUL-08 · **Type:** spec gap
+- **Disposition:** open. Say which parents count (all with folds, only those with an object marker, only those on screen), and accept the tray rule into MUL-08.
+
+### F-252 · Where a parent's label is centred beside its popped fold marker
+- **Observation:** GRP-12 has the parent's label try left, above, below, then right, "measured from the popped fold marker's box". The build places it beside the union of the parent's box and the popped marker's box, centred along that union's side. The popped marker hangs down and to the right, so a left label sits about 11 px below the planet's centre. In the overview that left slot hits Lantern's marker, so Halden IV's label goes above; centred on the planet it would fit on the left.
+- **Affects:** GRP-12, LBL-01 · **Type:** spec gap
+- **Disposition:** open. Say whether each slot keeps the union box's edge but is centred on the parent's own box, or accept the union centring.
+
+### F-253 · Ships folded into a folded moon have no marker
+- **Observation:** Folded ships, groups and stations go to an object marker, and natural bodies to the moon ring. A satellite of a satellite that has itself folded is counted nowhere. Before, the moon sat in the planet's fold marker and carried its own folds. Now, at the system fit, Morrow IX's Tern Relay (an own station) and the Kessel trader (TEST-09) are on no marker: Morrow shows "+11" and no pip. When one of them is selected, its mark goes round Morrow's marker and ring.
+- **Affects:** GRP-11, GRP-12, MUL-04, INS-06, TEST-09 · **Type:** spec gap
+- **Disposition:** open. Say whether things folded into a folded moon pass up to the nearest drawn parent's object marker (and how its tray lists them), or stay unshown.
 
 ## Parked
 

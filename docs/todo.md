@@ -13,15 +13,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **Planets: a neutral moon ring and an object pip that pops out** · F-229, F-230, F-239 · GRP-05, GRP-07, GRP-10 to GRP-13, LBL-01, MUL-02, MUL-04, MUL-06, MUL-08, HOV-06, HOV-07, INS-06
-  - Moons and objects are separate. Folded natural bodies draw a neutral second ring behind the parent's marker and a dim "+N" counting only them (GRP-10, GRP-11). Folded ships, groups and stations draw a 6 px pip down and to the right of the parent, with a back pip when there are two or more (GRP-12). The fold marker is no longer drawn at rest.
-  - When the pointer is within `pop_reach_px`, or the parent or something it holds is selected, or the tray is open, the pip grows into the fold marker and slides out so its box touches the parent's (GRP-13, MUL-06). Use the nearest parent, and `pop_release_px` as hysteresis, so it doesn't flicker in the crowded inner system.
-  - The fold marker holds only objects, so its tray and count leave out folded moons (MUL-04). Its tray opens right, else below or above, never left over the parent (MUL-08). The parent's label tries left first (GRP-12, LBL-01).
-  - Delete the fold marker at rest, the all-bodies look of the multi-marker (MUL-02) and the fold-marker-beside-parent placement with their tests. Add the tunables `object_pip_px` (6), `object_pip_gap_px` (2), `pip_back_offset_px` (3), `pop_reach_px` (24), `pop_release_px` (32), `pop_anim_ms` (120); `moon_ring_offset_px`, `moon_count_px` and `moon_count_alpha` as before.
-  - Things docked at a station inside a larger marker count for the frames and the pip's colours but not for the count (MUL-02, MUL-04; F-230).
-  - The pip's front and back colours follow MUL-02. Only the parent's own folded satellites decide, as they do for the count. A moon whose station is folded into it is still one body.
-  - Tests: moons only shows the neutral ring and "+N", no pip; a folded ship adds the pip and leaves ring and "+N" unchanged; allied plus own shows an allied front pip and an own back pip; the pointer near pops it out and away releases it; selecting the parent pops it with no pointer; a selected folded ship puts the mark round the popped marker; the tray never covers the parent; the label doesn't move when the marker pops; the ring's box and hit area count in the parent's marker. Mock-ups 20 to 22, 26 and 27 show the look; mock-up 26's popped state sits below the planet and is superseded by GRP-13.
-
 - [ ] **A joined marker draws one tail in dot mode** · F-232 · MUL-05
   - In dot mode a together or overlap marker draws the tail of its first tray row's thing, behind its centre, so a convoy or cluster no longer looks still on a running clock. Joined things still draw no tail of their own, and a fold marker has none. Ring mode is unchanged.
   - Tests: the TEST-12 convoy shows one tail in dot mode; an overlap cluster shows its lead's tail; the tail follows the lead when the tray order changes; no tail in ring mode beyond the exposure ring.
@@ -63,12 +54,19 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Fixes
 
+- [ ] **Planet marker: review fixes** · GRP-10, GRP-11, GRP-12, GRP-13, INS-06
+  - Found in review of the moon ring and object pip item.
+  - The moon ring's box and its drawing differ while it fades: `ring_offset` scales the marker's `BackFrame` (box, hit area, label box) by the fade, but the ring node is drawn at the full `moon_ring_offset_px` from the start (`markers/moon_ring.rs`, `MarkerPaint::paint`). Make them agree.
+  - Missing tests: the pip fades in over `fold_unfold_anim_ms` and with its parent's fade (MOT-11); hovering the pip or fold marker, or its open tray, keeps it popped (headless, not only `wants_out`); the INS-06 hand-over for a moon as its ring fades; GRP-11's "+N" is dropped first when crowded; a label test with a real label size and a neighbour nearby.
 - [ ] **A double-click lands on what its first click hit** · F-247 · ZOOM-16
   - With nothing selected, the first click selects and opens the inset, which narrows the map and moves the object before the second click (INS-07), so the double-click misses. Make the second click of a double-click act on what the first click hit, wherever the pointer now is over the map.
   - Test: with nothing selected, a double-click on a planet frames it, though the inset opened between the clicks.
 
 ## Other
 
+- [ ] **Planet marker: clean-up after review**
+  - `MarkerPaint::paint` collects each disc marker's ring nodes into a new Vec every frame, and `lay_out_holders` clones `Node` twice per pool node every frame. Cache them or skip them while nothing changes.
+  - `MarkersPlugin` also calls `init_resource::<FoldSummary>()`, which `GroupingPlugin` already does; grouping is its one writer (ARCH-03). Drop it, or say it is there only for test apps.
 - [ ] **Text sizes: clean-up after review**
   - Found in review of the map text sizes item.
   - `changing_a_text_size_tunable_changes_every_text_it_names` doesn't cover an edge tab's name: add a gate tab and check its label follows `map_label_px`.
