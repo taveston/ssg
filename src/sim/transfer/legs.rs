@@ -707,6 +707,60 @@ fn build_trajectory(
     ShipTrajectory::new(segments).map_err(|_| Infeasible::NoPath)
 }
 
+/// What a leg's arrival reads, in km/s: an Intercept's speed at the
+/// target, its closing speed and its closest approach (rad); and the
+/// speed the arrival row shows (PLNR-26).
+struct ArrivalSpeeds {
+    intercept_kms: Option<f64>,
+    closing_kms: Option<f64>,
+    arrival_kms: Option<f64>,
+    closest_approach_rad: Option<f64>,
+}
+
+impl Setup<'_> {
+    /// The leg's flight: trimmed to meet a parked target where it will
+    /// be, or flown as asked; with the trim's days if it was trimmed.
+    fn fly_or_trim(
+        &self,
+        order: &Order,
+        drive: &Drive,
+        departure: &Departure,
+    ) -> Result<(Flight, Option<f64>), Infeasible> {
+        match self.trim_target() {
+            Some(point) => {
+                let (flight, trim) = self.trimmed(order, drive, departure, point)?;
+                Ok((flight, Some(trim)))
+            }
+            None => Ok((self.fly(order, drive, departure, 0.0)?, None)),
+        }
+    }
+
+    /// The crossing's arrival speeds. A Rendezvous has no intercept,
+    /// closing speed or closest approach, and its arrival row reads the
+    /// speed relative to the target; an Intercept's reads the closing
+    /// speed, else the intercept speed (PLNR-26).
+    fn arrival_speeds(&self, crossing: &Crossing) -> Result<ArrivalSpeeds, Infeasible> {
+        if self.rendezvous {
+            return Ok(ArrivalSpeeds {
+                intercept_kms: None,
+                closing_kms: None,
+                arrival_kms: Some(km_per_day_to_km_per_s(
+                    crossing.arrival_relative_velocity().length(),
+                )),
+                closest_approach_rad: None,
+            });
+        }
+        let intercept_kms = Some(self.intercept_speed_kms(crossing)?);
+        let closing_kms = self.closing_speed_kms(crossing);
+        Ok(ArrivalSpeeds {
+            intercept_kms,
+            closing_kms,
+            arrival_kms: closing_kms.or(intercept_kms),
+            closest_approach_rad: self.closest_approach(crossing),
+        })
+    }
+}
+
 /// PLAN-11: the parked ship a leg's destination was solved against.
 fn target_lock(target: &Target) -> Option<TargetLock> {
     match *target {
@@ -742,33 +796,11 @@ pub fn solve_leg(
         );
     }
     let (setup, origin) = Setup::new(tree, tunables, departure, order, target)?;
-    let (flight, trim_days) = match setup.trim_target() {
-        Some(point) => {
-            let (flight, trim) = setup.trimmed(order, drive, departure, point)?;
-            (flight, Some(trim))
-        }
-        None => (setup.fly(order, drive, departure, 0.0)?, None),
-    };
+    let (flight, trim_days) = setup.fly_or_trim(order, drive, departure)?;
     let crossing = &flight.crossing;
     setup.check_periapsis(crossing)?;
     let arrived = setup.arrive(crossing);
-    let (intercept_speed_kms, closing_speed_kms, closest_approach_rad) = if setup.rendezvous {
-        (None, None, None)
-    } else {
-        (
-            Some(setup.intercept_speed_kms(crossing)?),
-            setup.closing_speed_kms(crossing),
-            setup.closest_approach(crossing),
-        )
-    };
-    // PLNR-26: what the arrival row reads.
-    let arrival_speed_kms = if setup.rendezvous {
-        Some(km_per_day_to_km_per_s(
-            crossing.arrival_relative_velocity().length(),
-        ))
-    } else {
-        closing_speed_kms.or(intercept_speed_kms)
-    };
+    let speeds = setup.arrival_speeds(crossing)?;
     let low_pass = setup.low_pass(crossing)?;
     let last = match &low_pass {
         Some(pass) => Some(SegmentKind::Conic {
@@ -798,13 +830,13 @@ pub fn solve_leg(
         delta_v_kms,
         burns: flight.burns,
         landing: arrived.landing,
-        intercept_speed_kms,
-        closing_speed_kms,
-        arrival_speed_kms,
+        intercept_speed_kms: speeds.intercept_kms,
+        closing_speed_kms: speeds.closing_kms,
+        arrival_speed_kms: speeds.arrival_kms,
         turn_rad: low_pass.map(|pass| pass.turn_rad),
         departure_wait_days: flight.departure_wait,
         arrival_wait_days: arrived.wait_days,
-        closest_approach_rad,
+        closest_approach_rad: speeds.closest_approach_rad,
         trim_days,
         target_lock: target_lock(&setup.target),
         phasing_laps: None,

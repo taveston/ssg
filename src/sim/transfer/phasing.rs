@@ -145,10 +145,9 @@ fn phasing_leg(
     drive: &Drive,
     budget_kms: f64,
 ) -> Result<SolvedLeg, Infeasible> {
-    let mu = tree.mu(node.body);
     let gap_turns = gap_rad(ship_phase, target_phase) / std::f64::consts::TAU;
     let (k, chosen) = choose_phasing_orbit(
-        mu,
+        tree.mu(node.body),
         node.radius_km,
         node.period_days,
         gap_turns,
@@ -167,41 +166,15 @@ fn phasing_leg(
     }
     let start_day = order.depart_day + chosen.burn / drive.accel;
     let travel_days = meeting_days(node.period_days, gap_turns, k);
-    let end_day = start_day + travel_days;
-    let ship = node.path(ship_phase);
-    let at_burn = ship.state_at(start_day);
-    let after_burn = State::new(
-        at_burn.position,
-        at_burn.velocity.normalize() * chosen.burn_point_speed,
-    );
-    let conic = Conic::from_state(mu, after_burn, start_day, tunables.parabola_epsilon)
-        .ok_or(Infeasible::NoPhasingOrbit)?;
-    let parked = |phase0_rad| SegmentKind::Parked {
+    let crossing = PhasingCrossing {
         orbit,
-        primary: node.body,
-        path: node.path(phase0_rad),
+        node,
+        phases: (ship_phase, target_phase),
+        days: (start_day, start_day + travel_days),
+        burn_point_speed: chosen.burn_point_speed,
     };
-    let trajectory = ShipTrajectory::new(vec![
-        Segment {
-            start_day: order.depart_day.min(start_day),
-            end_day: Some(start_day),
-            kind: parked(ship_phase),
-        },
-        Segment {
-            start_day,
-            end_day: Some(end_day),
-            kind: SegmentKind::Conic {
-                primary: node.body,
-                conic,
-            },
-        },
-        Segment {
-            start_day: end_day,
-            end_day: None,
-            kind: parked(target_phase),
-        },
-    ])
-    .map_err(|_| Infeasible::NoPath)?;
+    let trajectory = phasing_trajectory(tree, tunables, &crossing, order.depart_day)?;
+    let end_day = start_day + travel_days;
     Ok(SolvedLeg {
         origin: place_of_parked(orbit, ship_phase, tree, tunables.together_km),
         primary: node.body,
@@ -231,6 +204,73 @@ fn phasing_leg(
         target_lock: lock,
         phasing_laps: Some(chosen.laps),
     })
+}
+
+/// A phasing leg's laps: the named orbit and its node, the ship's and
+/// the target's phases, the days of burn 1 and burn 2, and the speed at
+/// the burn point on the phasing orbit.
+struct PhasingCrossing {
+    orbit: Entity,
+    node: OrbitNode,
+    phases: (f64, f64),
+    days: (f64, f64),
+    burn_point_speed: f64,
+}
+
+/// The phasing leg's trajectory: parked at the ship's phase until burn
+/// 1, the phasing orbit's conic until burn 2, then parked at the
+/// target's phase (PHAS-05).
+fn phasing_trajectory(
+    tree: &SystemTree,
+    tunables: &SimTunables,
+    crossing: &PhasingCrossing,
+    depart_day: f64,
+) -> Result<ShipTrajectory, Infeasible> {
+    let PhasingCrossing {
+        orbit,
+        node,
+        phases: (ship_phase, target_phase),
+        days: (start_day, end_day),
+        burn_point_speed,
+    } = *crossing;
+    let at_burn = node.path(ship_phase).state_at(start_day);
+    let after_burn = State::new(
+        at_burn.position,
+        at_burn.velocity.normalize() * burn_point_speed,
+    );
+    let conic = Conic::from_state(
+        tree.mu(node.body),
+        after_burn,
+        start_day,
+        tunables.parabola_epsilon,
+    )
+    .ok_or(Infeasible::NoPhasingOrbit)?;
+    let parked = |phase0_rad| SegmentKind::Parked {
+        orbit,
+        primary: node.body,
+        path: node.path(phase0_rad),
+    };
+    ShipTrajectory::new(vec![
+        Segment {
+            start_day: depart_day.min(start_day),
+            end_day: Some(start_day),
+            kind: parked(ship_phase),
+        },
+        Segment {
+            start_day,
+            end_day: Some(end_day),
+            kind: SegmentKind::Conic {
+                primary: node.body,
+                conic,
+            },
+        },
+        Segment {
+            start_day: end_day,
+            end_day: None,
+            kind: parked(target_phase),
+        },
+    ])
+    .map_err(|_| Infeasible::NoPath)
 }
 
 #[cfg(test)]
