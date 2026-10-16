@@ -29,12 +29,13 @@ use crate::sim::transfer::phase::{gap_rad, separation_km, together};
 use crate::sim::transfer::places::{Band, BandRadii, Place};
 use crate::sim::transfer::plan::{Plan, ShipOrder, Status};
 use crate::sim::transfer::presets::Preset;
+use crate::sim::transfer::search::Request;
 use crate::sim::tunables::SimTunables;
 use crate::view::buttons::{ButtonLook, ButtonStyle, ConsoleButton, spawn_button};
 use crate::view::colors;
 use crate::view::fonts::Fonts;
 use crate::view::inspect::{InsetPanel, spawn_spaced_capitals};
-use crate::view::planner_state::{PlannerState, SliderKind};
+use crate::view::planner_state::{PlannerSession, PlannerState, SliderKind};
 use crate::view::planner_words::{
     CANCEL, CHANGE, CHEAPEST, CHOOSE_PROMPT, DELTA_V, DELTA_V_TOOLTIP, FASTEST, HEADING, HIGH,
     INTERCEPT, INTERCEPT_TOOLTIP, LOW, LegWords, NEXT_WINDOW, RENDEZVOUS, RENDEZVOUS_TOOLTIP,
@@ -425,7 +426,9 @@ impl PanelFacts<'_, '_> {
         if let Some(session) = &self.state.session {
             return match session.request {
                 None => PanelView::Choosing(self.hover_line(session.ship, tunables)),
-                Some(_) => PanelView::Tuning(Box::new(self.tuning(tunables))),
+                Some(request) => {
+                    PanelView::Tuning(Box::new(self.tuning(session, request, tunables)))
+                }
             };
         }
         let Some(ship) = self.selection.selected else {
@@ -465,10 +468,14 @@ impl PanelFacts<'_, '_> {
             .unwrap_or_default()
     }
 
-    /// PLNR-20 to PLNR-32, PLNR-40, PLNR-41: the tuning panel.
-    fn tuning(&self, tunables: &Tunables) -> TuningModel {
-        let session = self.state.session.as_ref().expect("an open planner");
-        let request = session.request.expect("a request");
+    /// PLNR-20 to PLNR-32, PLNR-40, PLNR-41: the tuning panel for the
+    /// open `session`, planning `request`.
+    fn tuning(
+        &self,
+        session: &PlannerSession,
+        request: Request,
+        tunables: &Tunables,
+    ) -> TuningModel {
         let ship = session.ship;
         let destination = self.place_name(request.destination);
         let drive = self
