@@ -149,6 +149,34 @@ fn clicking_a_fold_marker_opens_its_tray_and_selects_the_parent() {
     assert_eq!(selected(&app), Some(iver));
 }
 
+/// MUL-07 / MUL-09: a click on the open tray's marker again selects the
+/// parent, and the highlight leaves the row the keys had moved to; a
+/// tray opened in place of another starts at the top of its rows.
+#[test]
+fn clicking_the_marker_again_moves_the_highlight_and_a_new_tray_starts_at_the_top() {
+    use crate::view::tray::draw::TrayList;
+    let mut app = tray_app();
+    run(&mut app, SETTLE_FRAMES);
+    let halden = body(&mut app, "Halden IV");
+    let iver = body(&mut app, "Iver");
+    click_fold_marker(&mut app, halden);
+    press_key(&mut app, KeyCode::ArrowDown);
+    press_key(&mut app, KeyCode::ArrowDown);
+    assert!(contents(&app).lines[1].selected);
+
+    click_fold_marker(&mut app, halden);
+    assert_eq!(selected(&app), Some(halden));
+    assert!(contents(&app).lines.iter().all(|l| !l.selected));
+
+    let list = {
+        let mut lists = app.world_mut().query_filtered::<Entity, With<TrayList>>();
+        lists.single(app.world()).unwrap()
+    };
+    app.world_mut().get_mut::<ScrollPosition>(list).unwrap().y = 50.0;
+    click_fold_marker(&mut app, iver);
+    assert_eq!(app.world().get::<ScrollPosition>(list).unwrap().y, 0.0);
+}
+
 /// MRK-12 / CAM-10 / HOV-02: the tray is drawn above the markers, labels
 /// and brackets and beneath the edge arrows, and is a panel the map's
 /// drags don't start on: a drag that starts on it doesn't pan.

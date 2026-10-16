@@ -457,6 +457,16 @@ fn scroll_inset(
     if scroll.delta.y == 0.0 || targets.panel() != Some(panel) {
         return;
     }
+    wheel_scroll(&scroll, &mut position, computed);
+}
+
+/// INS-07 / MUL-08: move a scrolling node's offset by this frame's wheel,
+/// a line at a time or by pixels, within its content.
+pub fn wheel_scroll(
+    scroll: &AccumulatedMouseScroll,
+    position: &mut ScrollPosition,
+    computed: &ComputedNode,
+) {
     let lines = match scroll.unit {
         MouseScrollUnit::Line => SCROLL_LINE_PX,
         MouseScrollUnit::Pixel => 1.0,
@@ -467,7 +477,7 @@ fn scroll_inset(
 
 /// INS-07: a scroll offset moved by `delta`, kept between the top and the
 /// end of the content.
-pub fn scrolled(offset: f32, delta: f32, max: f32) -> f32 {
+fn scrolled(offset: f32, delta: f32, max: f32) -> f32 {
     (offset + delta).clamp(0.0, max.max(0.0))
 }
 

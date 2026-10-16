@@ -41,6 +41,9 @@ const INDENT_PX: f32 = 16.0;
 const TOGGLE_PX: f32 = 10.0;
 /// The outline and the lines between header, rows and footer (INS-09).
 const HAIRLINE_PX: f32 = 1.0;
+/// The lines between header, rows and footer are the outline's colour
+/// mixed this far into the fill, fainter than the outline itself.
+const DIVIDER_MIX: f32 = 0.35;
 /// The notch: a square this wide turned on its corner, half of it
 /// showing past the edge.
 const NOTCH_PX: f32 = 10.0;
@@ -135,7 +138,11 @@ pub fn spawn_tray(mut commands: Commands, fonts: Res<Fonts>, tunables: Res<Tunab
                         padding: UiRect::horizontal(px(SIDE_PADDING_PX)),
                         ..line(UiRect::bottom(px(HAIRLINE_PX)))
                     },
-                    BorderColor::all(colors::mix(colors::PANEL, colors::PANEL_BORDER, 0.35)),
+                    BorderColor::all(colors::mix(
+                        colors::PANEL,
+                        colors::PANEL_BORDER,
+                        DIVIDER_MIX,
+                    )),
                 ));
                 panel.spawn((
                     TrayList,
@@ -157,7 +164,11 @@ pub fn spawn_tray(mut commands: Commands, fonts: Res<Fonts>, tunables: Res<Tunab
                             padding: UiRect::horizontal(px(SIDE_PADDING_PX)),
                             ..line(UiRect::top(px(HAIRLINE_PX)))
                         },
-                        BorderColor::all(colors::mix(colors::PANEL, colors::PANEL_BORDER, 0.35)),
+                        BorderColor::all(colors::mix(
+                            colors::PANEL,
+                            colors::PANEL_BORDER,
+                            DIVIDER_MIX,
+                        )),
                     ))
                     .with_child((
                         TrayFooter,
@@ -187,12 +198,12 @@ pub fn fill_tray(
     (headers, lists, mut footers): Parts,
     mut shown: Local<Option<(String, Vec<TrayLine>, String)>>,
 ) {
-    let wanted = (
-        contents.header.clone(),
-        contents.lines.clone(),
-        contents.hint.clone(),
-    );
-    if shown.as_ref() == Some(&wanted) {
+    // The contents change every frame the marker moves; the panel's text
+    // only when one of these does.
+    let unchanged = shown.as_ref().is_some_and(|(header, lines, hint)| {
+        *header == contents.header && *lines == contents.lines && *hint == contents.hint
+    });
+    if unchanged {
         return;
     }
     let assets = (&*fonts, &*tunables);
@@ -218,7 +229,11 @@ pub fn fill_tray(
     for mut footer in &mut footers {
         footer.0.clone_from(&contents.hint);
     }
-    *shown = Some(wanted);
+    *shown = Some((
+        contents.header.clone(),
+        contents.lines.clone(),
+        contents.hint.clone(),
+    ));
 }
 
 /// MUL-09: one row: its toggle slot, its symbol at `list_symbol_px` (or
@@ -369,12 +384,17 @@ pub fn place_tray_panel(
         }
         return;
     };
-    node.display = Display::Flex;
     let size = node_size(computed);
     let area = MapArea::of(viewport).rect();
     let place = place_tray(anchor, size, area, tunables.tray_gap_px, NOTCH_INSET_PX);
-    node.left = px(place.top_left.x);
-    node.top = px(place.top_left.y);
+    // Nodes are written only when they move, so a still tray costs no
+    // layout.
+    node.set_if_neq(Node {
+        display: Display::Flex,
+        left: px(place.top_left.x),
+        top: px(place.top_left.y),
+        ..node.clone()
+    });
     let measured = size.x > 0.0 && size.y > 0.0;
     visibility.set_if_neq(if measured {
         Visibility::Inherited
@@ -382,11 +402,17 @@ pub fn place_tray_panel(
         Visibility::Hidden
     });
     for mut panel in &mut panels {
-        panel.max_height = px(place.max_height);
+        panel.set_if_neq(Node {
+            max_height: px(place.max_height),
+            ..panel.clone()
+        });
     }
     for mut notch in &mut notches {
         let edge = if place.left_side { size.x } else { 0.0 };
-        notch.left = px(edge - NOTCH_PX / 2.0);
-        notch.top = px(place.notch_y - NOTCH_PX / 2.0);
+        notch.set_if_neq(Node {
+            left: px(edge - NOTCH_PX / 2.0),
+            top: px(place.notch_y - NOTCH_PX / 2.0),
+            ..notch.clone()
+        });
     }
 }

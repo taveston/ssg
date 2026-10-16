@@ -9,7 +9,7 @@
 //! while the planner is open picks it as a click on its symbol would.
 
 use bevy::ecs::system::SystemParam;
-use bevy::input::mouse::{AccumulatedMouseScroll, MouseScrollUnit};
+use bevy::input::mouse::AccumulatedMouseScroll;
 use bevy::prelude::*;
 
 use super::TrayState;
@@ -19,7 +19,7 @@ use super::rows::{row_to_close, step_row};
 use crate::sim::group::MemberOf;
 use crate::view::bindings::{Bindings, pressed};
 use crate::view::hover::ClickCheck;
-use crate::view::inset::inspect::scrolled;
+use crate::view::inset::inspect::wheel_scroll;
 use crate::view::inset::outline::scroll_to_reveal;
 use crate::view::multi::{OpenTray, TrayRequest};
 use crate::view::node_box::node_size;
@@ -28,32 +28,29 @@ use crate::view::selection::Selection;
 use crate::view::targets::PointerTargets;
 use crate::view::tunables::Tunables;
 
-/// How far one wheel line scrolls a tray's rows.
-const SCROLL_LINE_PX: f32 = 24.0;
-
 /// MUL-07 / MUL-10: a click that asked for a tray opens it in place of
-/// any other, with the selection as its selected row; one that asked for
-/// none and isn't on the tray closes the open tray. A drag's release is
-/// not a click and leaves it open.
-#[allow(clippy::too_many_arguments)]
+/// any other, scrolled to its top, with the selection as its selected
+/// row; asked again for the open tray, it keeps its opened rows and takes
+/// the selection the click made. A click that asked for none and isn't on
+/// the tray closes the open tray. A drag's release is not a click and
+/// leaves it open.
 pub fn open_or_close(
-    mut request: ResMut<TrayRequest>,
-    mut open: ResMut<OpenTray>,
-    mut state: ResMut<TrayState>,
+    (mut request, mut open, mut state): (ResMut<TrayRequest>, ResMut<OpenTray>, ResMut<TrayState>),
     selection: Res<Selection>,
     (buttons, bindings): (Res<ButtonInput<MouseButton>>, Res<Bindings>),
-    check: ClickCheck,
-    targets: PointerTargets,
+    (check, targets): (ClickCheck, PointerTargets),
     trays: Query<(), With<TrayRoot>>,
+    mut lists: Query<&mut ScrollPosition, With<TrayList>>,
 ) {
     if let Some(tray) = request.0.take() {
         if open.0 != Some(tray) {
             open.0 = Some(tray);
-            *state = TrayState {
-                cursor: selection.selected,
-                ..default()
-            };
+            state.open_rows.clear();
+            for mut position in &mut lists {
+                *position = ScrollPosition::default();
+            }
         }
+        state.cursor = selection.selected;
         return;
     }
     let on_tray = targets.panel().is_some_and(|panel| trays.contains(panel));
@@ -175,15 +172,9 @@ pub fn scroll_tray(
     if scroll.delta.y == 0.0 || !targets.panel().is_some_and(|p| trays.contains(p)) {
         return;
     }
-    let Ok((mut position, computed)) = lists.single_mut() else {
-        return;
-    };
-    let lines = match scroll.unit {
-        MouseScrollUnit::Line => SCROLL_LINE_PX,
-        MouseScrollUnit::Pixel => 1.0,
-    };
-    let max = ((computed.content_size() - computed.size()) * computed.inverse_scale_factor()).y;
-    position.y = scrolled(position.y, -scroll.delta.y * lines, max);
+    if let Ok((mut position, computed)) = lists.single_mut() {
+        wheel_scroll(&scroll, &mut position, computed);
+    }
 }
 
 /// MUL-08 / MUL-10: when the selected row changes in a tray that scrolls,
