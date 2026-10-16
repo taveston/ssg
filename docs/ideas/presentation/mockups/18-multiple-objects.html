@@ -54,6 +54,16 @@ h1{font-size:14px;font-weight:600;color:var(--muted);letter-spacing:.1em;text-tr
   </div>
 </section>
 
+<section class="board"><h2>Two things that are always on one point</h2>
+  <p class="lede" style="margin:0 0 10px">Things in one phase can't be pulled apart by zooming, so these come from game state and always show as one marker: a formation with the ships it covers (PHAS-14), and ships docked at a station (PHAS-02). The marker and the tray are the same as for chance overlaps.</p>
+  <div class="two">
+    <div style="width:678px"><div class="frame" id="d1"></div>
+      <p class="cap"><b>An escort and its convoy.</b> A formation counts as one thing, so the marker shows 4: TF-1 and three haulers. The formation row keeps its bracket and its own count, and opens in place. Its strength is not lost in the count.</p></div>
+    <div style="width:678px"><div class="frame" id="d2"></div>
+      <p class="cap"><b>A formation docked at a station.</b> The station stays a station: its frame and bar, with the docked count where an icon would be. The tray lists the station first, then what is docked. The station's frame keeps the station's own affiliation, so a hostile ship docked at a neutral station does not turn it red.</p></div>
+  </div>
+</section>
+
 <script>
 const C = {ground:'#070A0E', text:'#DCE6EC', muted:'#9FB6C4', own:'#5AA9E6', civil:'#A9CBE3',
            neutral:'#8CCB8A', hostile:'#EE6A5F', unknown:'#F0A040', body:'#DCE6EC', panel:'#0B1016'};
@@ -97,7 +107,8 @@ function sym(o) {
   }
   s += `<g fill="${fillOf(o.aff, o.civil)}"${o.dashed ? ' stroke-dasharray="3 2.4"' : ''}>${FRAME[o.aff]}</g>`;
   if (o.count !== undefined && !o.tf) s += mono(o.count, 0, 3.6, 10.5, col);
-  else s += icon(o.icon, col);
+  else if (o.icon) s += icon(o.icon, col);
+  if (o.station) s += `<rect x="-4" y="-16" width="8" height="4" fill="${col}" stroke="none"/>`;
   if (o.echelon) s += mono(o.echelon, 0, -14, 10, col);
   if (o.tf) {
     s += `<path d="M-10,-14 L-10,-18 L10,-18 L10,-14" fill="none" stroke-width="1.3"/>`;
@@ -237,6 +248,68 @@ const rank = {hostile: 3, unknown: 2, neutral: 1, own: 0};
   s += `<line x1="${tx}" y1="${fy}" x2="${tx+240}" y2="${fy}" stroke="rgba(159,182,196,.15)"/>`;
   s += mono('↑ ↓ step · Esc close', tx + 14, fy + 17, 10.5, C.muted, 'start');
   document.getElementById('c2').innerHTML = s + '</svg>';
+})();
+
+// ---------- Board D: structural cases ----------
+function tray(x, y, w, title, rows, hint) {
+  const rowH = 26, hdr = 28, ftr = 26, h = hdr + rows.length * rowH + ftr;
+  let t = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${C.panel}" stroke="rgba(159,182,196,.35)"/>`;
+  t += `<text x="${x+14}" y="${y+18}" font-family="Plex Cond, sans-serif" font-size="10.5" font-weight="600" letter-spacing="1.2" fill="${C.muted}">${title}</text>`;
+  t += `<line x1="${x}" y1="${y+hdr}" x2="${x+w}" y2="${y+hdr}" stroke="rgba(159,182,196,.15)"/>`;
+  rows.forEach((r, k) => {
+    const ry = y + hdr + k * rowH, ind = (r.indent || 0) * 18;
+    if (r.rule) t += `<line x1="${x+10}" y1="${ry}" x2="${x+w-10}" y2="${ry}" stroke="rgba(159,182,196,.15)"/>`;
+    if (r.sel) t += `<rect x="${x+1}" y="${ry}" width="${w-2}" height="${rowH}" fill="rgba(220,230,236,.10)"/><rect x="${x+1}" y="${ry}" width="2.5" height="${rowH}" fill="#fff"/>`;
+    if (r.chev) t += mono(r.chev, x + 12, ry + rowH/2 + 3.5, 10, C.muted);
+    t += place(r.sym, x + 32 + ind, ry + rowH/2, 14/22);
+    t += `<text x="${x+52+ind}" y="${ry+rowH/2+4.5}" font-family="Plex Cond, sans-serif" font-size="13" fill="${C.text}">${r.name}</text>`;
+    if (r.tag) t += mono(r.tag, x + w - 12, ry + rowH/2 + 3.5, 10.5, C.muted, 'end');
+  });
+  const fy = y + hdr + rows.length * rowH;
+  t += `<line x1="${x}" y1="${fy}" x2="${x+w}" y2="${fy}" stroke="rgba(159,182,196,.15)"/>`;
+  t += mono(hint, x + 14, fy + 17, 10.5, C.muted, 'start');
+  return t;
+}
+const warship = {aff:'own', icon:'warship'};
+const TF = {aff:'own', icon:'warship', tf:true, count:''};
+const hauler = {aff:'own', icon:'cargo', civil:true};
+const H3 = 300;
+
+(function () {
+  // Case 1: escort and convoy on one point.
+  let s = `<svg width="${W2}" height="${H3+70}" viewBox="0 0 ${W2} ${H3+70}"><rect width="${W2}" height="${H3+70}" fill="${C.ground}"/>`;
+  s += planet(70, 190) + label(84, 208, 'Halden IV', '', C.text);
+  s += `<path d="M70,150 L200,150" stroke="${C.muted}" stroke-opacity=".0"/>`;
+  s += place({aff:'own', back:'own', count:'4'}, 150, 100) + ring(150, 100);
+  s += label(124, 140, 'High orbit', '', C.muted);
+  s += `<path d="M262,100 L255,106 L262,112 Z" fill="${C.panel}" stroke="rgba(159,182,196,.35)"/>`;
+  s += tray(262, 36, 380, 'HIGH ORBIT · 4 THINGS AT ONE POINT', [
+    {sym:TF, chev:'▸', name:'TF-1', tag:'×4 · 4 warships', sel:true},
+    {sym:hauler, name:'Varga Mining ore carrier'},
+    {sym:hauler, name:'Varga Mining ore carrier 2'},
+    {sym:hauler, name:'Varga Mining ore carrier 3'}
+  ], '↑ ↓ step · → open formation · Esc close');
+  s += mono('A formation counts as one entry.', 20, H3 + 56, 10.5, C.muted, 'start');
+  document.getElementById('d1').innerHTML = s + '</svg>';
+
+  // Case 2: formation docked at a station.
+  let t = `<svg width="${W2}" height="${H3+70}" viewBox="0 0 ${W2} ${H3+70}"><rect width="${W2}" height="${H3+70}" fill="${C.ground}"/>`;
+  t += planet(70, 190) + label(84, 208, 'Halden IV', '', C.text);
+  t += place({aff:'own', station:true, back:'own', count:'3'}, 150, 120) + ring(150, 120, 19);
+  t += label(104, 160, 'Arden Highport', '', C.muted);
+  t += `<path d="M262,120 L255,126 L262,132 Z" fill="${C.panel}" stroke="rgba(159,182,196,.35)"/>`;
+  t += tray(262, 24, 380, 'ARDEN HIGHPORT · 3 DOCKED', [
+    {sym:{aff:'own', station:true}, name:'Arden Highport', tag:'station', sel:true},
+    {sym:TF, chev:'▾', name:'TF-1', tag:'×4', rule:true},
+    {sym:warship, indent:1, name:'Orison', tag:'0.9'},
+    {sym:warship, indent:1, name:'Orison II', tag:'0.5'},
+    {sym:warship, indent:1, name:'Orison III', tag:'0.3'},
+    {sym:warship, indent:1, name:'Orison IV', tag:'0.1'},
+    {sym:{aff:'neutral', icon:'cargo'}, name:'Ostra trader'},
+    {sym:{aff:'own', icon:'supply'}, name:'RFA Tolland'}
+  ], '↑ ↓ step · ← close formation · Esc close');
+  t += mono('The station is a row of its own, first.', 20, H3 + 56, 10.5, C.muted, 'start');
+  document.getElementById('d2').innerHTML = t + '</svg>';
 })();
 </script>
 </body>
