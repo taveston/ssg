@@ -3834,3 +3834,54 @@ fn hovering_a_shared_orbit_brackets_its_identity_pill() {
     assert!(close(around.size, pill_size + Vec2::splat(2.0 * margin)));
     assert!((around.alpha - tunables.bracket_hover_alpha).abs() < 1e-3);
 }
+
+/// SYM-12: own ships with a known condition carry a bar filled to it under
+/// the frame, in their colour above the warning fraction; other ships have
+/// none.
+#[test]
+fn own_ships_carry_a_condition_bar_filled_to_their_condition() {
+    use crate::view::symbol_draw::ConditionFill;
+    let mut app = camera_app_with(|app| {
+        app.insert_resource(placeholder_fonts()).add_plugins((
+            EdgePlugin,
+            MarkersPlugin,
+            HoveredPlugin,
+        ));
+    });
+    run(&mut app, 3);
+    let orison = body(&mut app, "Orison");
+    let tolland = body(&mut app, "RFA Tolland");
+    let mut fills = app
+        .world_mut()
+        .query_filtered::<(Entity, &Node, &BackgroundColor), With<ConditionFill>>();
+    let fills: Vec<(Entity, Val, Color)> = fills
+        .iter(app.world())
+        .map(|(e, node, bg)| (e, node.width, bg.0))
+        .collect();
+    let owner = |app: &App, mut e: Entity| loop {
+        if let Some(marker) = app.world().get::<MarkerFor>(e) {
+            return marker.0;
+        }
+        e = app
+            .world()
+            .get::<ChildOf>(e)
+            .expect("under a marker")
+            .parent();
+    };
+    let mut owners: Vec<Entity> = Vec::new();
+    for &(fill, width, color) in &fills {
+        let ship = owner(&app, fill);
+        owners.push(ship);
+        if ship == orison {
+            assert_eq!(width, Val::Percent(90.0));
+            assert_eq!(color, crate::view::colors::OWN);
+        }
+        if ship == tolland {
+            assert_eq!(width, Val::Percent(55.0));
+            assert_eq!(color, crate::view::colors::OWN);
+        }
+        let affiliation = *app.world().get::<Affiliation>(ship).unwrap();
+        assert_eq!(affiliation, Affiliation::Own);
+    }
+    assert!(owners.contains(&orison) && owners.contains(&tolland));
+}

@@ -212,6 +212,9 @@ pub struct Tunables {
     pub symbol_fill_other: f32,
     /// A stale track's symbol is drawn at this opacity (SYM-08).
     pub stale_symbol_alpha: f32,
+    /// An own ship's condition bar turns orange below this condition
+    /// (SYM-12).
+    pub condition_warn_fraction: f32,
 
     // --- The sidebar ---
     /// The sidebar's running text, facts' values and outline entries
@@ -307,6 +310,7 @@ impl Default for Tunables {
             symbol_fill_faction: 0.30,
             symbol_fill_other: 0.16,
             stale_symbol_alpha: 0.55,
+            condition_warn_fraction: 0.5,
 
             sidebar_text_px: 13.0,
             sidebar_caps_px: 11.0,

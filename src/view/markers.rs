@@ -30,7 +30,7 @@ use super::hover;
 use super::layers;
 use super::motion_mode::MotionModeState;
 use super::screen::ScreenPositions;
-use super::symbol_draw::{Tint, TintSlot, spawn_symbol_parts};
+use super::symbol_draw::{Tint, TintSlot, condition_bar_gap, spawn_symbol_parts};
 use super::symbol_shape::SymbolPart;
 use super::symbols::{SymbolSettings, label_second_line, symbol_look};
 use super::targets::MarkerFor;
@@ -173,6 +173,7 @@ pub fn symbol_settings(tunables: &Tunables) -> SymbolSettings {
         fill_faction: tunables.symbol_fill_faction,
         fill_other: tunables.symbol_fill_other,
         stale_alpha: tunables.stale_symbol_alpha,
+        condition_warn: tunables.condition_warn_fraction,
     }
 }
 
@@ -334,7 +335,8 @@ fn spawn_shape(marker: &mut EntityCommands, assets: MarkerAssets, look: BodyLook
             if let Some(record) = look.record {
                 let symbol = symbol_look(look.affiliation, record, symbol_settings(tunables));
                 marker.with_children(|parent| {
-                    spawn_symbol_parts(parent, fonts, &symbol, half * 2.0);
+                    let bar_gap = condition_bar_gap(tunables.bracket_margin_px);
+                    spawn_symbol_parts(parent, fonts, &symbol, half * 2.0, bar_gap);
                 });
             }
         }

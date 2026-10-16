@@ -1,6 +1,7 @@
-//! Ship and station symbols as data (SYM-02 to SYM-08, SYM-13, SYM-15):
-//! from what the faction knows of an object (`ShipRecord`), which frame,
-//! colour, fill, icon and amplifiers its symbol has, what its label's
+//! Ship and station symbols as data (SYM-02 to SYM-08, SYM-12, SYM-13,
+//! SYM-15): from what the faction knows of an object (`ShipRecord`), which
+//! frame, colour, fill, icon and amplifiers (including the condition bar)
+//! its symbol has, what its label's
 //! second line says, and the words used for its ownership. Adapted from
 //! NATO APP-6: the frame shape shows affiliation, the icon what it is, and
 //! amplifiers round the frame its state.
@@ -56,6 +57,17 @@ pub struct SymbolLook {
     pub echelon: Option<&'static str>,
     /// The NATO installation bar on top of the frame (SYM-07).
     pub installation_bar: bool,
+    /// The condition bar under the frame of an own ship (SYM-12).
+    pub condition: Option<ConditionBar>,
+}
+
+/// SYM-12: an own ship's or group's condition bar: how full it is and the
+/// colour it is filled in.
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub struct ConditionBar {
+    /// The filled share of the bar, 0 to 1.
+    pub fill: f32,
+    pub color: Color,
 }
 
 /// The tunables a look depends on.
@@ -64,6 +76,8 @@ pub struct SymbolSettings {
     pub fill_faction: f32,
     pub fill_other: f32,
     pub stale_alpha: f32,
+    /// Below this condition the bar turns orange (SYM-12).
+    pub condition_warn: f32,
 }
 
 /// Whether a record is an own-flag civilian: own, but not commanded.
@@ -151,7 +165,41 @@ pub fn echelon(record: &ShipRecord) -> Option<&'static str> {
     }
 }
 
-/// SYM-02 to SYM-08: the whole look of a symbol from what the faction knows.
+/// SYM-12: a group's condition, the mean of its members' conditions.
+/// Members with no known condition are left out; with none known, the
+/// group has none. Nothing forms groups yet, so only tests call it.
+#[allow(dead_code)]
+pub fn group_condition(members: impl IntoIterator<Item = Option<f64>>) -> Option<f64> {
+    let (sum, count) = members
+        .into_iter()
+        .flatten()
+        .fold((0.0, 0u32), |(sum, count), c| (sum + c, count + 1));
+    (count > 0).then(|| sum / f64::from(count))
+}
+
+/// SYM-12: the condition bar of an own ship or group (commanded or
+/// civilian) with a known condition, filled in the symbol's `color`, or in
+/// the warning orange below the warning fraction. Other affiliations have
+/// none.
+pub fn condition_bar(
+    affiliation: Affiliation,
+    condition: Option<f64>,
+    color: Color,
+    settings: SymbolSettings,
+) -> Option<ConditionBar> {
+    if affiliation != Affiliation::Own {
+        return None;
+    }
+    let fill = condition?.clamp(0.0, 1.0) as f32;
+    let color = if fill < settings.condition_warn {
+        colors::WARNING
+    } else {
+        color
+    };
+    Some(ConditionBar { fill, color })
+}
+
+/// SYM-02 to SYM-08, SYM-12: the whole look of a symbol from what the faction knows.
 pub fn symbol_look(
     affiliation: Affiliation,
     record: &ShipRecord,
@@ -170,6 +218,7 @@ pub fn symbol_look(
         },
         echelon: echelon(record),
         installation_bar: record.class == ShipClass::Station,
+        condition: condition_bar(affiliation, record.condition, color, settings),
     }
 }
 
@@ -227,6 +276,7 @@ mod tests {
         fill_faction: 0.30,
         fill_other: 0.16,
         stale_alpha: 0.55,
+        condition_warn: 0.5,
     };
 
     fn ship(class: ShipClass, commanded: bool) -> ShipRecord {
@@ -424,6 +474,56 @@ mod tests {
         );
         let plain = ship(ShipClass::Warship, true);
         assert_eq!(label_second_line(Affiliation::Own, &plain, 0.0), None);
+    }
+
+    /// SYM-12: own ships with a condition have a bar filled to it in the
+    /// symbol's colour, orange below the warning fraction; civilians too,
+    /// in their paler blue; other affiliations have none.
+    #[test]
+    fn own_ships_show_their_condition_orange_when_low() {
+        let with = |condition, commanded| ShipRecord {
+            condition: Some(condition),
+            ..ship(ShipClass::Cargo, commanded)
+        };
+        let healthy = symbol_look(Affiliation::Own, &with(0.8, true), SETTINGS);
+        assert_eq!(
+            healthy.condition,
+            Some(ConditionBar {
+                fill: 0.8,
+                color: colors::OWN
+            })
+        );
+        let civilian = symbol_look(Affiliation::Own, &with(0.5, false), SETTINGS);
+        assert_eq!(
+            civilian.condition,
+            Some(ConditionBar {
+                fill: 0.5,
+                color: colors::CIVILIAN
+            })
+        );
+        let low = symbol_look(Affiliation::Own, &with(0.3, true), SETTINGS);
+        assert_eq!(
+            low.condition,
+            Some(ConditionBar {
+                fill: 0.3,
+                color: colors::WARNING
+            })
+        );
+        let hostile = symbol_look(Affiliation::Hostile, &with(0.8, false), SETTINGS);
+        assert_eq!(hostile.condition, None);
+        let unknown = symbol_look(Affiliation::Own, &ship(ShipClass::Cargo, true), SETTINGS);
+        assert_eq!(unknown.condition, None);
+    }
+
+    /// SYM-12: a group's condition is the mean of its members' known
+    /// conditions, and unknown when none is known.
+    #[test]
+    fn a_groups_condition_is_its_members_mean() {
+        let mean = group_condition([Some(0.9), Some(0.3), None, Some(0.6)]).unwrap();
+        assert!((mean - 0.6).abs() < 1e-12);
+        assert_eq!(group_condition([Some(0.4)]), Some(0.4));
+        assert_eq!(group_condition([None, None]), None);
+        assert_eq!(group_condition([]), None);
     }
 
     /// SYM-15: the ownership words.

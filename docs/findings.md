@@ -65,3 +65,8 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Observation:** Seen on screen. LBL-01 measures `label_gap_px` (6 px) from the marker's edge, and the bracket box reaches `bracket_margin_px` (4 px) beyond it. A selected or hovered object's label starts 2 px outside its brackets, and at the system fit the right-hand arms nearly touch Halden IV's first letter. The build leaves label placement as it was.
 - **Affects:** LBL-01, HOV-06, HOV-07 · **Type:** spec wrong
 - **Disposition:** open. Options: measure the label gap from the bracket box (for every marker, so labels don't move on hover), or raise `label_gap_px`.
+
+### F-169 · Where the condition bar sits, and what an empty bar looks like
+- **Observation:** SYM-12 puts the bar "under the frame" but gives no gap. Directly under the frame, the selection and hover brackets (HOV-07, 4 px clear of the frame) would cross it. The build starts the bar 1 px below the bracket box, so 5 px below the frame. The spec doesn't say how the unfilled part looks either. The build draws it in the bar's colour mixed 25 % into the ground, so a part-full bar shows its whole length. An own ship with no known condition (Corvane's own-flag civilians) has no bar.
+- **Affects:** SYM-12, HOV-07 · **Type:** spec gap
+- **Disposition:** open. Accept, or give the gap and the empty part's look.

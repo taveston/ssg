@@ -21,13 +21,10 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 - [ ] **Orbit rows in the outline** · INS-05
   - Changes INS-05 (its ✓ is cleared). In `view/outline.rs`: drop the step in `children_of` that turns a one-member orbit back into a plain entry, so every named orbit with members gets its row. Name the row "High orbit · 14" (the orbit's name, "orbit", the member count) instead of "Halden IV · High · 14". An orbit with no members still gets no row.
   - Tests: Halden IV's outline has "Low orbit · 1" (Arden Highport) and "High orbit" with its ships; a body with empty bands has no orbit rows; selecting a lone member opens its row.
-- [ ] **Condition bar** · SYM-12
-  - The symbols are built; the bar adds to them (`view/symbols.rs`, `symbol_draw.rs`).
-  - Build a group's mean as a function of its members' conditions, tested on its own, so **Ship groups** can use it.
 - [ ] **Ship groups** · SYM-09, SYM-10, GRP-09, TEST-06
   - Nothing forms groups in play yet (F-159), so only the test content (TEST-06) has them. TEST-06 now has the one task force; give the own ships of TEST-03 and TEST-05 conditions above `condition_warn_fraction`.
   - The symbols are built; groups add to them (`view/symbols.rs`, `symbol_draw.rs`).
-  - A group holds its members and takes its class, armed status, load and condition from them (SYM-01, SYM-09).
+  - A group holds its members and takes its class, armed status, load and condition from them (SYM-01, SYM-09). The condition bar (SYM-12) is built; `group_condition` in `view/symbols.rs` gives a group's mean.
   - SYM-13 is still open for the order countdown (**Transfer planner**). Its group parts come with this item: the member count by class, and the label clear of the symbol's amplifiers.
   - The ships of a group share one phase (PHAS-14, TEST-10), so TEST-10's check that no two ships share a phase must skip ships of one group.
 - [ ] **Phase in transfers** · BAND-05, BAND-06, XFER-02, XFER-05, XFER-10, PLAN-11, PHAS-01 to PHAS-15
