@@ -172,7 +172,7 @@ fn add_a_second_group_beside_tf1(mut waiting: ResMut<SystemDataResource>) {
         }),
         orbit: OrbitPlacement::Named("High"),
         phase0_rad,
-        ..blueprint("TF-2", BodyClass::Ship, 0.0)
+        ..blueprint("TF-3", BodyClass::Ship, 0.0)
     });
 }
 
@@ -195,7 +195,7 @@ fn two_groups_in_one_place_stay_two_symbols() {
     run(&mut app, 60 + move_frames());
 
     let tf1 = body(&mut app, "TF-1");
-    let tf2 = body(&mut app, "TF-2");
+    let tf2 = body(&mut app, "TF-3");
     let positions = app.world().resource::<WorldPositions>();
     assert!(positions.0[&tf1].distance(positions.0[&tf2]) < 1e-3);
     let (one, two) = (marker_of(&mut app, tf1), marker_of(&mut app, tf2));

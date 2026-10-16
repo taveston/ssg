@@ -276,6 +276,20 @@ pub struct Tunables {
     /// (SYM-11).
     pub leader_speed_max_kms: f32,
 
+    // --- Several objects on one marker ---
+    /// Two symbols whose on-screen centres come closer than this join one
+    /// multi-marker (MUL-05).
+    pub cluster_join_px: f32,
+    /// Joined symbols part once their centres are farther apart than this;
+    /// between the two they keep their state, so a pair at the edge
+    /// doesn't flicker (MUL-05).
+    pub cluster_split_px: f32,
+    /// A multi-marker's back frame sits this far right of and above its
+    /// front frame (MUL-01).
+    pub back_frame_offset_px: f32,
+    /// The size of a multi-marker's count, in the data face (MUL-01).
+    pub multi_count_px: f32,
+
     // --- The sidebar ---
     /// The sidebar's running text, facts' values and outline entries
     /// (INS-05, INS-09).
@@ -454,6 +468,11 @@ impl Default for Tunables {
             leader_max_px: 24.0,
             leader_speed_min_kms: 0.5,
             leader_speed_max_kms: 50.0,
+
+            cluster_join_px: 24.0,
+            cluster_split_px: 28.0,
+            back_frame_offset_px: 4.0,
+            multi_count_px: 10.5,
 
             sidebar_text_px: 13.0,
             sidebar_caps_px: 11.0,

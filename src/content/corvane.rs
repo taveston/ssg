@@ -183,9 +183,24 @@ fn pell() -> BodyBlueprint {
     }
 }
 
+/// Iver Yard's phase in Iver's High band; the ships docked there share it
+/// (TEST-11).
+const IVER_YARD_PHASE: f64 = 0.9;
+
 /// TEST-01: Iver, with the station Iver Yard in its High band (SCL-07),
-/// the band nearest the yard's old 45,000 km orbit.
+/// the band nearest the yard's old 45,000 km orbit. TEST-11: two ships
+/// are docked at the yard, at its phase, so Corvane shows a station
+/// marker counting 2.
 fn iver() -> BodyBlueprint {
+    let docked = |name, affiliation, record, description| {
+        parked(
+            name,
+            affiliation,
+            record,
+            description,
+            (OrbitPlacement::Named("High"), IVER_YARD_PHASE),
+        )
+    };
     BodyBlueprint {
         name: "Iver",
         class: BodyClass::Planet,
@@ -201,23 +216,40 @@ fn iver() -> BodyBlueprint {
         phase0_rad: 2.1,
         mass_kg: 0.9 * EARTH_MASS_KG,
         orbits: vec![],
-        children: vec![BodyBlueprint {
-            name: "Iver Yard",
-            class: BodyClass::Station,
-            affiliation: Affiliation::Own,
-            record: Some(ShipRecord::new(ShipClass::Station, true)),
-            propulsion: None,
-            group: None,
-            description: "A dormant pre-collapse shipyard, barely maintained.",
-            key_facts: vec![("Status", "Dormant"), ("Owner", "Own")],
-            knowledge: surveyed_today(),
-            orbit: OrbitPlacement::Named("High"),
-            radius_km: 1.0,
-            phase0_rad: 0.9,
-            mass_kg: 0.0,
-            orbits: vec![],
-            children: vec![],
-        }],
+        children: vec![
+            BodyBlueprint {
+                name: "Iver Yard",
+                class: BodyClass::Station,
+                affiliation: Affiliation::Own,
+                record: Some(ShipRecord::new(ShipClass::Station, true)),
+                propulsion: None,
+                group: None,
+                description: "A dormant pre-collapse shipyard, barely maintained.",
+                key_facts: vec![("Status", "Dormant"), ("Owner", "Own")],
+                knowledge: surveyed_today(),
+                orbit: OrbitPlacement::Named("High"),
+                radius_km: 1.0,
+                phase0_rad: IVER_YARD_PHASE,
+                mass_kg: 0.0,
+                orbits: vec![],
+                children: vec![],
+            },
+            docked(
+                "Corvid",
+                Affiliation::Own,
+                ShipRecord {
+                    condition: Some(0.7),
+                    ..ShipRecord::new(ShipClass::Warship, true)
+                },
+                "An own warship docked at Iver Yard for a refit.",
+            ),
+            docked(
+                "Pellam trader",
+                Affiliation::Neutral,
+                ShipRecord::new(ShipClass::Cargo, false),
+                "A neutral trader docked at Iver Yard.",
+            ),
+        ],
     }
 }
 
@@ -542,6 +574,10 @@ fn ships_at_halden() -> Vec<BodyBlueprint> {
         // TEST-06 / TEST-10: TF-1 takes the gap between the last ship and
         // the first, so every phase in "High" stays distinct.
         .chain([task_force_tf1(spread_phase(2 * count - 1, 2 * count))])
+        // TEST-12: TF-2 and two haulers share the gap after the first
+        // ship, so they are together and every other phase stays as it
+        // was.
+        .chain(convoy_at(spread_phase(1, 2 * count)))
         .chain([parked(
             "K-3",
             Affiliation::Unknown,
@@ -585,6 +621,56 @@ fn task_force_tf1(phase0_rad: f64) -> BodyBlueprint {
             (OrbitPlacement::Named("High"), phase0_rad),
         )
     }
+}
+
+/// TEST-12: the own task force TF-2, two warships, and two own-flag
+/// civilian haulers, all parked at one phase `phase0_rad` in Halden IV's
+/// "High" band: three things together, shown as one multi-marker.
+fn convoy_at(phase0_rad: f64) -> [BodyBlueprint; 3] {
+    let at = (OrbitPlacement::Named("High"), phase0_rad);
+    let warship = |name| MemberBlueprint {
+        name,
+        record: ShipRecord {
+            condition: Some(0.85),
+            ..ShipRecord::new(ShipClass::Warship, true)
+        },
+    };
+    let hauler = |name, description| {
+        parked(
+            name,
+            Affiliation::Own,
+            ShipRecord {
+                condition: Some(0.8),
+                ..ShipRecord::new(ShipClass::Cargo, false)
+            },
+            description,
+            at,
+        )
+    };
+    [
+        BodyBlueprint {
+            record: None,
+            group: Some(GroupBlueprint {
+                task_force: true,
+                members: vec![warship("Sabre"), warship("Lance")],
+            }),
+            ..parked(
+                "TF-2",
+                Affiliation::Own,
+                ShipRecord::new(ShipClass::Warship, true),
+                "An own task force of two warships escorting two haulers.",
+                at,
+            )
+        },
+        hauler(
+            "Varga Courser",
+            "A Varga Mining hauler under escort, under its own orders.",
+        ),
+        hauler(
+            "Varga Drifter",
+            "A second Varga Mining hauler under escort.",
+        ),
+    ]
 }
 
 /// TEST-01: Morrow, the outer giant with many moons.
@@ -867,11 +953,12 @@ mod tests {
     /// named orbits are exactly its two bands. "Low" holds Arden Highport
     /// alone; "High" holds every parked ship - Orison (TEST-03), a second
     /// own commanded warship, Ardent, the TEST-05 ships and the group TF-1
-    /// (TEST-06) - at distinct phases, while K-3 keeps an orbit of its
-    /// own. TF-1's ships have no phase of their own: they share the
-    /// group's (PHAS-14).
+    /// (TEST-06) - at distinct phases, but for the TEST-12 convoy, while
+    /// K-3 keeps an orbit of its own. TF-1's ships have no phase of their
+    /// own: they share the group's (PHAS-14).
     #[test]
     fn halden_iv_bands_hold_the_station_and_every_parked_ship() {
+        const CONVOY: [&str; 3] = ["TF-2", "Varga Courser", "Varga Drifter"];
         let halden = planet("Halden IV");
         assert!(halden.orbits.is_empty());
         assert!(planet_bands(&halden).high_km.is_some());
@@ -901,7 +988,11 @@ mod tests {
             assert_eq!(ship.affiliation, Affiliation::Own);
             assert!(record.commanded && record.class == ShipClass::Warship);
         }
-        let mut phases: Vec<f64> = in_high.iter().map(|c| c.phase0_rad).collect();
+        let mut phases: Vec<f64> = in_high
+            .iter()
+            .filter(|c| !CONVOY[1..].contains(&c.name))
+            .map(|c| c.phase0_rad)
+            .collect();
         phases.sort_by(f64::total_cmp);
         for pair in phases.windows(2) {
             assert!(pair[1] - pair[0] > 1e-6, "two ships share a phase");
@@ -1163,6 +1254,70 @@ mod tests {
         let records: Vec<&ShipRecord> = group.members.iter().map(|m| &m.record).collect();
         let mean = group_record(&records).unwrap().condition.unwrap();
         assert!((mean - 0.45).abs() < 1e-12);
+    }
+
+    /// TEST-11: two ships, an own commanded warship and a neutral trader,
+    /// sit in Iver's High band at Iver Yard's phase, so they are docked
+    /// there.
+    #[test]
+    fn two_ships_are_docked_at_iver_yard() {
+        let iver = planet("Iver");
+        let yard = child(&iver, "Iver Yard");
+        let docked: Vec<&BodyBlueprint> = iver
+            .children
+            .iter()
+            .filter(|c| c.class == BodyClass::Ship)
+            .collect();
+        assert_eq!(docked.len(), 2);
+        for ship in &docked {
+            assert_eq!(ship.orbit, yard.orbit);
+            assert_eq!(ship.phase0_rad, yard.phase0_rad);
+        }
+        let kinds: Vec<(Affiliation, ShipClass, bool)> = docked
+            .iter()
+            .map(|s| {
+                let r = s.record.as_ref().unwrap();
+                (s.affiliation, r.class, r.commanded)
+            })
+            .collect();
+        assert_eq!(
+            kinds,
+            [
+                (Affiliation::Own, ShipClass::Warship, true),
+                (Affiliation::Neutral, ShipClass::Cargo, false)
+            ]
+        );
+    }
+
+    /// TEST-12: TF-2 (an own task force of two warships) and two own-flag
+    /// civilian haulers share one phase in Halden IV's High band, apart
+    /// from every other ship there.
+    #[test]
+    fn tf2_and_two_haulers_share_one_phase_in_high() {
+        let halden = planet("Halden IV");
+        let tf2 = child(&halden, "TF-2");
+        let group = tf2.group.as_ref().expect("TF-2 is a group");
+        assert!(group.task_force && group.members.len() == 2);
+        assert!(
+            group
+                .members
+                .iter()
+                .all(|m| m.record.commanded && m.record.class == ShipClass::Warship)
+        );
+        for name in ["Varga Courser", "Varga Drifter"] {
+            let hauler = child(&halden, name);
+            let record = hauler.record.as_ref().unwrap();
+            assert_eq!(hauler.affiliation, Affiliation::Own);
+            assert!(!record.commanded && record.class == ShipClass::Cargo);
+            assert_eq!(hauler.orbit, OrbitPlacement::Named("High"));
+            assert_eq!(hauler.phase0_rad, tf2.phase0_rad);
+        }
+        let others = halden
+            .children
+            .iter()
+            .filter(|c| c.orbit == OrbitPlacement::Named("High"))
+            .filter(|c| c.phase0_rad == tf2.phase0_rad);
+        assert_eq!(others.count(), 3);
     }
 
     /// TEST-06: every own ship of TEST-03 and TEST-05 has a condition,
