@@ -93,7 +93,7 @@ fn screen_heading<P: Fn(Vec3) -> Option<Vec2>>(
     ((camera.project)(to)? - centre).try_normalize()
 }
 
-/// Where every arm starts from: the frame body at `body` (render units),
+/// Where every arm and the vertical axis start from: the frame body at `body` (render units),
 /// landing at `centre` on screen, with its `look`; the map area the arms
 /// stay inside, and the ticks' spacing in render units (the scale bar's
 /// distance).
@@ -150,25 +150,32 @@ fn arm<P: Fn(Vec3) -> Option<Vec2>>(
         length: end - start,
         alpha_start: t.ref_alpha_near * strength,
         alpha_end: t.ref_alpha_far * strength,
-        style: StrokeStyle::Dotted {
+        style: StrokeStyle {
             dot_px: t.ref_dot_px,
             pitch_px: t.ref_dot_pitch_px,
+            arrow_px: 0.0,
         },
         ticks: ticks.into_iter().map(|at| at - start).collect(),
         tick_px: t.ref_tick_px,
     })
 }
 
-/// REF-06 / REF-07: the vertical axis's halves through the frame body.
-/// The upper half starts at the body's pole when it is a true-size disc,
-/// and the gap beyond its box otherwise.
+/// REF-06 / REF-07: the vertical axis's halves through the frame body,
+/// dotted as the arms are. The upper half starts at the body's pole when
+/// it is a true-size disc, and the gap beyond its box otherwise; edge-on
+/// it is `ref_up_fraction` of the map area's height long.
 fn vertical<P: Fn(Vec3) -> Option<Vec2>>(
     camera: &CueCamera<P>,
-    body: Vec3,
-    centre: Vec2,
-    look: FrameBodyLook,
+    base: &ArmBase,
     t: &Tunables,
 ) -> (Option<Stroke>, Option<Stroke>) {
+    let ArmBase {
+        body,
+        centre,
+        look,
+        map,
+        ..
+    } = *base;
     let reach = body.distance(camera.eye);
     let Some(up) = screen_heading(camera, centre, body + UP * reach * STEP_FRACTION) else {
         return (None, None);
@@ -179,10 +186,11 @@ fn vertical<P: Fn(Vec3) -> Option<Vec2>>(
     };
     let shortening = normal_foreshortening((body - camera.eye).normalize_or_zero());
     let vertical_look = VerticalLook {
-        up_px: t.ref_up_px,
+        up_px: t.ref_up_fraction * map.height(),
         down_fraction: t.ref_down_fraction,
         min_px: t.ref_vertical_min_px,
-        width_px: t.ref_vertical_px,
+        dot_px: t.ref_dot_px,
+        pitch_px: t.ref_dot_pitch_px,
         arrow_px: t.ref_arrow_px,
         alpha_near: t.ref_alpha_near,
         alpha_far: t.ref_alpha_far,
@@ -220,7 +228,7 @@ pub fn cue_layout<P: Fn(Vec3) -> Option<Vec2>>(
         };
         arm(camera, &base, direction, strength, t)
     });
-    let (upper, lower) = vertical(camera, body, centre, look, t);
+    let (upper, lower) = vertical(camera, &base, t);
     let north_label = arms[0]
         .as_ref()
         .and_then(|north| north_label_at(north, t.ref_n_inset_px));
@@ -413,6 +421,42 @@ pub fn draw_frame_cue(
                 node.top = px(at.y - N_BOX_PX / 2.0);
             }
             None => node.display = Display::None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// REF-06: seen edge-on, the upper half is `ref_up_fraction` of the
+    /// map area's height, so it follows the window and the inset.
+    #[test]
+    fn the_upper_half_follows_the_map_height() {
+        let t = Tunables::default();
+        // Edge-on, looking along the plane at a body at the origin; one
+        // render unit is 100 px on screen.
+        let camera = CueCamera {
+            eye: Vec3::new(0.0, 0.0, 10.0),
+            forward: Vec3::NEG_Z,
+            project: |p: Vec3| Some(Vec2::new(400.0 + 100.0 * p.x, 300.0 - 100.0 * p.y)),
+        };
+        let look = FrameBodyLook {
+            box_half: 5.0,
+            disc_radius: None,
+        };
+        let upper_for = |height: f32| {
+            let map = Rect::new(0.0, 40.0, 800.0, 40.0 + height);
+            let layout = cue_layout(&camera, Vec3::ZERO, look, map, 0.0, &t);
+            layout.upper.expect("an upper half").length
+        };
+        for height in [560.0, 300.0] {
+            let length = upper_for(height);
+            let wanted = t.ref_up_fraction * height;
+            assert!(
+                (length - wanted).abs() < 1e-3,
+                "{length} px, wanted {wanted}"
+            );
         }
     }
 }

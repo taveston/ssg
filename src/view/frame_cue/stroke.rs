@@ -1,7 +1,7 @@
 //! How a stroke of the frame cue is drawn (REF-01, REF-05, REF-06): a UI
 //! node laid along the stroke and turned to its direction, filled by the
-//! material in `stroke.wesl`, which draws the dots or the solid line, the
-//! ticks across it and the arrowhead per screen pixel, faded along its
+//! material in `stroke.wesl`, which draws the dots, the ticks across them
+//! and the arrowhead per screen pixel, faded along its
 //! length. Callers write [`CueStroke`] and place the node with
 //! [`stroke_node_box`]; the material follows the look.
 
@@ -36,16 +36,16 @@ pub struct StrokeBox {
     pub rotation: Rot2,
 }
 
-/// Half the height a stroke needs across its line: its dots or line, its
-/// ticks and its arrowhead.
+/// Half the height a stroke needs across its line: its dots, its ticks
+/// and its arrowhead.
 fn half_height(stroke: &Stroke) -> f32 {
-    let line = match stroke.style {
-        StrokeStyle::Dotted { dot_px, .. } => dot_px / 2.0,
-        StrokeStyle::Solid { width_px, arrow_px } => {
-            (width_px / 2.0).max(arrow_px * ARROW_WIDTH_PER_LENGTH / 2.0)
-        }
-    };
-    line.max(stroke.tick_px / 2.0) + PAD_PX
+    let StrokeStyle {
+        dot_px, arrow_px, ..
+    } = stroke.style;
+    (dot_px / 2.0)
+        .max(arrow_px * ARROW_WIDTH_PER_LENGTH / 2.0)
+        .max(stroke.tick_px / 2.0)
+        + PAD_PX
 }
 
 /// The node that holds `stroke`: as long as the stroke with a pixel to
@@ -70,8 +70,8 @@ pub struct CueStrokeUniform {
     pub length_px: f32,
     pub alpha_start: f32,
     pub alpha_end: f32,
-    pub width_px: f32,
-    /// 0 for a solid line.
+    /// The dots' diameter.
+    pub dot_px: f32,
     pub pitch_px: f32,
     pub tick_px: f32,
     pub tick_width_px: f32,
@@ -89,7 +89,7 @@ impl Default for CueStrokeUniform {
             length_px: 0.0,
             alpha_start: 0.0,
             alpha_end: 0.0,
-            width_px: 0.0,
+            dot_px: 0.0,
             pitch_px: 0.0,
             tick_px: 0.0,
             tick_width_px: TICK_WIDTH_PX,
@@ -106,10 +106,11 @@ impl From<&CueStroke> for CueStrokeUniform {
         let Some(stroke) = &look.stroke else {
             return Self::default();
         };
-        let (width_px, pitch_px, arrow_px) = match stroke.style {
-            StrokeStyle::Dotted { dot_px, pitch_px } => (dot_px, pitch_px, 0.0),
-            StrokeStyle::Solid { width_px, arrow_px } => (width_px, 0.0, arrow_px),
-        };
+        let StrokeStyle {
+            dot_px,
+            pitch_px,
+            arrow_px,
+        } = stroke.style;
         let mut ticks = [Vec4::ZERO; MAX_TICKS / 4];
         let count = stroke.ticks.len().min(MAX_TICKS);
         for (i, &tick) in stroke.ticks.iter().take(count).enumerate() {
@@ -121,7 +122,7 @@ impl From<&CueStroke> for CueStrokeUniform {
             length_px: stroke.length,
             alpha_start: stroke.alpha_start,
             alpha_end: stroke.alpha_end,
-            width_px,
+            dot_px,
             pitch_px,
             tick_px: stroke.tick_px,
             tick_width_px: TICK_WIDTH_PX,
@@ -198,9 +199,10 @@ mod tests {
             length: 50.0,
             alpha_start: 1.0,
             alpha_end: 0.45,
-            style: StrokeStyle::Dotted {
+            style: StrokeStyle {
                 dot_px: 2.0,
                 pitch_px: 5.0,
+                arrow_px: 0.0,
             },
             ticks: vec![10.0, 20.0, 30.0, 40.0, 45.0],
             tick_px: 9.0,
@@ -229,7 +231,7 @@ mod tests {
         assert_eq!(uniform.tick_count, 5);
         assert_eq!(uniform.ticks[0], Vec4::new(10.0, 20.0, 30.0, 40.0));
         assert_eq!(uniform.ticks[1].x, 45.0);
-        assert_eq!((uniform.width_px, uniform.pitch_px), (2.0, 5.0));
+        assert_eq!((uniform.dot_px, uniform.pitch_px), (2.0, 5.0));
         let hidden = CueStroke {
             color: Color::WHITE,
             stroke: None,

@@ -17,14 +17,15 @@ pub const MIN_TICK_SPACING_PX: f32 = 4.0;
 /// The most ticks one arm carries (the shader's limit).
 pub const MAX_TICKS: usize = 64;
 
-/// How a stroke is drawn.
+/// How a stroke is drawn: round dots `dot_px` across, their centres
+/// `pitch_px` apart (REF-01), ending in a solid, filled arrowhead
+/// `arrow_px` long, or none at 0 (REF-06). The dots stop short of the
+/// arrowhead.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum StrokeStyle {
-    /// Round dots `dot_px` across, their centres `pitch_px` apart (REF-01).
-    Dotted { dot_px: f32, pitch_px: f32 },
-    /// A solid line `width_px` wide, ending in a filled arrowhead
-    /// `arrow_px` long, or none at 0 (REF-06, REF-07).
-    Solid { width_px: f32, arrow_px: f32 },
+pub struct StrokeStyle {
+    pub dot_px: f32,
+    pub pitch_px: f32,
+    pub arrow_px: f32,
 }
 
 /// One stroke of the cue on screen: it starts at `start` and runs
@@ -105,7 +106,8 @@ pub struct VerticalLook {
     pub up_px: f32,
     pub down_fraction: f32,
     pub min_px: f32,
-    pub width_px: f32,
+    pub dot_px: f32,
+    pub pitch_px: f32,
     pub arrow_px: f32,
     pub alpha_near: f32,
     pub alpha_far: f32,
@@ -116,7 +118,7 @@ pub struct VerticalLook {
 /// normal on the camera's side. The upper half starts `upper_from` pixels
 /// from the centre (at the pole of a true-size disc, or the gap beyond a
 /// marker's box) and is `up_px` long shortened by `shortening`, ending in
-/// an arrowhead. The lower half starts at the centre, runs the other way
+/// an arrowhead. Both halves are dotted as the arms are. The lower half starts at the centre, runs the other way
 /// for `down_fraction` of the upper half's length and has no arrowhead.
 /// Both fade as the arms do. A half shorter than `min_px` is not drawn.
 pub fn vertical_halves(
@@ -135,8 +137,9 @@ pub fn vertical_halves(
             length,
             alpha_start: look.alpha_near,
             alpha_end: look.alpha_far,
-            style: StrokeStyle::Solid {
-                width_px: look.width_px,
+            style: StrokeStyle {
+                dot_px: look.dot_px,
+                pitch_px: look.pitch_px,
                 arrow_px,
             },
             ticks: Vec::new(),
@@ -228,15 +231,16 @@ mod tests {
             up_px: 100.0,
             down_fraction: 0.7,
             min_px: 10.0,
-            width_px: 1.5,
+            dot_px: 2.0,
+            pitch_px: 5.0,
             arrow_px: 8.0,
             alpha_near: 1.0,
             alpha_far: 0.45,
         }
     }
 
-    /// REF-06 / REF-07: the upper half starts beyond the body and ends in
-    /// an arrowhead; the lower half starts at the centre, runs down for
+    /// REF-06 / REF-07: both halves are dotted as the arms are; the upper
+    /// half starts beyond the body and ends in an arrowhead; the lower half starts at the centre, runs down for
     /// its fraction of the upper's length, with no arrowhead.
     #[test]
     fn the_vertical_halves_start_and_run_as_set() {
@@ -246,11 +250,16 @@ mod tests {
         assert_eq!(upper.start, Vec2::new(400.0, 288.0));
         assert_eq!(upper.length, 50.0);
         assert_eq!(upper.at(upper.length), Vec2::new(400.0, 238.0));
-        assert!(matches!(upper.style, StrokeStyle::Solid { arrow_px, .. } if arrow_px == 8.0));
+        let dotted = |arrow_px| StrokeStyle {
+            dot_px: 2.0,
+            pitch_px: 5.0,
+            arrow_px,
+        };
+        assert_eq!(upper.style, dotted(8.0));
         assert_eq!(lower.start, centre);
         assert_eq!(lower.dir, Vec2::Y);
         assert!((lower.length - 35.0).abs() < 1e-4);
-        assert!(matches!(lower.style, StrokeStyle::Solid { arrow_px, .. } if arrow_px == 0.0));
+        assert_eq!(lower.style, dotted(0.0));
         assert_eq!((upper.alpha_start, upper.alpha_end), (1.0, 0.45));
     }
 
@@ -274,9 +283,10 @@ mod tests {
             length: 80.0,
             alpha_start: 1.0,
             alpha_end: 0.45,
-            style: StrokeStyle::Dotted {
+            style: StrokeStyle {
                 dot_px: 2.0,
                 pitch_px: 5.0,
+                arrow_px: 0.0,
             },
             ticks: Vec::new(),
             tick_px: 9.0,

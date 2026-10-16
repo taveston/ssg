@@ -101,9 +101,10 @@ fn four_arms_leave_the_frame_body_clear_of_its_box_and_reach_the_map_edge() {
         );
         assert_eq!(
             a.style,
-            StrokeStyle::Dotted {
+            StrokeStyle {
                 dot_px: t.ref_dot_px,
-                pitch_px: t.ref_dot_pitch_px
+                pitch_px: t.ref_dot_pitch_px,
+                arrow_px: 0.0,
             }
         );
         let strength = if i == 0 { 1.0 } else { t.ref_minor_factor };
@@ -245,10 +246,11 @@ fn the_north_arm_ends_at_the_horizon_seen_near_edge_on() {
 }
 
 /// REF-06 / REF-07 / REF-08: the vertical axis runs up the screen from
-/// the gap beyond the star's box, `ref_up_px` shortened by the tilt; it is
-/// nothing seen straight down. The lower half starts at the centre, runs
-/// down for `ref_down_fraction` of the upper's length, without an
-/// arrowhead.
+/// the gap beyond the star's box, dotted as the arms are; edge-on it is
+/// `ref_up_fraction` of the map area's height, shortened by the tilt, and
+/// it is nothing seen straight down. The lower half starts at the centre,
+/// runs down for `ref_down_fraction` of the upper's length, dotted and
+/// without an arrowhead.
 #[test]
 fn the_vertical_axis_shortens_with_tilt_and_vanishes_straight_down() {
     let mut app = cue_app();
@@ -261,7 +263,8 @@ fn the_vertical_axis_shortens_with_tilt_and_vanishes_straight_down() {
         set_view(&mut app, 0.3, degrees.to_radians());
         let upper = stroke(&mut app, CuePart::Upper).expect("an upper half");
         let lower = stroke(&mut app, CuePart::Lower).expect("a lower half");
-        let wanted = t.ref_up_px * degrees.to_radians().sin();
+        let map_height = VIEWPORT.y as f32 - TOP_BAR_HEIGHT_PX;
+        let wanted = t.ref_up_fraction * map_height * degrees.to_radians().sin();
         assert!(
             (upper.length - wanted).abs() < 0.5,
             "at {degrees}°: {} px, wanted {wanted}",
@@ -269,24 +272,23 @@ fn the_vertical_axis_shortens_with_tilt_and_vanishes_straight_down() {
         );
         assert!((upper.start.distance(centre) - (half + t.ref_gap_px)).abs() < 1.0);
         assert!(upper.dir.y < -0.99, "up the screen");
-        assert_eq!(
-            upper.style,
-            StrokeStyle::Solid {
-                width_px: t.ref_vertical_px,
-                arrow_px: t.ref_arrow_px
-            }
-        );
+        let dotted = |arrow_px| StrokeStyle {
+            dot_px: t.ref_dot_px,
+            pitch_px: t.ref_dot_pitch_px,
+            arrow_px,
+        };
+        assert_eq!(upper.style, dotted(t.ref_arrow_px));
         assert!(lower.start.distance(centre) < 1.0);
         assert!(lower.dir.y > 0.99, "down the screen");
         assert!((lower.length - wanted * t.ref_down_fraction).abs() < 0.5);
-        assert!(matches!(lower.style, StrokeStyle::Solid { arrow_px, .. } if arrow_px == 0.0));
+        assert_eq!(lower.style, dotted(0.0));
         assert_eq!(
             (upper.alpha_start, upper.alpha_end),
             (t.ref_alpha_near, t.ref_alpha_far)
         );
     }
     // REF-08: just off straight down, the halves are too short to draw.
-    set_view(&mut app, 0.0, 0.05);
+    set_view(&mut app, 0.0, 0.02);
     assert!(stroke(&mut app, CuePart::Upper).is_none());
 }
 

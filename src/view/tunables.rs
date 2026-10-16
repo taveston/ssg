@@ -95,11 +95,10 @@ pub struct Tunables {
     pub ref_n_inset_px: f32,
     /// A tick across an arm is this long (REF-05).
     pub ref_tick_px: f32,
-    /// The vertical axis is a solid line this wide (REF-06).
-    pub ref_vertical_px: f32,
-    /// The vertical axis's upper half is this long on screen when the
-    /// plane is seen edge-on, and shortens with the view (REF-06).
-    pub ref_up_px: f32,
+    /// The vertical axis's upper half is this fraction of the map area's
+    /// height on screen when the plane is seen edge-on, so it follows the
+    /// window and the inset, and shortens with the view (REF-06).
+    pub ref_up_fraction: f32,
     /// The upper half ends in a filled arrowhead this long (REF-06).
     pub ref_arrow_px: f32,
     /// The lower half is this fraction of the upper half's length
@@ -388,8 +387,7 @@ impl Default for Tunables {
             ref_minor_factor: 0.6,
             ref_n_inset_px: 13.0,
             ref_tick_px: 9.0,
-            ref_vertical_px: 1.5,
-            ref_up_px: 100.0,
+            ref_up_fraction: 0.45,
             ref_arrow_px: 8.0,
             ref_down_fraction: 0.7,
             ref_vertical_min_px: 10.0,
