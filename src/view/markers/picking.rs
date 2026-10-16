@@ -15,11 +15,11 @@ use bevy::picking::backend::{HitData, PointerHits};
 use bevy::picking::pointer::{PointerId, PointerLocation};
 use bevy::prelude::*;
 
-use super::hover;
-use super::markers::MarkerHalfSize;
-use super::targets::MarkerFor;
-use super::tunables::Tunables;
+use super::MarkerHalfSize;
 use crate::sim::body::BodyClass;
+use crate::view::hover;
+use crate::view::targets::MarkerFor;
+use crate::view::tunables::Tunables;
 use crate::{Boot, Stage};
 
 /// Between the rings' order (the camera's) and the UI's (+0.5), so a

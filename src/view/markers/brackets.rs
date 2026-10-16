@@ -14,19 +14,19 @@
 
 use bevy::prelude::*;
 
-use super::colors;
-use super::fold::{FoldSummary, SatelliteFoldState};
-use super::hovered::HoveredBodies;
-use super::layers;
-use super::markers::{MarkerDrawn, MarkersPlaced};
-use super::motion_mode::MotionModeState;
-use super::node_box::{node_min, node_size};
-use super::rings::marks::{IdentityPill, RingMarkFor};
-use super::selection::Selection;
-use super::shared_orbit::OrbitMembers;
-use super::targets::{GroupPillFor, Hovered, MarkerFor, OrbitFor};
-use super::tunables::Tunables;
+use super::{MarkerDrawn, MarkersPlaced};
 use crate::sim::body::BodyClass;
+use crate::view::colors;
+use crate::view::fold::{FoldSummary, SatelliteFoldState};
+use crate::view::hovered::HoveredBodies;
+use crate::view::layers;
+use crate::view::motion_mode::MotionModeState;
+use crate::view::node_box::{node_min, node_size};
+use crate::view::rings::marks::{IdentityPill, RingMarkFor};
+use crate::view::selection::Selection;
+use crate::view::shared_orbit::OrbitMembers;
+use crate::view::targets::{GroupPillFor, Hovered, MarkerFor, OrbitFor};
+use crate::view::tunables::Tunables;
 use crate::{Boot, Stage};
 
 /// Two marks whose boxes differ by less than this, in pixels, are one.

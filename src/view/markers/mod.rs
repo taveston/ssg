@@ -1,6 +1,6 @@
 //! The vector-display overlay: one fixed-size UI marker per body, placed on
 //! its projected screen position each frame (MRK-03, MRK-04, MRK-06), with
-//! its label beside it (SYM-13; where exactly is `labels.rs`, LBL-01).
+//! its label beside it (SYM-13; where exactly is `markers/labels.rs`, LBL-01).
 //!
 //! Natural bodies are body markers: outlined circles with a ground-colour
 //! inside, ticked for the star and dotted for a planet (MRK-13). Close in
@@ -19,7 +19,7 @@
 //! MRK-06 holds by construction: only satellites fold, so every planet
 //! keeps its own marker at every zoom.
 //!
-//! The markers and their labels are built in `marker_draw.rs`; this
+//! The markers and their labels are built in `markers/draw.rs`; this
 //! module places, fades and layers them each frame.
 
 use bevy::color::Mix;
@@ -31,7 +31,7 @@ use super::countdown::Countdowns;
 use super::edge::GateEdgeTargets;
 use super::fold::SatelliteFoldState;
 use super::layers;
-use super::marker_draw::spawn_markers;
+use super::markers::draw::spawn_markers;
 use super::motion_mode::MotionModeState;
 use super::screen::ScreenPositions;
 use super::ship_groups::GroupFaces;
@@ -47,6 +47,12 @@ use crate::sim::clock::GameClock;
 use crate::sim::track::ShipRecord;
 use crate::{Boot, Stage};
 
+pub mod brackets;
+pub mod draw;
+pub mod labels;
+pub mod picking;
+pub mod pills;
+
 /// Half-size in pixels, so the update system can centre the node on its
 /// projected screen position without re-deriving size from class.
 #[derive(Component)]
@@ -60,7 +66,7 @@ pub struct MarkerHalfSize(pub Vec2);
 pub struct MarkerDrawn(pub Option<(Vec2, f32)>);
 
 /// A marker's label, a child of the marker placed beside it by
-/// `labels.rs` (LBL-01).
+/// `markers/labels.rs` (LBL-01).
 #[derive(Component)]
 pub struct MarkerLabel;
 

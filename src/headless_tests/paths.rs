@@ -6,9 +6,9 @@
 use super::*;
 use crate::sim::transfer::plan::ShipOrder;
 use crate::sim::transfer::search::Request;
-use crate::view::labels::LabelState;
 use crate::view::layers::{BODIES, GHOSTS, PATH_DOTS};
 use crate::view::markers::SecondLineFor;
+use crate::view::markers::labels::LabelState;
 use crate::view::paths::PathsPlugin;
 use crate::view::paths::gather::{MapPaths, PathDraw};
 use crate::view::paths::ghost::GhostLook;

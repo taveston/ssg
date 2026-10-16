@@ -3,7 +3,7 @@
 //! A single linear scale applies to every orbit - planetary (AU-scale) and
 //! lunar/station (km-scale) alike - so relative positions are true to
 //! scale. Nothing else in the crate multiplies by a render scale. Marker
-//! *size* is a fixed pixel size by class (see `markers.rs`), never derived
+//! *size* is a fixed pixel size by class (see `markers/mod.rs`), never derived
 //! from physical size.
 
 use crate::sim::units::KM_PER_AU;

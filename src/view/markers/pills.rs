@@ -5,27 +5,25 @@
 //! only draws them. The pill's node and face are shared with the identity
 //! pill on a shared exposure ring (`rings/marks.rs`, MOT-14), which is
 //! styled and coloured the same way. The brackets round a hovered pill, or
-//! one holding the selection, are `brackets.rs` (HOV-06).
+//! one holding the selection, are `markers/brackets.rs` (HOV-06).
 
 use bevy::prelude::*;
 
-use super::layers;
+use crate::view::layers;
 
-use super::colors;
-use super::fold::{FoldSummary, PillFlags};
-use super::fonts::Fonts;
-use super::hover;
-use super::markers::{
-    MarkerShape, MarkersPlaced, box_half, drawn_half, marker_half_size, marker_shape,
-};
-use super::screen::ScreenPositions;
-use super::symbols::draw::{Tint, TintSlot};
-use super::targets::GroupPillFor;
-use super::true_size::DiscRadii;
-use super::tunables::Tunables;
+use super::{MarkerShape, MarkersPlaced, box_half, drawn_half, marker_half_size, marker_shape};
 use crate::sim::body::BodyClass;
 use crate::sim::orbit::Orbit;
 use crate::sim::track::ShipRecord;
+use crate::view::colors;
+use crate::view::fold::{FoldSummary, PillFlags};
+use crate::view::fonts::Fonts;
+use crate::view::hover;
+use crate::view::screen::ScreenPositions;
+use crate::view::symbols::draw::{Tint, TintSlot};
+use crate::view::targets::GroupPillFor;
+use crate::view::true_size::DiscRadii;
+use crate::view::tunables::Tunables;
 use crate::{Boot, Stage};
 
 /// GRP-05: how far below its parent's marker centre the pill's top sits.

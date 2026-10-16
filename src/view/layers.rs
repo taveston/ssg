@@ -4,7 +4,7 @@
 //! ghosts; then natural bodies, ordered by depth so nearer discs sit on
 //! top of farther ones; then the cue's upper vertical half; then symbols;
 //! then labels and pills; then edge arrows; then panels. Draw order is
-//! only what's on top: picking is decided by `marker_picking.rs`
+//! only what's on top: picking is decided by `markers/picking.rs`
 //! (MRK-08).
 //!
 //! Every layer is named here, so no two kinds of node share one by

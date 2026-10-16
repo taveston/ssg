@@ -12,7 +12,7 @@
 //! says it is a fast orbit. Beside the mark, a direction chevron on the
 //! ring points the way the bodies circle (`rings/chevron.rs` places it);
 //! it fades with the mark. The label is placed beside the mark like any
-//! other label (`labels.rs`, LBL-01 to LBL-04): the chevron is part of the
+//! other label (`markers/labels.rs`, LBL-01 to LBL-04): the chevron is part of the
 //! mark there, so the label takes another side when the chevron would run
 //! under it, and the period line is the first part to go when there is no
 //! room.
@@ -20,7 +20,7 @@
 //! The mark is placed with its centre on a whole pixel (SYM-16) and is a
 //! target for the same thing the ring is: the body, or the shared orbit
 //! (HOV-05). The brackets round a hovered or selected mark are
-//! `brackets.rs` (HOV-06).
+//! `markers/brackets.rs` (HOV-06).
 
 use bevy::prelude::*;
 
@@ -33,11 +33,11 @@ use crate::view::fonts::Fonts;
 use crate::view::halo::TextHalo;
 use crate::view::hover;
 use crate::view::layers;
-use crate::view::marker_draw::{BodyLook, spawn_icon};
+use crate::view::markers::draw::{BodyLook, spawn_icon};
+use crate::view::markers::pills::{PILL_HALF_HEIGHT_PX, PillFace, pill_bundle, pill_node};
 use crate::view::markers::{MarkersPlaced, TintedParts, fade_parts, marker_half_size};
 use crate::view::motion_mode::MotionModeState;
 use crate::view::node_box::node_size;
-use crate::view::pills::{PILL_HALF_HEIGHT_PX, PillFace, pill_bundle, pill_node};
 use crate::view::readout::format_duration;
 use crate::view::screen::{MapView, in_viewport, screen_angle, snap_to_pixel};
 use crate::view::selection::Selection;
@@ -72,7 +72,7 @@ pub struct RingMarkFor {
 }
 
 /// The box holding a ring's name and period, beside its mark, placed by
-/// `labels.rs` (LBL-01).
+/// `markers/labels.rs` (LBL-01).
 #[derive(Component)]
 pub struct RingLabelBox;
 
@@ -212,7 +212,7 @@ fn mark_root_node(half: f32) -> Node {
 
 /// MOT-02: the label beside a mark: the name in its colour, and under it
 /// the orbit's period in the data face in the secondary colour.
-/// `labels.rs` places it beside the mark (LBL-01).
+/// `markers/labels.rs` places it beside the mark (LBL-01).
 fn spawn_label(root: &mut ChildSpawnerCommands, fonts: &Fonts, ring: &Ring, color: Color) {
     root.spawn((
         RingLabelBox,
@@ -221,7 +221,7 @@ fn spawn_label(root: &mut ChildSpawnerCommands, fonts: &Fonts, ring: &Ring, colo
             flex_direction: FlexDirection::Column,
             ..default()
         },
-        // Hidden until `labels.rs` has placed it.
+        // Hidden until `markers/labels.rs` has placed it.
         Visibility::Hidden,
     ))
     .with_children(|label| {

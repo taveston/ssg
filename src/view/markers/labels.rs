@@ -27,23 +27,23 @@
 
 use bevy::prelude::*;
 
-use super::anim::{advance_towards, step_per_frame};
-use super::frame::Frame;
-use super::hovered::HoveredBodies;
-use super::markers::{MarkerHalfSize, MarkerLabel, MarkersPlaced, SecondLineFor};
-use super::node_box::{node_rect, node_size};
-use super::paths::marks::PathLabel;
-use super::rings::marks::{PeriodLine, RingLabelBox, RingMarkFor};
-use super::selection::Selection;
-use super::shared_orbit::OrbitMembers;
-use super::symbols::draw::AmplifierReach;
-use super::symbols::own_flag_civilian;
-use super::targets::{GroupPillFor, MarkerFor, OrbitFor};
-use super::tunables::Tunables;
-use super::world::ViewNow;
+use super::{MarkerHalfSize, MarkerLabel, MarkersPlaced, SecondLineFor};
 use crate::Stage;
 use crate::sim::body::{Affiliation, BodyClass};
 use crate::sim::track::ShipRecord;
+use crate::view::anim::{advance_towards, step_per_frame};
+use crate::view::frame::Frame;
+use crate::view::hovered::HoveredBodies;
+use crate::view::node_box::{node_rect, node_size};
+use crate::view::paths::marks::PathLabel;
+use crate::view::rings::marks::{PeriodLine, RingLabelBox, RingMarkFor};
+use crate::view::selection::Selection;
+use crate::view::shared_orbit::OrbitMembers;
+use crate::view::symbols::draw::AmplifierReach;
+use crate::view::symbols::own_flag_civilian;
+use crate::view::targets::{GroupPillFor, MarkerFor, OrbitFor};
+use crate::view::tunables::Tunables;
+use crate::view::world::ViewNow;
 
 /// LBL-01: the positions a label may take, in the order tried.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

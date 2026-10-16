@@ -16,7 +16,6 @@ use bevy::prelude::*;
 pub mod anim;
 pub mod belt;
 pub mod bindings;
-pub mod brackets;
 pub mod breadcrumb;
 pub mod buttons;
 pub mod camera;
@@ -38,10 +37,7 @@ pub mod hover;
 pub mod hovered;
 pub mod inset_content;
 pub mod inspect;
-pub mod labels;
 pub mod layers;
-pub mod marker_draw;
-pub mod marker_picking;
 pub mod markers;
 pub mod motion;
 pub mod motion_mode;
@@ -49,7 +45,6 @@ pub mod node_box;
 pub mod outline;
 pub mod parent_tab;
 pub mod paths;
-pub mod pills;
 pub mod planner;
 pub mod planner_state;
 pub mod planner_words;
@@ -94,7 +89,7 @@ impl Plugin for ViewPlugin {
                 breadcrumb::BreadcrumbPlugin,
                 buttons::ButtonsPlugin,
                 plot_marks::PlotMarksPlugin,
-                marker_picking::MarkerPickingPlugin,
+                markers::picking::MarkerPickingPlugin,
                 parent_tab::ParentTabPlugin,
             ))
             .add_plugins((
@@ -111,16 +106,16 @@ impl Plugin for ViewPlugin {
                 edge::EdgePlugin,
                 symbols::shape::SymbolShapePlugin,
                 markers::MarkersPlugin,
-                pills::PillsPlugin,
+                markers::pills::PillsPlugin,
                 hover::HoverPlugin,
                 inspect::InspectPlugin,
                 outline::OutlinePlugin,
                 topbar::TopBarPlugin,
             ))
             .add_plugins((
-                labels::LabelsPlugin,
+                markers::labels::LabelsPlugin,
                 halo::HaloPlugin,
-                brackets::BracketsPlugin,
+                markers::brackets::BracketsPlugin,
                 true_size::TrueSizePlugin,
                 debug_shot::DebugShotPlugin,
                 planner::PlannerPlugin,

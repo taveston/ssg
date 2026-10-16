@@ -4,7 +4,7 @@
 //! it says which way the orbit runs without implying a position.
 //!
 //! Plain geometry in screen pixels (y down), tested without a camera;
-//! `rings/marks.rs` draws the result, and `labels.rs` keeps the ring's
+//! `rings/marks.rs` draws the result, and `markers/labels.rs` keeps the ring's
 //! label off the chevron's box.
 
 use bevy::prelude::*;

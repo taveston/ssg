@@ -2,30 +2,30 @@
 //! box sized by class, its shape (a body marker with its class detail, a
 //! hollow circle, a glyph or a symbol), and its label with the name and a
 //! symbol's second line. Lists and exposure-ring identity marks copy the
-//! shape at their own size (INS-05, MOT-14). `markers.rs` places and
+//! shape at their own size (INS-05, MOT-14). `markers/mod.rs` places and
 //! fades the markers each frame.
 
 use bevy::prelude::*;
 
-use super::colors;
-use super::fonts::Fonts;
-use super::hover;
-use super::layers;
-use super::markers::{
+use super::{
     BodyDetail, BodyRim, MarkerDrawn, MarkerHalfSize, MarkerLabel, MarkerShape, SecondLineFor,
     body_fill, marker_half_size, marker_shape, symbol_settings,
 };
-use super::ship_groups::GroupFaces;
-use super::symbols::draw::{
-    AmplifierStyle, Tint, TintSlot, amplifier_gap, amplifier_reach, spawn_symbol_parts,
-};
-use super::symbols::{GroupFace, label_second_line, symbol_look, with_group};
-use super::targets::MarkerFor;
-use super::tunables::Tunables;
 use crate::sim::body::{Affiliation, BodyClass, DisplayName};
 use crate::sim::clock::GameClock;
 use crate::sim::track::ShipRecord;
+use crate::view::colors;
+use crate::view::fonts::Fonts;
 use crate::view::halo::TextHalo;
+use crate::view::hover;
+use crate::view::layers;
+use crate::view::ship_groups::GroupFaces;
+use crate::view::symbols::draw::{
+    AmplifierStyle, Tint, TintSlot, amplifier_gap, amplifier_reach, spawn_symbol_parts,
+};
+use crate::view::symbols::{GroupFace, label_second_line, symbol_look, with_group};
+use crate::view::targets::MarkerFor;
+use crate::view::tunables::Tunables;
 
 /// Outline width of hollow markers.
 const HOLLOW_BORDER_PX: f32 = 1.5;
@@ -294,7 +294,7 @@ fn spawn_marker(
             layers::SYMBOLS
         }),
         // Hover and click go through the marker's hit area instead
-        // (MRK-08, `marker_picking.rs`), so the node itself takes none.
+        // (MRK-08, `markers/picking.rs`), so the node itself takes none.
         Pickable::IGNORE,
     ));
     if shape == MarkerShape::Disc {
@@ -307,7 +307,7 @@ fn spawn_marker(
 
 /// SYM-13: the label beside the marker, in its colour: the name, and for
 /// a symbol a second line in the secondary text colour. It starts to the
-/// right; `labels.rs` places it from then on (LBL-01). It is a hover and
+/// right; `markers/labels.rs` places it from then on (LBL-01). It is a hover and
 /// click target for its body, and wins over an orbit ring (HOV-02).
 fn spawn_label(
     parent: &mut ChildSpawnerCommands,

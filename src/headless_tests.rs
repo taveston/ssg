@@ -50,10 +50,10 @@ use crate::view::frame::{Frame, FramePlugin};
 use crate::view::gesture::PressStart;
 use crate::view::grouping::GroupingPlugin;
 use crate::view::hovered::HoveredPlugin;
+use crate::view::markers::pills::{PillsPlugin, parent_clear_px};
 use crate::view::markers::{BodyDetail, BodyRim, MarkerHalfSize, MarkersPlugin, body_fill};
 use crate::view::motion::MotionPlugin;
 use crate::view::motion_mode::MotionModeState;
-use crate::view::pills::{PillsPlugin, parent_clear_px};
 use crate::view::planner_state::PlannerState;
 use crate::view::plot_marks::{NorthArrow, NorthDial, PlotMarksPlugin, ScaleBarLine};
 use crate::view::projection::ProjectionPlugin;
@@ -2385,7 +2385,7 @@ fn descendants(app: &mut App, root: Entity) -> Vec<Entity> {
 /// highport, folded at that fit, shows no mark either.
 #[test]
 fn an_exposure_ring_carries_an_identity_mark() {
-    use crate::view::pills::PillCountText;
+    use crate::view::markers::pills::PillCountText;
     use crate::view::rings::marks::{IdentityPill, RingMarkFor, RingMarksPlugin};
     use crate::view::symbols::shape::SymbolPart;
     use crate::view::targets::OrbitFor;
@@ -2502,7 +2502,7 @@ fn an_exposure_ring_carries_an_identity_mark() {
 /// drops its period line, which is its second line.
 #[test]
 fn an_exposure_ring_label_is_placed_like_any_label() {
-    use crate::view::labels::{LabelState, LabelsPlugin, Slot, label_rect, overlaps};
+    use crate::view::markers::labels::{LabelState, LabelsPlugin, Slot, label_rect, overlaps};
     use crate::view::rings::marks::{PeriodLine, RingLabelBox, RingMarkFor, RingMarksPlugin};
     use crate::view::targets::GroupPillFor;
 
@@ -3180,9 +3180,9 @@ fn the_sidebar_narrows_the_map_and_keeps_the_frame_body_centred() {
 /// selection's label is never hidden, and labels fade in over `label_fade_ms` rather than appearing at once.
 #[test]
 fn labels_keep_clear_of_each_other_and_of_markers() {
-    use crate::view::labels::{LabelState, LabelsPlugin, label_rect, overlaps};
+    use crate::view::markers::labels::{LabelState, LabelsPlugin, label_rect, overlaps};
+    use crate::view::markers::pills::PillsPlugin;
     use crate::view::markers::{MarkerLabel, MarkersPlugin};
-    use crate::view::pills::PillsPlugin;
 
     let mut app = camera_app_with(|app| {
         app.insert_resource(placeholder_fonts()).add_plugins((
@@ -3251,7 +3251,7 @@ fn labels_keep_clear_of_each_other_and_of_markers() {
             .world()
             .get::<crate::view::symbols::draw::AmplifierReach>(marker);
         let margin = app.world().resource::<Tunables>().bracket_margin_px;
-        Some(crate::view::labels::marker_box(square, reach, margin).0)
+        Some(crate::view::markers::labels::marker_box(square, reach, margin).0)
     };
     let gap = app.world().resource::<Tunables>().label_gap_px;
     let mut shown: Vec<(Entity, Entity, Rect)> = Vec::new();
@@ -4112,7 +4112,7 @@ fn a_station_is_a_place_in_its_band_at_its_phase() {
 /// The overlay that draws selection and hover marks: markers, fold pills,
 /// exposure-ring marks and the brackets themselves.
 fn brackets_app() -> App {
-    use crate::view::brackets::BracketsPlugin;
+    use crate::view::markers::brackets::BracketsPlugin;
     use crate::view::rings::marks::RingMarksPlugin;
     camera_app_with(|app| {
         app.insert_resource(placeholder_fonts())
@@ -4147,8 +4147,8 @@ impl DrawnBracket {
 /// Every bracket set shown this frame. Each sits in the labels-and-pills
 /// layer, above all markers (MRK-12).
 fn shown_brackets(app: &mut App) -> Vec<DrawnBracket> {
-    use crate::view::brackets::Bracket;
     use crate::view::layers;
+    use crate::view::markers::brackets::Bracket;
     let mut sets = app
         .world_mut()
         .query_filtered::<(&Node, &Children, &GlobalZIndex), With<Bracket>>();
@@ -4439,7 +4439,7 @@ fn own_ships_carry_a_condition_bar_filled_to_their_condition() {
 
 /// Corvane in a headless app with markers, pills and labels.
 fn symbols_app_with(extra: impl FnOnce(&mut App)) -> App {
-    use crate::view::labels::LabelsPlugin;
+    use crate::view::markers::labels::LabelsPlugin;
     camera_app_with(|app| {
         app.insert_resource(placeholder_fonts()).add_plugins((
             EdgePlugin,
@@ -4666,8 +4666,8 @@ fn a_folded_group_counts_once_in_the_pill() {
 /// bracket above, the condition bar below - not from the frame alone.
 #[test]
 fn a_group_label_keeps_clear_of_its_amplifiers() {
-    use crate::view::labels::{LabelState, label_rect};
     use crate::view::markers::MarkerLabel;
+    use crate::view::markers::labels::{LabelState, label_rect};
     use crate::view::symbols::draw::AmplifierReach;
 
     let mut app = symbols_app_with(|_| {});
@@ -4732,9 +4732,9 @@ fn settle_labels(app: &mut App, label_size: Vec2) {
 
 /// Where `body`'s label sits relative to its marker's node, and in which
 /// slot.
-fn label_place(app: &mut App, body: Entity) -> (Vec2, crate::view::labels::Placement) {
-    use crate::view::labels::LabelState;
+fn label_place(app: &mut App, body: Entity) -> (Vec2, crate::view::markers::labels::Placement) {
     use crate::view::markers::MarkerLabel;
+    use crate::view::markers::labels::LabelState;
     let marker = marker_of(app, body);
     let mut labels = app
         .world_mut()
@@ -4759,7 +4759,7 @@ fn label_place(app: &mut App, body: Entity) -> (Vec2, crate::view::labels::Place
 /// then selected.
 #[test]
 fn labels_do_not_move_when_their_object_is_hovered_or_selected() {
-    use crate::view::labels::{label_rect, marker_box};
+    use crate::view::markers::labels::{label_rect, marker_box};
     use crate::view::symbols::draw::AmplifierReach;
 
     let mut app = symbols_app_with(|_| {});

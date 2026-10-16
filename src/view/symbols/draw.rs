@@ -8,7 +8,7 @@
 //!
 //! Every coloured part carries a `Tint` with its full-strength colour, so
 //! whoever draws the symbol can fade it as one by scaling each tint's alpha
-//! (`markers.rs` does, for folding and the motion rule).
+//! (`markers/mod.rs` does, for folding and the motion rule).
 
 use bevy::color::Mix;
 use bevy::prelude::*;
@@ -477,7 +477,7 @@ mod tests {
     #[test]
     fn the_amplifiers_clear_the_bracket_box() {
         use super::super::FrameShape;
-        use crate::view::brackets::BracketBox;
+        use crate::view::markers::brackets::BracketBox;
         use crate::view::tunables::Tunables;
         let tunables = Tunables::default();
         let half = tunables.ship_symbol_px / 2.0;

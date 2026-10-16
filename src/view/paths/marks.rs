@@ -3,7 +3,7 @@
 //! labels of the arrival ghost and of the coast's event. Drawn by small
 //! pools of UI nodes: the dots under every marker, just above the lines;
 //! the ghosts in the natural bodies' layer, under every real marker; the
-//! labels in the label layer, placed with every other label (`labels.rs`).
+//! labels in the label layer, placed with every other label (`markers/labels.rs`).
 //! None of them takes a click (HOV-02).
 
 use bevy::ecs::system::SystemParam;
@@ -36,7 +36,7 @@ pub struct PathGhost;
 
 /// A path's label: the arrival ghost's, or the coast event's (PLNR-65,
 /// PLNR-67). `anchor` is the box on screen it sits beside this frame,
-/// `None` while it isn't used. `labels.rs` places it after every ranked
+/// `None` while it isn't used. `markers/labels.rs` places it after every ranked
 /// label.
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq)]
 pub struct PathLabel {
@@ -281,7 +281,7 @@ fn write_ghosts(commands: &mut Commands, wanted: &[GhostMark], nodes: &mut Ghost
     }
 }
 
-/// PLNR-65 / PLNR-67: the labels, each anchored for `labels.rs` to place.
+/// PLNR-65 / PLNR-67: the labels, each anchored for `markers/labels.rs` to place.
 fn write_labels(
     commands: &mut Commands,
     wanted: &[LabelMark],

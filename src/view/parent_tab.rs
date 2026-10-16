@@ -14,7 +14,7 @@ use super::edge::{edge_arrow_angle, edge_point};
 use super::edge_tab::{TabChevron, place_tab, spawn_tab, tab_label};
 use super::fonts::Fonts;
 use super::frame::Frame;
-use super::marker_draw::{BodyLook, spawn_list_icon};
+use super::markers::draw::{BodyLook, spawn_list_icon};
 use super::screen::{MapArea, ScreenPositions};
 use super::tunables::Tunables;
 use super::world::ViewNow;
