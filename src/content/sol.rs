@@ -1,18 +1,23 @@
-//! Sol, the second test system (SOL-01 to SOL-11): the real solar system's
+//! Sol, the second test system (SOL-01 to SOL-17): the real solar system's
 //! Sun, planets, Ceres and main moons, in real units (km, kg, days), so
 //! scale, spacing and speed can be judged against figures people know.
 //!
 //! Orbits are circular, coplanar and prograde, as the simulation requires,
 //! so each body sits at its mean distance. Planets start at their mean
-//! longitudes at J2000.0, which Sol takes as day 0. There are no stations,
-//! ships, gates or salvage sites: Sol is for judging the natural bodies.
+//! longitudes at J2000.0, which Sol takes as day 0. There are no gates or
+//! salvage sites. Round Earth sit two own stations and two own ships, for
+//! trying transfers: a station, a near-future nuclear thermal ship docked
+//! at it and a relic fusion-torch ship in Earth's Low band, and a second
+//! station in its High band.
 //!
 //! It is built from the same blueprint types as Corvane (SCL-03), so
 //! nothing outside `content/` knows which system it is running.
 
 use crate::sim::body::{Affiliation, BodyClass, Knowledge};
+use crate::sim::ship::{Drive, Propulsion};
 use crate::sim::system::{BeltBlueprint, BodyBlueprint, OrbitPlacement, SystemData};
-use crate::sim::units::{KM_PER_AU, SOLAR_MASS_KG};
+use crate::sim::track::{ShipClass, ShipRecord};
+use crate::sim::units::{KM_PER_AU, SOLAR_MASS_KG, STANDARD_GRAVITY_M_PER_S2};
 
 /// One row of the planet table (SOL-03, SOL-06).
 struct PlanetFigures {
@@ -170,6 +175,126 @@ const MOON_PHASE_STEP_RAD: f64 = 1.3;
 const BELT_INNER_AU: f64 = 2.2;
 const BELT_OUTER_AU: f64 = 3.2;
 
+/// The planet the stations and ships of table 3 sit round (SOL-12).
+const SHIPS_PLANET: &str = "Earth";
+
+/// SOL-12 / SOL-15 / SOL-16: a ship's or station's kind and drive.
+enum Craft {
+    /// A station: no drive.
+    Station,
+    /// A commanded, unarmed cargo ship with an impulsive drive of this
+    /// exhaust velocity (km/s), loaded acceleration (g) and delta-v (km/s).
+    Ship {
+        exhaust_velocity_kms: f64,
+        accel_g: f64,
+        delta_v_kms: f64,
+    },
+}
+
+/// One row of table 3: a station or ship round Earth (SOL-12 to SOL-16).
+struct CraftFigures {
+    name: &'static str,
+    craft: Craft,
+    /// Earth's band it is a member of: "Low" or "High" (SOL-13).
+    band: &'static str,
+    /// Its angle at day 0, in the sense of motion (SOL-14).
+    phase0_deg: f64,
+    description: &'static str,
+}
+
+/// SOL-12 to SOL-16: table 3. Marlin shares Perigee Station's phase, so it
+/// starts docked there; Vestige sits a third of the way round the band.
+const CRAFT: [CraftFigures; 4] = [
+    CraftFigures {
+        name: "Perigee Station",
+        craft: Craft::Station,
+        band: "Low",
+        phase0_deg: 0.0,
+        description: "A station in low Earth orbit.",
+    },
+    CraftFigures {
+        name: "Marlin",
+        // SOL-15: hydrogen nuclear thermal, sized to reach Ceres.
+        craft: Craft::Ship {
+            exhaust_velocity_kms: 9.0,
+            accel_g: 0.1,
+            delta_v_kms: 15.0,
+        },
+        band: "Low",
+        phase0_deg: 0.0,
+        description: "A near-future nuclear thermal ship.",
+    },
+    CraftFigures {
+        name: "Vestige",
+        // SOL-16: a relic continuous fusion torch.
+        craft: Craft::Ship {
+            exhaust_velocity_kms: 500.0,
+            accel_g: 0.02,
+            delta_v_kms: 500.0,
+        },
+        band: "Low",
+        phase0_deg: 120.0,
+        description: "A relic fusion-torch ship.",
+    },
+    CraftFigures {
+        name: "Apogee Station",
+        craft: Craft::Station,
+        band: "High",
+        phase0_deg: 240.0,
+        description: "A station in high Earth orbit.",
+    },
+];
+
+/// SOL-12 to SOL-14: a station or ship of table 3: own, surveyed, a member
+/// of its Earth band at its phase, with no orbit of its own.
+fn craft(figures: &CraftFigures) -> BodyBlueprint {
+    let (class, record, propulsion, key_facts) = match figures.craft {
+        Craft::Station => (
+            BodyClass::Station,
+            ShipRecord::new(ShipClass::Station, true),
+            None,
+            vec![("Status", "Active"), ("Owner", "Own")],
+        ),
+        Craft::Ship {
+            exhaust_velocity_kms,
+            accel_g,
+            delta_v_kms,
+        } => (
+            BodyClass::Ship,
+            ShipRecord::new(ShipClass::Cargo, true),
+            Some(Propulsion {
+                drive: Drive::new(
+                    true,
+                    exhaust_velocity_kms,
+                    accel_g * STANDARD_GRAVITY_M_PER_S2,
+                ),
+                delta_v_kms,
+            }),
+            vec![],
+        ),
+    };
+    BodyBlueprint {
+        name: figures.name,
+        class,
+        affiliation: Affiliation::Own,
+        record: Some(record),
+        propulsion,
+        description: figures.description,
+        key_facts,
+        knowledge: Knowledge::Surveyed,
+        orbit: OrbitPlacement::Named(figures.band),
+        radius_km: if class == BodyClass::Station {
+            1.0
+        } else {
+            0.1
+        },
+        phase0_rad: figures.phase0_deg.to_radians(),
+        mass_kg: 0.0,
+        orbits: vec![],
+        children: vec![],
+    }
+}
+
 /// SOL-04: what a moon says about the ways its drawn orbit differs from
 /// its real one. Triton really orbits backwards; Uranus's moons orbit its
 /// steeply tilted equator.
@@ -237,7 +362,13 @@ fn moons_of(parent: &str) -> Vec<BodyBlueprint> {
         .collect()
 }
 
+/// SOL-03 / SOL-12: a planet with its moons, and for Earth the stations
+/// and ships of table 3.
 fn planet(figures: &PlanetFigures) -> BodyBlueprint {
+    let mut children = moons_of(figures.name);
+    if figures.name == SHIPS_PLANET {
+        children.extend(CRAFT.iter().map(craft));
+    }
     natural_body(
         figures.name,
         BodyClass::Planet,
@@ -248,11 +379,11 @@ fn planet(figures: &PlanetFigures) -> BodyBlueprint {
             figures.phase0_deg.to_radians(),
         ),
         (figures.radius_km, figures.mass_kg),
-        moons_of(figures.name),
+        children,
     )
 }
 
-/// SOL-02 to SOL-08: the Sol system as records.
+/// SOL-02 to SOL-17: the Sol system as records.
 pub fn sol_system() -> SystemData {
     SystemData {
         star_name: "Sol",
@@ -333,10 +464,41 @@ mod tests {
             .planets
             .iter()
             .flat_map(|planet| {
-                std::iter::once((planet, system.star_mass_kg))
-                    .chain(planet.children.iter().map(|moon| (moon, planet.mass_kg)))
+                std::iter::once((planet, system.star_mass_kg)).chain(
+                    planet
+                        .children
+                        .iter()
+                        .filter(|child| child.class == BodyClass::Moon)
+                        .map(|moon| (moon, planet.mass_kg)),
+                )
             })
             .collect()
+    }
+
+    /// The stations and ships of table 3, which sit round Earth.
+    fn craft_round_earth() -> Vec<BodyBlueprint> {
+        planet_named("Earth")
+            .children
+            .into_iter()
+            .filter(|child| child.class != BodyClass::Moon)
+            .collect()
+    }
+
+    fn craft_named(name: &str) -> BodyBlueprint {
+        craft_round_earth()
+            .into_iter()
+            .find(|craft| craft.name == name)
+            .unwrap_or_else(|| panic!("{name} missing round Earth"))
+    }
+
+    /// Earth's gravitational parameter, in km³/day².
+    fn earth_mu() -> f64 {
+        crate::sim::units::gravitational_parameter_km3_per_day2(planet_named("Earth").mass_kg)
+    }
+
+    /// Earth's bands with the default tunables (BAND-01).
+    fn earth_bands() -> BandRadii {
+        bands(&planet_named("Earth"), SOLAR_MASS_KG)
     }
 
     /// BAND-01: a body's bands from its radius and its Hill sphere round
@@ -395,12 +557,20 @@ mod tests {
     #[test]
     fn the_moons_follow_table_two() {
         let system = sol_system();
-        let count: usize = system.planets.iter().map(|p| p.children.len()).sum();
+        fn moons_of(planet: &BodyBlueprint) -> Vec<&BodyBlueprint> {
+            planet
+                .children
+                .iter()
+                .filter(|child| child.class == BodyClass::Moon)
+                .collect()
+        }
+        let count: usize = system.planets.iter().map(|p| moons_of(p).len()).sum();
         assert_eq!(count, 21);
         for planet in &system.planets {
-            let radii: Vec<f64> = planet.children.iter().map(own_radius).collect();
+            let moons = moons_of(planet);
+            let radii: Vec<f64> = moons.iter().map(|moon| own_radius(moon)).collect();
             assert!(radii.is_sorted(), "{}'s moons run outwards", planet.name);
-            for moon in &planet.children {
+            for moon in moons {
                 assert_eq!(moon.class, BodyClass::Moon);
                 assert_eq!(moon.key_facts[0], ("Class", "Moon"), "{}", moon.name);
                 let notes = moon.key_facts.len() - 1;
@@ -465,10 +635,11 @@ mod tests {
         assert_eq!(planet_named("Earth").children[0].phase0_rad, 0.0);
     }
 
-    /// SOL-07 / SOL-08: one empty belt from 2.2 to 3.2 AU, and nothing but
-    /// neutral, surveyed natural bodies.
+    /// SOL-07 / SOL-08: one empty belt from 2.2 to 3.2 AU, no gates, every
+    /// natural body neutral and surveyed, and the stations and ships own
+    /// and surveyed.
     #[test]
-    fn sol_holds_only_natural_bodies_and_an_empty_belt() {
+    fn sol_holds_neutral_bodies_own_craft_and_an_empty_belt() {
         let system = sol_system();
         assert_eq!(system.belt.inner_radius_km, 2.2 * KM_PER_AU);
         assert_eq!(system.belt.outer_radius_km, 3.2 * KM_PER_AU);
@@ -485,6 +656,141 @@ mod tests {
             assert_eq!(body.affiliation, Affiliation::Neutral, "{}", body.name);
             assert_eq!(body.knowledge, Knowledge::Surveyed, "{}", body.name);
         }
+        let craft = craft_round_earth();
+        assert_eq!(craft.len(), 4);
+        for body in &craft {
+            assert_eq!(body.affiliation, Affiliation::Own, "{}", body.name);
+            assert_eq!(body.knowledge, Knowledge::Surveyed, "{}", body.name);
+        }
+    }
+
+    /// SOL-12: two stations with no drive and two commanded, unarmed cargo
+    /// ships with drives, all round Earth.
+    #[test]
+    fn earth_holds_two_stations_and_two_cargo_ships() {
+        let names: Vec<&str> = craft_round_earth().iter().map(|c| c.name).collect();
+        assert_eq!(
+            names,
+            ["Perigee Station", "Marlin", "Vestige", "Apogee Station"]
+        );
+        for name in ["Perigee Station", "Apogee Station"] {
+            let station = craft_named(name);
+            assert_eq!(station.class, BodyClass::Station, "{name}");
+            assert_eq!(station.record.unwrap().class, ShipClass::Station);
+            assert!(station.propulsion.is_none(), "{name} has a drive");
+        }
+        for name in ["Marlin", "Vestige"] {
+            let ship = craft_named(name);
+            assert_eq!(ship.class, BodyClass::Ship, "{name}");
+            let record = ship.record.unwrap();
+            assert_eq!(record.class, ShipClass::Cargo, "{name}");
+            assert!(record.commanded && !record.armed, "{name}");
+            assert!(ship.propulsion.is_some(), "{name} has no drive");
+        }
+        // No other planet holds anything but moons.
+        for planet in sol_system().planets {
+            if planet.name != "Earth" {
+                assert!(
+                    planet.children.iter().all(|c| c.class == BodyClass::Moon),
+                    "{}",
+                    planet.name
+                );
+            }
+        }
+    }
+
+    /// SOL-13: Perigee Station, Marlin and Vestige are in Earth's Low band
+    /// and Apogee Station in its High band, none with an orbit of its own.
+    /// Low is 6,871 km out (94.5 min) and High 63,710 km out (1.85 d).
+    #[test]
+    fn the_craft_sit_in_earths_low_and_high_bands() {
+        for (name, band) in [
+            ("Perigee Station", "Low"),
+            ("Marlin", "Low"),
+            ("Vestige", "Low"),
+            ("Apogee Station", "High"),
+        ] {
+            let craft = craft_named(name);
+            assert!(
+                matches!(craft.orbit, OrbitPlacement::Named(b) if b == band),
+                "{name} is not in {band}: {:?}",
+                craft.orbit
+            );
+            assert!(craft.orbits.is_empty() && craft.children.is_empty());
+        }
+        let bands = earth_bands();
+        let earth_mass = planet_named("Earth").mass_kg;
+        assert!((bands.low_km - 6_871.0).abs() < 1.0, "{bands:?}");
+        let low_minutes = kepler_period_days(bands.low_km, earth_mass) * 24.0 * 60.0;
+        assert!((low_minutes - 94.5).abs() < 0.1, "{low_minutes} min");
+        let high_km = bands.high_km.expect("Earth has a High band");
+        assert!((high_km - 63_710.0).abs() < 1.0, "{bands:?}");
+        let high_days = kepler_period_days(high_km, earth_mass);
+        assert!((high_days - 1.85).abs() < 0.005, "{high_days} d");
+    }
+
+    /// SOL-14: the craft start at table 3's phases: Marlin at Perigee
+    /// Station's phase, so docked there, and Vestige a third of the way
+    /// round the band, far from both.
+    #[test]
+    fn the_craft_start_at_table_three_phases() {
+        let phase = |name| craft_named(name).phase0_rad;
+        assert_eq!(phase("Perigee Station"), 0.0);
+        assert_eq!(phase("Marlin"), phase("Perigee Station"));
+        assert!((phase("Vestige") - 120_f64.to_radians()).abs() < 1e-12);
+        assert!((phase("Apogee Station") - 240_f64.to_radians()).abs() < 1e-12);
+        // A third of the way round Low is thousands of km of arc.
+        let gap_km = phase("Vestige") * earth_bands().low_km;
+        assert!(gap_km > 10_000.0, "{gap_km} km");
+    }
+
+    /// The drive of one of table 3's ships, with its acceleration in g.
+    fn drive_of(name: &str) -> (bool, f64, f64, f64) {
+        let propulsion = craft_named(name).propulsion.unwrap();
+        let g = crate::sim::units::accel_km_per_day2_from_m_per_s2(STANDARD_GRAVITY_M_PER_S2);
+        (
+            propulsion.drive.impulsive,
+            propulsion.drive.exhaust_velocity_kms,
+            propulsion.drive.accel / g,
+            propulsion.delta_v_kms,
+        )
+    }
+
+    /// SOL-15: Marlin's hydrogen nuclear thermal drive: impulsive, 9.0
+    /// km/s exhaust, 0.1 g loaded, 15 km/s of delta-v.
+    #[test]
+    fn marlin_carries_a_nuclear_thermal_drive() {
+        let (impulsive, exhaust, accel_g, delta_v) = drive_of("Marlin");
+        assert!(impulsive);
+        assert_eq!(exhaust, 9.0);
+        assert!((accel_g - 0.1).abs() < 1e-9, "{accel_g} g");
+        assert_eq!(delta_v, 15.0);
+    }
+
+    /// SOL-16: Vestige's fusion torch: impulsive, 500 km/s exhaust, 20
+    /// milli-g loaded, 500 km/s of delta-v.
+    #[test]
+    fn vestige_carries_a_fusion_torch() {
+        let (impulsive, exhaust, accel_g, delta_v) = drive_of("Vestige");
+        assert!(impulsive);
+        assert_eq!(exhaust, 500.0);
+        assert!((accel_g - 0.02).abs() < 1e-9, "{accel_g} g");
+        assert_eq!(delta_v, 500.0);
+    }
+
+    /// SOL-17: the Hohmann crossing from Earth's Low band to its High band
+    /// costs about 4.0 km/s; Marlin can make it three times but not four,
+    /// and Vestige more than a hundred times.
+    #[test]
+    fn marlin_crosses_low_to_high_three_times_and_vestige_many() {
+        let bands = earth_bands();
+        let trip = orbits::hohmann(earth_mu(), bands.low_km, bands.high_km.unwrap());
+        let cost_kms = orbits::km_per_day_to_km_per_s(trip.first_burn + trip.second_burn);
+        assert!((cost_kms - 4.0).abs() < 0.05, "{cost_kms} km/s");
+        let (.., marlin) = drive_of("Marlin");
+        assert!(3.0 * cost_kms <= marlin && 4.0 * cost_kms > marlin);
+        let (.., vestige) = drive_of("Vestige");
+        assert!(vestige / cost_kms > 100.0);
     }
 
     /// SOL-09: with the default tunables every body has a Low band, and a

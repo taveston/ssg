@@ -3428,11 +3428,12 @@ fn sol_app() -> App {
     app
 }
 
-/// SOL-11: Sol spawns headless as one star, nine planets, twenty-one moons
-/// and one belt, with no gates, and every named orbit (the bands) belongs
-/// to a spawned body.
+/// SOL-11: Sol spawns headless as one star, nine planets, twenty-one
+/// moons, two stations, two ships and one belt, with no gates; every named
+/// orbit (the bands) belongs to a spawned body, and every station and ship
+/// is a member of one.
 #[test]
-fn sol_spawns_its_star_planets_moons_and_belt() {
+fn sol_spawns_its_bodies_stations_ships_and_belt() {
     let mut app = sol_app();
     run(&mut app, 1);
 
@@ -3442,8 +3443,17 @@ fn sol_spawns_its_star_planets_moons_and_belt() {
     assert_eq!(count(BodyClass::Star), 1);
     assert_eq!(count(BodyClass::Planet), 9);
     assert_eq!(count(BodyClass::Moon), 21);
+    assert_eq!(count(BodyClass::Station), 2);
+    assert_eq!(count(BodyClass::Ship), 2);
     assert_eq!(count(BodyClass::Gate), 0);
-    assert_eq!(classes.len(), 31, "nothing but the star, planets and moons");
+    assert_eq!(classes.len(), 35, "nothing else");
+    for name in ["Perigee Station", "Marlin", "Vestige", "Apogee Station"] {
+        let craft = body(&mut app, name);
+        let member = app.world().get::<InNamedOrbit>(craft);
+        assert!(member.is_some(), "{name} is in no named orbit");
+        let orbit = app.world().get::<NamedOrbit>(member.unwrap().0);
+        assert!(orbit.is_some(), "{name}'s named orbit does not resolve");
+    }
     let mut belts = app.world_mut().query::<&crate::sim::body::Belt>();
     assert_eq!(belts.iter(app.world()).count(), 1);
 

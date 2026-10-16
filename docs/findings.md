@@ -90,3 +90,8 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Observation:** SCL-07 now puts every station in a band, so the build drops a station's own orbit. TEST-02 and TEST-09 name the band for Arden Highport and Tern Relay, but nothing names one for Iver Yard, which had its own 45,000 km orbit. The build puts it in Iver's High band (58,000 km, period about 1.7 d), the band nearest its old orbit. This moves Iver's satellite frame out to 58,000 km.
 - **Affects:** SCL-07, TEST-01 · **Type:** spec gap
 - **Disposition:** open. Accept, or name Iver Yard's band in TEST-01.
+
+### F-163 · Vestige's burn time is longer than the orbit it leaves
+- **Observation:** Vestige's first burn from Earth's Low band to its High band (SOL-17) is about 2.6 km/s at 20 milli-g, so XFER-05 gives it 3.7 h of burn days, against a 9.2 h Hohmann crossing. The rule keeps the ship Parked in Low for those 3.7 h, then applies the whole burn as one impulse at the crossing start, and the crossing is solved again from that later start. So the burn only delays the trip: no thrust arc is drawn, no gravity loss is charged, and the time the ship would spend burning is spent waiting. Yet 3.7 h is about 2.3 laps of Low (94.5 min), so a real burn that long could not be treated as an impulse at one point. Marlin's burn (0.1 g, about 45 min) is about half a lap, which is borderline too.
+- **Affects:** XFER-05, SOL-16, SOL-17 · **Type:** spec gap
+- **Disposition:** open. Accept the delay as a stand-in, or say how a burn that lasts a large share of an orbit, or of the crossing, is modelled (bears on F-158).
