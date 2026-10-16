@@ -11,10 +11,12 @@
 use bevy::prelude::*;
 
 use crate::view::colors;
-use crate::view::fonts::Fonts;
+use crate::view::fonts::{Face, Fonts};
 use crate::view::layers;
 use crate::view::node_box::node_size;
 use crate::view::screen::MapArea;
+use crate::view::text_size::TextSize;
+use crate::view::tunables::Tunables;
 
 /// Half the chevron's box. The same footprint as a gate's own marker, so
 /// the hand-over between the two doesn't change size.
@@ -22,7 +24,6 @@ pub const ARROW_HALF_PX: f32 = 5.5;
 /// The chevron glyph is drawn a little larger than its box so it reads as
 /// a solid head rather than a caret.
 pub const ARROW_GLYPH_SCALE: f32 = 2.2;
-pub const LABEL_FONT_PX: f32 = 12.0;
 /// Space inside the tab's outline, across and along its row.
 const TAB_PAD_PX: f32 = 4.0;
 const TAB_PAD_ALONG_PX: f32 = 6.0;
@@ -152,12 +153,12 @@ pub fn spawn_tab<'a>(
 }
 
 /// The text of a tab's label, in the neutral colour, never wrapped.
-pub fn tab_label(fonts: &Fonts, text: &str) -> impl Bundle {
+pub fn tab_label(fonts: &Fonts, tunables: &Tunables, text: &str) -> impl Bundle {
     (
         Pickable::IGNORE,
         Text::new(text),
         TextLayout::linebreak(LineBreak::NoWrap),
-        fonts.label(LABEL_FONT_PX),
+        TextSize::MapLabel.font(fonts, Face::Label, tunables),
         TextColor(colors::NEUTRAL),
     )
 }
@@ -235,7 +236,7 @@ mod tests {
         let unit = world
             .run_system_once(|mut commands: Commands, fonts: Res<Fonts>| {
                 spawn_tab(&mut commands, &fonts, 1.0, |content| {
-                    content.spawn(tab_label(&fonts, "Ostra"));
+                    content.spawn(tab_label(&fonts, &Tunables::default(), "Ostra"));
                 })
                 .id()
             })

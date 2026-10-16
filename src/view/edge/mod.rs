@@ -136,7 +136,7 @@ fn spawn_edge_tabs(
             &fonts,
             tunables.button_stroke_px,
             |content| {
-                content.spawn(tab_label(&fonts, &destination.0));
+                content.spawn(tab_label(&fonts, &tunables, &destination.0));
             },
         )
         .insert(EdgeTabFor(gate));

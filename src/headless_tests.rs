@@ -83,6 +83,7 @@ mod rings;
 mod shared_orbit_marks;
 mod symbols;
 mod systems;
+mod text_sizes;
 mod transfers;
 mod tray;
 

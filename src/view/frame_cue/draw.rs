@@ -17,7 +17,7 @@ use super::stroke::{CueStroke, stroke_node_box};
 use crate::sim::body::PhysicalRadius;
 use crate::view::camera::rules::NORTH;
 use crate::view::colors;
-use crate::view::fonts::Fonts;
+use crate::view::fonts::{Face, Fonts};
 use crate::view::frame::Frame;
 use crate::view::halo::TextHalo;
 use crate::view::layers;
@@ -26,6 +26,7 @@ use crate::view::plot_marks::ScaleBarKm;
 use crate::view::scale::km_to_render;
 use crate::view::screen::MapView;
 use crate::view::targets::MarkerFor;
+use crate::view::text_size::TextSize;
 use crate::view::tunables::Tunables;
 use crate::view::world::ViewNow;
 
@@ -38,8 +39,7 @@ const UP: Vec3 = Vec3::Y;
 /// A step along a direction, as a fraction of the camera's distance from
 /// the frame body, short enough to find the direction's screen heading.
 const STEP_FRACTION: f32 = 1e-3;
-/// The "N"'s size in the data face, and the box it is centred in.
-const N_FONT_PX: f32 = 10.0;
+/// The box the "N" is centred in.
 const N_BOX_PX: f32 = 12.0;
 
 /// Which part of the cue a node draws.
@@ -195,7 +195,7 @@ fn vertical<P: Fn(Vec3) -> Option<Vec2>>(
         alpha_near: t.ref_alpha_near,
         alpha_far: t.ref_alpha_far,
     };
-    vertical_halves(centre, up, upper_from, shortening, &vertical_look)
+    vertical_halves(centre, up, upper_from, shortening, map, &vertical_look)
 }
 
 /// REF-01 to REF-08: the cue round the frame body at `body` (render
@@ -263,7 +263,7 @@ fn stroke_node(part: CuePart, layer: i32) -> impl Bundle {
 /// REF-01 / REF-04 / REF-09: the cue's nodes. The arms and the lower half
 /// lie under every natural body, with the "N" just above them; the upper
 /// half lies above the bodies and below the symbols.
-pub fn spawn_frame_cue(mut commands: Commands, fonts: Res<Fonts>) {
+pub fn spawn_frame_cue(mut commands: Commands, fonts: Res<Fonts>, tunables: Res<Tunables>) {
     for index in 0..ARM_DIRECTIONS.len() {
         commands.spawn(stroke_node(CuePart::Arm(index), layers::CUE));
     }
@@ -287,7 +287,7 @@ pub fn spawn_frame_cue(mut commands: Commands, fonts: Res<Fonts>) {
         .with_child((
             Text::new("N"),
             TextLayout::linebreak(LineBreak::NoWrap),
-            fonts.data(N_FONT_PX),
+            TextSize::SecondLine.font(&fonts, Face::Data, &tunables),
             TextColor(colors::REFERENCE),
             TextHalo::ground(),
             Pickable::IGNORE,
@@ -446,7 +446,9 @@ mod tests {
             disc_radius: None,
         };
         let upper_for = |height: f32| {
-            let map = Rect::new(0.0, 40.0, 800.0, 40.0 + height);
+            // The map's bottom edge is just below the body, so the axis
+            // has room above it at both heights.
+            let map = Rect::new(0.0, 310.0 - height, 800.0, 310.0);
             let layout = cue_layout(&camera, Vec3::ZERO, look, map, 0.0, &t);
             layout.upper.expect("an upper half").length
         };

@@ -12,13 +12,14 @@ use bevy::prelude::*;
 use crate::sim::body::DisplayName;
 use crate::view::camera::requests::{FrameRequest, RecentreRequest};
 use crate::view::colors;
-use crate::view::fonts::Fonts;
+use crate::view::fonts::{Face, Fonts};
 use crate::view::frame::{Frame, ancestors};
+use crate::view::text_size::TextSize;
+use crate::view::tunables::Tunables;
 
 /// The cluster entry's text. It does nothing until the cluster view exists.
 const CLUSTER: &str = "Cluster";
 const SEPARATOR: &str = " / ";
-const FONT_PX: f32 = 14.0;
 
 /// What clicking a breadcrumb entry does.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -107,7 +108,7 @@ fn frame_path(
 fn rebuild_breadcrumb(
     mut commands: Commands,
     frame: Res<Frame>,
-    fonts: Res<Fonts>,
+    (fonts, tunables): (Res<Fonts>, Res<Tunables>),
     parents: Query<&ChildOf>,
     names: Query<&DisplayName>,
     roots: Query<Entity, With<BreadcrumbRoot>>,
@@ -128,15 +129,23 @@ fn rebuild_breadcrumb(
         .with_children(|row| {
             for (index, crumb) in entries.into_iter().enumerate() {
                 if index > 0 {
-                    row.spawn(crumb_text(SEPARATOR, &fonts, colors::PANEL_BORDER));
+                    row.spawn(crumb_text(
+                        SEPARATOR,
+                        (&fonts, &tunables),
+                        colors::PANEL_BORDER,
+                    ));
                 }
-                spawn_crumb(row, &fonts, crumb);
+                spawn_crumb(row, (&fonts, &tunables), crumb);
             }
         });
 }
 
-fn crumb_text(text: &str, fonts: &Fonts, color: Color) -> impl Bundle {
-    (Text::new(text), fonts.label(FONT_PX), TextColor(color))
+fn crumb_text(text: &str, (fonts, tunables): (&Fonts, &Tunables), color: Color) -> impl Bundle {
+    (
+        Text::new(text),
+        TextSize::Bar.font(fonts, Face::Label, tunables),
+        TextColor(color),
+    )
 }
 
 /// CAM-25: an entry's colour: the cluster's in the secondary colour; the
@@ -152,11 +161,11 @@ pub fn crumb_color(action: CrumbAction) -> Color {
 }
 
 /// One entry: the cluster in the secondary colour, the rest clickable.
-fn spawn_crumb(row: &mut ChildSpawnerCommands, fonts: &Fonts, crumb: Crumb) {
+fn spawn_crumb(row: &mut ChildSpawnerCommands, draw: (&Fonts, &Tunables), crumb: Crumb) {
     let color = crumb_color(crumb.action);
     row.spawn((
         CrumbEntry(crumb.action),
-        crumb_text(&crumb.label, fonts, color),
+        crumb_text(&crumb.label, draw, color),
     ))
     .observe(on_crumb_click);
 }

@@ -120,12 +120,17 @@ pub struct VerticalLook {
 /// marker's box) and is `up_px` long shortened by `shortening`, ending in
 /// an arrowhead. The lower half starts at the centre, runs the other way
 /// for `down_fraction` of the upper half's length and has no arrowhead.
-/// Both are dotted and fade as the arms do. A half shorter than `min_px` is not drawn.
+/// Both are dotted and fade as the arms do. The upper half is clipped at
+/// the edge of the map area `map`, as an arm is, so its arrowhead ends at
+/// that edge rather than running under the top bar; the lower half keeps
+/// its fraction of the unclipped length. A half shorter than `min_px` is
+/// not drawn.
 pub fn vertical_halves(
     centre: Vec2,
     up: Vec2,
     upper_from: f32,
     shortening: f32,
+    map: Rect,
     look: &VerticalLook,
 ) -> (Option<Stroke>, Option<Stroke>) {
     let upper_px = look.up_px * shortening;
@@ -146,10 +151,12 @@ pub fn vertical_halves(
             tick_px: 0.0,
         })
     };
-    (
-        half(centre + up * upper_from, up, upper_px, look.arrow_px),
-        half(centre, -up, lower_px, 0.0),
-    )
+    let upper = ray_inside(centre, up, map).and_then(|(inside_from, inside_to)| {
+        let start = upper_from.max(inside_from);
+        let end = (upper_from + upper_px).min(inside_to);
+        half(centre + up * start, up, end - start, look.arrow_px)
+    });
+    (upper, half(centre, -up, lower_px, 0.0))
 }
 
 /// REF-04: where the "N" sits: `inset_px` back from the north arm's end,
@@ -246,7 +253,7 @@ mod tests {
     #[test]
     fn the_vertical_halves_start_and_run_as_set() {
         let centre = Vec2::new(400.0, 300.0);
-        let (upper, lower) = vertical_halves(centre, Vec2::NEG_Y, 12.0, 0.5, &look());
+        let (upper, lower) = vertical_halves(centre, Vec2::NEG_Y, 12.0, 0.5, MAP, &look());
         let (upper, lower) = (upper.unwrap(), lower.unwrap());
         assert_eq!(upper.start, Vec2::new(400.0, 288.0));
         assert_eq!(upper.length, 50.0);
@@ -268,11 +275,34 @@ mod tests {
     /// half goes first as the view turns towards straight down.
     #[test]
     fn a_short_vertical_half_is_not_drawn() {
-        let centre = Vec2::ZERO;
-        let (upper, lower) = vertical_halves(centre, Vec2::NEG_Y, 12.0, 0.12, &look());
+        let centre = Vec2::new(400.0, 300.0);
+        let (upper, lower) = vertical_halves(centre, Vec2::NEG_Y, 12.0, 0.12, MAP, &look());
         assert!(upper.is_some() && lower.is_none(), "12 px up, 8.4 px down");
-        let (upper, lower) = vertical_halves(centre, Vec2::NEG_Y, 12.0, 0.0, &look());
+        let (upper, lower) = vertical_halves(centre, Vec2::NEG_Y, 12.0, 0.0, MAP, &look());
         assert!(upper.is_none() && lower.is_none());
+    }
+
+    /// REF-06: the upper half is clipped at the map area's edge, as an arm
+    /// is, so its arrowhead ends on that edge instead of under the top
+    /// bar; the lower half keeps its share of the unclipped length.
+    #[test]
+    fn the_upper_half_stops_at_the_map_edge() {
+        // 30 px below the map's top edge, with 12 px of gap and 100 px
+        // of axis wanted.
+        let centre = Vec2::new(400.0, 70.0);
+        let (upper, lower) = vertical_halves(centre, Vec2::NEG_Y, 12.0, 1.0, MAP, &look());
+        let upper = upper.unwrap();
+        assert_eq!(upper.start, Vec2::new(400.0, 58.0));
+        assert_eq!(upper.at(upper.length), Vec2::new(400.0, MAP.min.y));
+        assert_eq!(
+            upper.style.arrow_px, 8.0,
+            "the arrowhead stays, on the edge"
+        );
+        assert!((lower.unwrap().length - 70.0).abs() < 1e-4);
+        // Nearer the edge than the minimum: nothing is drawn above.
+        let near = Vec2::new(400.0, MAP.min.y + 15.0);
+        let (upper, _) = vertical_halves(near, Vec2::NEG_Y, 12.0, 1.0, MAP, &look());
+        assert!(upper.is_none());
     }
 
     /// REF-04: the "N" sits its inset back from the north arm's end.

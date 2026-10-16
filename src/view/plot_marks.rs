@@ -11,13 +11,14 @@ use super::camera::requests::NorthUpRequest;
 use super::camera::rules::NORTH;
 use super::camera::state::CameraRig;
 use super::colors;
-use super::fonts::Fonts;
+use super::fonts::{Face, Fonts};
 use super::layers;
 use super::readout::format_distance;
 use super::scale::{km_to_render, render_to_km};
 use super::screen::{MapArea, MapView, screen_angle};
 use super::symbols::shape::{SymbolMask, SymbolPart};
 use super::targets::MapInputBlocker;
+use super::text_size::TextSize;
 use super::tunables::Tunables;
 use super::world::ViewNow;
 use crate::sim::units::KM_PER_AU;
@@ -49,7 +50,6 @@ pub struct NorthArrow;
 #[derive(Component)]
 pub struct NorthLabel;
 
-const LABEL_FONT_PX: f32 = 10.0;
 /// The scale bar's end and middle ticks.
 const TICK_PX: f32 = 5.0;
 const LINE_PX: f32 = 1.0;
@@ -126,12 +126,12 @@ fn tick(left: Val) -> impl Bundle {
 
 /// MRK-16: a neutral line with ticks at its ends and middle, "0" under its
 /// left end and its length under its right.
-fn spawn_scale_bar(mut commands: Commands, fonts: Res<Fonts>) {
+fn spawn_scale_bar(mut commands: Commands, fonts: Res<Fonts>, tunables: Res<Tunables>) {
     let label = |text: &str| {
         (
             Text::new(text),
             TextLayout::linebreak(LineBreak::NoWrap),
-            fonts.data(LABEL_FONT_PX),
+            TextSize::SecondLine.font(&fonts, Face::Data, &tunables),
             TextColor(colors::SECONDARY),
         )
     };
@@ -278,7 +278,7 @@ fn spawn_north_dial(mut commands: Commands, fonts: Res<Fonts>, tunables: Res<Tun
         )
         .with_children(|dial| {
             spawn_north_arrow(dial, head);
-            spawn_north_label(dial, &fonts);
+            spawn_north_label(dial, (&fonts, &tunables));
         });
 }
 
@@ -319,7 +319,7 @@ fn spawn_north_arrow(dial: &mut ChildSpawnerCommands, head: f32) {
 }
 
 /// MRK-17: the dial's upright "N", in a box placed beyond the head's tip.
-fn spawn_north_label(dial: &mut ChildSpawnerCommands, fonts: &Fonts) {
+fn spawn_north_label(dial: &mut ChildSpawnerCommands, (fonts, tunables): (&Fonts, &Tunables)) {
     dial.spawn((
         NorthLabel,
         Node {
@@ -336,7 +336,7 @@ fn spawn_north_label(dial: &mut ChildSpawnerCommands, fonts: &Fonts) {
         label.spawn((
             Text::new("N"),
             TextLayout::linebreak(LineBreak::NoWrap),
-            fonts.data(LABEL_FONT_PX),
+            TextSize::SecondLine.font(fonts, Face::Data, tunables),
             TextColor(colors::NEUTRAL),
             Pickable::IGNORE,
         ));

@@ -15,9 +15,11 @@ use crate::view::bindings::{Bindings, pressed};
 use crate::view::buttons::{ButtonStyle, ConsoleButton, spawn_button};
 use crate::view::colors;
 use crate::view::date::{date_from_elapsed_days, format_date};
-use crate::view::fonts::Fonts;
+use crate::view::fonts::{Face, Fonts};
 use crate::view::targets::MapInputBlocker;
+use crate::view::text_size::TextSize;
 use crate::view::topbar::breadcrumb::spawn_breadcrumb_root;
+use crate::view::tunables::Tunables;
 
 pub mod breadcrumb;
 
@@ -52,16 +54,14 @@ impl Plugin for TopBarPlugin {
 
 /// The top bar's height. Edge arrows stay below it (EDGE-01).
 pub const TOP_BAR_HEIGHT_PX: f32 = 54.0;
-const BAR_FONT_PX: f32 = 14.0;
 /// A rate button is active when the clock runs within this of its rate.
 const RATE_MATCH_TOLERANCE: f64 = 0.01;
-const BUTTON_FONT_PX: f32 = 13.0;
 
 /// A top-bar button, secondary until `update_button_styles` makes the
 /// active one primary (CLK-02).
 fn spawn_bar_button<'a>(
     bar: &'a mut ChildSpawnerCommands,
-    fonts: &Fonts,
+    (fonts, tunables): (&Fonts, &Tunables),
     label: &str,
     marker: impl Bundle,
 ) -> EntityCommands<'a> {
@@ -69,7 +69,7 @@ fn spawn_bar_button<'a>(
         bar,
         fonts,
         label,
-        BUTTON_FONT_PX,
+        tunables.sidebar_text_px,
         ConsoleButton::new(ButtonStyle::Secondary),
     );
     button.insert(marker);
@@ -77,7 +77,7 @@ fn spawn_bar_button<'a>(
 }
 
 /// CLK-02: breadcrumb, date, Pause, 1 d/s and 5 d/s.
-fn spawn_top_bar(mut commands: Commands, fonts: Res<Fonts>) {
+fn spawn_top_bar(mut commands: Commands, fonts: Res<Fonts>, tunables: Res<Tunables>) {
     commands
         .spawn((
             GlobalZIndex(layers::PANELS),
@@ -101,12 +101,13 @@ fn spawn_top_bar(mut commands: Commands, fonts: Res<Fonts>) {
             bar.spawn((
                 DateText,
                 Text::new(""),
-                fonts.data(BAR_FONT_PX),
+                TextSize::Bar.font(&fonts, Face::Data, &tunables),
                 TextColor(colors::NEUTRAL),
             ));
-            spawn_bar_button(bar, &fonts, "Pause", PauseButton).observe(on_pause_clicked);
+            spawn_bar_button(bar, (&fonts, &tunables), "Pause", PauseButton)
+                .observe(on_pause_clicked);
             for (label, speed) in [("1 d/s", 1.0_f64), ("5 d/s", 5.0_f64)] {
-                spawn_bar_button(bar, &fonts, label, SpeedButton(speed)).observe(
+                spawn_bar_button(bar, (&fonts, &tunables), label, SpeedButton(speed)).observe(
                     move |_click: On<PointerClick>, mut clock: ResMut<GameClock>| {
                         clock.run_at(speed);
                     },
@@ -120,7 +121,7 @@ fn spawn_top_bar(mut commands: Commands, fonts: Res<Fonts>) {
                     ..default()
                 },
                 Text::new(""),
-                fonts.data(BUTTON_FONT_PX),
+                fonts.data(tunables.sidebar_text_px),
                 TextColor(colors::PANEL_BORDER),
             ));
         });
@@ -235,6 +236,7 @@ mod tests {
         world.insert_resource(placeholder_fonts());
         world.insert_resource(Bindings::default());
         world.insert_resource(ButtonInput::<KeyCode>::default());
+        world.insert_resource(Tunables::default());
         world.run_system_once(spawn_top_bar).unwrap();
         assert_eq!(fps_display(&mut world), Display::None);
 
@@ -261,6 +263,7 @@ mod tests {
         let mut world = World::new();
         world.insert_resource(placeholder_fonts());
         world.insert_resource(GameClock::default());
+        world.insert_resource(Tunables::default());
         world.run_system_once(spawn_top_bar).unwrap();
 
         world.resource_mut::<GameClock>().run_at(5.0);
@@ -294,8 +297,9 @@ mod tests {
         }
     }
 
-    /// MRK-02: the top bar's date readout is in the data face; it has a
-    /// slot for the breadcrumb (CLK-02).
+    /// MRK-02 / MRK-19: the top bar's date readout is in the data face at
+    /// `bar_text_px`, and follows that tunable; the bar has a slot for
+    /// the breadcrumb (CLK-02).
     #[test]
     fn the_date_is_in_the_data_face_and_there_is_a_breadcrumb() {
         let handle = |n: u128| Handle::<Font>::Uuid(Uuid::from_u128(n), Default::default());
@@ -308,10 +312,21 @@ mod tests {
         };
         let mut world = World::new();
         world.insert_resource(fonts.clone());
+        world.insert_resource(Tunables::default());
         world.run_system_once(spawn_top_bar).unwrap();
 
         let mut dates = world.query_filtered::<&TextFont, With<DateText>>();
-        assert_eq!(dates.single(&world).unwrap().font, fonts.data(1.0).font);
+        let date = dates.single(&world).unwrap();
+        assert_eq!(date.font, fonts.data(1.0).font);
+        let bar_px = Tunables::default().bar_text_px;
+        assert_eq!(date.font_size, FontSize::Px(bar_px));
+        world.resource_mut::<Tunables>().bar_text_px = bar_px + 4.0;
+        world
+            .run_system_once(crate::view::text_size::apply_text_sizes)
+            .unwrap();
+        let mut dates = world.query_filtered::<&TextFont, With<DateText>>();
+        let date = dates.single(&world).unwrap();
+        assert_eq!(date.font_size, FontSize::Px(bar_px + 4.0));
         let mut roots = world.query_filtered::<(), With<BreadcrumbRoot>>();
         assert_eq!(roots.iter(&world).count(), 1);
     }

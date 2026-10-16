@@ -14,17 +14,15 @@ use super::ghost::GhostLook;
 use super::look::{Emphasis, ghost_opacity};
 use super::strokes::{DrawnPath, DrawnPaths, coast_color, path_color};
 use crate::sim::body::BodyClass;
-use crate::view::fonts::Fonts;
+use crate::view::fonts::{Face, Fonts};
 use crate::view::halo::TextHalo;
 use crate::view::layers;
 use crate::view::markers::marker_half_size;
 use crate::view::motion_mode::MotionModeState;
 use crate::view::screen::ScreenPositions;
+use crate::view::text_size::TextSize;
 use crate::view::tunables::Tunables;
 use crate::view::world::ViewNow;
-
-/// The size of the paths' labels' text, as a marker's name.
-const PATH_LABEL_FONT_PX: f32 = 12.0;
 
 /// A path's start dot (PLNR-61).
 #[derive(Component)]
@@ -205,7 +203,12 @@ pub fn place_path_marks(
     }
     write_dots(&mut commands, &marks.dots, dots, tunables.departure_dot_px);
     write_ghosts(&mut commands, &marks.ghosts, ghosts);
-    write_labels(&mut commands, &marks.labels, (labels, texts), &fonts);
+    write_labels(
+        &mut commands,
+        &marks.labels,
+        (labels, texts),
+        (&fonts, &tunables),
+    );
 }
 
 /// A node centred on `centre`, `size` across, shown or hidden.
@@ -286,7 +289,7 @@ fn write_labels(
     commands: &mut Commands,
     wanted: &[LabelMark],
     (nodes, texts): (&mut LabelNodes, &mut LabelTexts),
-    fonts: &Fonts,
+    (fonts, tunables): (&Fonts, &Tunables),
 ) {
     let mut pool: Vec<_> = nodes.iter_mut().collect();
     pool.sort_by_key(|(e, ..)| e.index_u32());
@@ -324,7 +327,7 @@ fn write_labels(
                     PathLabelText,
                     Text::new(mark.text.clone()),
                     TextLayout::linebreak(LineBreak::NoWrap),
-                    fonts.data(PATH_LABEL_FONT_PX),
+                    TextSize::MapLabel.font(fonts, Face::Data, tunables),
                     TextColor(mark.color),
                     TextHalo::ground(),
                     Pickable::IGNORE,

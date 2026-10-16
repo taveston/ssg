@@ -39,7 +39,7 @@ fn star_paths_app() -> App {
 }
 
 /// Opens the planner for Orison and picks Halden IVa, as a click would.
-fn plan_orison_to_iva(app: &mut App) -> (Entity, Entity) {
+pub(super) fn plan_orison_to_iva(app: &mut App) -> (Entity, Entity) {
     plan_orison_to(app, "Halden IVa")
 }
 

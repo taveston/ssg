@@ -65,6 +65,7 @@ pub mod ship_groups;
 pub mod sidebar;
 pub mod symbols;
 pub mod targets;
+pub mod text_size;
 pub mod topbar;
 pub mod tray;
 pub mod true_size;

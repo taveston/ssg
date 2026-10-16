@@ -4,6 +4,7 @@
 //! bar, the vertical axis as the view tilts, and the cue's layers.
 
 use super::*;
+use crate::view::camera::rules::NORTH;
 use crate::view::colors;
 use crate::view::frame_cue::FrameCuePlugin;
 use crate::view::frame_cue::draw::{CueNorthLabel, CuePart};
@@ -237,7 +238,7 @@ fn the_north_arm_ends_at_the_horizon_seen_near_edge_on() {
             .query_filtered::<&Transform, With<OrbitCamera>>();
         cameras.single(app.world()).unwrap().translation
     };
-    let horizon = project(&mut app, eye + crate::view::camera::rules::NORTH * 10.0).unwrap();
+    let horizon = project(&mut app, eye + NORTH * 10.0).unwrap();
     let end = arm.at(arm.length);
     assert!(end.y > TOP_BAR_HEIGHT_PX + 10.0, "stops short of the top");
     assert!(end.distance(horizon) < 1.0, "end {end}, horizon {horizon}");
@@ -264,7 +265,11 @@ fn the_vertical_axis_shortens_with_tilt_and_vanishes_straight_down() {
         let upper = stroke(&mut app, CuePart::Upper).expect("an upper half");
         let lower = stroke(&mut app, CuePart::Lower).expect("a lower half");
         let map_height = VIEWPORT.y as f32 - TOP_BAR_HEIGHT_PX;
-        let wanted = t.ref_up_fraction * map_height * degrees.to_radians().sin();
+        let full = t.ref_up_fraction * map_height * degrees.to_radians().sin();
+        // Near edge-on the axis would pass the map's top edge, where it
+        // is clipped as the arms are.
+        let room = (upper.start.y - TOP_BAR_HEIGHT_PX) / -upper.dir.y;
+        let wanted = full.min(room);
         assert!(
             (upper.length - wanted).abs() < 0.5,
             "at {degrees}°: {} px, wanted {wanted}",
@@ -280,7 +285,7 @@ fn the_vertical_axis_shortens_with_tilt_and_vanishes_straight_down() {
         assert_eq!(upper.style, dotted(t.ref_arrow_px));
         assert!(lower.start.distance(centre) < 1.0);
         assert!(lower.dir.y > 0.99, "down the screen");
-        assert!((lower.length - wanted * t.ref_down_fraction).abs() < 0.5);
+        assert!((lower.length - full * t.ref_down_fraction).abs() < 0.5);
         assert_eq!(lower.style, dotted(0.0));
         assert_eq!(
             (upper.alpha_start, upper.alpha_end),
@@ -300,7 +305,7 @@ fn over_a_true_size_disc_the_vertical_axis_starts_at_the_pole() {
     let mut app = cue_app();
     let halden = body(&mut app, "Halden IV");
     set_frame(&mut app, halden, Vec3::ZERO);
-    app.world_mut().resource_mut::<CameraRig>().distance = 0.01;
+    app.world_mut().resource_mut::<CameraRig>().distance = 0.03;
     set_view(&mut app, 0.0, 70f32.to_radians());
     let (_, half) = frame_body_box(&mut app);
     assert!(half > Tunables::default().planet_marker_px, "a disc");
@@ -416,4 +421,38 @@ fn the_current_frame_entry_of_the_breadcrumb_is_violet() {
             colors::REFERENCE
         ]
     );
+}
+
+/// REF-06: seen at 75° with the frame body high on the map, the vertical
+/// axis's upper half is clipped at the map area's edge, as the arms are,
+/// so its arrowhead ends on that edge and never runs under the top bar.
+#[test]
+fn the_vertical_axis_stops_at_the_map_edge_when_the_frame_body_is_high() {
+    let mut app = cue_app();
+    let t = Tunables::default();
+    let star = frame_body(&app);
+    set_view(&mut app, 0.0, 75f32.to_radians());
+    let reach = app.world().resource::<CameraRig>().distance;
+    // Move the pivot south of the star until the star sits under the top
+    // bar by less than half the axis's length.
+    let wanted_px = t.ref_up_fraction * (VIEWPORT.y as f32 - TOP_BAR_HEIGHT_PX);
+    let mut placed = None;
+    for step in 1..200 {
+        set_frame(&mut app, star, -NORTH * reach * 0.02 * step as f32);
+        run(&mut app, 2);
+        let (centre, _) = frame_body_box(&mut app);
+        if centre.y < TOP_BAR_HEIGHT_PX + wanted_px / 2.0 {
+            placed = Some(centre);
+            break;
+        }
+    }
+    let centre = placed.expect("the star rises to just under the top bar");
+    assert!(centre.y > TOP_BAR_HEIGHT_PX, "the star is still on the map");
+    let upper = stroke(&mut app, CuePart::Upper).expect("an upper half");
+    let end = upper.at(upper.length);
+    assert!(
+        (end.y - TOP_BAR_HEIGHT_PX).abs() < 0.5,
+        "the arrowhead ends at {end}, the map's edge is at {TOP_BAR_HEIGHT_PX}"
+    );
+    assert_eq!(upper.style.arrow_px, t.ref_arrow_px);
 }

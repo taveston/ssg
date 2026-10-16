@@ -12,6 +12,8 @@
 
 use bevy::prelude::*;
 
+use super::text_size::apply_text_sizes;
+
 #[derive(Resource, Debug, Clone)]
 pub struct Tunables {
     // --- Satellite grouping ---
@@ -303,6 +305,17 @@ pub struct Tunables {
     /// A natural body's marker in the outline, in pixels across (INS-05).
     pub list_marker_px: f32,
 
+    // --- Map and top bar text ---
+    /// A name on the map: a marker's, an exposure ring's, an edge tab's,
+    /// and a path's or ghost's label (MRK-19).
+    pub map_label_px: f32,
+    /// A second line under a name on the map (a marker's, an exposure
+    /// ring's period), the scale bar and the "N" of the north dial and
+    /// the frame cue (MRK-19).
+    pub map_second_line_px: f32,
+    /// The top bar's breadcrumb and date (MRK-19).
+    pub bar_text_px: f32,
+
     // --- Labels ---
     /// A label sits this far from the edge of its marker's box (HOV-07),
     /// so it doesn't move when the brackets appear (LBL-01).
@@ -481,6 +494,10 @@ impl Default for Tunables {
             sidebar_header_px: 17.0,
             list_marker_px: 10.0,
 
+            map_label_px: 12.0,
+            map_second_line_px: 10.0,
+            bar_text_px: 14.0,
+
             label_gap_px: 4.0,
             label_fade_ms: 150.0,
             label_halo_px: 2.0,
@@ -514,6 +531,8 @@ pub struct TunablesPlugin;
 
 impl Plugin for TunablesPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<Tunables>();
+        // A changed text size reaches texts already drawn (MRK-19).
+        app.init_resource::<Tunables>()
+            .add_systems(Update, apply_text_sizes);
     }
 }

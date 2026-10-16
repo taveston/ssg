@@ -33,7 +33,7 @@ use crate::sim::track::ShipRecord;
 use crate::sim::tunables::SimTunables;
 use crate::view::anim::{advance_towards, step_per_frame};
 use crate::view::colors;
-use crate::view::fonts::Fonts;
+use crate::view::fonts::{Face, Fonts};
 use crate::view::halo::TextHalo;
 use crate::view::hover;
 use crate::view::layers;
@@ -57,15 +57,13 @@ use crate::view::symbols::draw::{
 use crate::view::symbols::shape::{SymbolMask, SymbolPart};
 use crate::view::symbols::{GroupFace, SymbolLook, symbol_look};
 use crate::view::targets::{MarkerFor, OrbitFor};
+use crate::view::text_size::TextSize;
 use crate::view::tunables::Tunables;
 use crate::view::world::ViewNow;
 use crate::{Boot, Stage};
 
 /// Below this much fade a ring's mark and label aren't drawn.
 const MIN_MARK_ALPHA: f32 = 0.05;
-const LABEL_FONT_PX: f32 = 11.0;
-/// The period line under the name, in the data face (MOT-02).
-const PERIOD_FONT_PX: f32 = 10.0;
 
 /// A ring's mark and label, for the body or named orbit the ring stands
 /// for; `half` is how far the mark reaches from the ring point, so the
@@ -381,7 +379,12 @@ fn mark_root_node(half: f32) -> Node {
 /// MOT-02: the label beside a mark: the name in its colour, and under it
 /// the orbit's period in the data face in the secondary colour.
 /// `markers/labels.rs` places it beside the mark (LBL-01).
-fn spawn_label(root: &mut ChildSpawnerCommands, fonts: &Fonts, ring: &Ring, color: Color) {
+fn spawn_label(
+    root: &mut ChildSpawnerCommands,
+    (fonts, tunables): (&Fonts, &Tunables),
+    ring: &Ring,
+    color: Color,
+) {
     root.spawn((
         RingLabelBox,
         Node {
@@ -400,7 +403,7 @@ fn spawn_label(root: &mut ChildSpawnerCommands, fonts: &Fonts, ring: &Ring, colo
             },
             Text::new(ring.name.clone()),
             TextLayout::linebreak(LineBreak::NoWrap),
-            fonts.label(LABEL_FONT_PX),
+            TextSize::MapLabel.font(fonts, Face::Label, tunables),
             TextColor(color),
             Tint::new(color, TintSlot::Text),
             TextHalo::ground(),
@@ -409,7 +412,7 @@ fn spawn_label(root: &mut ChildSpawnerCommands, fonts: &Fonts, ring: &Ring, colo
             PeriodLine,
             Text::new(period_line(ring)),
             TextLayout::linebreak(LineBreak::NoWrap),
-            fonts.data(PERIOD_FONT_PX),
+            TextSize::SecondLine.font(fonts, Face::Data, tunables),
             TextColor(colors::SECONDARY),
             Tint::new(colors::SECONDARY, TintSlot::Text),
             TextHalo::ground(),
@@ -528,7 +531,7 @@ fn spawn_multi_mark(
         .with_children(|root| {
             root.spawn((MarkIcon, square, Pickable::IGNORE))
                 .with_children(|icon| spawn_multi_icon(icon, (fonts, tunables), front, look));
-            spawn_label(root, fonts, ring, colors::NEUTRAL);
+            spawn_label(root, (fonts, tunables), ring, colors::NEUTRAL);
             spawn_chevron(root, tunables);
         })
         .observe(hover::on_marker_over)
@@ -552,7 +555,7 @@ fn spawn_body_mark(
         .spawn((mark_root(ring.owner, half, shown), MarkerFor(body)))
         .with_children(|root| {
             spawn_icon(root, (fonts, tunables), look, half);
-            spawn_label(root, fonts, ring, color);
+            spawn_label(root, (fonts, tunables), ring, color);
             spawn_chevron(root, tunables);
         })
         .observe(hover::on_marker_over)
@@ -727,7 +730,10 @@ mod tests {
     fn the_mark_row_is_the_marks_height_so_the_mark_sits_on_the_ring_point() {
         let tunables = Tunables::default();
         let moon_half = marker_half_size(BodyClass::Moon, &tunables);
-        assert!(2.0 * moon_half < LABEL_FONT_PX, "the label is the taller");
+        assert!(
+            2.0 * moon_half < tunables.map_label_px,
+            "the label is the taller"
+        );
         for half in [moon_half, tunables.ship_symbol_px / 2.0] {
             let node = mark_root_node(half);
             assert_eq!(node.height, px(2.0 * half));

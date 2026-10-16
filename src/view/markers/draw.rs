@@ -16,7 +16,7 @@ use crate::sim::body::{Affiliation, BodyClass, DisplayName};
 use crate::sim::clock::GameClock;
 use crate::sim::track::ShipRecord;
 use crate::view::colors;
-use crate::view::fonts::Fonts;
+use crate::view::fonts::{Face, Fonts};
 use crate::view::halo::TextHalo;
 use crate::view::hover;
 use crate::view::layers;
@@ -30,6 +30,7 @@ use crate::view::symbols::{
     GroupFace, SecondLineFacts, label_second_line, symbol_look, with_group,
 };
 use crate::view::targets::MarkerFor;
+use crate::view::text_size::TextSize;
 use crate::view::tunables::Tunables;
 
 /// Outline width of hollow markers.
@@ -37,8 +38,6 @@ const HOLLOW_BORDER_PX: f32 = 1.5;
 /// Glyph markers are drawn a little larger than their box so the glyph's
 /// own side bearings don't shrink it.
 const GLYPH_SCALE: f32 = 1.8;
-const LABEL_FONT_PX: f32 = 12.0;
-const SECOND_LINE_FONT_PX: f32 = 10.0;
 
 /// What a marker needs from its body.
 type SpawnBodies<'w, 's> = Query<
@@ -358,7 +357,7 @@ fn spawn_label(
                 // The label sits beside a marker a few pixels wide; it must
                 // not wrap to that width.
                 TextLayout::linebreak(LineBreak::NoWrap),
-                fonts.label(LABEL_FONT_PX),
+                TextSize::MapLabel.font(fonts, Face::Label, tunables),
                 TextColor(color),
                 Tint::new(color, TintSlot::Text),
                 TextHalo::ground(),
@@ -368,7 +367,7 @@ fn spawn_label(
                     SecondLineFor(body),
                     Text::new(line),
                     TextLayout::linebreak(LineBreak::NoWrap),
-                    fonts.data(SECOND_LINE_FONT_PX),
+                    TextSize::SecondLine.font(fonts, Face::Data, tunables),
                     TextColor(colors::PANEL_BORDER),
                     Tint::new(colors::PANEL_BORDER, TintSlot::Text),
                     TextHalo::ground(),

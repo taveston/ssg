@@ -55,7 +55,7 @@ fn spawn_parent_tab(mut commands: Commands, fonts: Res<Fonts>, tunables: Res<Tun
         tunables.button_stroke_px,
         |content| {
             content.spawn((ParentTabIcon, Pickable::IGNORE, Node::default()));
-            content.spawn((ParentTabLabel, tab_label(&fonts, "")));
+            content.spawn((ParentTabLabel, tab_label(&fonts, &tunables, "")));
         },
     )
     .insert(ParentTab);
