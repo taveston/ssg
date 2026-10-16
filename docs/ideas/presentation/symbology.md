@@ -6,7 +6,7 @@ This doc sets out how ships, groups of ships and stations are drawn on the vecto
 - Ships and stations get a frame; bodies, belts and salvage sites stay as plain markers. The frame is what tells "a ship" from "a place".
 - The identification of a contact builds up on its symbol step by step, which ties the display to the uncertainty pillar.
 
-**Decided** 2026-10-11, except where a point is marked otherwise. **Specced** in `docs/spec/system-view.md` as SYM-01 to SYM-15, GRP-09 and TEST-05 to TEST-06, with MRK-01, MRK-04, GRP-06, INS-05 and TEST-03 reworded and new tunables. Mock-up: `mockups/7-symbology.png` (source `mockups/7-symbology.html`).
+**Decided** 2026-10-11, except where a point is marked otherwise. **Specced** in `docs/spec/system-view.md` as SYM-01 to SYM-15, GRP-09 and TEST-05 to TEST-06, with MRK-01, MRK-04, INS-05 and TEST-03 reworded and new tunables. Mock-up: `mockups/7-symbology.png` (source `mockups/7-symbology.html`).
 
 ---
 
@@ -65,44 +65,47 @@ Several things can stand for one place on screen. There are three cases, and onl
 
 - **Always on one point.** A task force's ships, a ship docked at a station, an escort that shares the phase of the convoy it covers (PHAS-02, PHAS-14). Zooming never pulls them apart.
 - **On one point by chance.** Ships in one band whose symbols overlap at this zoom, or on a paused frame. Zooming does separate them.
-- **Folded.** Satellites inside the fold radius of their parent (GRP-01), shown by the "+N" pill (GRP-05).
+- **Folded.** Satellites inside the fold radius of their parent (GRP-01), shown by the fold marker (GRP-05).
 
 **Decided 2026-10-16: no loose groups.** SYM-09 once drew "ships moving together with no formation" as a stacked frame with a count, taken from game state. Nothing forms such groups (F-159), and the problem it was meant for is the first two cases above. SYM-09's loose-group clause, SYM-10's convoy example, the TEST-06 haulers and `group_offset_px` are withdrawn.
 
-**Task force (specced).** Ships under one commander with shared orders: the NATO task-force bracket over the frame, a count at the upper right, and the icon of the most significant member (warship > transport > supply > cargo > unknown). It stays a symbol of its own: two groups are never merged (SYM-10).
+**Task force (specced).** Ships under one commander with shared orders: the NATO task-force bracket over the frame, a count at the upper right, and the icon of the most significant member (warship > transport > supply > cargo > unknown). It is one thing in any multi-marker it is part of (MUL-04), and two groups are never merged into one (SYM-10).
 
-### Candidate: one idiom (mock-up 18)
+### One idiom (mock-up 18)
 
-The pill was drawn before the symbols settled. One idiom for anything that stands for several objects would replace it:
+**Decided and specced 2026-10-16** as MUL-01 to MUL-13, with changes to GRP-05, GRP-07, GRP-09, HOV-01, HOV-02, HOV-05 to HOV-07, INS-03, INS-06, MOT-14, MRK-12, SYM-10, SYM-13, SYM-16, SYM-17, LBL-01, REF-09, CAM-10, CAM-14 and PLNR-11. GRP-06 is withdrawn. Anything that stands for several objects is a **multi-marker**, which replaces the fold pill:
 
-- A normal frame with the **count where the icon would be**, and a **second frame behind it** to say "several".
-- The front frame has the most pressing affiliation among the members (hostile, then unknown, then neutral or allied, then own), as the pill's outline does now (GRP-06). It reads without colour. Own ships show as the frame behind, in place of the pill's blue dot.
-- Bodies only (moons and the like): a plain neutral circle with the count, as bodies are drawn (MRK-10).
-- A task force keeps its bracket and corner count. It counts as **one thing** in any marker it is part of.
-- A station is never folded into a ship count: it keeps its own frame and installation bar, with the number of things docked where an icon would be. Its frame keeps the station's own affiliation.
-- **Direction (2026-10-16):** selection and hover bracket the whole marker, the second frame behind included, as the fold pill is bracketed now (HOV-06). Details wait for the idiom.
+- A normal frame with the **count where the icon would be**, and a **second frame behind it** to say "several" (MUL-01).
+- The front frame has the most pressing affiliation among the things (hostile, then unknown, then neutral or allied, then own), so the shape reads without colour. The back frame is the own frame when any thing is own. Bodies only (moons and the like): plain neutral circles, as bodies are drawn (MUL-02, MRK-10).
+- A group is **one thing** in any marker it is part of (MUL-04).
+- A station keeps its own frame and installation bar, with the number of things docked where an icon would be. Its frame keeps the station's own affiliation (MUL-03). Inside a larger marker it is one thing, with what is docked listed under it (MUL-04).
+- Selection and hover bracket the whole marker, the second frame behind included (HOV-06, HOV-07).
 
-### Candidate: the member tray
+### The member tray
 
-Picking one member through the inset's "In orbit" outline takes several clicks and moves the eye away from the map. A marker with several members opens a **tray** beside it:
+Picking one member through the inset's "In orbit" outline takes several clicks and moves the eye away from the map. A marker with several members opens a **tray** beside it (MUL-07 to MUL-10):
 
-- Opens on click. Each row is the member's symbol (or body marker) and its name. A task force is one row that opens in place to show its members; a station is the first row, as the place.
-- Clicking a row selects that member and the inset follows. The tray stays open. Up and Down step the selection, Right and Left open and close a task force, Esc or a click elsewhere closes it.
+- Opens on click. Each row is the member's symbol (or body marker) and its name. A group is one row that opens in place to show its members; a station is the first row, as the place.
+- Clicking a row selects that member and the inset follows. The tray stays open. Up and Down step the selection, Right and Left open and close a group, Esc or a click elsewhere closes it.
 - The tray lists only what is on the marker. The outline stays the whole-system view.
 
-### Candidate: two sources, one marker
+### Two sources, one marker
 
-- **Structural.** Task-force membership and docking come from game state, so the markers they make never split with zoom. Zoom does not matter for them; the tray is the only way in.
-- **Incidental.** Symbols that would overlap on screen collapse by proximity, as satellites fold by orbit size, with the same kind of hysteresis (GRP-01). A cluster may hold ships from different orbits, so it cannot be read from one branch of the outline.
+- **Structural.** Docking and ships in one phase come from game state, so the markers they make never split with zoom (MUL-05, together). The tray is the only way in.
+- **Incidental.** Symbols that overlap on screen join by proximity, as satellites fold by orbit size, with the same kind of hysteresis (MUL-05, overlap; GRP-01). A cluster may hold ships from different orbits, so it cannot be read from one branch of the outline.
+
+### Decisions on the open points (2026-10-16)
+
+- **Join, not fan out.** Small overlaps collapse into a marker. A fan-out would draw ships off their orbit.
+- **A click on a marker** opens the tray, and selects the parent for a fold marker or a shared orbit's marker (as clicking the parent does) and the first row for any other (MUL-07).
+- **Own ships in a mixed cluster** show as the back frame, not as a pill-style dot (MUL-02).
+- **Collapse distance:** a frame's width plus a gap to join (`cluster_join_px`, 24 px), and a wider margin to part (`cluster_split_px`, 28 px).
+- **The count** counts things, so a task force is one (MUL-04).
 
 ### Open
 
-- Whether small overlaps collapse into a marker or fan out by a few pixels. Mock-up 18 shows collapse only.
-- Whether a click on a marker also selects the parent (HOV-05, INS-01) or only opens the tray.
-- How a mixed cluster shows its own ships: the back frame, or a pill-style dot.
-- Whether a station's back frame shows the most pressing docked affiliation, and what a docked task force can be ordered to do (F-159).
-- The distance at which symbols collapse. A frame's width plus a gap is the first guess.
-- What the count means beside a task force: ships or things (the mock-up counts things).
+- Whether a station's back frame should show the most pressing docked affiliation rather than own. Today a hostile ship docked beside an own one shows only in the tray (`system-view.md`, open points).
+- What a docked task force can be ordered to do (F-159).
 
 ## 5. Stations
 

@@ -21,7 +21,7 @@ Boards 1 to 6 are from the design canvas "Inspect & Planetary Transition"; 7 onw
 | `15-force-orders.png` | A force's orders, standing orders and the pre-fight estimate (2026-10-15). Source: `15-force-orders.html`; `../combat-view.md` 5 |
 | `16-after-action-report.png` | The after-action report and the commander's file (2026-10-15). Source: `16-after-action-report.html`; `../combat-view.md` 6 |
 | `17-missile-symbols.png` | Missiles in flight: arrow against small affiliation shapes in colour and greyscale, and a salvo from launch to the end (2026-10-15). Source: `17-missile-symbols.html`; `../combat-view.md` 3 |
-| `18-multiple-objects.png` | Several objects, one symbol idiom: the pill against a frame-with-count marker, the idiom for mixed and formation cases, a member tray on a crowded ring, and the two always-together cases: an escort with its convoy and a formation docked at a station (2026-10-16, candidate). Source: `18-multiple-objects.html`; `../symbology.md` 4 |
+| `18-multiple-objects.png` | Several objects, one symbol idiom: the pill against a frame-with-count marker, the idiom for mixed and formation cases, a member tray on a crowded ring, and the two always-together cases: an escort with its convoy and a formation docked at a station (2026-10-16, specced as MUL-01 to MUL-13). Source: `18-multiple-objects.html`; `../symbology.md` 4 |
 | `19-frame-cue-and-label-halo.png` | The frame cue (flat cross against cross with a solid vertical axis), close in at an angle, across tilts, exposure rings with period and direction, and the label halo at 0 to 3 px (2026-10-16). Source: `19-frame-cue-and-label-halo.html`; `../presentation.md` 2 |
 
 How to use them:

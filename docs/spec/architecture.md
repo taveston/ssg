@@ -16,7 +16,7 @@ The code is split into domains, each a folder under `src/` with its own Bevy plu
 |---|---|---|---|
 | Simulation | `src/sim/` | The game state and its rules, in real units: clock, bodies, orbits, ownership, knowledge, and the authored text the player's records hold about a body (name, description, key facts). Knows nothing about screens, cameras or input. | `GameClock`, orbital elements, body positions in km, Kepler periods |
 | Content | `src/content/` | Data that seeds the simulation: the Corvane and Sol test systems as records. Replaced later by a generator. | `hand_made_system()` |
-| View | `src/view/` | Everything drawn: scale conversion, markers, rings, pills, grouping, motion rule, inspection inset, top bar, palette, fonts, fidelity images, presentation tunables. | `markers`, `grouping`, `motion`, `inspect` |
+| View | `src/view/` | Everything drawn: scale conversion, markers, rings, multi-markers and trays, grouping, motion rule, inspection inset, top bar, palette, fonts, fidelity images, presentation tunables. | `markers`, `grouping`, `motion`, `inspect` |
 | Camera and input | `src/view/camera/` (or `src/input/` if it grows) | Camera state, zoom stops, zoom animation, navigation keys and mouse. The reference frame and key bindings are shared view modules (`view/frame.rs`, `view/bindings.rs`) so other view modules can read them. | `camera/rig`, `camera/stops`, bookmarks |
 
 | ID | Requirement | Built |
