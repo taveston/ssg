@@ -21,6 +21,9 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 - [ ] **Orbit fade defaults** · MRK-14
   - Changes MRK-14 (its ✓ is cleared): `orbit_fade_from` becomes 4 and `orbit_fade_to` 12 (they were 1.5 and 3). A ring now keeps its full alpha until its arc across the view is only mildly curved, and is gone once it is near-straight. Adjust in play if it still feels wrong.
   - The measure stays as built (`ring_screen_radius_px` in `view/rings.rs`); MRK-14 now says so. Change the defaults in `view/tunables.rs`, and any test that assumes the old ones.
+- [ ] **Edge-tab arrow outside the tab** · EDGE-03, MRK-15
+  - Changes EDGE-03 and MRK-15 (their ✓ is cleared): the arrow leaves the tab. It sits at the pinned point on the map area's edge and the tab beside it on the inner side, so the arrow is outside the tab's outline. The parent's tab keeps its marker and name inside.
+  - One change in `view/edge_tab.rs`, shared by the gates (`view/edge.rs`) and the parent (`view/parent_tab.rs`): take the chevron out of the tab node, and move it with the tab as `tab_origin` slides the tab along the edge, so arrow and tab together stay whole inside the map area. Gates and the parent keep the same look.
 - [ ] **Condition bar** · SYM-12
   - The symbols are built; the bar adds to them (`view/symbols.rs`, `symbol_draw.rs`).
   - Build a group's mean as a function of its members' conditions, tested on its own, so **Ship groups** can use it.

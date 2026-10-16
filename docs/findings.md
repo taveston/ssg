@@ -11,11 +11,6 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Affects:** MRK-15, EDGE-02, EDGE-03 · **Type:** spec gap
 - **Disposition:** open. Accept for now; recheck when the edge-tab item is built.
 
-### F-143 · The parent tab's chevron sits awkwardly inside the box
-- **Observation:** MRK-15 puts the chevron inside the tab, beside the parent's marker. On screen it reads poorly. It should either sit outside the box, on its edge-facing side, or be merged with the marker (for example, the marker with a pointer on its rim towards the parent).
-- **Affects:** MRK-15, EDGE-03 · **Type:** spec wrong
-- **Disposition:** open. Choose the chevron outside the tab or merged with the marker; the gate tabs (EDGE-03) should follow the same choice.
-
 ### F-145 · An intercept needs a standoff distance
 - **Observation:** Raised in a combat design session. XFER-10 ends a ship-as-destination crossing at the target's position on the crossing end day, so an Intercept is a collision course with zero miss distance. A real engagement has a chosen miss distance, and it sets how long each side is in weapon range and which weapons can act. The order has no way to carry one. An Intercept at a station is trimmed to meet it (PHAS-15), so it too has zero miss distance.
 - **Affects:** XFER-08, XFER-09, XFER-10, PHAS-15 · **Type:** spec gap
