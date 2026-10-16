@@ -2,11 +2,21 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-219.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-221.
 
 ---
 
 ## To triage
+
+### F-219 · At heading 0 the vertical axis lies on the north arm
+- **Observation:** At heading 0, at any tilt between straight down and edge-on, the north arm and the plane's normal both point straight up the screen. They start at the same gap beyond the frame body's box, with the same dot size and pitch, so the axis's upper half sits dot for dot on the north arm. Only the arrowhead, the ticks and a slightly stronger fade show there are two strokes. A few degrees of heading separates them. The build follows REF-06 as written, with no offset or tint.
+- **Affects:** REF-06, REF-01 · **Type:** spec gap
+- **Disposition:** open. Check on screen. If it reads as one line: a different dot pitch or size for the axis, dots offset by half a pitch, or a tint (spec open points).
+
+### F-220 · The vertical axis can run past the top of the map
+- **Observation:** At `ref_up_fraction` 0.45 of the map height, the axis's upper half can run past the top of the map area when the frame body sits high on screen at a steep tilt. With Halden IV mid-screen at tilt 75 the arrowhead already reaches just under the top bar. The arms are clipped at the map edge or the horizon (REF-03), but REF-06 sets no limit for the axis, so the build doesn't clip it.
+- **Affects:** REF-06, REF-03 · **Type:** spec gap
+- **Disposition:** open. Clip the upper half at the map's edge as the arms are, or accept.
 
 ### F-162 · Which band Iver Yard sits in
 - **Observation:** SCL-07 now puts every station in a band, so the build drops a station's own orbit. TEST-02 and TEST-09 name the band for Arden Highport and Tern Relay, but nothing names one for Iver Yard, which had its own 45,000 km orbit. The build puts it in Iver's High band (197,200 km at 34 radii, period about 10.6 d). That band was nearest its old orbit when High was 10 radii; now the Low band (6,300 km) is nearer. This moves Iver's satellite frame out to 197,200 km.
