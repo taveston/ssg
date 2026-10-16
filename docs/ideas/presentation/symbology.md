@@ -65,7 +65,7 @@ Several things can stand for one place on screen. There are three cases, and onl
 
 - **Always on one point.** A task force's ships, a ship docked at a station, an escort that shares the phase of the convoy it covers (PHAS-02, PHAS-14). Zooming never pulls them apart.
 - **On one point by chance.** Ships in one band whose symbols overlap at this zoom, or on a paused frame. Zooming does separate them.
-- **Folded.** Satellites inside the fold radius of their parent (GRP-01), shown by the fold marker (GRP-05).
+- **Folded.** Satellites inside the fold radius of their parent (GRP-01), shown by the fold marker (GRP-05), or by a moon ring when only natural bodies fold (GRP-10).
 
 **Decided 2026-10-16: no loose groups.** SYM-09 once drew "ships moving together with no formation" as a stacked frame with a count, taken from game state. Nothing forms such groups (F-159), and the problem it was meant for is the first two cases above. SYM-09's loose-group clause, SYM-10's convoy example, the TEST-06 haulers and `group_offset_px` are withdrawn.
 
@@ -76,7 +76,7 @@ Several things can stand for one place on screen. There are three cases, and onl
 **Decided and specced 2026-10-16** as MUL-01 to MUL-13, with changes to GRP-05, GRP-07, GRP-09, HOV-01, HOV-02, HOV-05 to HOV-07, INS-03, INS-06, MOT-14, MRK-12, SYM-10, SYM-13, SYM-16, SYM-17, LBL-01, REF-09, CAM-10, CAM-14 and PLNR-11. GRP-06 is withdrawn. Anything that stands for several objects is a **multi-marker**, which replaces the fold pill:
 
 - A normal frame with the **count where the icon would be**, and a **second frame behind it** to say "several" (MUL-01).
-- The front frame has the most pressing affiliation among the things (hostile, then unknown, then neutral or allied, then own), so the shape reads without colour. The back frame is the own frame when any thing is own. Bodies only (moons and the like): plain neutral circles, as bodies are drawn (MUL-02, MRK-10).
+- The front frame has the most pressing affiliation among the things (hostile, then unknown, then neutral or allied, then own), so the shape reads without colour. The back frame is the own frame when any thing is own. Bodies only (moons and the like) make no multi-marker: they fold into a moon ring on the parent's marker (GRP-10, below).
 - A group is **one thing** in any marker it is part of (MUL-04).
 - A station keeps its own frame and installation bar, with the number of things docked where an icon would be. Its frame keeps the station's own affiliation (MUL-03). Inside a larger marker it is one thing, with what is docked listed under it (MUL-04).
 - Selection and hover bracket the whole marker, the second frame behind included (HOV-06, HOV-07).
@@ -101,6 +101,7 @@ Picking one member through the inset's "In orbit" outline takes several clicks a
 - **Own ships in a mixed cluster** show as the back frame, not as a pill-style dot (MUL-02).
 - **Collapse distance:** a frame's width plus a gap to join (`cluster_join_px`, 24 px), and a wider margin to part (`cluster_split_px`, 28 px).
 - **The count** counts things, so a task force is one (MUL-04).
+- **Moons alone fold into a ring, not a marker (decided 2026-10-16, from F-244).** A fold marker is a ship symbol's 22 px frame plus a back frame, about twice a 12 px planet marker, so at the system overview every planet with moons read as a small dot with a big badge, and a count of moons carried the weight of a contact. Moons are a property of the planet, not an object beside it. A parent whose folded satellites are all natural bodies now shows the "several" back frame at the planet's own size: a second ring behind its marker, with a dim "+N" on its label's second line. The count is the first thing dropped when labels crowd, and the ring still says "moons here". A parent that folds a ship, group or station keeps the full multi-marker, so the bigger marker means a contact is inside. Mock-ups 20 to 22 compared the options. Rejected: a smaller marker for every fold marker (the frame shapes stop reading below 22 px, and a 16 px marker is still large next to a 12 px planet), a count badge on the planet (the numeral is illegible at 8.5 px, and it is a new glyph), moon pips (a new glyph, and it cannot hold ships), "N moons" in the label (every planet gets a second line and the overview reads as a table), and the count on hover (HOV-01 has no hover text and labels never move on hover). (Specced: GRP-05, GRP-10, GRP-11, MUL-02, HOV-06, HOV-07, INS-06.)
 
 ### Open
 

@@ -308,11 +308,6 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** XFER-01, SCL-07, INS-05, GRP-01 · **Type:** bug
 - **Disposition:** open. Seen by the user in play (build 907d98e).
 
-### F-244 · At system scale the fold marker dwarfs its planet
-- **Observation:** In play, the multi-marker looks fine on its own, but in the system overview a planet's fold marker looks massive next to the planet. The fold marker is a ship symbol's frame (`ship_symbol_px`, 22 px) with a back frame offset 4 px, so about 26 px across, sitting beside a planet marker of `planet_marker_px` (12 px). Every planet with satellites (Halden IV, Iver, Morrow) then reads as a small dot with a big badge, and the badge, not the planet, draws the eye. A fold marker holding only natural bodies (Morrow's "11") is the same size as one holding ships.
-- **Affects:** MUL-01, GRP-05, MRK-03 · **Type:** spec wrong
-- **Disposition:** open. Seen by the user in play. Options: a fold marker of its own size (a tunable near the planet marker's), or a smaller one only when it holds natural bodies alone. Bears on F-229 (where it sits).
-
 ## Parked
 
 ### F-145 · An intercept needs a standoff distance

@@ -16,6 +16,11 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 - [ ] **Drop velocity leaders from the system view** · SYM-11, PLNR-68
   - SYM-11 is withdrawn: delete the leader's code and tests, and the four `leader_*` tunables. PLNR-68 no longer mentions the leader; only the wording changed, so its ✓ is cleared just so the build is checked against it.
   - Why: the drawn trajectory shows what the leader did, and the leader measured velocity relative to the star, so in a planet's frame it pointed along the planet's motion (was F-208, F-243). A combat view may want a leader later; the deleted code is in git history.
+- [ ] **Moons fold into a ring on the planet's marker** · GRP-05, GRP-10, GRP-11, MUL-02, HOV-06, HOV-07, INS-06
+  - A parent whose folded satellites are all natural bodies draws a second ring behind its marker and a dim "+N" on its label's second line, in place of a fold marker (GRP-10, GRP-11). A parent with any folded ship, group or station keeps the fold marker, which holds the folded bodies too. GRP-05, MUL-02, HOV-06, HOV-07 and INS-06 changed meaning, so their ✓ is cleared.
+  - Delete the all-bodies look of the multi-marker (plain neutral circles) and its tests (MUL-02). Add the tunables `moon_ring_offset_px` (3), `moon_count_px` (9) and `moon_count_alpha` (0.7).
+  - Only the parent's own folded satellites decide which form it takes, as they do for the count (MUL-04). A moon whose own station is folded into it is still one body.
+  - Tests: a parent with only moons folded shows the ring and "+N" and no fold marker; folding a ship or station in switches it to the fold marker and removes the ring and the count line; the ring's box and hit area count in the marker's box (HOV-07) and a click on it selects the parent and opens no tray; a selected folded moon puts the mark round the marker and the ring; the "+N" line is the first thing dropped when its label has no room (LBL-03). Mock-ups 20 to 22 show the look.
 
 ## Fixes
 
