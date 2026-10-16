@@ -7,6 +7,7 @@ use super::*;
 use crate::view::edge::parent_tab::ParentTabPlugin;
 use crate::view::frame_cue::FrameCuePlugin;
 use crate::view::frame_cue::draw::CueNorthLabel;
+use crate::view::markers::moon_ring::MoonCountLine;
 use crate::view::markers::{MarkerLabel, SecondLineFor};
 use crate::view::paths::PathsPlugin;
 use crate::view::paths::marks::PathLabelText;
@@ -69,15 +70,22 @@ fn size_of(app: &App, text: Entity) -> f32 {
     }
 }
 
+/// The marker names: a marker label's texts other than its second line
+/// and its moon count, which has a size of its own (`moon_count_px`).
+fn marker_names(app: &mut App, second_lines: &[Entity]) -> Vec<Entity> {
+    texts_under::<MarkerLabel>(app)
+        .into_iter()
+        .filter(|e| !second_lines.contains(e))
+        .filter(|&e| app.world().get::<MoonCountLine>(e).is_none())
+        .collect()
+}
+
 /// The map's texts by role: names (a marker's, an exposure ring's, a
 /// path's label) and second lines (a marker's, a ring's period, the "N"
 /// of the north dial and the frame cue), and the breadcrumb's entries.
 fn texts_by_role(app: &mut App) -> [(TextSize, Vec<Entity>); 3] {
     let second_lines = texts_under::<SecondLineFor>(app);
-    let marker_names: Vec<Entity> = texts_under::<MarkerLabel>(app)
-        .into_iter()
-        .filter(|e| !second_lines.contains(e))
-        .collect();
+    let marker_names = marker_names(app, &second_lines);
     let ring_names = texts_under::<RingLabelFor>(app);
     let periods = texts_under::<PeriodLine>(app);
     let path_labels = texts_under::<PathLabelText>(app);
@@ -113,9 +121,8 @@ fn a_ring_name_and_a_marker_name_share_one_size() {
     let mut app = text_app();
     let t = Tunables::default();
     let second_lines = texts_under::<SecondLineFor>(&mut app);
-    let marker_name = texts_under::<MarkerLabel>(&mut app)
-        .into_iter()
-        .find(|e| !second_lines.contains(e))
+    let marker_name = *marker_names(&mut app, &second_lines)
+        .first()
         .expect("a marker name");
     let ring_name = texts_under::<RingLabelFor>(&mut app)[0];
     let period = texts_under::<PeriodLine>(&mut app)[0];
