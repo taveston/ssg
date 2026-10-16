@@ -38,6 +38,7 @@
 
 use std::path::PathBuf;
 
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured, save_to_disk};
 
@@ -205,18 +206,87 @@ impl Plugin for DebugShotPlugin {
     }
 }
 
+/// What the shot sets up at its start: the bodies it names, their
+/// markers, the selection, the planner, the clock and the frame request.
+#[derive(SystemParam)]
+struct ShotScene<'w, 's> {
+    commands: Commands<'w, 's>,
+    names: Query<'w, 's, (Entity, &'static DisplayName)>,
+    markers: Query<'w, 's, (Entity, &'static MarkerFor)>,
+    selection: ResMut<'w, Selection>,
+    planner: ResMut<'w, PlannerState>,
+    clock: ResMut<'w, GameClock>,
+    frame_request: ResMut<'w, FrameRequest>,
+}
+
+impl ShotScene<'_, '_> {
+    /// The body with this display name.
+    fn find(&self, name: &str) -> Option<Entity> {
+        self.names
+            .iter()
+            .find(|(_, display)| display.0 == name)
+            .map(|(entity, _)| entity)
+    }
+
+    /// Applies the plan's selection, planner, hover, rate and frame, and
+    /// says which phase comes next; or names a body that doesn't exist.
+    fn start(&mut self, plan: &ShotPlan) -> Result<ShotPhase, String> {
+        let destination = plan.planner.as_ref().filter(|p| *p != PLANNER_OPEN);
+        let wanted = [&plan.frame, &plan.select, &plan.hover]
+            .into_iter()
+            .flatten()
+            .chain(destination);
+        if let Some(missing) = wanted.into_iter().find(|n| self.find(n).is_none()) {
+            return Err(missing.clone());
+        }
+        if let Some(body) = plan.select.as_deref().and_then(|n| self.find(n)) {
+            self.selection.select(body);
+            if plan.planner.is_some() {
+                self.planner.open(body);
+            }
+            if let Some(place) = destination.and_then(|name| self.find(name)) {
+                self.planner.pick(PickTarget::Body(place));
+            }
+        }
+        if let Some(body) = plan.hover.as_deref().and_then(|n| self.find(n)) {
+            let hovered: Vec<Entity> = self
+                .markers
+                .iter()
+                .filter(|(_, m)| m.0 == body)
+                .map(|(marker, _)| marker)
+                .collect();
+            for marker in hovered {
+                self.commands.entity(marker).insert(Hovered);
+            }
+        }
+        self.set_rate(plan.rate_days_per_sec);
+        self.frame_request.0 = plan.frame.as_deref().and_then(|n| self.find(n));
+        Ok(if plan.fly_days.is_some() && destination.is_some() {
+            ShotPhase::Scheduling
+        } else {
+            ShotPhase::Framing
+        })
+    }
+
+    /// `rate`: 0 or less pauses the clock; more runs it at that rate.
+    fn set_rate(&mut self, rate: Option<f64>) {
+        match rate {
+            Some(rate) if rate <= 0.0 => {
+                if !self.clock.is_paused() {
+                    self.clock.toggle_pause();
+                }
+            }
+            Some(rate) => self.clock.run_at(rate),
+            None => {}
+        }
+    }
+}
+
 /// Steps the shot through its phases, one per frame at most.
-#[allow(clippy::too_many_arguments)]
 fn run_shot(
-    mut commands: Commands,
     time: Res<Time>,
     mut shot: ResMut<Shot>,
-    names: Query<(Entity, &DisplayName)>,
-    markers: Query<(Entity, &MarkerFor)>,
-    mut selection: ResMut<Selection>,
-    mut planner: ResMut<PlannerState>,
-    mut clock: ResMut<GameClock>,
-    mut frame_request: ResMut<FrameRequest>,
+    mut scene: ShotScene,
     active: Res<ActiveMove>,
     mut rig: ResMut<CameraRig>,
     tunables: Res<Tunables>,
@@ -231,61 +301,21 @@ fn run_shot(
         exit.write(AppExit::error());
         return;
     }
-    let find = |name: &str| {
-        names
-            .iter()
-            .find(|(_, display)| display.0 == name)
-            .map(|(entity, _)| entity)
-    };
     match shot.phase {
-        ShotPhase::Starting if now >= START_AFTER_SECS => {
-            let plan = &shot.plan;
-            let destination = plan.planner.as_ref().filter(|p| *p != PLANNER_OPEN);
-            let wanted = [&plan.frame, &plan.select, &plan.hover]
-                .into_iter()
-                .flatten()
-                .chain(destination);
-            if let Some(missing) = wanted.into_iter().find(|n| find(n).is_none()) {
+        ShotPhase::Starting if now >= START_AFTER_SECS => match scene.start(&shot.plan) {
+            Ok(next) => shot.phase = next,
+            Err(missing) => {
                 error!("{SHOT_ENV}: no body is named `{missing}`");
                 exit.write(AppExit::error());
-                return;
             }
-            if let Some(body) = plan.select.as_deref().and_then(find) {
-                selection.select(body);
-                if plan.planner.is_some() {
-                    planner.open(body);
-                }
-                if let Some(place) = destination.and_then(|name| find(name)) {
-                    planner.pick(PickTarget::Body(place));
-                }
-            }
-            if let Some(body) = plan.hover.as_deref().and_then(find) {
-                for (marker, _) in markers.iter().filter(|(_, m)| m.0 == body) {
-                    commands.entity(marker).insert(Hovered);
-                }
-            }
-            match plan.rate_days_per_sec {
-                Some(rate) if rate <= 0.0 => {
-                    if !clock.is_paused() {
-                        clock.toggle_pause();
-                    }
-                }
-                Some(rate) => clock.run_at(rate),
-                None => {}
-            }
-            frame_request.0 = plan.frame.as_deref().and_then(find);
-            shot.phase = if plan.fly_days.is_some() && destination.is_some() {
-                ShotPhase::Scheduling
-            } else {
-                ShotPhase::Framing
-            };
-        }
-        ShotPhase::Framing if frame_request.0.is_none() && active.0.is_none() => {
+        },
+        ShotPhase::Framing if scene.frame_request.0.is_none() && active.0.is_none() => {
             set_pose(&shot.plan, &mut rig, &tunables);
             shot.phase = ShotPhase::Settling { since: now };
         }
         ShotPhase::Settling { since } if now - since >= shot.plan.wait_secs => {
-            commands
+            scene
+                .commands
                 .spawn(Screenshot::primary_window())
                 .observe(save_to_disk(shot.plan.out.clone()))
                 .observe(|_: On<ScreenshotCaptured>, mut shot: ResMut<Shot>| {
