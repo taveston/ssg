@@ -62,14 +62,6 @@ pub struct ShapeUniform {
     pub size_px: f32,
 }
 
-/// How much of a square frame's half-size its outline takes. The shader
-/// keeps its own copy (`SQUARE_SCALE` in `shape.wesl`); the two must match.
-pub const SQUARE_SCALE: f32 = 0.85;
-/// A quatrefoil lobe's radius as a fraction of the frame's half-size. The
-/// shader keeps its own copy (`QUATREFOIL_LOBE` in `shape.wesl`); the two
-/// must match.
-pub const QUATREFOIL_LOBE: f32 = 0.6;
-
 /// The material that draws one symbol part.
 #[derive(AsBindGroup, Asset, TypePath, Clone, Debug)]
 pub struct SymbolShapeMaterial {

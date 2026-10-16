@@ -16,7 +16,6 @@ use super::colors;
 use crate::sim::track::{Affiliation, Echelon, ShipClass, ShipRecord, Track, TroopLoad};
 
 pub mod draw;
-pub mod leaders;
 pub mod shape;
 
 /// SYM-02: the frame's shape, by affiliation.

@@ -16,7 +16,7 @@
 //! (several objects on one marker), `tray/` (the list a multi-marker
 //! opens), `rings/` (orbit rings, their marks,
 //! picking and near arcs), `symbols/` (ship symbols,
-//! their drawing, shader and leaders), `edge/` (edge arrows and tabs),
+//! their drawing and shader), `edge/` (edge arrows and tabs),
 //! `inset/` (the inspection sidebar's contents), `topbar/`, `frame_cue/`,
 //! `planner/` (the transfer planner) and `paths/` (transfers drawn on the
 //! map).
@@ -130,7 +130,6 @@ impl Plugin for ViewPlugin {
                 planner::PlannerPlugin,
                 paths::PathsPlugin,
                 paths::ghost::GhostMaterialPlugin,
-                symbols::leaders::LeadersPlugin,
                 frame_cue::FrameCuePlugin,
                 frame_cue::stroke::CueStrokeMaterialPlugin,
                 tray::TrayPlugin,

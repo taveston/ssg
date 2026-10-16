@@ -24,7 +24,6 @@ pub mod track;
 pub mod transfer;
 pub mod tunables;
 pub mod units;
-pub mod velocity;
 
 pub struct SimPlugin;
 

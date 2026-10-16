@@ -45,7 +45,7 @@ pub fn in_viewport(pos: Vec2, viewport: Vec2) -> bool {
 
 /// The clockwise angle from screen up to the direction from `from` to
 /// `to` (screen y grows downwards): what a node drawn pointing up is
-/// turned by to point that way (MRK-17, EDGE-01, SYM-11, MOT-14).
+/// turned by to point that way (MRK-17, EDGE-01, MOT-14).
 pub fn screen_angle(from: Vec2, to: Vec2) -> f32 {
     let d = to - from;
     d.x.atan2(-d.y)

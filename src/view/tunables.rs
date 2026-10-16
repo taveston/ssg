@@ -263,18 +263,6 @@ pub struct Tunables {
     /// its unfilled part, so a part-full bar shows its whole length
     /// (SYM-12).
     pub condition_track_mix: f32,
-    /// The shortest velocity leader, drawn at `leader_speed_min_kms`
-    /// (SYM-11).
-    pub leader_min_px: f32,
-    /// The longest velocity leader, drawn at `leader_speed_max_kms` and
-    /// faster (SYM-11).
-    pub leader_max_px: f32,
-    /// Below this speed relative to the star, in km/s, a ship in flight
-    /// has no leader (SYM-11).
-    pub leader_speed_min_kms: f32,
-    /// At and above this speed, in km/s, the leader is at its longest
-    /// (SYM-11).
-    pub leader_speed_max_kms: f32,
 
     // --- Several objects on one marker ---
     /// Two symbols whose on-screen centres come closer than this join one
@@ -477,10 +465,6 @@ impl Default for Tunables {
             condition_warn_fraction: 0.5,
             amplifier_gap_px: 1.0,
             condition_track_mix: 0.25,
-            leader_min_px: 6.0,
-            leader_max_px: 24.0,
-            leader_speed_min_kms: 0.5,
-            leader_speed_max_kms: 50.0,
 
             cluster_join_px: 24.0,
             cluster_split_px: 28.0,
