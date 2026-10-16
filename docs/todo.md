@@ -26,6 +26,10 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - Move the rest of `src/headless_tests.rs` (about 4,900 lines) into `headless_tests/` by area (camera and zoom, grouping and motion, markers and labels, inset and outline), keeping the shared app builders where they are. Moves only, no behaviour change (ARCH-35).
   - Do it after **Split long functions and oversized modules**, so files move once.
   - Move the frame-shape constants that `leaders.rs` copies from `symbol_shape.wesl` next to the shader binding in `symbol_shape.rs`.
+- [ ] **`OW_SHOT` fails fast when its order can't be planned**
+  - With `planner=<body>;fly=<days>`, a destination the ship can't reach (over budget, or rejected by the solver) leaves the shot waiting in its Scheduling phase until the timeout. Instead, exit at once with an error that gives the planner's reason (the PLNR-92 sentence) and what was asked.
+  - Also exit at once when `planner` is given but nothing is selected, or the selected body isn't a ship that can open the planner (PLNR-01).
+  - Code is in `src/view/debug_shot.rs`. Test the new exits headlessly. No change to the game's behaviour.
 - [ ] **Bring older docs up to the writing style**
   - The rules are in `docs/README.md` (Writing). Do it one doc at a time, with no change of meaning.
   - The longest are the likeliest to need it: `ideas/mechanics/requirements-and-bids.md`, `ideas/mechanics/component-stats.md` and `ideas/mechanics/transfers.md`.

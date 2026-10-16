@@ -18,30 +18,38 @@ You plan, dispatch, merge and talk. Agents build. Each to-do item ends as a gree
 ## 2. Dispatch
 
 - Copy `brief.md` (next to this file) into the session scratchpad. Fill in the repo path, and add any new Bevy pitfalls from memory.
-- Start each agent with `isolation: "worktree"`, `run_in_background: true` and the approved `effort`. The prompt says: read the brief at <scratch path> first; then gives the item text and spec IDs, what's already on master that it builds on, which parallel agents touch nearby files, and a findings number range (distinct per agent).
+- Start each agent with `isolation: "worktree"`, `run_in_background: true` and the approved `effort`. The prompt says: read the brief at <scratch path> first; then gives the item text and spec IDs, what's already on master that it builds on, and which parallel agents touch nearby files. Agents don't touch `docs/todo.md`, `docs/findings.md` or Built cells, and they number findings `F-NEW-n`: the brief says so.
 - When something an agent depends on lands, tell it with SendMessage (for example "X is on master; rebase before your final commit"). When a pitfall shows up, add it to the brief so later agents get it.
 
 ## 3. Merge each finished item
 
-1. In the agent's worktree: `git rebase master`. Resolve conflicts with small Python scripts. Never chain `git add`/commit after a script that might have failed.
-2. Renumber its findings so the sequence has no gaps, and keep the "next free number" line in `docs/findings.md` right. Check that the count of `### F-` headings matches the count of Disposition lines.
-3. Run `touch crates/orbits/src/*.rs`, then `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test --workspace`.
-4. From the repo root: `git merge --ff-only <branch>`. Then `git worktree remove --force <path>`, `git worktree prune` and `git branch -D <branch>`.
+1. In the agent's worktree: `git rebase master`. Conflicts should now be in code only. Resolve them with small Python scripts. Run every merge script under `set -e`, and never chain `git add`/commit after a script that might have failed.
+2. Run `touch crates/orbits/src/*.rs`, then `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test --workspace`.
+3. From the repo root: `git merge --ff-only <branch>`. Then `git worktree remove --force <path>`, `git worktree prune` and `git branch -D <branch>`.
+4. Apply the agent's **Bookkeeping** on master as one commit:
+   - Tick the Built cells, and add any *Manual* note and its reason to the spec row.
+   - Delete or edit its to-do item.
+   - Delete the findings it resolves.
+   - Add its new findings under To triage, giving each `F-NEW-n` the next free number, in order. Replace `F-NEW-n` in any code comments it cited.
+   - Update the "next free number" line.
 5. Check coverage: every spec row with an empty Built cell is named on `docs/todo.md` (ranges count).
-6. Start the next item in that stream from the new master. Report to the user in a few lines: what landed, its findings, and what's running.
+6. Start the next item in that stream from the new master. Report to the user in a few lines: what landed, its findings with their real numbers, and what's running.
 
 Typical conflicts:
-- `docs/todo.md`: both sides deleted different done items, so drop both.
-- The end of `src/headless_tests.rs`: both sides appended a test, so keep both and re-add the closing `}`.
-- `docs/findings.md`: keep both sides' findings.
-- Spec Built cells: take the newest text, and keep ✓ only where the meaning is unchanged.
+- The end of a shared test file: both sides appended a test, so keep both and re-add the closing `}`.
+- `tunables.rs`: both sides added fields, so keep both.
+- Doc conflicts arise only when merging `origin/master` (section 4).
 
 ## 4. While agents run
 
-- **"Pull latest design changes":** `git fetch`, then merge `origin/master` and resolve conflicts as above. Run the coverage check, slot new items into the plan file, and tell running agents about changes that affect them.
+- **"Pull latest design changes":** `git fetch`, then merge `origin/master`. Resolve doc conflicts this way:
+  - `todo.md`: drop items that are now built.
+  - Findings: keep both sides; drop findings origin settled.
+  - Spec rows: take origin's text, and keep ✓ only where the meaning is unchanged. Run the coverage check, slot new items into the plan file, and tell running agents about changes that affect them.
 - **Playtest:** follow CLAUDE.md "Seeing the game": rebuild master fresh (`touch src/main.rs` first), then copy the exe and `assets/` into `play/`. Agents never touch `play/`.
 - **Observations:** record each as a finding at once (bug, spec wrong, spec gap or idea), under To triage. Ask before fixing even a clear bug. A design direction the user gives goes into the finding's disposition. Change the spec only when asked.
 - **Progress:** list what's on master, what's running and what's next.
+- **"Show the plan":** print the plan file's contents. Don't enter plan mode: that blocks running agents' commits. If plan mode does come on mid-run, commit agents' finished work for them once it's off.
 - Push only when the user asks.
 
 ## 5. Finish
@@ -55,5 +63,4 @@ When the user asks, run a high-level code review agent once the scheduled work i
   - `target/debug/orphan_worlds.exe` may be another worktree's build.
 - A worktree can start from an old commit, so the brief's first step syncs it with master.
 - Game runs hang if a shot can't finish. `OW_SHOT` has a `timeout` key, and agents also wrap runs in their own timeout. If a game window lingers, find its parent `cargo run` and close it.
-- Plan mode switched on mid-run blocks agents' commits. Commit their finished work for them afterwards.
-- On Windows, `git worktree remove` often says "Permission denied". Use `--force`, then prune. Leftover folders under `.claude/worktrees/` are harmless.
+- On Windows, `git worktree remove` often says "Permission denied". Use `--force`, then prune. Leftover folders under `.claude/worktrees/` are harmless; delete them at the end of the session.
