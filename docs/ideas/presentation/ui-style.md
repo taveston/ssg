@@ -26,7 +26,7 @@ The console register is **decided** (2026-10-12); everything else is **candidate
   - Avoid "future" display faces: they read as a game HUD. Keep the data face to data: mono everywhere makes the screen read as a log.
 - **Colour has meaning or none.** Colours are reserved:
   - Affiliation colours (SYM-02) only for affiliation: symbols, references and owner lines.
-  - Violet (#9B8CE8) only for the reference frame cue (REF-01). Nothing else uses it, so it always means "this is the frame the view is measured from".
+  - Violet (#9B8CE8) only for the current reference frame: the frame cue on the map (REF-01) and the matching breadcrumb entry (CAM-25). Nothing else uses it, so it always means "this is the frame the view is measured from". Other references to the frame, such as a mention in the inset, could take it later.
   - Orange for "needs attention" (a shortfall, low readiness, an urgent message). Same orange as unknown contacts; both mean "look at this".
   - **No green for good or red for bad.** Green means neutral and red means hostile. Good and bad are shown by sign and words; only "needs attention" gets a colour.
   - Everything else is off-white text, pale grey-blue secondary text, and hairlines.

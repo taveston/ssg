@@ -27,8 +27,9 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - The playtest bug fixes are built (e3192a2). MRK-08 now measures a disc's hit area out to the edge of its rim (MRK-11); check `marker_picking.rs` against that and re-tick it.
 - [ ] **Label halo** · LBL-05
   - A 2 px ground-colour outline round every label's glyphs (`label_halo_px`), not a box. Mock-up 19, last board.
-- [ ] **Reference frame cue** · REF-01 to REF-10, MRK-01, MRK-12
+- [ ] **Reference frame cue** · REF-01 to REF-10, MRK-01, MRK-12, CAM-25
   - A dotted crosshair in the orbital plane through the frame body, with ticks, an N on the north arm and a solid vertical axis. Mock-up 19. Violet (#9B8CE8) is a starting hue: tune it on screen.
+  - CAM-25: the breadcrumb entry for the current frame is violet too.
   - Build after **Label halo**: the N uses it.
   - Tests can run through projected positions: where an arm starts and ends, tick spacing against the scale bar, the vertical axis shortening with tilt, and the draw order.
 - [ ] **Belt** · MRK-18
