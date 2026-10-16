@@ -2,7 +2,7 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-249.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-250.
 
 ---
 
@@ -198,6 +198,11 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** In play, when the pip pops out into the fold marker, it shows a back frame (MUL-01) even when the parent holds only one thing, so a single ship reads as a group.
 - **Affects:** MUL-01, GRP-12, GRP-13 · **Type:** spec wrong
 - **Disposition:** open. Seen by the user in play (build 776cc34). A popped marker holding one thing should show no group indicator. Mock-up 27 shows it that way.
+
+### F-249 · How long the axis's lower half is once the upper half is clipped
+- **Observation:** REF-07 makes the lower half `ref_down_fraction` of the upper half's length, but doesn't say which length once REF-06 clips the upper half at the map edge. The build uses the unclipped length, so with the frame body high on the map the lower half keeps its full length and can be longer than the clipped upper half. The lower half then doesn't jump as the body nears the edge.
+- **Affects:** REF-06, REF-07 · **Type:** spec gap
+- **Disposition:** open. Accept, and say so in REF-07.
 
 ## Parked
 
