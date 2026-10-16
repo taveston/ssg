@@ -15,11 +15,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Fixes
 
-- [ ] **Planner: review fixes** · PLNR-13, PLNR-33, PLNR-50
-  - Found in review of the whole-day Depart item.
-  - Add the missing tests: a Rendezvous or Intercept change that leaves the thumbs on a rejected setting moves them (PLNR-13, PLNR-33); Schedule from Soonest, when the leg solved again is rejected or over budget, makes no order and shows the reason (PLNR-50).
-  - `debug_shot.rs` `fly_order`: if the Soonest solve fails at Schedule, the shot waits for its timeout. Exit at once with the planner's reason, as CLAUDE.md says.
-  - At a clock rate where a game day passes every frame, Soonest is searched in full every frame (36 travel times × 24 starts for a window leg). Check for stutter; if there is, use the old Soonest's window phase as the hint for the new one.
 - [ ] **Tray: review fixes** · HOV-02, MUL-10
   - Found in review of the tray item.
   - The HOV-02 test (`headless_tests/tray.rs`) has no ring under the tray. Put one there and check a click hits the row.
@@ -34,6 +29,8 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - `presets.rs` `refine` solves about 9 depart days for phasing legs, where every day costs the same. Refine on Soonest only.
   - Split the long functions: `leave_at_window` (about 70 lines), `move_thumb` and `depart_model` (about 50 each).
   - `tooltip.rs` `show_tooltips` writes the tooltip box's `Node` every frame. Write it only on change.
+  - `debug_shot.rs` `Refusal::Refused` falls back to "Schedule refused the order" when the planner holds no reason. If that can't happen, drop the fallback and treat it as a bug; if it can, keep the shot in `Refused` until the planner has an answer.
+  - `an_arrival_change_moves_a_thumb_off_a_setting_it_rejects` checks the thumb lands on an accepted setting, not the nearest one (PLNR-33). Assert that no accepted travel time is closer to the old setting.
 - [ ] **Multi-markers and tray: clean-up after review**
   - Work per frame grows with the square of the ship count (`multi_markers/gather.rs`: `together_sets`, `link_groups`, `overlap_clusters`, `slide_things`, `fold_markers`; `MultiMarkers::get` is a linear search). Link only neighbours in phase, bucket overlap candidates into a grid of `cluster_split_px` cells, and index markers by key.
   - `place_multi_markers` writes every pool node's `Node` each frame. Write only on change.
