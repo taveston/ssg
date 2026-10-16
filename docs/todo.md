@@ -68,6 +68,7 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - Build after **Transfer planner**, which draws ships in flight (PLNR-68).
 - [ ] **Ideology profile** · IDEO-01 to IDEO-31
   - Decide the open points in `docs/spec/ideology.md` first.
+  - IDEO-11: an exact tie between the two lowest scores is Pluralist. Six of the 216 histories land on one (3/3/6 in some order), so test them.
 
 ## Fixes
 
