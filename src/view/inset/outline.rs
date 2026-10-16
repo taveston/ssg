@@ -347,9 +347,7 @@ impl OutlineBodies<'_, '_> {
         let mut tree: Vec<TreePlace> = self
             .bodies
             .iter()
-            .map(|(entity, _, _, _, _, _, child_of, in_orbit, _)| {
-                (entity, child_of.map(ChildOf::parent), in_orbit.map(|o| o.0))
-            })
+            .filter_map(|(entity, ..)| self.place(entity))
             .collect();
         tree.sort_unstable_by_key(|(entity, ..)| *entity);
         tree

@@ -110,6 +110,7 @@ impl Plugin for RingsPlugin {
 fn sync_ring_strokes(
     mut commands: Commands,
     mut assets: ResMut<Assets<GizmoAsset>>,
+    tunables: Res<Tunables>,
     rings: OrbitRings,
     strokes: Query<(Entity, &RingStrokeFor)>,
 ) {
@@ -127,7 +128,7 @@ fn sync_ring_strokes(
             Gizmo {
                 handle: assets.add(GizmoAsset::new()),
                 line_config: GizmoLineConfig {
-                    width: Tunables::default().orbit_ring_width_px,
+                    width: tunables.orbit_ring_width_px,
                     ..default()
                 },
                 ..default()
