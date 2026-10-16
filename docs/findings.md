@@ -6,11 +6,6 @@ Format and types are in `docs/README.md`. New findings take the next free number
 
 ---
 
-### F-141 · The parent tab is a tab while gate arrows are not yet
-- **Observation:** MRK-15 styles the parent's tab "as EDGE-01 to EDGE-03". EDGE-02 and EDGE-03 aren't built, so gates still show a bare arrow and a label. The build gives the parent tab the EDGE-03 look now (ground fill, neutral outline `button_stroke_px` wide, kept whole inside the map area), so for now the parent and the gates look different. The "Edge arrows as tabs" item will bring the gates into line.
-- **Affects:** MRK-15, EDGE-02, EDGE-03 · **Type:** spec gap
-- **Disposition:** open. Accept for now; recheck when the edge-tab item is built.
-
 ### F-145 · An intercept needs a standoff distance
 - **Observation:** Raised in a combat design session. XFER-10 ends a ship-as-destination crossing at the target's position on the crossing end day, so an Intercept is a collision course with zero miss distance. A real engagement has a chosen miss distance, and it sets how long each side is in weapon range and which weapons can act. The order has no way to carry one. An Intercept at a station is trimmed to meet it (PHAS-15), so it too has zero miss distance.
 - **Affects:** XFER-08, XFER-09, XFER-10, PHAS-15 · **Type:** spec gap
@@ -25,11 +20,6 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Observation:** The build had to settle these: (a) the end state of a band of the crossing's primary (band-to-band trips, a station at the primary as the start) is the band's circle aimed half a turn ahead of the start, so a Hohmann travel time gives the Hohmann burns; (b) XFER-06's spiral spans the whole crossing, whose length includes the departure and capture costs, so the spiral winds at `|v0 − v1| ÷ travel_days` and lands at the end's angle on the last day; (c) a place whose body is the crossing's primary charges nothing (XFER-01's band-to-band rule, extended to a station or a gate round the primary), and a gate or site is aimed at by its own orbit's state, not its parent's; (e) Hold on an InFlight plan leaves that plan on the ship as **Holding** with its rail cut, rather than replacing it with a Done Hold plan, so PLAN-12's origin and destination survive.
 - **Affects:** XFER-01, XFER-06, PLAN-13 · **Type:** spec gap
 - **Disposition:** open. Copy the choices that are fine into the spec.
-
-### F-156 · BAND-04 does not say what happens when a band lies outside the Hill sphere
-- **Observation:** BAND-04 gives (Hill radius − *r*) ÷ escape speed, which goes negative when the orbit lies outside the Hill sphere. The build's `approach_days` returns 0 there, and also when the body has no Hill sphere or no gravity. The spec covers only "no massive body". In Corvane it matters: Morrow I's Low band (850 km) lies outside its Hill sphere (about 652 km at rock density 3,000 kg/m³).
-- **Affects:** BAND-04, BAND-01 · **Type:** spec gap
-- **Disposition:** open. Copy the clamp into BAND-04, or decide that a Low band outside the Hill sphere should not exist. Sol's small moons keep theirs on purpose (`docs/ideas/mechanics/world-generator.md`), which favours the clamp.
 
 ### F-158 · Departure and capture costs add up to far more than a real trip
 - **Observation:** Raised while sizing Marlin for Sol (SOL-15). BAND-03 and XFER-04 charge a ship the cost of escaping its band to rest at infinity, then the burn that sets its speed round the primary, and the same again at the far end. A real burn deep in a gravity well does both at once and is much cheaper (the Oberth effect). From Earth's Low band to a Low band at the target, with a Hohmann crossing, the spec's cost against a patched-conic figure for the same bands: Venus 11.3 against 6.7 km/s, Mars 10.1 against 5.6, Ceres 14.4 against 9.5, Mercury 21.4 against 13.2. The spec is 1.5 to 1.8 times too high. The low-thrust crossing (XFER-06) adds the same escape cost, which for a spiral is too low: a spiral escape costs the full circular speed, not √2 − 1 of it.
