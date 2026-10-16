@@ -284,6 +284,39 @@ fn stretches_of(
     rejected_stretches(&placed)
 }
 
+/// One column of the Depart track: its day, its cheapest trip, and, when
+/// nothing on it is accepted, the commonest reason.
+type DepartColumn = (f64, Option<Sample>, Option<Infeasible>);
+
+/// PLNR-28 / PLNR-40: the Depart track's columns, from the grid. A
+/// phasing leg's grid has Soonest alone, and every day costs the same, so
+/// that column spans the whole track.
+fn depart_columns(search: &Search, setting: Setting) -> Vec<DepartColumn> {
+    let cheapest = search.grid.cheapest_per_day();
+    let columns: Vec<DepartColumn> = search
+        .grid
+        .rows
+        .iter()
+        .zip(cheapest)
+        .filter_map(|(row, best)| {
+            let why = (!any_accepted(row))
+                .then(|| commonest_reason(row.iter()))
+                .flatten();
+            Some((row.first()?.setting.depart_day, best, why))
+        })
+        .collect();
+    if search.sliders.phasing()
+        && let Some(&(_, best, why)) = columns.first()
+    {
+        let (start, end) = match search.sliders.depart {
+            Slider::Days { soonest, end, .. } => (soonest, end),
+            _ => (setting.depart_day, setting.depart_day),
+        };
+        return vec![(start, best, why), (end, best, why)];
+    }
+    columns
+}
+
 /// PLNR-21 / PLNR-28 / PLNR-40: the Depart row: the leave day, over a
 /// track coloured by each column's cheapest trip. A phasing leg's track
 /// is one colour, since every day costs the same.
@@ -296,29 +329,9 @@ fn depart_model(
     let wait = facts.leg().map_or(0.0, |leg| leg.departure_wait_days);
     let slider = &search.sliders.depart;
     let least = search.grid.least_delta_v_kms().unwrap_or(0.0);
-    let cheapest = search.grid.cheapest_per_day();
-    let mut columns: Vec<(f64, Option<&Sample>, Option<Infeasible>)> = search
-        .grid
-        .rows
-        .iter()
-        .zip(&cheapest)
-        .filter_map(|(row, best)| {
-            let why = (!any_accepted(row))
-                .then(|| commonest_reason(row.iter()))
-                .flatten();
-            Some((row.first()?.setting.depart_day, best.as_ref(), why))
-        })
-        .collect();
-    if search.sliders.phasing()
-        && let Some(&(_, best, why)) = columns.first()
-    {
-        let (start, end) = match slider {
-            Slider::Days { soonest, end, .. } => (*soonest, *end),
-            _ => (setting.depart_day, setting.depart_day),
-        };
-        columns = vec![(start, best, why), (end, best, why)];
-    }
-    let samples: Vec<(f64, Option<&Sample>)> = columns.iter().map(|(d, b, _)| (*d, *b)).collect();
+    let columns = depart_columns(search, setting);
+    let samples: Vec<(f64, Option<&Sample>)> =
+        columns.iter().map(|(d, b, _)| (*d, b.as_ref())).collect();
     let reasons: Vec<(f64, Option<Infeasible>)> =
         columns.iter().map(|(d, _, w)| (*d, *w)).collect();
     // PLNR-96 / PLNR-106: where every day costs about the same there is

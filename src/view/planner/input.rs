@@ -11,8 +11,8 @@ use bevy::prelude::*;
 
 use super::compute::solve_current;
 use super::panel::{Choice, Track};
-use super::rest::{advance_session, rest_of};
-use super::slider::{FAST_STEPS, value_at};
+use super::rest::{Rest, advance_session, rest_of};
+use super::slider::FAST_STEPS;
 use super::state::{PlannerSession, PlannerState, SliderKind};
 use crate::sim::clock::GameClock;
 use crate::sim::transfer::grid::Setting;
@@ -113,35 +113,10 @@ fn move_thumb(session: &mut PlannerSession, kind: SliderKind, how: Move) {
     let Some(setting) = session.setting else {
         return;
     };
-    let Some(search) = session.search() else {
-        return;
-    };
-    let slider = match kind {
-        SliderKind::Depart => search.sliders.depart.clone(),
-        SliderKind::Travel => search.sliders.travel.clone(),
-    };
-    let Some(max_steps) = session
-        .found
-        .as_ref()
-        .and_then(|found| found.context.as_ref())
-        .map(|context| context.tunables.slider_max_steps)
-    else {
-        return;
-    };
     let Some(mut rest) = rest_of(session) else {
         return;
     };
-    let moved = match (kind, how) {
-        (SliderKind::Depart, Move::To(at)) => rest.depart_at(value_at(&slider, at, max_steps)),
-        (SliderKind::Depart, Move::By(steps)) => rest.depart_step(setting.depart_day, steps),
-        (SliderKind::Travel, Move::To(at)) => {
-            rest.travel_at(setting.depart_day, value_at(&slider, at, max_steps))
-        }
-        (SliderKind::Travel, Move::By(steps)) => {
-            rest.travel_step(setting.depart_day, setting.travel_days, steps)
-        }
-    };
-    let Some(value) = moved else {
+    let Some(value) = moved_to(&mut rest, setting, kind, how) else {
         return;
     };
     let new = match kind {
@@ -155,6 +130,21 @@ fn move_thumb(session: &mut PlannerSession, kind: SliderKind, how: Move) {
         },
     };
     session.setting = Some(new);
+}
+
+/// PLNR-23 / PLNR-33: where one thumb of `setting` comes to rest when
+/// moved, or `None` when it stays.
+fn moved_to(rest: &mut Rest, setting: Setting, kind: SliderKind, how: Move) -> Option<f64> {
+    match (kind, how) {
+        (SliderKind::Depart, Move::To(at)) => rest.depart_at(rest.value_at(kind, at)),
+        (SliderKind::Depart, Move::By(steps)) => rest.depart_step(setting.depart_day, steps),
+        (SliderKind::Travel, Move::To(at)) => {
+            rest.travel_at(setting.depart_day, rest.value_at(kind, at))
+        }
+        (SliderKind::Travel, Move::By(steps)) => {
+            rest.travel_step(setting.depart_day, setting.travel_days, steps)
+        }
+    }
 }
 
 /// PLNR-23 / PLNR-33: a press or drag at `fraction` of a track sets that

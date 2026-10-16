@@ -156,13 +156,18 @@ pub fn show_tooltips(
         .unwrap_or_default();
     let TooltipBoxes { boxes, texts } = &mut boxes;
     for (mut node, children) in boxes.iter_mut() {
+        // The node is written only when it changes, so an idle box costs
+        // no layout.
+        let mut placed = node.clone();
         let Some((_, tooltip, _)) = due else {
-            node.display = Display::None;
+            placed.display = Display::None;
+            node.set_if_neq(placed);
             continue;
         };
-        node.display = Display::Flex;
-        node.left = px((at.x - BOX_WIDTH_PX).max(EDGE_PX));
-        node.top = px(at.y + BELOW_POINTER_PX);
+        placed.display = Display::Flex;
+        placed.left = px((at.x - BOX_WIDTH_PX).max(EDGE_PX));
+        placed.top = px(at.y + BELOW_POINTER_PX);
+        node.set_if_neq(placed);
         for child in children {
             if let Ok(mut text) = texts.get_mut(*child)
                 && text.0 != *tooltip

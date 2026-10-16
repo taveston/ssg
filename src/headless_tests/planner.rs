@@ -450,6 +450,25 @@ fn an_arrival_change_moves_a_thumb_off_a_setting_it_rejects() {
     assert_eq!(moved.depart_day, setting.depart_day, "Depart stays");
     assert_ne!(moved.travel_days, setting.travel_days, "Travel time moves");
     assert!(accepted(&app, moved), "{moved:?}");
+    // It moves to the nearest accepted travel time: every setting closer
+    // to the old one is rejected.
+    let moved_by = (moved.travel_days - setting.travel_days).abs();
+    let max_steps = context(&app).tunables.slider_max_steps;
+    let travels = session(&app)
+        .search()
+        .unwrap()
+        .sliders
+        .travel
+        .settings(max_steps);
+    for travel_days in travels {
+        let closer = Setting {
+            travel_days,
+            ..moved
+        };
+        if (travel_days - setting.travel_days).abs() < moved_by {
+            assert!(!accepted(&app, closer), "{closer:?} is nearer");
+        }
+    }
 }
 
 /// Whether the preset button labelled `label` is drawn selected.
@@ -1092,6 +1111,43 @@ fn each_control_shows_its_tooltip_after_the_delay() {
         }
     }
     assert!(presets >= 2, "the presets shown");
+}
+
+/// PLNR-91: while the pointer rests where it is, a shown tooltip box is
+/// left alone: its node isn't written again each frame.
+#[test]
+fn a_resting_tooltip_box_is_not_rewritten() {
+    use bevy::picking::backend::HitData;
+    use bevy::picking::hover::HoverMap;
+    use bevy::picking::pointer::PointerId;
+
+    let mut app = planner_app();
+    plan_to_halden_iva(&mut app);
+    run(&mut app, 2);
+    let delta_v = label(&mut app, "Delta-v");
+    let camera = app.world_mut().spawn_empty().id();
+    let mut map = HoverMap::default();
+    map.0.insert(
+        PointerId::Mouse,
+        [(delta_v, HitData::new(camera, 0.0, None, None))]
+            .into_iter()
+            .collect(),
+    );
+    app.insert_resource(map);
+    run(&mut app, 40);
+    assert_eq!(tooltip_box(&mut app).0, Display::Flex);
+    let mut boxes = app.world_mut().query_filtered::<Entity, With<TooltipBox>>();
+    let tip = boxes.single(app.world()).unwrap();
+    let written = |app: &App| {
+        app.world()
+            .entity(tip)
+            .get_change_ticks::<Node>()
+            .unwrap()
+            .changed
+    };
+    let before = written(&app);
+    run(&mut app, 5);
+    assert_eq!(written(&app), before);
 }
 
 /// PLNR-105 / PLNR-106: Ardent is met by phasing, so the Travel time

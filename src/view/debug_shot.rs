@@ -500,8 +500,6 @@ fn open_tray(
 enum Refusal {
     /// The planner closed before the order was ready.
     Closed,
-    /// Schedule refused the order, though the planner gives no reason.
-    Refused,
     /// The destination can't be picked, so nothing is planned.
     NotPickable,
     /// The search or the leg can't be flown, or the leg is over budget;
@@ -553,19 +551,20 @@ fn refuse_unplannable(
     parents: Query<&ChildOf>,
     mut exit: MessageWriter<AppExit>,
 ) {
-    let refused = match shot.phase {
-        ShotPhase::Scheduling => None,
-        ShotPhase::Refused => Some(Refusal::Refused),
+    let refusal = match (shot.phase, refusal(&planner)) {
+        (ShotPhase::Scheduling | ShotPhase::Refused, Some(refusal)) => refusal,
+        // Schedule refuses an order only once it has solved the leg again
+        // and found it rejected or over budget, which the planner then
+        // gives as its reason.
+        (ShotPhase::Refused, None) => {
+            unreachable!("Schedule refused the order, but the planner holds no reason")
+        }
         _ => return,
-    };
-    let Some(refusal) = refusal(&planner).or(refused) else {
-        return;
     };
     let ship = shot.plan.select.clone().unwrap_or_default();
     let target = shot.plan.planner.clone().unwrap_or_default();
     let because = match refusal {
         Refusal::Closed => "the planner closed before its order was ready".to_string(),
-        Refusal::Refused => "Schedule refused the order".to_string(),
         Refusal::NotPickable => format!("`{target}` can't be picked as a destination"),
         Refusal::Unplannable { why, primary } => {
             // The crossing's primary, or else the body the ship orbits,

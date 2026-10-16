@@ -11,8 +11,8 @@
 //! anything else is solved, and a Travel time track solved for a depart
 //! day off the grid is kept for the session.
 
-use super::slider::{nearest_accepted, nearest_index, step_accepted};
-use super::state::PlannerSession;
+use super::slider::{nearest_accepted, nearest_index, step_accepted, value_at};
+use super::state::{PlannerSession, SliderKind};
 use crate::sim::transfer::grid::{Sample, Setting, any_accepted};
 use crate::sim::transfer::presets::moved_on;
 use crate::sim::transfer::search::{Request, Search, SearchContext};
@@ -63,6 +63,17 @@ fn neighbours(values: &[f64], value: f64) -> [Option<f64>; 2] {
 impl Rest<'_> {
     fn max_steps(&self) -> u32 {
         self.context.tunables.slider_max_steps
+    }
+
+    /// PLNR-23: the setting a press or drag at `fraction` of a slider's
+    /// track points at, before the solver is asked about it.
+    pub fn value_at(&self, kind: SliderKind, fraction: f32) -> f64 {
+        let sliders = &self.search.sliders;
+        let slider = match kind {
+            SliderKind::Depart => &sliders.depart,
+            SliderKind::Travel => &sliders.travel,
+        };
+        value_at(slider, fraction, self.max_steps())
     }
 
     /// PLNR-34: whether anything on the grid is accepted. With nothing,
