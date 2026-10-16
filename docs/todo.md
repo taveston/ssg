@@ -17,14 +17,9 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Other
 
-- [ ] **Split long functions and oversized modules** · ARCH-21
-  - From the code review (2026-10-16). Split `planner/panel.rs` (about 1,200 lines before its tests) into `panel/facts.rs` (`PanelFacts`), `panel/write.rs` (`PanelWrites`, `paint_segments`) and `panel/spawn.rs` (the spawn helpers).
-  - Split into gather / decide / apply: `spawn_tuning` (99 lines), `phasing_leg` (86), `spawn_body` (84), `solve_leg` (82), `spawn_north_dial` (82), `spawn_symbol_parts` (78), `run_shot` (77), `tree::snapshot` (74). Also look at `view/inspect.rs` (865), `transfer/legs.rs` (814) and `view/markers.rs` (784).
-  - Bundle the long system signatures (17 carry `allow(clippy::too_many_arguments)`) into `SystemParam`s. No behaviour change.
 - [ ] **Group the view folder and the headless tests** · ARCH-01, ARCH-31
   - From the code review (2026-10-16). Group `src/view/`'s 60 modules into subfolders by area (`rings/`, `symbols/`, `markers/`, `inset/` for inspect, outline and sidebar), keeping shared state modules at the top (ARCH-03).
   - Move the rest of `src/headless_tests.rs` (about 4,900 lines) into `headless_tests/` by area (camera and zoom, grouping and motion, markers and labels, inset and outline), keeping the shared app builders where they are. Moves only, no behaviour change (ARCH-35).
-  - Do it after **Split long functions and oversized modules**, so files move once.
   - Move the frame-shape constants that `leaders.rs` copies from `symbol_shape.wesl` next to the shader binding in `symbol_shape.rs`.
 - [ ] **`OW_SHOT` fails fast when its order can't be planned**
   - With `planner=<body>;fly=<days>`, a destination the ship can't reach (over budget, or rejected by the solver) leaves the shot waiting in its Scheduling phase until the timeout. Instead, exit at once with an error that gives the planner's reason (the PLNR-92 sentence) and what was asked.
