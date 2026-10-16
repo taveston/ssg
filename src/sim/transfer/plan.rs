@@ -109,6 +109,22 @@ impl Leg {
     pub fn departure_orbit(&self) -> Option<Entity> {
         self.trajectory.segments().first()?.kind.parked_in()
     }
+
+    /// PHAS-03: the day the ship leaves its orbit: the depart day plus the
+    /// wait for the exit point.
+    pub fn leave_day(&self) -> f64 {
+        self.depart_day + self.departure_wait_days
+    }
+
+    /// PLAN-10: the day the leg ends: the crossing's end for an Intercept,
+    /// the arrival for a Rendezvous.
+    pub fn end_day(&self) -> f64 {
+        if self.arrival.is_intercept() {
+            self.crossing_end_day
+        } else {
+            self.arrival_day
+        }
+    }
 }
 
 /// Which of a leg's burns have been made.
@@ -727,6 +743,21 @@ mod tests {
             target_lock: None,
         };
         (Plan::new(ship, vec![leg]).unwrap(), orbit, dest)
+    }
+
+    /// PHAS-03 / PLAN-10: a leg leaves after the exit-point wait, and ends
+    /// at the arrival for a Rendezvous, at the crossing's end for an
+    /// Intercept.
+    #[test]
+    fn a_leg_leaves_after_its_wait_and_ends_by_its_arrival() {
+        let mut world = World::new();
+        let (rendezvous, ..) = plan(&mut world, Arrival::Rendezvous);
+        let mut leg = rendezvous.leg().clone();
+        leg.departure_wait_days = 1.5;
+        assert_eq!(leg.leave_day(), 6.5);
+        assert_eq!(leg.end_day(), 22.0);
+        let (intercept, ..) = plan(&mut world, Arrival::Intercept { band: Band::High });
+        assert_eq!(intercept.leg().end_day(), 20.0);
     }
 
     /// PLAN-01: a plan has exactly one leg until multi-leg plans exist.

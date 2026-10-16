@@ -10,38 +10,8 @@ use bevy::prelude::*;
 use super::planner_words::LegWords;
 use crate::sim::body::DisplayName;
 use crate::sim::clock::GameClock;
-use crate::sim::transfer::order::Arrival;
 use crate::sim::transfer::places::Place;
-use crate::sim::transfer::plan::{Leg, Plan};
-
-/// The object a place stands for: the body of a band, or the station,
-/// gate, site or ship itself; `None` for Hold.
-pub fn place_entity(place: Place) -> Option<Entity> {
-    match place {
-        Place::Body { body, .. } => Some(body),
-        Place::Station { station } => Some(station),
-        Place::Gate { gate } => Some(gate),
-        Place::Site { site } => Some(site),
-        Place::Ship { ship } => Some(ship),
-        Place::Hold => None,
-    }
-}
-
-/// PLNR-21: the day the ship leaves its orbit: the depart day plus the
-/// wait for the exit point.
-pub fn leave_day(leg: &Leg) -> f64 {
-    leg.depart_day + leg.departure_wait_days
-}
-
-/// PLNR-25 / PLNR-66: the day a leg ends: the crossing's end for an
-/// Intercept, the arrival for a Rendezvous.
-pub fn leg_end_day(leg: &Leg) -> f64 {
-    if matches!(leg.arrival, Arrival::Intercept { .. }) {
-        leg.crossing_end_day
-    } else {
-        leg.arrival_day
-    }
-}
+use crate::sim::transfer::plan::Plan;
 
 /// PLNR-66: the countdown on `today`: to the leave day until it comes,
 /// then to the end of the leg. It counts down as the clock runs.
@@ -68,19 +38,21 @@ impl Countdowns<'_, '_> {
             return None;
         }
         let leg = plan.leg();
-        let destination = place_entity(leg.destination)
+        let destination = leg
+            .destination
+            .entity()
             .and_then(|e| self.names.get(e).ok())
             .map(|n| n.0.as_str())
             .unwrap_or_default();
         let words = LegWords {
-            intercept: matches!(leg.arrival, Arrival::Intercept { .. }),
+            intercept: leg.arrival.is_intercept(),
             to_ship: matches!(leg.destination, Place::Ship { .. }),
             destination,
         };
         Some(order_countdown(
             &words,
-            leave_day(leg),
-            leg_end_day(leg),
+            leg.leave_day(),
+            leg.end_day(),
             self.clock.elapsed_days(),
         ))
     }
@@ -127,15 +99,5 @@ mod tests {
             order_countdown(&words(true, true), 0.0, 3.0, 1.0),
             "intercept in 2.0 d"
         );
-    }
-
-    /// PLNR-66: every place but Hold stands for an object.
-    #[test]
-    fn every_place_but_hold_names_an_object() {
-        let mut world = World::new();
-        let e = world.spawn_empty().id();
-        assert_eq!(place_entity(Place::Station { station: e }), Some(e));
-        assert_eq!(place_entity(Place::Ship { ship: e }), Some(e));
-        assert_eq!(place_entity(Place::Hold), None);
     }
 }

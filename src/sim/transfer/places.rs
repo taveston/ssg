@@ -68,6 +68,21 @@ pub enum Place {
     Hold,
 }
 
+impl Place {
+    /// The object a place stands for: the body of a band, or the station,
+    /// gate, site or ship itself; `None` for Hold.
+    pub fn entity(self) -> Option<Entity> {
+        match self {
+            Place::Body { body, .. } => Some(body),
+            Place::Station { station } => Some(station),
+            Place::Gate { gate } => Some(gate),
+            Place::Site { site } => Some(site),
+            Place::Ship { ship } => Some(ship),
+            Place::Hold => None,
+        }
+    }
+}
+
 /// BAND-01: the Hill radius of a body of `mass_kg` orbiting `orbit_radius_km`
 /// from a parent of `parent_mass_kg`: the distance within which its own
 /// gravity, not the parent's, holds a satellite. `None` without a massive
@@ -136,6 +151,16 @@ mod tests {
     use crate::sim::units::gravitational_parameter_km3_per_day2;
     use crate::sim::units::{EARTH_MASS_KG, KM_PER_AU, SOLAR_MASS_KG};
     use orbits::{State, km_per_s_to_km_per_day};
+
+    /// BAND-02: every place but Hold stands for an object.
+    #[test]
+    fn every_place_but_hold_names_an_object() {
+        let mut world = World::new();
+        let e = world.spawn_empty().id();
+        assert_eq!(Place::Station { station: e }.entity(), Some(e));
+        assert_eq!(Place::Ship { ship: e }.entity(), Some(e));
+        assert_eq!(Place::Hold.entity(), None);
+    }
 
     fn earth_mu() -> f64 {
         gravitational_parameter_km3_per_day2(EARTH_MASS_KG)

@@ -44,7 +44,6 @@ use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured, save_to_dis
 use super::camera::requests::FrameRequest;
 use super::camera::rules::clamp_tilt;
 use super::camera::state::{ActiveMove, CameraRig, MAX_DISTANCE, MIN_DISTANCE};
-use super::countdown::leave_day;
 use super::planner::input::order_to_schedule;
 use super::planner_state::{PickTarget, PlannerState};
 use super::scale::km_to_render;
@@ -325,7 +324,7 @@ fn fly_order(
             let Some(plan) = selection.selected.and_then(|ship| plans.get(ship).ok()) else {
                 return;
             };
-            let target = leave_day(plan.leg()) + shot.plan.fly_days.unwrap_or(0.0);
+            let target = plan.leg().leave_day() + shot.plan.fly_days.unwrap_or(0.0);
             let paused = clock.is_paused();
             if paused {
                 clock.toggle_pause();

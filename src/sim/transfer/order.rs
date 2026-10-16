@@ -18,6 +18,13 @@ pub enum Arrival {
     Intercept { band: Band },
 }
 
+impl Arrival {
+    /// Whether the leg flies past rather than capturing.
+    pub fn is_intercept(self) -> bool {
+        matches!(self, Arrival::Intercept { .. })
+    }
+}
+
 /// One leg as ordered (PLAN-01, PLAN-03): everything a trajectory is
 /// rebuilt from.
 #[derive(Debug, Clone, Copy, PartialEq)]

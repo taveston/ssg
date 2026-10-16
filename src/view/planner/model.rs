@@ -7,7 +7,7 @@
 use bevy::prelude::Color;
 
 use crate::sim::transfer::grid::{Sample, Setting};
-use crate::sim::transfer::order::{Arrival, Infeasible, SolvedLeg};
+use crate::sim::transfer::order::{Infeasible, SolvedLeg};
 use crate::sim::transfer::places::Band;
 use crate::sim::transfer::presets::Preset;
 use crate::sim::transfer::ranges::{Slider, Sliders};
@@ -153,7 +153,7 @@ pub struct TuningFacts<'a> {
 impl TuningFacts<'_> {
     fn words(&self) -> LegWords<'_> {
         LegWords {
-            intercept: matches!(self.request.arrival, Arrival::Intercept { .. }),
+            intercept: self.request.arrival.is_intercept(),
             to_ship: self.kind == DestKind::Ship,
             destination: self.destination,
         }
@@ -422,7 +422,7 @@ pub fn order_model(
     scheduled: bool,
     today: f64,
 ) -> OrderModel {
-    let leave = leg.depart_day + leg.departure_wait_days;
+    let leave = leg.leave_day();
     let departs = if leave > today {
         Row::new(DEPARTS, leave_readout(leave, today))
     } else {
@@ -446,7 +446,7 @@ pub fn order_model(
 mod tests {
     use super::*;
     use crate::sim::transfer::grid::{Cost, Grid};
-    use crate::sim::transfer::order::{Landing, LegBurns};
+    use crate::sim::transfer::order::{Arrival, Landing, LegBurns};
     use crate::sim::transfer::places::Place;
     use crate::sim::transfer::presets::Presets;
     use bevy::prelude::*;

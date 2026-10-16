@@ -25,8 +25,7 @@ use crate::sim::clock::GameClock;
 use crate::sim::named_orbit::{DockingOrbitOf, InNamedOrbit, NamedOrbit};
 use crate::sim::orbit::Orbit;
 use crate::sim::ship::{DeltaV, Drive, InFlight};
-use crate::sim::transfer::order::Arrival;
-use crate::sim::transfer::phase::{gap_rad, separation_km};
+use crate::sim::transfer::phase::{gap_rad, separation_km, together};
 use crate::sim::transfer::places::{Band, BandRadii, Place};
 use crate::sim::transfer::plan::{Plan, ShipOrder, Status};
 use crate::sim::transfer::presets::Preset;
@@ -381,8 +380,11 @@ impl PanelFacts<'_, '_> {
             **class == BodyClass::Station
                 && in_orbit.0 == orbit
                 && self.parked(*station).is_some_and(|(_, there)| {
-                    separation_km(at.radius_km, gap_rad(at.phase0_rad, there.phase0_rad))
-                        < self.sim_tunables.together_km
+                    together(
+                        at.radius_km,
+                        gap_rad(at.phase0_rad, there.phase0_rad),
+                        self.sim_tunables.together_km,
+                    )
                 })
         });
         match (docked, band) {
@@ -508,7 +510,7 @@ impl PanelFacts<'_, '_> {
         };
         let leg = plan.leg();
         let destination = self.place_name(leg.destination);
-        let intercept = matches!(leg.arrival, Arrival::Intercept { .. });
+        let intercept = leg.arrival.is_intercept();
         match plan.status {
             Status::Scheduled | Status::InFlight => {
                 let words = LegWords {

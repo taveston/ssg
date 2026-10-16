@@ -21,7 +21,6 @@ use crate::sim::transfer::plan::{Plan, Status};
 use crate::sim::transfer::tree::{SystemTree, TreeQuery};
 use crate::sim::tunables::SimTunables;
 use crate::sim::units::KM_PER_AU;
-use crate::view::countdown::{leave_day, place_entity};
 use crate::view::hovered::HoveredBodies;
 use crate::view::planner_state::{HoverOutcome, PlannerState};
 use crate::view::planner_words::{LegWords, coast_label};
@@ -111,7 +110,7 @@ impl<'a> LegFigures<'a> {
     }
 
     fn intercept(&self) -> bool {
-        matches!(self.arrival, Arrival::Intercept { .. })
+        self.arrival.is_intercept()
     }
 }
 
@@ -151,7 +150,7 @@ impl PathSources<'_, '_> {
 
     /// PLNR-65: the arrival ghost's label, at the day the leg ends.
     fn ghost_label(&self, leg: &LegFigures) -> String {
-        let destination = self.name(place_entity(leg.destination));
+        let destination = self.name(leg.destination.entity());
         let words = LegWords {
             intercept: leg.intercept(),
             to_ship: matches!(leg.destination, Place::Ship { .. }),
@@ -194,7 +193,7 @@ impl PathSources<'_, '_> {
             .segments()
             .iter()
             .find_map(|s| crossing_primary(&s.kind));
-        let origin = leg.origin.and_then(place_entity);
+        let origin = leg.origin.and_then(Place::entity);
         match (primary, origin) {
             (Some(primary), Some(origin)) => tree.child_below(primary, origin).unwrap_or(ship),
             _ => ship,
@@ -220,7 +219,7 @@ impl PathSources<'_, '_> {
                 label: None,
             }),
             arrival_ghost: arrival_ghost
-                .then(|| place_entity(leg.destination))
+                .then(|| leg.destination.entity())
                 .flatten()
                 .map(|object| Ghost {
                     object,
@@ -271,7 +270,7 @@ impl PathSources<'_, '_> {
                 commanded: *affiliation == Affiliation::Own && record.is_some_and(|r| r.commanded),
                 status: plan.status,
                 coasting: plan.status == Status::Done && figures.intercept() && in_flight,
-                left: today >= leave_day(leg),
+                left: today >= leg.leave_day(),
                 selected: self.selection.is_selected(ship),
                 hovered: self.hovered.contains(ship),
             };

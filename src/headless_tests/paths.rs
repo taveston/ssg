@@ -366,7 +366,7 @@ fn a_ship_in_flight_shows_its_path_and_is_drawn_as_a_dot() {
     let mut app = star_paths_app();
     let orison = plan_orison_to_intercept_iver(&mut app);
     schedule(&mut app, 0);
-    let leave = crate::view::countdown::leave_day(app.world().get::<Plan>(orison).unwrap().leg());
+    let leave = app.world().get::<Plan>(orison).unwrap().leg().leave_day();
     let crossing = app
         .world()
         .get::<Plan>(orison)
@@ -520,7 +520,7 @@ fn a_ship_in_flight_has_a_velocity_leader_the_way_it_moves() {
     // Parked before it leaves: no leader.
     assert!(!leader_of(&mut app, orison).0);
     schedule(&mut app, 0);
-    let leave = crate::view::countdown::leave_day(app.world().get::<Plan>(orison).unwrap().leg());
+    let leave = app.world().get::<Plan>(orison).unwrap().leg().leave_day();
     let crossing = app
         .world()
         .get::<Plan>(orison)
