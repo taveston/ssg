@@ -520,13 +520,8 @@ impl PanelFacts<'_, '_> {
         let intercept = leg.arrival.is_intercept();
         match plan.status {
             Status::Scheduled | Status::InFlight => {
-                let words = LegWords {
-                    intercept,
-                    to_ship: matches!(leg.destination, Place::Ship { .. }),
-                    destination: &destination,
-                };
                 let model = order_model(
-                    &words,
+                    &LegWords::of_leg(leg, &destination),
                     leg,
                     plan.status == Status::Scheduled,
                     self.clock.elapsed_days(),

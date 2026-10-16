@@ -10,7 +10,6 @@ use bevy::prelude::*;
 use super::planner_words::LegWords;
 use crate::sim::body::DisplayName;
 use crate::sim::clock::GameClock;
-use crate::sim::transfer::places::Place;
 use crate::sim::transfer::plan::Plan;
 
 /// PLNR-66: the countdown on `today`: to the leave day until it comes,
@@ -44,13 +43,8 @@ impl Countdowns<'_, '_> {
             .and_then(|e| self.names.get(e).ok())
             .map(|n| n.0.as_str())
             .unwrap_or_default();
-        let words = LegWords {
-            intercept: leg.arrival.is_intercept(),
-            to_ship: matches!(leg.destination, Place::Ship { .. }),
-            destination,
-        };
         Some(order_countdown(
-            &words,
+            &LegWords::of_leg(leg, destination),
             leg.leave_day(),
             leg.end_day(),
             self.clock.elapsed_days(),

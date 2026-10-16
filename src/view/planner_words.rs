@@ -9,7 +9,8 @@
 //! dates through the top bar's calendar (CLK-02), as PLNR-93 asks.
 
 use crate::sim::transfer::order::Infeasible;
-use crate::sim::transfer::places::Band;
+use crate::sim::transfer::places::{Band, Place};
+use crate::sim::transfer::plan::Leg;
 use crate::view::date::{date_from_elapsed_days, format_date};
 use crate::view::readout::{format_distance, format_duration, format_speed, format_speed_figure};
 
@@ -98,6 +99,18 @@ pub struct LegWords<'a> {
     pub intercept: bool,
     pub to_ship: bool,
     pub destination: &'a str,
+}
+
+impl<'a> LegWords<'a> {
+    /// The words of an ordered leg, whose destination goes by
+    /// `destination`.
+    pub fn of_leg(leg: &Leg, destination: &'a str) -> Self {
+        Self {
+            intercept: leg.arrival.is_intercept(),
+            to_ship: matches!(leg.destination, Place::Ship { .. }),
+            destination,
+        }
+    }
 }
 
 impl LegWords<'_> {
