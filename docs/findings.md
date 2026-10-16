@@ -2,7 +2,7 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-210.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-213.
 
 ---
 
@@ -181,6 +181,21 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 ### F-209 · Small choices on the velocity leader
 - **Observation:** The leader is `symbol_stroke_px` wide, in the symbol's colour, and fades with the symbol. It starts at the outer edge of the frame's outline in its direction, so off a diamond's side it starts nearer the centre than off a point. It is not a hover target, and labels don't keep clear of it. A ship moving straight along the line of sight has no leader, as it has no direction on screen.
 - **Affects:** SYM-11, LBL-01 · **Type:** spec gap
+- **Disposition:** open. Accept.
+
+### F-210 · Ticks crowd into a bar near the horizon
+- **Observation:** REF-05 puts a tick at every multiple of the scale bar's distance. Towards the plane's horizon, seen near edge-on, they crowd without end. The build stops an arm's ticks at the first pair closer than 4 px, and at 64 per arm. At tilt 85° the last few still read as a short solid bar before the dots run on to the "N".
+- **Affects:** REF-05 · **Type:** spec gap
+- **Disposition:** open. Accept, or stop the ticks sooner (for example once two are closer than `ref_tick_px`).
+
+### F-211 · Small choices on the frame cue
+- **Observation:** The spec leaves these open, so the build chose: the "N" is in the data face at 10 px, at full strength rather than faded with the arm, and shows only while the north arm is longer than `ref_n_inset_px`. A tick is 1 px wide. The arrowhead is 0.75 of its length wide. The vertical axis is drawn at the north arm's strength. The upper half's length is measured from its start (the pole or the gap), not from the centre. An arm's gap is a distance from the centre, not from the box's edge along the arm. The vertical axis is not cut at the map area's edge.
+- **Affects:** REF-03, REF-04, REF-05, REF-06 · **Type:** spec gap
+- **Disposition:** open. Accept.
+
+### F-212 · The cue lies over the rings, and labels don't avoid it
+- **Observation:** The orbit rings, tails, exposure rings and the belt are world lines drawn under the whole overlay, so the cue's arms and lower half, though under every body, lie over them. Labels don't keep clear of the cue: the label halo breaks it where they cross, as for rings. A frame body's label can sit across the upper half of the vertical axis, as Morrow X's does when the label goes above it.
+- **Affects:** REF-09, MRK-12, LBL-01 · **Type:** spec gap
 - **Disposition:** open. Accept.
 
 ## Parked
