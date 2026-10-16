@@ -18,6 +18,9 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - The box follows the drawn size, so it needs the disc's on-screen radius at close zoom (F-161). Add `bracket_hover_alpha`, `bracket_arm_fraction`, `bracket_stroke_px` and `bracket_margin_px` to `Tunables`.
   - A fold pill is placed clear of its parent's ring (`parent_clear_px`, GRP-05). Clear the bracket box instead.
   - Selected and hovered identity marks on exposure rings (MOT-14) take brackets too (HOV-06).
+- [ ] **Orbit fade defaults** · MRK-14
+  - Changes MRK-14 (its ✓ is cleared): `orbit_fade_from` becomes 4 and `orbit_fade_to` 12 (they were 1.5 and 3). A ring now keeps its full alpha until its arc across the view is only mildly curved, and is gone once it is near-straight. Adjust in play if it still feels wrong.
+  - The measure stays as built (`ring_screen_radius_px` in `view/rings.rs`); MRK-14 now says so. Change the defaults in `view/tunables.rs`, and any test that assumes the old ones.
 - [ ] **Condition bar** · SYM-12
   - The symbols are built; the bar adds to them (`view/symbols.rs`, `symbol_draw.rs`).
   - Build a group's mean as a function of its members' conditions, tested on its own, so **Ship groups** can use it.
