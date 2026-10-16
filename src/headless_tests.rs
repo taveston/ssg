@@ -3440,3 +3440,40 @@ fn sols_system_fit_is_neptunes_orbit() {
     let neptune = km_to_render(30.0699 * KM_PER_AU);
     assert!((stops.system_radius - neptune).abs() < neptune * 1e-5);
 }
+
+/// The screenshot debug option sets up the view it is given: the frame,
+/// the selection, the clock rate, then distance, tilt and heading, and
+/// asks for a capture once the view has settled.
+#[test]
+fn the_debug_shot_sets_up_its_view_then_asks_for_a_capture() {
+    use crate::view::debug_shot::{DebugShotPlugin, Shot, ShotPhase, ShotPlan};
+    use bevy::render::view::screenshot::Screenshot;
+
+    let plan = ShotPlan::parse(
+        "out=unused.png;frame=Halden IV;select=Morrow;distance=1e6;tilt=30;heading=45;rate=4;wait=0.5",
+    )
+    .unwrap();
+    let mut app = camera_app_with(|app| {
+        app.insert_resource(Shot::new(plan))
+            .add_plugins(DebugShotPlugin);
+    });
+    let halden = body(&mut app, "Halden IV");
+    let morrow = body(&mut app, "Morrow");
+    let mut frames = 0;
+    while app.world().resource::<Shot>().phase != ShotPhase::Capturing {
+        run(&mut app, 1);
+        frames += 1;
+        assert!(frames < 600, "no capture after {frames} frames");
+    }
+    assert_eq!(frame_body(&app), halden);
+    assert_eq!(app.world().resource::<Selection>().selected, Some(morrow));
+    let clock = app.world().resource::<GameClock>();
+    assert!(!clock.is_paused());
+    assert_eq!(clock.rate_days_per_sec(), 4.0);
+    let rig = *app.world().resource::<CameraRig>();
+    assert!((rig.distance - km_to_render(1e6)).abs() < 1e-6);
+    assert!((rig.tilt - 30f32.to_radians()).abs() < 1e-6);
+    assert!((rig.heading - 45f32.to_radians()).abs() < 1e-6);
+    let mut shots = app.world_mut().query::<&Screenshot>();
+    assert_eq!(shots.iter(app.world()).count(), 1);
+}

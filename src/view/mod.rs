@@ -1,7 +1,8 @@
 //! View (ARCH-01): everything drawn - the km to render conversion, the
 //! camera, markers, rings, pills, grouping, the motion rule, gate edge
 //! arrows, inspection insets, the top bar, the palette,
-//! fonts, fidelity images and the presentation tunables.
+//! fonts, fidelity images and the presentation tunables, and a debug
+//! screenshot option (`debug_shot`).
 //!
 //! The view reads the simulation and changes it only through its API
 //! (ARCH-14). State that several view modules share lives in its own small
@@ -20,6 +21,7 @@ pub mod buttons;
 pub mod camera;
 pub mod colors;
 pub mod date;
+pub mod debug_shot;
 pub mod edge;
 pub mod edge_tab;
 pub mod fidelity;
@@ -110,6 +112,6 @@ impl Plugin for ViewPlugin {
                 outline::OutlinePlugin,
                 topbar::TopBarPlugin,
             ))
-            .add_plugins(labels::LabelsPlugin);
+            .add_plugins((labels::LabelsPlugin, debug_shot::DebugShotPlugin));
     }
 }
