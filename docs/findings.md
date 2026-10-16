@@ -2,7 +2,7 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-244.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-245.
 
 ---
 
@@ -307,6 +307,11 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** In play, a ship sent from one body's band to another body's (for example Earth's Low band to the Moon's Low band) arrives, but its symbol isn't moved to the new body and the "In orbit" outline still lists it under the old one. A transfer between two bands of the same body works as expected. Likely the same root as F-201: what a ship orbits, and which orbit it belongs to, is fixed at spawn and only the band is updated on arrival.
 - **Affects:** XFER-01, SCL-07, INS-05, GRP-01 · **Type:** bug
 - **Disposition:** open. Seen by the user in play (build 907d98e).
+
+### F-244 · At system scale the fold marker dwarfs its planet
+- **Observation:** In play, the multi-marker looks fine on its own, but in the system overview a planet's fold marker looks massive next to the planet. The fold marker is a ship symbol's frame (`ship_symbol_px`, 22 px) with a back frame offset 4 px, so about 26 px across, sitting beside a planet marker of `planet_marker_px` (12 px). Every planet with satellites (Halden IV, Iver, Morrow) then reads as a small dot with a big badge, and the badge, not the planet, draws the eye. A fold marker holding only natural bodies (Morrow's "11") is the same size as one holding ships.
+- **Affects:** MUL-01, GRP-05, MRK-03 · **Type:** spec wrong
+- **Disposition:** open. Seen by the user in play. Options: a fold marker of its own size (a tunable near the planet marker's), or a smaller one only when it holds natural bodies alone. Bears on F-229 (where it sits).
 
 ## Parked
 
