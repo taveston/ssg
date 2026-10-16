@@ -27,8 +27,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Other
 
-- [ ] **Planner: a Depart slider type of its own**
-  - Depart is always in whole days now, but `Sliders::depart` is still the general `Slider`, so `model.rs` `depart_columns` keeps a dead `_ =>` arm (and its `setting` parameter only for that), and `Search::soonest` has an `unreachable!`. Give Depart its own days-slider type (soonest, end, step) and drop the `Range` and `Positions` cases for it. Behaviour unchanged.
 - [ ] **Multi-markers and tray: clean-up after review**
   - Work per frame grows with the square of the ship count (`multi_markers/gather.rs`: `together_sets`, `link_groups`, `overlap_clusters`, `slide_things`, `fold_markers`; `MultiMarkers::get` is a linear search). Link only neighbours in phase, bucket overlap candidates into a grid of `cluster_split_px` cells, and index markers by key.
   - `place_multi_markers` writes every pool node's `Node` each frame. Write only on change.
