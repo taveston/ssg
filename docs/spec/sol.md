@@ -1,6 +1,6 @@
 # Spec: Sol test system
 
-**In short:** a second test system made from the real solar system, so scale, spacing and speed can be judged against figures people know. It holds the Sun, Mercury to Mars, Ceres, Jupiter, Saturn, Uranus and Neptune with their main moons, and the main asteroid belt, with no gates or salvage sites. Round Earth it also holds two stations and two ships, for trying transfers once they are built: a near-future chemical tug and a relic fusion-torch ship, both in the Low band beside one station, and a second station in the High band. Orbits stay circular, coplanar and prograde, as the simulation requires, so each body sits at its mean distance. The game starts on Corvane; `--system sol` starts it on Sol.
+**In short:** a second test system made from the real solar system, so scale, spacing and speed can be judged against figures people know. It holds the Sun, Mercury to Mars, Ceres, Jupiter, Saturn, Uranus and Neptune with their main moons, and the main asteroid belt, with no gates or salvage sites. Round Earth it also holds two stations and two ships, for trying transfers once they are built: a near-future nuclear thermal ship and a relic fusion-torch ship, both in the Low band beside one station, and a second station in the High band. Orbits stay circular, coplanar and prograde, as the simulation requires, so each body sits at its mean distance. The game starts on Corvane; `--system sol` starts it on Sol.
 
 *Scope:* Sol's content and the choice of system at start-up. *Source ideas:* `docs/ideas/mechanics/world-generator.md` (section 5.2). **Built** is ✓ once a requirement is in the code.
 
@@ -28,9 +28,9 @@
 | SOL-12 | Sol has four own, surveyed records round Earth, the stations and ships of table 3, built from the same blueprint types as Corvane's (SCL-03). The stations are class Station with no drive. The ships are commanded, unarmed Cargo ships, each with the drive of its row (SOL-15, SOL-16). | |
 | SOL-13 | Perigee Station, Marlin and Vestige are members of Earth's Low band, and Apogee Station of its High band (SCL-07, BAND-02). None has an orbit of its own. With the default tunables Low is 6,871 km out (period 94.5 min) and High 63,710 km out (period 1.85 d). | |
 | SOL-14 | At day 0 the four sit at the phases of table 3. Marlin has Perigee Station's phase, so it is docked at it (PHAS-02). Vestige is not together with Perigee Station or Marlin (PHAS-02). | |
-| SOL-15 | **Marlin**, the near-future ship, has a hydrolox chemical drive: impulsive, exhaust velocity 4.4 km/s, loaded acceleration 1 g, and 4.8 km/s of delta-v (`drives-and-transit.md` section 3, chemical row). | |
+| SOL-15 | **Marlin**, the near-future ship, has a hydrogen nuclear thermal drive: impulsive, exhaust velocity 9.0 km/s, loaded acceleration 0.1 g, and 15 km/s of delta-v. The exhaust velocity is the hydrogen row of `drives-and-transit.md` section 3; the delta-v and acceleration are a larger ship's than that row's typical 9.9 km/s and 0.2 g, chosen so Marlin can reach any inner-system body out to Ceres. | |
 | SOL-16 | **Vestige**, the relic ship, has a continuous fusion torch: impulsive, exhaust velocity 500 km/s, loaded acceleration 20 milli-g, and 500 km/s of delta-v (`drives-and-transit.md` section 3, torch row). | |
-| SOL-17 | Marlin's delta-v covers the Hohmann crossing from Earth's Low band to its High band, about 4.0 km/s, once, and not twice. Vestige's covers any number of them. The crossing's burns come from the `orbits` crate's Hohmann function. | |
+| SOL-17 | Marlin's delta-v covers the Hohmann crossing from Earth's Low band to its High band, about 4.0 km/s, three times and not four. Vestige's covers any number of them. The crossing's burns come from the `orbits` crate's Hohmann function. | |
 
 ## 2. Start-up
 
@@ -87,12 +87,12 @@ The Moon's period comes out about 0.5% long, because SCL-04 uses the parent's ma
 
 **Table 3: stations and ships round Earth**
 
-The phase is the angle at day 0, in the sense of motion, as for any member of a named orbit (SCL-07). Drive figures are those of `drives-and-transit.md` section 3; the acceleration is loaded, in g (1 g = 9.80665 m/s²).
+The phase is the angle at day 0, in the sense of motion, as for any member of a named orbit (SCL-07). Exhaust velocities are those of `drives-and-transit.md` section 3 (SOL-15, SOL-16); the acceleration is loaded, in g (1 g = 9.80665 m/s²).
 
 | Name | Kind | Orbit | Phase at day 0 (°) | Drive | Exhaust velocity (km/s) | Acceleration | Delta-v (km/s) |
 |---|---|---|---|---|---|---|---|
 | Perigee Station | Station | Earth, Low | 0 | none | n/a | n/a | n/a |
-| Marlin | Ship, near-future chemical tug | Earth, Low | 0 (docked at Perigee Station) | Hydrolox chemical, impulsive | 4.4 | 1 g | 4.8 |
+| Marlin | Ship, near-future nuclear thermal | Earth, Low | 0 (docked at Perigee Station) | Hydrogen nuclear thermal, impulsive | 9.0 | 0.1 g | 15 |
 | Vestige | Ship, relic fusion-torch | Earth, Low | 120 | Continuous fusion torch, impulsive | 500 | 0.02 g | 500 |
 | Apogee Station | Station | Earth, High | 240 | none | n/a | n/a | n/a |
 
