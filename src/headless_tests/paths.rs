@@ -581,7 +581,7 @@ fn every_map_label_carries_the_ground_halo() {
     use crate::view::colors;
     use crate::view::halo::{HaloPlugin, TextHalo};
     use crate::view::markers::MarkerLabel;
-    use crate::view::ring_marks::{RingLabelBox, RingMarksPlugin};
+    use crate::view::rings::marks::{RingLabelBox, RingMarksPlugin};
 
     let mut app = symbols_app_with(|app| {
         app.add_plugins((

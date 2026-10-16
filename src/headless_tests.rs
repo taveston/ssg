@@ -2055,7 +2055,7 @@ fn dot_mode_rings_are_hit_targets() {
                 MotionPlugin,
                 HoveredPlugin,
                 SharedOrbitPlugin,
-                crate::view::ring_picking::RingPickingPlugin,
+                crate::view::rings::picking::RingPickingPlugin,
             ));
     });
     run(&mut app, SETTLE_FRAMES);
@@ -2076,7 +2076,7 @@ fn dot_mode_rings_are_hit_targets() {
             .collect::<Vec<_>>();
         let paths = app
             .world()
-            .resource::<crate::view::ring_picking::RingPaths>();
+            .resource::<crate::view::rings::picking::RingPaths>();
         target.iter().any(|t| paths.0.contains_key(t))
     };
     assert!(traced(&mut app, halden), "a dot-mode planet's ring");
@@ -2091,7 +2091,7 @@ fn dot_mode_rings_are_hit_targets() {
 /// tails still target those members.
 #[test]
 fn a_frame_body_on_a_shared_ring_leaves_the_others_tails_as_targets() {
-    use crate::view::ring_picking::{MemberTailTarget, RingPaths, RingTarget};
+    use crate::view::rings::picking::{MemberTailTarget, RingPaths, RingTarget};
     let mut app = camera_app_with(|app| {
         app.add_message::<bevy::picking::backend::PointerHits>()
             .insert_resource(placeholder_fonts())
@@ -2100,7 +2100,7 @@ fn a_frame_body_on_a_shared_ring_leaves_the_others_tails_as_targets() {
                 MotionPlugin,
                 HoveredPlugin,
                 SharedOrbitPlugin,
-                crate::view::ring_picking::RingPickingPlugin,
+                crate::view::rings::picking::RingPickingPlugin,
             ));
     });
     let orison = body(&mut app, "Orison");
@@ -2246,7 +2246,7 @@ fn the_scale_bar_fits_and_the_north_dial_follows_and_resets_the_heading() {
 /// ring.
 #[test]
 fn ships_parked_in_one_named_orbit_share_one_ring() {
-    use crate::view::ring_picking::{RingPaths, RingPickingPlugin, RingTarget};
+    use crate::view::rings::picking::{RingPaths, RingPickingPlugin, RingTarget};
     use crate::view::shared_orbit::OrbitRings;
     use crate::view::targets::OrbitFor;
     use bevy::ecs::system::RunSystemOnce;
@@ -2386,7 +2386,7 @@ fn descendants(app: &mut App, root: Entity) -> Vec<Entity> {
 #[test]
 fn an_exposure_ring_carries_an_identity_mark() {
     use crate::view::pills::PillCountText;
-    use crate::view::ring_marks::{IdentityPill, RingMarkFor, RingMarksPlugin};
+    use crate::view::rings::marks::{IdentityPill, RingMarkFor, RingMarksPlugin};
     use crate::view::symbol_shape::SymbolPart;
     use crate::view::targets::OrbitFor;
 
@@ -2503,7 +2503,7 @@ fn an_exposure_ring_carries_an_identity_mark() {
 #[test]
 fn an_exposure_ring_label_is_placed_like_any_label() {
     use crate::view::labels::{LabelState, LabelsPlugin, Slot, label_rect, overlaps};
-    use crate::view::ring_marks::{PeriodLine, RingLabelBox, RingMarkFor, RingMarksPlugin};
+    use crate::view::rings::marks::{PeriodLine, RingLabelBox, RingMarkFor, RingMarksPlugin};
     use crate::view::targets::GroupPillFor;
 
     const FULL: Vec2 = Vec2::new(60.0, 26.0);
@@ -2632,7 +2632,7 @@ fn an_exposure_ring_label_is_placed_like_any_label() {
 fn an_exposure_ring_shows_its_period_and_a_chevron_the_way_it_runs() {
     use crate::sim::orbit::Orbit;
     use crate::view::readout::format_duration;
-    use crate::view::ring_marks::{PeriodLine, RingChevron, RingMarkFor, RingMarksPlugin};
+    use crate::view::rings::marks::{PeriodLine, RingChevron, RingMarkFor, RingMarksPlugin};
     use crate::view::shared_orbit::{OrbitRings, ring_screen_point};
     use crate::view::world::ViewNow;
     use bevy::ecs::system::RunSystemOnce;
@@ -2718,7 +2718,7 @@ fn an_exposure_ring_shows_its_period_and_a_chevron_the_way_it_runs() {
     assert!(nearest < STEPS / 2, "ahead of the mark the way IVa runs");
     let reach = half / ahead.x.abs().max(ahead.y.abs())
         + tunables.chevron_gap_px
-        + crate::view::ring_chevron::chevron_half_length(tunables.chevron_px);
+        + crate::view::rings::chevron::chevron_half_length(tunables.chevron_px);
     let away = centre.distance(at);
     assert!(
         (away - reach).abs() < 1.5,
@@ -4113,7 +4113,7 @@ fn a_station_is_a_place_in_its_band_at_its_phase() {
 /// exposure-ring marks and the brackets themselves.
 fn brackets_app() -> App {
     use crate::view::brackets::BracketsPlugin;
-    use crate::view::ring_marks::RingMarksPlugin;
+    use crate::view::rings::marks::RingMarksPlugin;
     camera_app_with(|app| {
         app.insert_resource(placeholder_fonts())
             .add_plugins((
@@ -4338,7 +4338,7 @@ fn a_ships_box_encloses_its_symbol_square() {
 /// hovering the orbit brackets that pill at `bracket_hover_alpha`.
 #[test]
 fn hovering_a_shared_orbit_brackets_its_identity_pill() {
-    use crate::view::ring_marks::{IdentityPill, RingMarkFor};
+    use crate::view::rings::marks::{IdentityPill, RingMarkFor};
     use crate::view::targets::OrbitFor;
     let mut app = brackets_app();
     let tunables = Tunables::default();

@@ -4,7 +4,7 @@
 //! on such a body, the part of its drawn stroke nearer the camera than the
 //! body's centre is drawn again in a UI node over the disc, one layer
 //! above it, clipped to the disc: outside the disc the gizmo already
-//! shows. The node takes the gizmo's lines and colours from `rings.rs`, so
+//! shows. The node takes the gizmo's lines and colours from `rings/mod.rs`, so
 //! the two passes match, and it is never a pick target (MRK-08).
 
 use bevy::asset::embedded_asset;
@@ -12,11 +12,11 @@ use bevy::prelude::*;
 use bevy::render::render_resource::{AsBindGroup, ShaderType};
 use bevy::shader::ShaderRef;
 
-use super::markers::{MarkerHalfSize, MarkerShape, MarkersPlaced};
-use super::rings::{DrawnRings, RingLine, RingsDrawn};
-use super::targets::MarkerFor;
-use super::world::ViewNow;
+use super::{DrawnRings, RingLine, RingsDrawn};
 use crate::Stage;
+use crate::view::markers::{MarkerHalfSize, MarkerShape, MarkersPlaced};
+use crate::view::targets::MarkerFor;
+use crate::view::world::ViewNow;
 
 /// The most segments one near arc carries to the shader; longer arcs are
 /// thinned by joining neighbours.
@@ -76,7 +76,7 @@ pub struct NearArcMaterial {
 
 impl UiMaterial for NearArcMaterial {
     fn fragment_shader() -> ShaderRef {
-        "embedded://orphan_worlds/view/near_arcs.wesl".into()
+        "embedded://orphan_worlds/view/rings/near_arcs.wesl".into()
     }
 }
 

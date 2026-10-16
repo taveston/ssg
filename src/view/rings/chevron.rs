@@ -4,12 +4,12 @@
 //! it says which way the orbit runs without implying a position.
 //!
 //! Plain geometry in screen pixels (y down), tested without a camera;
-//! `ring_marks.rs` draws the result, and `labels.rs` keeps the ring's
+//! `rings/marks.rs` draws the result, and `labels.rs` keeps the ring's
 //! label off the chevron's box.
 
 use bevy::prelude::*;
 
-use super::screen::ray_inside;
+use crate::view::screen::ray_inside;
 
 /// A small step round the ring, in radians, for the ring's direction.
 const TANGENT_STEP_RAD: f32 = 1e-3;

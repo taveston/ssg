@@ -3,7 +3,7 @@
 //! affiliation folded into it, and a blue dot if own ships are parked
 //! there. What is folded, and the flags, come from `fold.rs`; this module
 //! only draws them. The pill's node and face are shared with the identity
-//! pill on a shared exposure ring (`ring_marks.rs`, MOT-14), which is
+//! pill on a shared exposure ring (`rings/marks.rs`, MOT-14), which is
 //! styled and coloured the same way. The brackets round a hovered pill, or
 //! one holding the selection, are `brackets.rs` (HOV-06).
 

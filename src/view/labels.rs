@@ -33,7 +33,7 @@ use super::hovered::HoveredBodies;
 use super::markers::{MarkerHalfSize, MarkerLabel, MarkersPlaced, SecondLineFor};
 use super::node_box::{node_rect, node_size};
 use super::paths::marks::PathLabel;
-use super::ring_marks::{PeriodLine, RingLabelBox, RingMarkFor};
+use super::rings::marks::{PeriodLine, RingLabelBox, RingMarkFor};
 use super::selection::Selection;
 use super::shared_orbit::OrbitMembers;
 use super::symbol_draw::AmplifierReach;

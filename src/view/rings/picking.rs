@@ -24,16 +24,16 @@ use bevy::picking::backend::{HitData, PointerHits};
 use bevy::picking::pointer::{PointerId, PointerLocation};
 use bevy::prelude::*;
 
-use super::frame::Frame;
-use super::hover;
-use super::hovered::HoveredBodies;
-use super::rings::{FadeView, RingExtent, ring_extent};
-use super::scale::km_to_render;
-use super::screen::ScreenPositions;
-use super::selection::Selection;
-use super::shared_orbit::{OrbitRings, Ring, ring_screen_point};
-use super::targets::{MarkerFor, OrbitFor};
-use super::tunables::Tunables;
+use super::{FadeView, RingExtent, ring_extent};
+use crate::view::frame::Frame;
+use crate::view::hover;
+use crate::view::hovered::HoveredBodies;
+use crate::view::scale::km_to_render;
+use crate::view::screen::ScreenPositions;
+use crate::view::selection::Selection;
+use crate::view::shared_orbit::{OrbitRings, Ring, ring_screen_point};
+use crate::view::targets::{MarkerFor, OrbitFor};
+use crate::view::tunables::Tunables;
 use crate::view::world::ViewNow;
 use crate::{Boot, Stage};
 

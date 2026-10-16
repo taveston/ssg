@@ -1,7 +1,7 @@
 //! The motion rule on screen (MOT-01, MOT-02, MOT-04, MOT-08, MOT-10 to
 //! MOT-13): keeps each orbiting body's tail and mode current. The rings and
-//! their tails are drawn in `rings.rs`, hit-tested in `ring_picking.rs`
-//! (HOV-02) and labelled and marked in `ring_marks.rs` (MOT-02, MOT-14);
+//! their tails are drawn in `rings/mod.rs`, hit-tested in `rings/picking.rs`
+//! (HOV-02) and labelled and marked in `rings/marks.rs` (MOT-02, MOT-14);
 //! the rules are in `motion_mode.rs`.
 //!
 //! MOT-08: applies to everything that orbits, not just satellites -

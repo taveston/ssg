@@ -33,6 +33,11 @@ use crate::view::tunables::Tunables;
 use crate::view::world::{RenderOrigin, WorldPositions};
 use crate::{Boot, Stage};
 
+pub mod chevron;
+pub mod marks;
+pub mod near_arcs;
+pub mod picking;
+
 /// How many straight chords a ring starts as, enough for any ring seen
 /// from a distance.
 const RING_SEGMENTS: usize = 128;
@@ -64,7 +69,7 @@ pub struct DrawnRing {
     pub lines: Vec<RingLine>,
 }
 
-/// Every ring drawn this frame, by owner, so `near_arcs.rs` can redraw a
+/// Every ring drawn this frame, by owner, so `rings/near_arcs.rs` can redraw a
 /// close orbit's near side over its body (MRK-12).
 #[derive(Resource, Default)]
 pub struct DrawnRings(pub std::collections::HashMap<Entity, DrawnRing>);

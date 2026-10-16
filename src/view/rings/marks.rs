@@ -10,7 +10,7 @@
 //!
 //! Under the name, a second line gives the orbit's period, so the ring
 //! says it is a fast orbit. Beside the mark, a direction chevron on the
-//! ring points the way the bodies circle (`ring_chevron.rs` places it);
+//! ring points the way the bodies circle (`rings/chevron.rs` places it);
 //! it fades with the mark. The label is placed beside the mark like any
 //! other label (`labels.rs`, LBL-01 to LBL-04): the chevron is part of the
 //! mark there, so the label takes another side when the chevron would run
@@ -24,30 +24,30 @@
 
 use bevy::prelude::*;
 
-use super::anim::{advance_towards, step_per_frame};
-use super::colors;
-use super::fonts::Fonts;
-use super::hover;
-use super::layers;
-use super::marker_draw::{BodyLook, spawn_icon};
-use super::markers::{MarkersPlaced, TintedParts, fade_parts, marker_half_size};
-use super::motion_mode::MotionModeState;
-use super::node_box::node_size;
-use super::pills::{PILL_HALF_HEIGHT_PX, PillFace, pill_bundle, pill_node};
-use super::readout::format_duration;
-use super::ring_chevron::{ChevronFit, ChevronSpot, chevron_box, chevron_spot};
-use super::screen::{MapView, in_viewport, screen_angle, snap_to_pixel};
-use super::selection::Selection;
-use super::shared_orbit::{OrbitRings, Ring, ring_screen_point};
-use super::ship_groups::GroupFaces;
-use super::symbol_draw::{Tint, TintSlot};
-use super::symbol_shape::{SymbolMask, SymbolPart};
-use super::targets::{MarkerFor, OrbitFor};
-use super::tunables::Tunables;
-use super::world::ViewNow;
+use super::chevron::{ChevronFit, ChevronSpot, chevron_box, chevron_spot};
 use crate::sim::body::{Affiliation, BodyClass};
 use crate::sim::track::ShipRecord;
+use crate::view::anim::{advance_towards, step_per_frame};
+use crate::view::colors;
+use crate::view::fonts::Fonts;
 use crate::view::halo::TextHalo;
+use crate::view::hover;
+use crate::view::layers;
+use crate::view::marker_draw::{BodyLook, spawn_icon};
+use crate::view::markers::{MarkersPlaced, TintedParts, fade_parts, marker_half_size};
+use crate::view::motion_mode::MotionModeState;
+use crate::view::node_box::node_size;
+use crate::view::pills::{PILL_HALF_HEIGHT_PX, PillFace, pill_bundle, pill_node};
+use crate::view::readout::format_duration;
+use crate::view::screen::{MapView, in_viewport, screen_angle, snap_to_pixel};
+use crate::view::selection::Selection;
+use crate::view::shared_orbit::{OrbitRings, Ring, ring_screen_point};
+use crate::view::ship_groups::GroupFaces;
+use crate::view::symbol_draw::{Tint, TintSlot};
+use crate::view::symbol_shape::{SymbolMask, SymbolPart};
+use crate::view::targets::{MarkerFor, OrbitFor};
+use crate::view::tunables::Tunables;
+use crate::view::world::ViewNow;
 use crate::{Boot, Stage};
 
 /// Below this much fade a ring's mark and label aren't drawn.

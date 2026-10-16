@@ -46,7 +46,6 @@ pub mod marker_picking;
 pub mod markers;
 pub mod motion;
 pub mod motion_mode;
-pub mod near_arcs;
 pub mod node_box;
 pub mod outline;
 pub mod parent_tab;
@@ -58,9 +57,6 @@ pub mod planner_words;
 pub mod plot_marks;
 pub mod projection;
 pub mod readout;
-pub mod ring_chevron;
-pub mod ring_marks;
-pub mod ring_picking;
 pub mod rings;
 pub mod scale;
 pub mod screen;
@@ -106,14 +102,14 @@ impl Plugin for ViewPlugin {
             ))
             .add_plugins((
                 shared_orbit::SharedOrbitPlugin,
-                ring_marks::RingMarksPlugin,
-                near_arcs::NearArcsPlugin,
+                rings::marks::RingMarksPlugin,
+                rings::near_arcs::NearArcsPlugin,
             ))
             .add_plugins((
                 grouping::GroupingPlugin,
                 motion::MotionPlugin,
                 rings::RingsPlugin,
-                ring_picking::RingPickingPlugin,
+                rings::picking::RingPickingPlugin,
                 screen::ScreenPlugin,
                 edge::EdgePlugin,
                 symbol_shape::SymbolShapePlugin,

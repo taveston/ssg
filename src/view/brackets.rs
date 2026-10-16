@@ -21,7 +21,7 @@ use super::layers;
 use super::markers::{MarkerDrawn, MarkersPlaced};
 use super::motion_mode::MotionModeState;
 use super::node_box::{node_min, node_size};
-use super::ring_marks::{IdentityPill, RingMarkFor};
+use super::rings::marks::{IdentityPill, RingMarkFor};
 use super::selection::Selection;
 use super::shared_orbit::OrbitMembers;
 use super::targets::{GroupPillFor, Hovered, MarkerFor, OrbitFor};
