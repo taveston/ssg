@@ -44,6 +44,7 @@ Typical conflicts:
 
 ## 4. While agents run
 
+- **New to-do items raised during the session** (from reviews, findings the user settles, or spec changes): slot each into the running plan at once and schedule it like the rest, telling the user its stream and effort. Don't wait to be asked.
 - **"Pull latest design changes":** `git fetch`, then merge `origin/master`. Resolve doc conflicts this way:
   - `todo.md`: drop items that are now built.
   - Findings: keep both sides; drop findings origin settled.
