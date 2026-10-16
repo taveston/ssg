@@ -30,6 +30,7 @@ Boards 1 to 6 are from the design canvas "Inspect & Planetary Transition"; 7 onw
 | `24-contacts-on-the-planet-marker.png` | No fold marker for planets: the moon ring takes the affiliation of the most pressing contact folded in, as colour only, as frame shape and colour, or neutral with glyphs on the label; Sol overview and enlarged rings (2026-10-16, from F-229 and F-239). Source: `24-contacts-on-the-planet-marker.html`; `../symbology.md` 4 |
 | `25-marker-pops-out-near-the-planet.png` | At rest a planet with things folded in shows only its ring; with the pointer near, the ring grows into the multi-marker below the planet, and a click opens its tray; the growth enlarged (2026-10-16, from F-229 and F-239). Source: `25-marker-pops-out-near-the-planet.html`; `../symbology.md` 4 |
 | `26-objects-and-moons-on-the-planet-marker.png` | Moons and objects kept apart: a neutral moon ring with the moon count, and a separate resting object marker down and to the right, as a 12 px frame with a count (A) or a 6 px pip (B), growing into the multi-marker on approach (2026-10-16, from F-229 and F-239). Source: `26-objects-and-moons-on-the-planet-marker.html`; `../symbology.md` 4 |
+| `27-resting-pips-for-mixed-objects.png` | The resting object pip for mixed affiliations: front pip the most pressing, back pip own when any is own, none for a single object; real size, enlarged, and popped out (2026-10-16, from F-229 and F-239). Source: `27-resting-pips-for-mixed-objects.html`; `../symbology.md` 4 |
 
 How to use them:
 
