@@ -78,6 +78,16 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** XFER-13, XFER-06, PLNR-65 · **Type:** spec gap
 - **Disposition:** open. Accept, show no turn for a low-thrust leg, or make a low-thrust Intercept through Low infeasible.
 
+### F-180 · Which ends of a crossing take the Low band limit
+- **Observation:** XFER-07 gives the Low band limit to a crossing or coast that starts or ends "in a place round the primary itself (a band, or a station in one)". It doesn't say whether a ship coasting round the primary counts: one setting out from a coast, or a ship target on one. The build gives the Low band limit to every end round the primary, coasts included, as the old exemption did, and also a gate's or site's own orbit round it. A path solved to touch the Low band lands a hair either side of it, so a periapsis within a millionth of the limit (about 6 mm at a Low band) counts as at it.
+- **Affects:** XFER-07 · **Type:** spec gap
+- **Disposition:** open. Accept, or say which ends count as round the primary.
+
+### F-181 · An Intercept through its primary's own Low band needs the Hohmann time
+- **Observation:** Under XFER-07, an arc from a planet's High band to its own Low band touches the band only at its periapsis. Faster than the Hohmann time, it passes its periapsis under the band before it arrives, so even a Rendezvous is refused. Slower, it arrives still heading down, so a Rendezvous is flown but an Intercept's coast would dip under the band. So an Intercept through the primary's own Low band is flown only at the Hohmann time, and only when the target sits half a turn ahead then. In the reference layout, no departure phase gave a feasible Intercept at the capital's Low band station. The same holds for leaving a Low band: an arc faster than the Hohmann time first dips under the band.
+- **Affects:** XFER-07, XFER-08, PLNR-30 · **Type:** spec gap
+- **Disposition:** open. Accept, or offer only Rendezvous for a Low band round the ship's own primary.
+
 ## Parked
 
 ### F-145 · An intercept needs a standoff distance

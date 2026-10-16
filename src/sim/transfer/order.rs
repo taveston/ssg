@@ -65,6 +65,9 @@ pub enum Infeasible {
     ShipInFlight,
     /// The crossing would dip too close to its primary (XFER-07).
     Periapsis { periapsis_km: f64 },
+    /// The coast after an Intercept would dip too close to its primary
+    /// (XFER-07).
+    CoastPeriapsis { periapsis_km: f64 },
     /// The leg needs more delta-v than the ship has available (XFER-04).
     DeltaV { needed_kms: f64, available_kms: f64 },
     /// The ship has a plan Scheduled or InFlight already (PLAN-02).

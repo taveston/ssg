@@ -30,13 +30,23 @@ use super::order::{
 };
 use super::phase::{gap_rad, wait_days};
 use super::phasing::solve_in_own_orbit;
-use super::places::{Band, Place};
+use super::places::{Band, Place, band_radii};
 use super::tree::{OrbitNode, SystemTree};
 use crate::sim::rail::{
     SegmentKind, ShipTrajectory, km_per_day_to_km_per_s, km_per_s_to_km_per_day,
 };
 use crate::sim::ship::Drive;
 use crate::sim::tunables::SimTunables;
+
+/// How far under its limit a periapsis may come, as a fraction of the
+/// limit, and still count as at it: room for the rounding of a path
+/// solved to arrive at a Low band exactly (XFER-07).
+const PERIAPSIS_ROUNDING: f64 = 1e-6;
+
+/// Whether a periapsis is under `limit_km`, beyond rounding (XFER-07).
+fn under_limit(periapsis_km: f64, limit_km: f64) -> bool {
+    periapsis_km < limit_km * (1.0 - PERIAPSIS_ROUNDING)
+}
 
 /// The crossing's fixed facts, gathered before the solve.
 struct Setup<'a> {
@@ -389,28 +399,63 @@ impl Setup<'_> {
         Err(Infeasible::CantLineUp)
     }
 
-    /// XFER-07: a crossing whose path dips inside `min_periapsis_radii`
-    /// mean radii of the primary, while on the crossing, is infeasible. A
-    /// crossing that starts or ends in an orbit of the primary itself is
-    /// exempt: a Low band lies inside that limit by construction, and the
-    /// band is the place, not a near miss (F-148).
+    /// XFER-07: the closest a conic of this leg may come to the primary,
+    /// in km. Out in the open it is `min_periapsis_radii` mean radii. A
+    /// conic that starts or ends round the primary itself (in a band, at a
+    /// station, on a coast round it) has to get that close, so its limit
+    /// is the primary's Low band instead: it may touch the band but not
+    /// dip under it.
+    fn periapsis_limit_km(&self, round_the_primary: bool) -> f64 {
+        let Some(primary) = self.tree.bodies.get(&self.primary) else {
+            return 0.0;
+        };
+        if round_the_primary {
+            band_radii(primary.radius_km, primary.hill_km, self.tunables).low_km
+        } else {
+            self.tunables.min_periapsis_radii * primary.radius_km
+        }
+    }
+
+    /// XFER-07: a crossing is infeasible if its conic reaches a periapsis
+    /// under the limit while on the crossing. A spiral never dips below
+    /// the lower of its two ends.
     fn check_periapsis(&self, crossing: &Crossing) -> Result<(), Infeasible> {
         let SegmentKind::Conic { conic, .. } = crossing.segment else {
             return Ok(());
         };
-        if self.from.host == self.primary || self.to.host == self.primary {
-            return Ok(());
-        }
-        let primary_radius = self
-            .tree
-            .bodies
-            .get(&self.primary)
-            .map_or(0.0, |b| b.radius_km);
+        let round_the_primary = self.from.host == self.primary || self.to.host == self.primary;
         let periapsis_km = conic.periapsis_radius_km();
-        if periapsis_km < self.tunables.min_periapsis_radii * primary_radius
+        if under_limit(periapsis_km, self.periapsis_limit_km(round_the_primary))
             && conic.passes_periapsis_between(crossing.start_day, crossing.end_day)
         {
             return Err(Infeasible::Periapsis { periapsis_km });
+        }
+        Ok(())
+    }
+
+    /// XFER-07: an Intercept is infeasible if the conic the ship coasts on
+    /// after it (the rail's last segment: the crossing run on, or the
+    /// turned conic after a pass through Low) still has a periapsis under
+    /// the limit ahead of it. The coast starts where the crossing ended,
+    /// so it takes the Low band limit when that end is round the primary.
+    fn check_coast(
+        &self,
+        crossing: &Crossing,
+        trajectory: &ShipTrajectory,
+    ) -> Result<(), Infeasible> {
+        if self.rendezvous {
+            return Ok(());
+        }
+        let Some(SegmentKind::Conic { conic, .. }) = trajectory.segments().last().map(|s| s.kind)
+        else {
+            return Ok(());
+        };
+        let periapsis_km = conic.periapsis_radius_km();
+        let limit_km = self.periapsis_limit_km(self.to.host == self.primary);
+        if under_limit(periapsis_km, limit_km)
+            && conic.passes_periapsis_between(crossing.end_day, f64::INFINITY)
+        {
+            return Err(Infeasible::CoastPeriapsis { periapsis_km });
         }
         Ok(())
     }
@@ -706,14 +751,6 @@ pub fn solve_leg(
     };
     let crossing = &flight.crossing;
     setup.check_periapsis(crossing)?;
-    // XFER-04: Rendezvous pays both ends; Intercept only the departure.
-    let delta_v_kms = flight.burns.start_kms + flight.burns.end_kms;
-    if delta_v_kms > budget_kms {
-        return Err(Infeasible::DeltaV {
-            needed_kms: delta_v_kms,
-            available_kms: budget_kms,
-        });
-    }
     let arrived = setup.arrive(crossing);
     let (intercept_speed_kms, closing_speed_kms, closest_approach_rad) = if setup.rendezvous {
         (None, None, None)
@@ -733,6 +770,15 @@ pub fn solve_leg(
         None => arrived.last,
     };
     let trajectory = build_trajectory(&setup, departure, order, crossing, last)?;
+    setup.check_coast(crossing, &trajectory)?;
+    // XFER-04: Rendezvous pays both ends; Intercept only the departure.
+    let delta_v_kms = flight.burns.start_kms + flight.burns.end_kms;
+    if delta_v_kms > budget_kms {
+        return Err(Infeasible::DeltaV {
+            needed_kms: delta_v_kms,
+            available_kms: budget_kms,
+        });
+    }
     Ok(SolvedLeg {
         origin,
         primary: setup.primary,
@@ -1077,6 +1123,125 @@ mod tests {
         let from = l.parked(l.capital, Band::High);
         let (order, _) = l.cheapest(&from, rendezvous_with(l.inner, Band::High, 111.0), &l.ntr);
         assert!(l.solve(&from, &order, &l.ntr).is_ok());
+    }
+
+    /// A phase in the capital's High band from which an arc of the
+    /// Hohmann time to the Low band station sweeps about 90°, on the near
+    /// side of the planet.
+    const NEAR_SIDE: f64 = 4.7;
+
+    /// The Hohmann travel time between the capital's two bands.
+    fn capital_hohmann_days(l: &Layout) -> f64 {
+        let low = l.node(l.capital, Band::Low).radius_km;
+        let high = l.node(l.capital, Band::High).radius_km;
+        hohmann(l.tree.bodies[&l.capital].mu, high, low).days
+    }
+
+    /// XFER-07: a crossing that ends in a Low band of its primary may not
+    /// dip under that band. From the High band, an arc to the Low band
+    /// station on the far side of the planet passes through it and is
+    /// refused (PLNR-92's "Path passes too close"); the same order from
+    /// the near side is flown.
+    #[test]
+    fn an_arc_to_a_low_band_station_on_the_far_side_of_the_planet_is_infeasible() {
+        let l = layout();
+        let low_km = l.node(l.capital, Band::Low).radius_km;
+        let order = Order {
+            destination: Place::Station { station: l.station },
+            ..rendezvous_with(l.capital, Band::High, capital_hohmann_days(&l))
+        };
+        let far = l.solve(&l.parked_at(l.capital, Band::High, 0.0), &order, &l.ntr);
+        assert!(
+            matches!(far, Err(Infeasible::Periapsis { periapsis_km }) if periapsis_km < low_km),
+            "{far:?}"
+        );
+        let near = l.solve(
+            &l.parked_at(l.capital, Band::High, NEAR_SIDE),
+            &order,
+            &l.ntr,
+        );
+        assert!(near.is_ok(), "{near:?}");
+    }
+
+    /// XFER-07: a crossing may start or end exactly at its primary's Low
+    /// band. The Hohmann arcs between the capital's bands touch the Low
+    /// band at their periapsis, both ways, and an Intercept through the
+    /// Low band at that time coasts round on it; all are flown, rounding
+    /// and all. A slower arc leaving the Low band climbs straight away,
+    /// and is flown too.
+    #[test]
+    fn arcs_that_touch_the_low_band_of_their_primary_are_flown() {
+        let l = layout();
+        let days = capital_hohmann_days(&l);
+        let low = l.parked(l.capital, Band::Low);
+        let high = l.parked(l.capital, Band::High);
+        let down = rendezvous_with(l.capital, Band::Low, days);
+        let through = Order {
+            arrival: Arrival::Intercept { band: Band::Low },
+            ..down
+        };
+        let up = rendezvous_with(l.capital, Band::High, days);
+        let slow_up = rendezvous_with(l.capital, Band::High, 1.2 * days);
+        for (from, order) in [
+            (&high, &down),
+            (&high, &through),
+            (&low, &up),
+            (&low, &slow_up),
+        ] {
+            let leg = l.solve(from, order, &l.ntr);
+            assert!(leg.is_ok(), "{order:?}: {leg:?}");
+        }
+    }
+
+    /// XFER-07: an Intercept in a planet's frame coasts on along its
+    /// crossing. Arriving at the Low band from above, slower than the
+    /// Hohmann time, the ship is still heading down, so its coast would
+    /// dip under the band: the Intercept is refused for its coast, though
+    /// a Rendezvous on the same arc is flown.
+    #[test]
+    fn an_intercept_whose_coast_dips_under_the_low_band_is_infeasible() {
+        let l = layout();
+        let low_km = l.node(l.capital, Band::Low).radius_km;
+        let rendezvous = rendezvous_with(l.capital, Band::Low, 1.2 * capital_hohmann_days(&l));
+        let intercept = Order {
+            arrival: Arrival::Intercept { band: Band::Low },
+            ..rendezvous
+        };
+        let from = l.parked(l.capital, Band::High);
+        assert!(l.solve(&from, &rendezvous, &l.ntr).is_ok());
+        let result = l.solve(&from, &intercept, &l.ntr);
+        assert!(
+            matches!(result, Err(Infeasible::CoastPeriapsis { periapsis_km }) if periapsis_km < low_km),
+            "{result:?}"
+        );
+    }
+
+    /// XFER-07 / XFER-13: the conic a ship is turned onto by a pass
+    /// through another body's Low band is a coast too. With the limit
+    /// raised just past that coast's periapsis round the star, the same
+    /// Intercept is refused for its coast.
+    #[test]
+    fn the_coast_after_a_low_pass_is_kept_off_the_primary() {
+        let mut l = layout();
+        let from = l.parked(l.capital, Band::High);
+        let intercept = Order {
+            arrival: Arrival::Intercept { band: Band::Low },
+            ..rendezvous_with(l.inner, Band::Low, 111.0)
+        };
+        let (order, leg) = l.cheapest(&from, intercept, &l.ntr);
+        let Some(SegmentKind::Conic { conic, .. }) =
+            leg.trajectory.segments().last().map(|s| s.kind)
+        else {
+            panic!("the ship coasts on after the pass");
+        };
+        let coast_km = conic.periapsis_radius_km();
+        let star_km = l.tree.bodies[&l.star].radius_km;
+        l.tunables.min_periapsis_radii = 1.001 * coast_km / star_km;
+        let result = l.solve(&from, &order, &l.ntr);
+        assert!(
+            matches!(result, Err(Infeasible::CoastPeriapsis { periapsis_km }) if periapsis_km == coast_km),
+            "{result:?}"
+        );
     }
 
     /// XFER-08 / XFER-09 / PHAS-11: an Intercept through the High band
@@ -1451,8 +1616,14 @@ mod tests {
                 hohmann(capital_mu, high_km, low.radius_km).days,
             )
         };
+        // Set out from a quarter turn behind where the station will be, so
+        // the arc stays on the near side of the planet (XFER-07).
         let leg = l
-            .solve(&l.parked(l.capital, Band::High), &order, &l.ntr)
+            .solve(
+                &l.parked_at(l.capital, Band::High, NEAR_SIDE),
+                &order,
+                &l.ntr,
+            )
             .unwrap();
         assert_eq!(leg.primary, l.capital);
         assert_eq!(leg.arrival_wait_days, 0.0);

@@ -20,8 +20,10 @@ pub struct SimTunables {
     /// A coasting ship whose orbit reaches past this many AU from the star
     /// is escaping, and is removed once it is that far out (BAND-08).
     pub lost_beyond_au: f64,
-    /// A crossing whose path dips inside this many mean radii of its
-    /// primary is infeasible (XFER-07).
+    /// A crossing, or the coast after an Intercept, whose path dips
+    /// inside this many mean radii of its primary is infeasible. One that
+    /// starts or ends round the primary itself has its Low band as the
+    /// limit instead (XFER-07).
     pub min_periapsis_radii: f64,
     /// A conic's eccentricity is kept at least this far from 1, so there
     /// is never a parabolic path (RAIL-05).
