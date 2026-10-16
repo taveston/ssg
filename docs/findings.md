@@ -73,11 +73,6 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** XFER-07 · **Type:** spec gap
 - **Disposition:** open. Accept, or say which ends count as round the primary.
 
-### F-180 · An Intercept through its primary's own Low band needs the Hohmann time
-- **Observation:** Under XFER-07, an arc from a planet's High band to its own Low band touches the band only at its periapsis. Faster than the Hohmann time, it passes its periapsis under the band before it arrives, so even a Rendezvous is refused. Slower, it arrives still heading down, so a Rendezvous is flown but an Intercept's coast would dip under the band. So an Intercept through the primary's own Low band is flown only at the Hohmann time, and only when the target sits half a turn ahead then. In the reference layout, no departure phase gave a feasible Intercept at the capital's Low band station. The same holds for leaving a Low band: an arc faster than the Hohmann time first dips under the band.
-- **Affects:** XFER-07, XFER-08, PLNR-30 · **Type:** spec gap
-- **Disposition:** open. Accept, or offer only Rendezvous for a Low band round the ship's own primary.
-
 ### F-181 · Sol's drives have no display names
 - **Observation:** PLNR-05 gives every drive a display name, and TEST-30 names Corvane's two. Sol's Marlin and Vestige (SOL-15, SOL-16) have drives too, but no names. The build calls Marlin's "hydrogen NTR", like Orison's, and Vestige's "fusion torch".
 - **Affects:** PLNR-05, TEST-30, SOL-15, SOL-16 · **Type:** spec gap
@@ -89,12 +84,12 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Disposition:** open. Accept, and say so in PLNR-80.
 
 ### F-183 · Words the spec doesn't give
-- **Observation:** PLNR-92 words nine of the solver's reasons. The others needed sentences too, and the build chose: no destination found "*target* can't be found"; no High band "*target* has no High orbit"; Hold "Holding is not a trip"; no path "No path gets there in that time"; a low-thrust drive and a coasting path "This drive can't match a coasting path"; a target in flight "*target* is under way, so it can't be met"; the ship in flight "The ship is under way"; already ordered "The ship already has an order"; no drive "The ship has no drive"; more than one leg "Only one leg can be ordered"; an Intercept in the ship's own orbit "*target* is in this ship's orbit, so it can only rendezvous". The leave readout (PLNR-21) reads "now" when the leave day is under half a minute away, and the laps readout (PLNR-40) says "1 lap" for one. A delta-v that rounds up to 1 km/s reads "1.0 km/s", not "1.00" (UNIT-04).
-- **Affects:** PLNR-92, PLNR-21, PLNR-40, UNIT-04 · **Type:** spec gap
+- **Observation:** PLNR-92 words nine of the solver's reasons. The others needed sentences too, and the build chose: no destination found "*target* can't be found"; no High band "*target* has no High orbit"; Hold "Holding is not a trip"; no path "No path gets there in that time"; a low-thrust drive and a coasting path "This drive can't match a coasting path"; a target in flight "*target* is under way, so it can't be met"; the ship in flight "The ship is under way"; already ordered "The ship already has an order"; no drive "The ship has no drive"; more than one leg "Only one leg can be ordered"; an Intercept in the ship's own orbit "*target* is in this ship's orbit, so it can only rendezvous". The laps readout (PLNR-40) says "1 lap" for one. A delta-v that rounds up to 1 km/s reads "1.0 km/s", not "1.00" (UNIT-04).
+- **Affects:** PLNR-92, PLNR-40, UNIT-04 · **Type:** spec gap
 - **Disposition:** open. Accept, or give the words.
 
 ### F-184 · How the search fills the gaps in its rules
-- **Observation:** The build chose these where PLNR-80 to PLNR-87 are silent. A slider's settings are its start plus whole steps, and its end. Refining a preset (PLNR-86) solves those settings within one grid spacing of the sample; if none qualifies (no affordable one for Fastest), the setting nearest the sample is kept. Cheapest is refined by least delta-v alone, as PLNR-86 says, without PLNR-84's tie rule. A phasing leg's meetings are already all on the grid, so nothing is refined. A low-thrust drive's fixed travel time is the one its leg takes when leaving today. A phasing leg's meetings are the *k* whose own orbit fits (PHAS-08), solved with no budget, so a meeting the ship can't afford is still a position, coloured over budget. When nothing on the grid can be planned, the reason shown is the one the solver gave most often. The headless test that searches twice in Corvane, app start included, runs in about 30 ms.
+- **Observation:** The build chose these where PLNR-80 to PLNR-87 are silent. A Travel time slider's settings are its start plus whole steps, and its end. Refining a preset (PLNR-86) solves those settings within one grid spacing of the sample; if none qualifies (no affordable one for Fastest), the setting nearest the sample is kept. Cheapest is refined by least delta-v alone, as PLNR-86 says, without PLNR-84's tie rule. A phasing leg's meetings are already all on the grid, so nothing is refined. A low-thrust drive's fixed travel time is the one its leg takes when leaving today. A phasing leg's meetings are the *k* whose own orbit fits (PHAS-08), solved with no budget, so a meeting the ship can't afford is still a position, coloured over budget. When nothing on the grid can be planned, the reason shown is the one the solver gave most often. The headless test that searches twice in Corvane, app start included, runs in about 30 ms.
 - **Affects:** PLNR-23, PLNR-82, PLNR-84, PLNR-86, PLNR-40, PLNR-12 · **Type:** spec gap
 - **Disposition:** open. Accept.
 
@@ -119,8 +114,8 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Disposition:** open. Accept, or ask for a replace in the simulation's order API.
 
 ### F-196 · How the sliders behave where the spec is silent
-- **Observation:** A phasing leg's meetings sit evenly along the track, one position each, not by time. A slider keeps keyboard focus until a press on the map. The thumb is centred on its setting, so it overhangs the track by half its width at each end. The Depart range's start moves once a game day, with the search (PLNR-87), while a depart day in the past moves to today at once (PLNR-24). Each new day runs a full search (the grid's 2,160 solves and the presets), so at fast clock rates the planner searches several times a second.
-- **Affects:** PLNR-23, PLNR-24, PLNR-40, PLNR-87 · **Type:** spec gap
+- **Observation:** A phasing leg's meetings sit evenly along the track, one position each, not by time. A slider keeps keyboard focus until a press on the map. The thumb is centred on its setting, so it overhangs the track by half its width at each end.
+- **Affects:** PLNR-23, PLNR-40 · **Type:** spec gap
 - **Disposition:** open. Accept.
 
 ### F-197 · Orison can't reach Iver, so its tracks are all orange
@@ -197,16 +192,6 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** The orbit rings, tails, exposure rings and the belt are world lines drawn under the whole overlay, so the cue's arms and lower half, though under every body, lie over them. Labels don't keep clear of the cue: the label halo breaks it where they cross, as for rings. A frame body's label can sit across the upper half of the vertical axis, as Morrow X's does when the label goes above it.
 - **Affects:** REF-09, MRK-12, LBL-01 · **Type:** spec gap
 - **Disposition:** open. Accept.
-
-### F-213 · The planner flickers while the clock runs
-- **Observation:** Seen in play, round Earth. With the clock running, the planner's tracks, presets and readouts change wildly while the player tunes. PLNR-03 keeps the clock running, PLNR-24 moves the Depart range with today, and PLNR-87 recomputes the grid each game day. At a fast rate that is many times a second, and round a Low band (94.5 min) even one day moves the window by many laps, so the picture never holds still.
-- **Affects:** PLNR-03, PLNR-24, PLNR-87 · **Type:** spec wrong
-- **Disposition:** open. Options: pause the clock while the planner is open; freeze the panel's "today" until the player asks to refresh; or recompute at most every few real seconds and keep the depart day fixed in absolute time. **Direction from the user (2026-10-16):** the game runs at about 1 d/s, so the Depart slider needs no steps finer than a day. "Depart now" should mean "depart as soon as it makes sense": the ship may wait up to a few hours (a lap or so of its orbit) for a good departure, so the soonest setting is a short window, not the present instant. Turn this into spec changes to PLNR-21, PLNR-23, PLNR-24 and PLNR-80 (and PHAS-03's departure wait).
-
-### F-214 · "Path passes too close" interrupts tuning
-- **Observation:** Seen in play, round Earth. Moving a slider keeps landing on settings the solver rejects with "Path passes too close to Earth" (XFER-07, PLNR-92). Each one swaps the readouts for the reason line and drops the path, so tuning becomes a run of interruptions rather than a sweep. Round a planet's own bands most settings are rejected (F-180), so it happens constantly.
-- **Affects:** PLNR-27, PLNR-28, PLNR-31, PLNR-92, XFER-07 · **Type:** spec wrong
-- **Disposition:** open. Options: keep the last flyable path and readouts shown, dimmed, with the reason as one line beneath; let the slider skip rejected settings or snap to the nearest flyable one; make the rejected stretches of each track obvious (PLNR-28 already gives them the empty colour); and revisit XFER-07's Low band limit for arcs within a planet's frame (F-180).
 
 ### F-215 · The paths' marks and the frame cue shared layers
 - **Observation:** The frame cue's arms and the paths' start dots were both drawn one layer below the bodies, and the cue's "N" and the ghosts both just below them, so which drew on top was undefined. The spec puts both the cue and the paths "above the rings" without ordering them. The build now draws, from the bottom: the cue's arms and lower axis, its "N", the paths' dots, the ghosts, then the bodies. Every layer is now named in `view/layers.rs`.
