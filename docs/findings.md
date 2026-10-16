@@ -2,7 +2,7 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-246.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-249.
 
 ---
 
@@ -183,6 +183,21 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** INS-05 opens the path to the selection only when the selection changes. A selected ship that arrives at another body would then drop out of the outline, because its new parent and orbit row are still collapsed. The build also opens the new path (the parent entry and the named orbit's row) when the selected body's parent or named orbit changes, and scrolls it into view; other entries keep their state. That scroll can override where the player had scrolled the outline, on departure and on arrival.
 - **Affects:** INS-05, RAIL-09 · **Type:** spec gap
 - **Disposition:** open. Accept and say so in INS-05, or open the path without scrolling.
+
+### F-246 · The object pip sits too far from its parent
+- **Observation:** In play, the pip reads as slightly detached from its planet. GRP-12 centres it `h + object_pip_gap_px` right of and below the parent's centre, so it clears the parent's marker by the gap.
+- **Affects:** GRP-12 · **Type:** spec wrong
+- **Disposition:** open. Seen by the user in play (build 776cc34), who says it is minor. Bring the pip closer; letting it overlap the parent's marker would be fine and makes the link clearer.
+
+### F-247 · A double-click with nothing selected misses its object
+- **Observation:** In play, with nothing selected, a double-click on an object doesn't work. The first click selects it and opens the inset (INS-01), and the map area narrows and slides (INS-07). That moves the object away from the pointer before the second click lands, so the second click falls elsewhere and ZOOM-16 never fires.
+- **Affects:** ZOOM-16, INS-07, INS-01 · **Type:** bug
+- **Disposition:** open. Seen by the user in play (build 776cc34). Options: treat the second click of a double-click as hitting what the first click hit, or hold the map still until the double-click time has passed.
+
+### F-248 · A popped marker holding one thing looks like a group
+- **Observation:** In play, when the pip pops out into the fold marker, it shows a back frame (MUL-01) even when the parent holds only one thing, so a single ship reads as a group.
+- **Affects:** MUL-01, GRP-12, GRP-13 · **Type:** spec wrong
+- **Disposition:** open. Seen by the user in play (build 776cc34). A popped marker holding one thing should show no group indicator. Mock-up 27 shows it that way.
 
 ## Parked
 
