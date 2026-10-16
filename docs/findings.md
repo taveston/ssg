@@ -2,7 +2,7 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-213.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-215.
 
 ---
 
@@ -197,6 +197,16 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** The orbit rings, tails, exposure rings and the belt are world lines drawn under the whole overlay, so the cue's arms and lower half, though under every body, lie over them. Labels don't keep clear of the cue: the label halo breaks it where they cross, as for rings. A frame body's label can sit across the upper half of the vertical axis, as Morrow X's does when the label goes above it.
 - **Affects:** REF-09, MRK-12, LBL-01 · **Type:** spec gap
 - **Disposition:** open. Accept.
+
+### F-213 · The planner flickers while the clock runs
+- **Observation:** Seen in play, round Earth. With the clock running, the planner's tracks, presets and readouts change wildly while the player tunes. PLNR-03 keeps the clock running, PLNR-24 moves the Depart range with today, and PLNR-87 recomputes the grid each game day. At a fast rate that is many times a second, and round a Low band (94.5 min) even one day moves the window by many laps, so the picture never holds still.
+- **Affects:** PLNR-03, PLNR-24, PLNR-87 · **Type:** spec wrong
+- **Disposition:** open. Options: pause the clock while the planner is open; freeze the panel's "today" until the player asks to refresh; or recompute at most every few real seconds and keep the depart day fixed in absolute time.
+
+### F-214 · "Path passes too close" interrupts tuning
+- **Observation:** Seen in play, round Earth. Moving a slider keeps landing on settings the solver rejects with "Path passes too close to Earth" (XFER-07, PLNR-92). Each one swaps the readouts for the reason line and drops the path, so tuning becomes a run of interruptions rather than a sweep. Round a planet's own bands most settings are rejected (F-180), so it happens constantly.
+- **Affects:** PLNR-27, PLNR-28, PLNR-31, PLNR-92, XFER-07 · **Type:** spec wrong
+- **Disposition:** open. Options: keep the last flyable path and readouts shown, dimmed, with the reason as one line beneath; let the slider skip rejected settings or snap to the nearest flyable one; make the rejected stretches of each track obvious (PLNR-28 already gives them the empty colour); and revisit XFER-07's Low band limit for arcs within a planet's frame (F-180).
 
 ## Parked
 
