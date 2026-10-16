@@ -173,6 +173,16 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** LBL-01, HOV-07 · **Type:** spec gap
 - **Disposition:** open. Accept.
 
+### F-208 · In a planet's frame the leader can point away from the path
+- **Observation:** SYM-11 points the leader along the velocity relative to the star, as built. In a planet's frame the drawn path is relative to the planet, so a ship leaving Halden IV for Halden IVa has a leader along Halden IV's own orbital motion (at the 24 px cap) while its path runs the other way on screen. Every ship near that planet shows much the same leader.
+- **Affects:** SYM-11, PLNR-60 · **Type:** spec wrong
+- **Disposition:** open. Consider velocity relative to the frame body, so the leader agrees with the path drawn.
+
+### F-209 · Small choices on the velocity leader
+- **Observation:** The leader is `symbol_stroke_px` wide, in the symbol's colour, and fades with the symbol. It starts at the outer edge of the frame's outline in its direction, so off a diamond's side it starts nearer the centre than off a point. It is not a hover target, and labels don't keep clear of it. A ship moving straight along the line of sight has no leader, as it has no direction on screen.
+- **Affects:** SYM-11, LBL-01 · **Type:** spec gap
+- **Disposition:** open. Accept.
+
 ## Parked
 
 ### F-145 · An intercept needs a standoff distance

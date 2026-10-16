@@ -472,3 +472,101 @@ fn an_intercept_draws_its_coast_up_to_its_event() {
         assert!((gap - tunables.consequence_gap_px).abs() < 0.1, "gap {gap}");
     }
 }
+
+/// The leader holder of `body`'s symbol: whether it shows, its clockwise
+/// angle from screen up, and its bar's top and height in pixels.
+fn leader_of(app: &mut App, body: Entity) -> (bool, f32, f32, f32) {
+    use crate::view::leaders::{Leader, LeaderBar};
+    let mut holders = app
+        .world_mut()
+        .query::<(&Leader, &Node, &UiTransform, &Children)>();
+    let (shown, angle, bar) = holders
+        .iter(app.world())
+        .find(|(leader, ..)| leader.body == body)
+        .map(|(_, node, transform, children)| {
+            (
+                node.display != Display::None,
+                transform.rotation.as_radians(),
+                children[0],
+            )
+        })
+        .expect("a leader");
+    assert!(app.world().get::<LeaderBar>(bar).is_some());
+    let node = app.world().get::<Node>(bar).unwrap();
+    let (Val::Px(top), Val::Px(height)) = (node.top, node.height) else {
+        return (shown, angle, 0.0, 0.0);
+    };
+    (shown, angle, top, height)
+}
+
+/// SYM-11: Orison in flight to Iver has a leader that starts at the edge
+/// of its circle frame, points the way its symbol moves across the screen
+/// and is as long as its speed relative to the star says; a parked ship
+/// has none, and nor has a stale track.
+#[test]
+fn a_ship_in_flight_has_a_velocity_leader_the_way_it_moves() {
+    use crate::sim::rail::km_per_day_to_km_per_s;
+    use crate::sim::track::Track;
+    use crate::sim::velocity::FlightVelocities;
+    use crate::view::leaders::{LeadersPlugin, leader_length_px};
+    use crate::view::plot_marks::screen_angle;
+
+    let mut app = symbols_app_with(|app| {
+        app.add_plugins((PlannerPlugin, PathsPlugin, LeadersPlugin))
+            .init_resource::<crate::view::camera::requests::PlanetaryViewRequest>();
+    });
+    let orison = plan_orison_to_intercept_iver(&mut app);
+    // Parked before it leaves: no leader.
+    assert!(!leader_of(&mut app, orison).0);
+    schedule(&mut app, 0);
+    let leave = crate::view::countdown::leave_day(app.world().get::<Plan>(orison).unwrap().leg());
+    let crossing = app
+        .world()
+        .get::<Plan>(orison)
+        .unwrap()
+        .leg()
+        .crossing_end_day;
+    let today = app.world().resource::<GameClock>().elapsed_days();
+    skip_days(&mut app, (leave - today) + (crossing - leave) * 0.4);
+    assert!(app.world().get::<InFlight>(orison).is_some());
+    app.world_mut().resource_mut::<Selection>().clear();
+    run(&mut app, 3);
+
+    let (shown, angle, top, height) = leader_of(&mut app, orison);
+    assert!(shown);
+    // Its length is its speed relative to the star's.
+    let mut state = bevy::ecs::system::SystemState::<FlightVelocities>::new(app.world_mut());
+    let velocity = state.get(app.world()).unwrap().of(orison).unwrap();
+    let speed = km_per_day_to_km_per_s(velocity.length()) as f32;
+    let tunables = app.world().resource::<Tunables>().clone();
+    assert!((height - leader_length_px(speed, &tunables).unwrap()).abs() < 1e-3);
+    // It hangs from the frame's edge: an own ship's circle reaches the
+    // edge of its square, so the bar ends at the holder's top.
+    assert!((top + height).abs() < 1e-3, "{top} + {height}");
+
+    // It points the way the ship moves on screen over a short time (the
+    // unsnapped projection: a whole-pixel symbol moves in steps).
+    let world = |app: &App| app.world().resource::<WorldPositions>().0[&orison];
+    let start = world(&app);
+    skip_days(&mut app, 2.0);
+    let end = world(&app);
+    let (before, after) = (
+        project(&mut app, start).unwrap(),
+        project(&mut app, end).unwrap(),
+    );
+    assert!(before.distance(after) > 0.5, "the ship moved on screen");
+    let moved = screen_angle(before, after);
+    let off = Rot2::radians(moved - angle).as_radians().abs();
+    assert!(off < 0.05, "leader at {angle}, motion at {moved}");
+
+    // A parked ship has none.
+    let ardent = body(&mut app, "Ardent");
+    assert!(!leader_of(&mut app, ardent).0);
+
+    // Nor has a stale track.
+    app.world_mut().get_mut::<ShipRecord>(orison).unwrap().track = Track::Stale {
+        last_observed_day: 0.0,
+    };
+    run(&mut app, 2);
+    assert!(!leader_of(&mut app, orison).0);
+}

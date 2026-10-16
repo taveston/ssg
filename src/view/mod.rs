@@ -37,6 +37,7 @@ pub mod hovered;
 pub mod inspect;
 pub mod labels;
 pub mod layers;
+pub mod leaders;
 pub mod marker_picking;
 pub mod markers;
 pub mod motion;
@@ -126,6 +127,7 @@ impl Plugin for ViewPlugin {
                 planner::PlannerPlugin,
                 paths::PathsPlugin,
                 paths::ghost::GhostMaterialPlugin,
+                leaders::LeadersPlugin,
             ));
     }
 }

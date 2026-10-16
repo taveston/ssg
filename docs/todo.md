@@ -12,8 +12,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **Velocity leaders** · SYM-11
-  - Ships in flight are drawn now (PLNR-68, `view/paths/`); SYM-11 adds the leader PLNR-68 names. `OW_SHOT`'s `fly` key shows a ship in flight.
 - [ ] **Label halo** · LBL-05
   - A 2 px ground-colour outline round every label's glyphs (`label_halo_px`), not a box. Mock-up 19, last board.
 - [ ] **Reference frame cue** · REF-01 to REF-10, MRK-01, MRK-12, CAM-25
