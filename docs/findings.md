@@ -26,26 +26,6 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Affects:** XFER-01, XFER-06, PLAN-13 · **Type:** spec gap
 - **Disposition:** open. Copy the choices that are fine into the spec.
 
-### F-150 · `double_click_window_ms` has no reader
-- **Observation:** The tunable existed so a single click on the flat "In orbit" list could wait out the double-click window before the inset was rebuilt under the pointer. The outline (INS-05) stays in place, so a click selects at once and double-clicks come from the picking backend's click count. Nothing reads the tunable now; it is kept in `Tunables` only because the spec's table lists it.
-- **Affects:** INS-05, tunables table · **Type:** spec gap
-- **Disposition:** open. Drop the tunable from the table, and the field with it.
-
-### F-151 · How a shared orbit's row is named in the outline
-- **Observation:** INS-05 names the row "by the parent and the orbit (for example "Halden IV · orbit · 3")". The build reads the example as parent, orbit name, member count: "Halden IV · High · 14". The star's root row has no toggle text other than its glyph, and gates and salvage sites, which orbit the star, are listed under it after the planets by orbit radius.
-- **Affects:** INS-05 · **Type:** spec gap
-- **Disposition:** open. Confirm the format, or say what the example meant.
-
-### F-153 · The shared-orbit row's name should be the orbit alone
-- **Observation:** The outline names a shared orbit's row "Halden IV · High · 14" (F-151's reading of INS-05). In play the body name is redundant under the body's own entry, and "High" on its own doesn't say what it refers to. The row should read "High orbit" or "Low orbit" (perhaps with the count).
-- **Affects:** INS-05 · **Type:** spec wrong
-- **Disposition:** open. Decide the row's text; F-151 can be closed with it.
-
-### F-154 · Orbit rows should appear even with one member, and perhaps when empty
-- **Observation:** The outline shows a named orbit's row only when it holds two or more members; a lone member is listed as a plain entry, and an empty band (Halden IV's Low, every other body's bands) is not shown at all, so no "Low" row appears anywhere. In play the rows should be there with a single member too, and it is worth deciding whether an empty band shows as a row (which would list two bands under every star, planet and moon).
-- **Affects:** INS-05, HOV-04 · **Type:** spec wrong
-- **Disposition:** open. Decided in play: empty bands never show; a named orbit with one member should still get its row. (Arden Highport now sits in Halden IV's Low band, TEST-10, so that band is not empty.)
-
 ### F-156 · BAND-04 does not say what happens when a band lies outside the Hill sphere
 - **Observation:** BAND-04 gives (Hill radius − *r*) ÷ escape speed, which goes negative when the orbit lies outside the Hill sphere. The build's `approach_days` returns 0 there, and also when the body has no Hill sphere or no gravity. The spec covers only "no massive body". In Corvane it matters: Morrow I's Low band (850 km) lies outside its Hill sphere (about 652 km at rock density 3,000 kg/m³).
 - **Affects:** BAND-04, BAND-01 · **Type:** spec gap

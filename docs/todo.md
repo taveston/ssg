@@ -24,6 +24,9 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 - [ ] **Edge-tab arrow outside the tab** · EDGE-03, MRK-15
   - Changes EDGE-03 and MRK-15 (their ✓ is cleared): the arrow leaves the tab. It sits at the pinned point on the map area's edge and the tab beside it on the inner side, so the arrow is outside the tab's outline. The parent's tab keeps its marker and name inside.
   - One change in `view/edge_tab.rs`, shared by the gates (`view/edge.rs`) and the parent (`view/parent_tab.rs`): take the chevron out of the tab node, and move it with the tab as `tab_origin` slides the tab along the edge, so arrow and tab together stay whole inside the map area. Gates and the parent keep the same look.
+- [ ] **Orbit rows in the outline** · INS-05
+  - Changes INS-05 (its ✓ is cleared). In `view/outline.rs`: drop the step in `children_of` that turns a one-member orbit back into a plain entry, so every named orbit with members gets its row. Name the row "High orbit · 14" (the orbit's name, "orbit", the member count) instead of "Halden IV · High · 14". An orbit with no members still gets no row.
+  - Tests: Halden IV's outline has "Low orbit · 1" (Arden Highport) and "High orbit" with its ships; a body with empty bands has no orbit rows; selecting a lone member opens its row.
 - [ ] **Condition bar** · SYM-12
   - The symbols are built; the bar adds to them (`view/symbols.rs`, `symbol_draw.rs`).
   - Build a group's mean as a function of its members' conditions, tested on its own, so **Ship groups** can use it.
@@ -69,6 +72,9 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - The build exempts every crossing that starts or ends in an orbit of the primary (`check_periapsis` in `src/sim/transfer/legs.rs`), so a High → Low arc to a station on the far side of the planet can pass through it. Replace the exemption with the Low band limit of the new XFER-07, and drop the F-148 comment.
   - The check also covers the coast after an Intercept: the conic the ship is left on (the turned one after an Intercept through Low, XFER-13) must not have its periapsis ahead inside the limit.
   - Tests: a far-side arc to a Low band is infeasible with "Path passes too close to *primary*" (PLNR-92); a near-side arc to a Low band, and a departure from one, are feasible. An Intercept in a planet's frame whose coast would dip below the Low band is infeasible. Arriving exactly at the Low radius must pass, so allow for rounding.
+
+- [ ] **Drop `double_click_window_ms`**
+  - The spec's tunables table no longer lists it: the outline selects on a single click at once (INS-05), and double-clicks use the picking backend's click count. Delete the field, its default and its `#[allow(dead_code)]` from `view/tunables.rs`. No behaviour changes.
 
 ## Other
 
