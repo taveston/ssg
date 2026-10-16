@@ -2740,7 +2740,7 @@ fn an_exposure_ring_shows_its_period_and_a_chevron_the_way_it_runs() {
 
 /// The outline's rows, as the body or orbit each stands for, in order.
 fn outline_rows(app: &mut App) -> Vec<Entity> {
-    use crate::view::outline::OutlineRow;
+    use crate::view::inset::outline::OutlineRow;
     let mut rows = app.world_mut().query::<(Entity, &OutlineRow)>();
     let mut listed: Vec<(Entity, Entity)> = rows.iter(app.world()).map(|(e, r)| (e, r.0)).collect();
     listed.sort_by_key(|(e, _)| e.index_u32());
@@ -2778,7 +2778,7 @@ fn click_node(app: &mut App, node: Entity, count: u8) {
 #[test]
 fn the_outline_shows_the_system_tree_and_opens_the_selections_path() {
     use crate::view::camera::requests::PlanetaryViewRequest;
-    use crate::view::outline::{Expanded, OutlinePlugin, OutlineRoot, OutlineRow};
+    use crate::view::inset::outline::{Expanded, OutlinePlugin, OutlineRoot, OutlineRow};
 
     let mut app = headless_app(FRAME);
     app.add_plugins((ContentPlugin, SimPlugin, TunablesPlugin, OutlinePlugin))
@@ -2892,9 +2892,9 @@ fn the_outline_shows_the_system_tree_and_opens_the_selections_path() {
 /// opens its row in that same outline.
 #[test]
 fn the_sidebar_keeps_its_outline_across_selections() {
-    use crate::view::fidelity::FidelityImages;
-    use crate::view::inspect::{InsetPanel, InspectPlugin};
-    use crate::view::outline::{OutlinePlugin, OutlineRoot};
+    use crate::view::inset::fidelity::FidelityImages;
+    use crate::view::inset::inspect::{InsetPanel, InspectPlugin};
+    use crate::view::inset::outline::{OutlinePlugin, OutlineRoot};
     use crate::view::sidebar::SidebarPlugin;
 
     let mut app = headless_app(FRAME);
@@ -2974,11 +2974,11 @@ fn the_sidebar_keeps_its_outline_across_selections() {
 #[test]
 fn key_facts_are_label_over_value_pairs_under_headed_sections() {
     use crate::view::colors;
-    use crate::view::fidelity::FidelityImages;
-    use crate::view::inspect::{
+    use crate::view::inset::fidelity::FidelityImages;
+    use crate::view::inset::inspect::{
         FactLabel, FactValue, Hairline, InsetPanel, InspectPlugin, SectionHeading,
     };
-    use crate::view::outline::OutlinePlugin;
+    use crate::view::inset::outline::OutlinePlugin;
     use crate::view::sidebar::SidebarPlugin;
 
     let mut app = headless_app(FRAME);

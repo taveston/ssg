@@ -4,12 +4,12 @@
 //! slides in and out with the selection (`sidebar.rs` holds the slide;
 //! the map area follows it). The details
 //! are rebuilt in place whenever the selection changes; the "In orbit"
-//! outline below them (`outline.rs`) is built once and refilled. Content
+//! outline below them (`inset/outline.rs`) is built once and refilled. Content
 //! taller than the sidebar scrolls inside it, and the wheel over it scrolls
 //! it instead of zooming the map.
 //!
 //! The details are built from an `InsetContent` - plain values gathered
-//! from the body (`inset_content.rs`) - by one helper per section, so
+//! from the body (`inset/content.rs`) - by one helper per section, so
 //! what an inset says can be tested apart from how it is laid out. Key
 //! facts are label-over-value pairs in wrapping rows, and each section
 //! below them has a heading in small spaced capitals over a hairline
@@ -25,30 +25,28 @@ use bevy::ecs::system::SystemParam;
 use bevy::input::mouse::{AccumulatedMouseScroll, MouseScrollUnit};
 use bevy::prelude::*;
 
-use super::layers;
+use crate::view::layers;
 
-use super::bindings::{Bindings, pressed};
-use super::buttons::{ButtonStyle, ConsoleButton, spawn_button};
-use super::camera::requests::FrameRequest;
-use super::colors;
+use super::content::{InsetBodies, InsetContent, InsetImage, gather_content, offers_transfer};
 use super::fidelity::FidelityImages;
-use super::fonts::Fonts;
-use super::inset_content::{
-    InsetBodies, InsetContent, InsetImage, gather_content, offers_transfer,
-};
-use super::motion_mode::MotionModeState;
 use super::outline::OutlineRoot;
-use super::planner_state::PlannerState;
-use super::planner_words::TRANSFER;
-use super::selection::Selection;
-use super::sidebar::SidebarState;
-use super::targets::{MapInputBlocker, PointerTargets};
-use super::topbar::TOP_BAR_HEIGHT_PX;
-use super::tunables::Tunables;
 use crate::sim::group::ShipGroup;
 use crate::sim::named_orbit::InNamedOrbit;
 use crate::sim::ship::InFlight;
 use crate::sim::transfer::plan::Plan;
+use crate::view::bindings::{Bindings, pressed};
+use crate::view::buttons::{ButtonStyle, ConsoleButton, spawn_button};
+use crate::view::camera::requests::FrameRequest;
+use crate::view::colors;
+use crate::view::fonts::Fonts;
+use crate::view::motion_mode::MotionModeState;
+use crate::view::planner_state::PlannerState;
+use crate::view::planner_words::TRANSFER;
+use crate::view::selection::Selection;
+use crate::view::sidebar::SidebarState;
+use crate::view::targets::{MapInputBlocker, PointerTargets};
+use crate::view::topbar::TOP_BAR_HEIGHT_PX;
+use crate::view::tunables::Tunables;
 use crate::{Boot, Stage};
 
 /// The sidebar panel, which slides and scrolls (INS-07).
@@ -195,7 +193,7 @@ fn spawn_sidebar(mut commands: Commands, tunables: Res<Tunables>, fonts: Res<Fon
                 },
             ));
             // INS-05 / INS-09: the "In orbit" section; the outline fills
-            // itself (`outline.rs`).
+            // itself (`inset/outline.rs`).
             spawn_section_heading(panel, (&fonts, &tunables), "In orbit");
             panel.spawn((
                 OutlineRoot,

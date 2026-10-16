@@ -1,14 +1,10 @@
 //! What an inset says (INS-02, INS-04, INS-08, PLNR-01, PLNR-05), as
 //! plain values gathered from the selected body: its name, class line,
 //! image, description and key facts, and whether it is a ship the
-//! faction commands. `inspect.rs` lays them out.
+//! faction commands. `inset/inspect.rs` lays them out.
 
 use bevy::prelude::*;
 
-use super::planner_words::{DELTA_V, DRIVE, delta_v_fact};
-use super::readout::{format_distance, format_duration};
-use super::symbols::ownership_text;
-use super::tunables::Tunables;
 use crate::sim::body::{
     Affiliation, BodyClass, Description, DisplayName, KeyFacts, Knowledge, PhysicalRadius,
     StellarMass,
@@ -19,6 +15,10 @@ use crate::sim::ship::{DeltaV, Drive};
 use crate::sim::track::ShipRecord;
 use crate::sim::transfer::plan::Status;
 use crate::sim::units::SOLAR_MASS_KG;
+use crate::view::planner_words::{DELTA_V, DRIVE, delta_v_fact};
+use crate::view::readout::{format_distance, format_duration};
+use crate::view::symbols::ownership_text;
+use crate::view::tunables::Tunables;
 
 /// INS-02: the class line's readable class name.
 pub fn class_label(class: BodyClass) -> &'static str {

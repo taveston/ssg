@@ -21,21 +21,21 @@ use std::collections::{HashMap, HashSet};
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
-use super::camera::requests::{FrameRequest, PlanetaryViewRequest};
-use super::colors;
-use super::fonts::Fonts;
-use super::frame::Frame;
-use super::hover::double_click;
-use super::markers::draw::{BodyLook, MarkerAssets, spawn_list_icon};
-use super::planner_state::{PickTarget, PlannerState};
-use super::selection::Selection;
-use super::tunables::Tunables;
 use crate::Stage;
 use crate::sim::body::{Affiliation, BodyClass, DisplayName};
 use crate::sim::group::ShipGroup;
 use crate::sim::named_orbit::{InNamedOrbit, NamedOrbit};
 use crate::sim::orbit::Orbit;
 use crate::sim::track::ShipRecord;
+use crate::view::camera::requests::{FrameRequest, PlanetaryViewRequest};
+use crate::view::colors;
+use crate::view::fonts::Fonts;
+use crate::view::frame::Frame;
+use crate::view::hover::double_click;
+use crate::view::markers::draw::{BodyLook, MarkerAssets, spawn_list_icon};
+use crate::view::planner_state::{PickTarget, PlannerState};
+use crate::view::selection::Selection;
+use crate::view::tunables::Tunables;
 
 const ENTRY_GAP_PX: f32 = 6.0;
 /// One generation's indent.

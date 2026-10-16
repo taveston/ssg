@@ -25,7 +25,6 @@ pub mod date;
 pub mod debug_shot;
 pub mod edge;
 pub mod edge_tab;
-pub mod fidelity;
 pub mod fold;
 pub mod fonts;
 pub mod frame;
@@ -35,14 +34,12 @@ pub mod grouping;
 pub mod halo;
 pub mod hover;
 pub mod hovered;
-pub mod inset_content;
-pub mod inspect;
+pub mod inset;
 pub mod layers;
 pub mod markers;
 pub mod motion;
 pub mod motion_mode;
 pub mod node_box;
-pub mod outline;
 pub mod parent_tab;
 pub mod paths;
 pub mod planner;
@@ -82,7 +79,7 @@ impl Plugin for ViewPlugin {
                 tunables::TunablesPlugin,
                 bindings::BindingsPlugin,
                 fonts::FontsPlugin,
-                fidelity::FidelityPlugin,
+                inset::fidelity::FidelityPlugin,
                 projection::ProjectionPlugin,
                 belt::BeltPlugin,
                 camera::CameraPlugin,
@@ -108,8 +105,8 @@ impl Plugin for ViewPlugin {
                 markers::MarkersPlugin,
                 markers::pills::PillsPlugin,
                 hover::HoverPlugin,
-                inspect::InspectPlugin,
-                outline::OutlinePlugin,
+                inset::inspect::InspectPlugin,
+                inset::outline::OutlinePlugin,
                 topbar::TopBarPlugin,
             ))
             .add_plugins((

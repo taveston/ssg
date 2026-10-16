@@ -2,7 +2,7 @@
 //! and how far it has slid in. Shared state, read by everything that
 //! lays out against the map area (ARCH-03): the camera's viewport, the
 //! fits, the pan clamp, the edge tabs and the plot marks. The panel
-//! itself is `inspect.rs`.
+//! itself is `inset/inspect.rs`.
 //!
 //! The sidebar opens with a selection and closes with none; the slide
 //! runs over `sidebar_slide_ms`, and while it runs the map area follows

@@ -15,7 +15,7 @@ use crate::sim::transfer::presets::Preset;
 use crate::view::buttons::{ButtonStyle, ConsoleButton, spawn_button};
 use crate::view::colors;
 use crate::view::fonts::Fonts;
-use crate::view::inspect::{InsetPanel, spawn_spaced_capitals};
+use crate::view::inset::inspect::{InsetPanel, spawn_spaced_capitals};
 use crate::view::planner_state::{PlannerState, SliderKind};
 use crate::view::planner_words::{
     CANCEL, CHANGE, CHEAPEST, CHOOSE_PROMPT, DELTA_V, DELTA_V_TOOLTIP, FASTEST, HEADING, HIGH,

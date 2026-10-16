@@ -1,5 +1,5 @@
 //! The transfer planner's panel (`docs/spec/planner.md` sections 1 to 5):
-//! the inset's Transfer button opens it for a ship (`inspect.rs`); the
+//! the inset's Transfer button opens it for a ship (`inset/inspect.rs`); the
 //! player picks a destination on the map or in the outline, tunes Depart
 //! and Travel time, and schedules the order. The rules are the
 //! simulation's (`sim/transfer/`); this module decides when to ask them

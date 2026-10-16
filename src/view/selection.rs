@@ -1,7 +1,7 @@
 //! Selection: the one object whose inspection inset is open (INS-01,
 //! INS-03). Shared state, read by everything that highlights the selected
 //! object (ARCH-03); clicks in `hover.rs`, the inset's buttons in
-//! `inspect.rs` and a click on empty map space change it.
+//! `inset/inspect.rs` and a click on empty map space change it.
 //!
 //! Selection never moves the camera; the reference frame does (CAM-05).
 
