@@ -485,6 +485,10 @@ fn gather_obstacles(
     obstacles
 }
 
+/// A label to place this frame: its node, its candidacy, and the shift
+/// from its node's parent corner to its marker box's corner.
+type LabelEntry = (Entity, Candidate, Vec2);
+
 /// LBL-01 to LBL-04: gather this frame's markers and their labels, place
 /// the labels, and write each label's place, second line, fade and
 /// pickability.
@@ -511,10 +515,63 @@ fn place_marker_labels(
     let margin = tunables.bracket_margin_px;
     let obstacle_rects = gather_obstacles(&marker_rects, &obstacles, margin);
 
-    // Each shown marker's label is a candidate; its sizes are last
-    // frame's layout, in logical pixels.
-    let mut entries: Vec<(Entity, Candidate, Vec2)> = Vec::new();
-    for (label, child_of, computed, _, state, _) in &labels {
+    let mut entries = marker_label_entries(&labels, &marker_rects, &ranking, &second_lines);
+    entries.extend(ring_label_entries(
+        (&ring_labels, &second_lines),
+        &obstacles.1,
+        &ranking,
+        margin,
+    ));
+    entries.extend(path_label_entries(&path_labels));
+    let candidates: Vec<Candidate> = entries.iter().map(|(_, c, _)| *c).collect();
+    let placements = place_labels(&candidates, &obstacle_rects, tunables.label_gap_px);
+    let step = step_per_frame(time.delta_secs(), tunables.label_fade_ms);
+    hide_unused_path_labels(&mut path_labels);
+
+    for (entry, wanted) in entries.into_iter().zip(placements) {
+        let label = entry.0;
+        let found = if let Ok((.., node, state, visibility)) = labels.get_mut(label) {
+            Some((node, state, visibility))
+        } else if let Ok((.., node, state, visibility)) = ring_labels.get_mut(label) {
+            Some((node, state, visibility))
+        } else {
+            path_labels
+                .get_mut(label)
+                .ok()
+                .map(|(.., node, state, visibility)| (node, state, visibility))
+        };
+        let Some((mut node, mut state, mut visibility)) = found else {
+            continue;
+        };
+        let fade = LabelFade { wanted, step };
+        let (alpha, full) = write_label(
+            (&mut node, &mut state, &mut visibility),
+            &entry,
+            fade,
+            tunables.label_gap_px,
+        );
+        show_second_line(label, full, &mut second_lines);
+        // The marker's fade has already been written to the text; the
+        // label's own fade multiplies it.
+        for (text_of, mut color) in &mut colors {
+            if text_of.parent() == label {
+                let faded = color.0.with_alpha(color.0.alpha() * alpha);
+                color.0 = faded;
+            }
+        }
+    }
+}
+
+/// Each shown marker's label as a candidate beside its marker's box; its
+/// sizes are last frame's layout, in logical pixels.
+fn marker_label_entries(
+    labels: &Labels,
+    marker_rects: &[MarkerBox],
+    ranking: &Ranking,
+    second_lines: &SecondLines,
+) -> Vec<LabelEntry> {
+    let mut entries = Vec::new();
+    for (label, child_of, computed, _, state, _) in labels {
         let Some(&(_, body, marker, shift)) =
             marker_rects.iter().find(|(m, ..)| *m == child_of.parent())
         else {
@@ -523,7 +580,7 @@ fn place_marker_labels(
         let Some((rank, depth, pinned)) = ranking.of(body) else {
             continue;
         };
-        let (full_size, second) = label_sizes(label, computed, &second_lines);
+        let (full_size, second) = label_sizes(label, computed, second_lines);
         entries.push((
             label,
             Candidate {
@@ -539,78 +596,59 @@ fn place_marker_labels(
             shift,
         ));
     }
-    entries.extend(ring_label_entries(
-        (&ring_labels, &second_lines),
-        &obstacles.1,
-        &ranking,
-        margin,
-    ));
-    entries.extend(path_label_entries(&path_labels));
-    let candidates: Vec<Candidate> = entries.iter().map(|(_, c, _)| *c).collect();
-    let placements = place_labels(&candidates, &obstacle_rects, tunables.label_gap_px);
-    let step = step_per_frame(time.delta_secs(), tunables.label_fade_ms);
-    hide_unused_path_labels(&mut path_labels);
+    entries
+}
 
-    for ((label, candidate, shift), wanted) in entries.into_iter().zip(placements) {
-        let found = if let Ok((.., node, state, visibility)) = labels.get_mut(label) {
-            Some((node, state, visibility))
-        } else if let Ok((.., node, state, visibility)) = ring_labels.get_mut(label) {
-            Some((node, state, visibility))
+/// Where a label wants to be this frame and how far its fade moves.
+#[derive(Clone, Copy)]
+struct LabelFade {
+    wanted: Option<Placement>,
+    step: f32,
+}
+
+/// LBL-01 / LBL-04: move a label's fade towards where it wants to be and
+/// place its node beside its box. A hidden label is neither drawn nor
+/// picked. Returns the label's alpha and whether it shows in full.
+fn write_label(
+    (node, state, visibility): (&mut Mut<Node>, &mut Mut<LabelState>, &mut Mut<Visibility>),
+    (_, candidate, shift): &LabelEntry,
+    fade: LabelFade,
+    gap: f32,
+) -> (f32, bool) {
+    let (alpha, shown) = advance_fade(state.alpha, state.shown, fade.wanted, fade.step);
+    if (state.alpha, state.shown) != (alpha, shown) {
+        **state = LabelState { shown, alpha };
+    }
+    if let Some(placement) = shown {
+        let size = if placement.full {
+            candidate.full_size
         } else {
-            path_labels
-                .get_mut(label)
-                .ok()
-                .map(|(.., node, state, visibility)| (node, state, visibility))
+            candidate.name_size
         };
-        let Some((mut node, mut state, mut visibility)) = found else {
-            continue;
-        };
-        let (alpha, shown) = advance_fade(state.alpha, state.shown, wanted, step);
-        if (state.alpha, state.shown) != (alpha, shown) {
-            *state = LabelState { shown, alpha };
-        }
-        let full = shown.is_none_or(|p| p.full);
-        if let Some(placement) = shown {
-            let size = if placement.full {
-                candidate.full_size
+        let offset = *shift + label_offset(candidate.marker.size(), size, placement.slot, gap);
+        node.left = px(offset.x);
+        node.top = px(offset.y);
+    }
+    visibility.set_if_neq(if alpha > 0.0 {
+        Visibility::Inherited
+    } else {
+        Visibility::Hidden
+    });
+    (alpha, shown.is_none_or(|p| p.full))
+}
+
+/// SYM-13 / LBL-03: a label's second line shows only while the label is
+/// in full; an empty one (nothing applies) takes no room.
+fn show_second_line(label: Entity, full: bool, second_lines: &mut SecondLines) {
+    for (line_of, _, mut line, text) in second_lines {
+        if line_of.parent() == label {
+            let display = if full && !text.0.is_empty() {
+                Display::Flex
             } else {
-                candidate.name_size
+                Display::None
             };
-            let offset = shift
-                + label_offset(
-                    candidate.marker.size(),
-                    size,
-                    placement.slot,
-                    tunables.label_gap_px,
-                );
-            node.left = px(offset.x);
-            node.top = px(offset.y);
-        }
-        // A hidden label is neither drawn nor picked.
-        visibility.set_if_neq(if alpha > 0.0 {
-            Visibility::Inherited
-        } else {
-            Visibility::Hidden
-        });
-        // SYM-13: an empty second line (nothing applies) takes no room.
-        for (line_of, _, mut line, text) in &mut second_lines {
-            if line_of.parent() == label {
-                let display = if full && !text.0.is_empty() {
-                    Display::Flex
-                } else {
-                    Display::None
-                };
-                if line.display != display {
-                    line.display = display;
-                }
-            }
-        }
-        // The marker's fade has already been written to the text; the
-        // label's own fade multiplies it.
-        for (text_of, mut color) in &mut colors {
-            if text_of.parent() == label {
-                let faded = color.0.with_alpha(color.0.alpha() * alpha);
-                color.0 = faded;
+            if line.display != display {
+                line.display = display;
             }
         }
     }
