@@ -128,11 +128,6 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** PLNR-53, PLNR-62 · **Type:** spec gap
 - **Disposition:** open. Accept, or show the old path faintly.
 
-### F-200 · How the coast and traffic paths are drawn where the spec is silent
-- **Observation:** The coast of a traffic path (PLNR-62) is drawn at `traffic_path_alpha` too, at `consequence_width_px`. Every drawn path has its start dot, traffic included. The coast and its label are drawn only while their event is still ahead; once a coasting ship has passed it, only the crossing it flew is drawn, as PLNR-88 gives no later event. A hovered place's preview (PLNR-12) is a Rendezvous, so it has no coast.
-- **Affects:** PLNR-61, PLNR-62, PLNR-67, PLNR-88 · **Type:** spec gap
-- **Disposition:** open. Accept, or say what a coast shows after its event.
-
 ### F-201 · A ship that arrives in an orbit gets no tail
 - **Observation:** A named orbit's members are fixed at spawn (`shared_orbit.rs`, SCL-07). A ship that joins an orbit at the end of a Rendezvous gets its fold and motion state back (GRP-01, MOT-08), but it is not one of the orbit's members, so its ring draws no tail behind it (MRK-09) and hovering or clicking the ring doesn't reach it (HOV-02). If no one was in that orbit at the start, no ring is drawn at all. Leaving an orbit works: the ship drops out of the ring.
 - **Affects:** SCL-07, MRK-09, HOV-02, HOV-04 · **Type:** bug
@@ -142,21 +137,6 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** Dashes and dots are laid on screen from the start of the dashed part, so their length stays `path_dash_px` at any zoom (PLNR-61). In flight that start is the ship, which moves, so the dashes slide along the path as the ship flies and as the camera moves. Laying them from the path's end would hold them still while the ship flies, but not while the camera zooms.
 - **Affects:** PLNR-61 · **Type:** idea
 - **Disposition:** open. Watch in play; anchor the dashes to the arrival end if the crawl distracts.
-
-### F-203 · Small choices on the map marks
-- **Observation:** The ghost's and the coast's labels are in the data face at 12 px, a marker name's size. The coast's label sits beside its event's point as if beside a marker of no size. A ghost's dashes are `ghost_dash_px` long and as far apart, with their count rounded so they meet evenly round the circle. Paths are world lines like the orbit rings, so they pass under a true-size disc rather than over it (MRK-12 draws near arcs over discs only for rings).
-- **Affects:** PLNR-63, PLNR-65, PLNR-67, PLNR-69 · **Type:** spec gap
-- **Disposition:** open. Accept.
-
-### F-205 · Where the direction chevron sits exactly
-- **Observation:** MOT-14 doesn't say how "`chevron_gap_px` beyond the mark's edge" is measured on a curved ring. The build walks round the ring to the point whose straight-line distance from the mark's point is the mark's reach that way, plus the gap, plus half the arrowhead's length; the arrowhead has a right-angled tip, so it is half as long as it is wide. It turns along the ring there. A ring too small on screen to reach that far shows no chevron. The label moves to the mark's left only when the chevron's box would overlap the label's box on the right. On a selected moon the chevron sits close to the brackets.
-- **Affects:** MOT-14 · **Type:** spec gap
-- **Disposition:** open. Accept.
-
-### F-206 · How an exposure ring's label is placed
-- **Observation:** F-204 is fixed: a ring's label is now placed by LBL-01 to LBL-04 like any other label, so it keeps clear of other labels and pills and drops its period line first (LBL-03). Its gap is measured from the mark's box (HOV-07), and the chevron counts as part of the mark (MOT-14). Three choices the spec doesn't make. The whole label (name and period) is centred beside the mark, as a symbol's two-line label is; before, the name alone was centred on the ring point. On the mark's left the lines are left-aligned, as other labels are. A shared orbit's label ranks as its highest-ranked member, or as hovered while the orbit is hovered (LBL-02).
-- **Affects:** LBL-01, LBL-02, MOT-02, MOT-14 · **Type:** spec gap
-- **Disposition:** open. Accept.
 
 ### F-207 · Labels keep clear of other markers' boxes
 - **Observation:** LBL-01 says labels never overlap any marker. The build keeps every label clear of each marker's box (HOV-07, `bracket_margin_px` round it), not just the drawn marker, so the brackets round a hovered or selected marker never cross another object's label. Symbols already worked this way (SYM-13). In a crowded view a few more labels drop their second line or hide.
