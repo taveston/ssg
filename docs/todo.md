@@ -15,11 +15,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Fixes
 
-- [ ] **Tray: review fixes** · HOV-02, MUL-10
-  - Found in review of the tray item.
-  - The HOV-02 test (`headless_tests/tray.rs`) has no ring under the tray. Put one there and check a click hits the row.
-  - The row toggle (`tray/draw.rs`) skips `ClickCheck::selects`, so a press and move over it still opens or closes the row.
-
 ## Other
 
 - [ ] **Planner: clean-up after review**
@@ -39,6 +34,7 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - The marker box (HOV-07) is computed in both `tray/contents.rs` and `markers/brackets.rs`. Keep one function in `multi.rs`.
   - The four `MultiLook` builds could share constructors in `look.rs`.
   - Split the long functions: `spawn_tray` and `spawn_row` (about 85 and 90 lines), and `TrayInputs::line` (about 50).
+  - Headless test helpers: `the_window` is in both `headless_tests/camera.rs` and `tray.rs`, and `camera.rs` reads the `HoverMap` inline where `tray.rs` has `hovered()`. Share them in `headless_tests.rs`.
   - `overlap_clusters` now latches pairs of things, docked things included, so two overlapping stations with many ships docked give |a|·|b| pairs a frame. Fold this into the rework above, for example by latching lead things plus each unit's previous lead.
   - `rings/marks.rs` `sync_ring_marks` compares a lone body's mark (`MarkShows::Body`) by entity only, so a change in that body's look (its group face, its record) isn't redrawn. Compare its look inputs too.
   - `sync_ring_marks` has no branch for a ring whose owner leaves `rings.owners()`, so its mark would stay. Harmless while named orbits never go away; remove it when they can.
