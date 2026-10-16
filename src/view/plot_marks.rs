@@ -30,6 +30,16 @@ pub struct ScaleBarLine;
 #[derive(Component)]
 struct ScaleBarLength;
 
+/// The distance the scale bar stands for this frame, in km on the
+/// orbital plane, or 0 before it is first measured (MRK-16). The frame
+/// cue ticks its arms at its multiples (REF-05).
+#[derive(Resource, Default, Debug, Clone, Copy, PartialEq)]
+pub struct ScaleBarKm(pub f64);
+
+/// `ScaleBarKm` has been measured for this frame.
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ScaleBarMeasured;
+
 /// The north dial, the holder its head turns with, and its "N".
 #[derive(Component)]
 pub struct NorthDial;
@@ -87,14 +97,16 @@ pub struct PlotMarksPlugin;
 
 impl Plugin for PlotMarksPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Startup,
-            (spawn_scale_bar, spawn_north_dial).in_set(Boot::Overlay),
-        )
-        .add_systems(
-            Update,
-            (update_scale_bar, update_north_dial).in_set(Stage::Overlay),
-        );
+        app.init_resource::<ScaleBarKm>()
+            .add_systems(
+                Startup,
+                (spawn_scale_bar, spawn_north_dial).in_set(Boot::Overlay),
+            )
+            .add_systems(
+                Update,
+                (update_scale_bar.in_set(ScaleBarMeasured), update_north_dial)
+                    .in_set(Stage::Overlay),
+            );
     }
 }
 
@@ -178,13 +190,15 @@ fn spawn_scale_bar(mut commands: Commands, fonts: Res<Fonts>) {
 }
 
 /// MRK-16: the bar's length on the plane at the pivot, measured along the
-/// screen's horizontal, kept to the longest round distance that fits.
-#[allow(clippy::type_complexity)]
+/// screen's horizontal, kept to the longest round distance that fits; the
+/// distance is shared for the frame cue's ticks (REF-05).
+#[allow(clippy::type_complexity, clippy::too_many_arguments)]
 fn update_scale_bar(
     view: ViewNow,
     rig: Res<CameraRig>,
     tunables: Res<Tunables>,
     map_view: MapView,
+    mut scale_km: ResMut<ScaleBarKm>,
     mut bars: Query<&mut Node, (With<ScaleBar>, Without<ScaleBarLine>)>,
     mut lines: Query<&mut Node, (With<ScaleBarLine>, Without<ScaleBar>)>,
     mut lengths: Query<&mut Text, With<ScaleBarLength>>,
@@ -208,6 +222,7 @@ fn update_scale_bar(
     let max_km = render_to_km(tunables.scale_bar_max_px / px_per_render);
     let km = scale_bar_km(max_km, tunables.distance_au_threshold_au);
     let length_px = (km_to_render(km) * px_per_render).round();
+    scale_km.0 = km;
 
     for mut node in &mut bars {
         node.display = Display::Flex;

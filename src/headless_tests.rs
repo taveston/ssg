@@ -69,6 +69,7 @@ use crate::view::tunables::{Tunables, TunablesPlugin};
 use crate::view::world::{RenderOrigin, WorldPositions};
 use crate::{Boot, Stage};
 
+mod frame_cue;
 mod paths;
 mod planner;
 

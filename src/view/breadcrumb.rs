@@ -139,12 +139,21 @@ fn crumb_text(text: &str, fonts: &Fonts, color: Color) -> impl Bundle {
     (Text::new(text), fonts.label(FONT_PX), TextColor(color))
 }
 
+/// CAM-25: an entry's colour: the cluster's in the secondary colour; the
+/// entry that stands for the current frame (the frame body's own, or the
+/// system's in the star's frame) in the frame violet, as the frame cue is;
+/// the ancestors in the neutral colour.
+pub fn crumb_color(action: CrumbAction) -> Color {
+    match action {
+        CrumbAction::None => colors::PANEL_BORDER,
+        CrumbAction::Recentre => colors::REFERENCE,
+        CrumbAction::Frame(_) => colors::NEUTRAL,
+    }
+}
+
 /// One entry: the cluster in the secondary colour, the rest clickable.
 fn spawn_crumb(row: &mut ChildSpawnerCommands, fonts: &Fonts, crumb: Crumb) {
-    let color = match crumb.action {
-        CrumbAction::None => colors::PANEL_BORDER,
-        _ => colors::NEUTRAL,
-    };
+    let color = crumb_color(crumb.action);
     row.spawn((
         CrumbEntry(crumb.action),
         crumb_text(&crumb.label, fonts, color),

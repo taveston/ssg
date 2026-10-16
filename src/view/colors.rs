@@ -38,6 +38,13 @@ pub const WARNING: Color = Color::srgb(
     0xA0 as f32 / 255.0,
     0x40 as f32 / 255.0,
 );
+/// MRK-01: the violet of the current frame, used for nothing else: the
+/// frame cue (REF-01) and the breadcrumb entry for the frame (CAM-25).
+pub const REFERENCE: Color = Color::srgb(
+    0x9B as f32 / 255.0,
+    0x8C as f32 / 255.0,
+    0xE8 as f32 / 255.0,
+);
 /// MRK-01 / HOV-03 / HOV-06: the white of the selection and hover
 /// brackets and of a highlighted orbit ring.
 pub const SELECTION: Color = Color::WHITE;

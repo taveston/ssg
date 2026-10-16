@@ -75,6 +75,40 @@ pub struct Tunables {
     /// The alpha of each of the belt's grain points (MRK-18).
     pub belt_speck_alpha: f32,
 
+    // --- Frame cue (REF) ---
+    /// The frame cue's arms are strokes of round dots this wide (REF-01)...
+    pub ref_dot_px: f32,
+    /// ...with their centres this far apart along the arm (REF-01).
+    pub ref_dot_pitch_px: f32,
+    /// An arm starts this far beyond the frame body's box, and the
+    /// vertical axis this far beyond it when the body is a marker (REF-02,
+    /// REF-06).
+    pub ref_gap_px: f32,
+    /// A stroke of the cue fades from this opacity at its start... (REF-03)
+    pub ref_alpha_near: f32,
+    /// ...to this at its end (REF-03).
+    pub ref_alpha_far: f32,
+    /// The three arms other than north are drawn at this times the north
+    /// arm's strength (REF-03).
+    pub ref_minor_factor: f32,
+    /// The north arm's "N" sits this far inside the arm's end (REF-04).
+    pub ref_n_inset_px: f32,
+    /// A tick across an arm is this long (REF-05).
+    pub ref_tick_px: f32,
+    /// The vertical axis is a solid line this wide (REF-06).
+    pub ref_vertical_px: f32,
+    /// The vertical axis's upper half is this long on screen when the
+    /// plane is seen edge-on, and shortens with the view (REF-06).
+    pub ref_up_px: f32,
+    /// The upper half ends in a filled arrowhead this long (REF-06).
+    pub ref_arrow_px: f32,
+    /// The lower half is this fraction of the upper half's length
+    /// (REF-07).
+    pub ref_down_fraction: f32,
+    /// A half of the vertical axis shorter than this on screen is not
+    /// drawn (REF-08).
+    pub ref_vertical_min_px: f32,
+
     // --- Zoom and navigation ---
     /// Each wheel notch multiplies the view scale by this factor.
     pub zoom_step_factor: f32,
@@ -351,6 +385,20 @@ impl Default for Tunables {
             belt_band_alpha: 0.10,
             belt_speck_count: 1200,
             belt_speck_alpha: 0.5,
+
+            ref_dot_px: 2.0,
+            ref_dot_pitch_px: 5.0,
+            ref_gap_px: 8.0,
+            ref_alpha_near: 1.0,
+            ref_alpha_far: 0.45,
+            ref_minor_factor: 0.6,
+            ref_n_inset_px: 13.0,
+            ref_tick_px: 9.0,
+            ref_vertical_px: 1.5,
+            ref_up_px: 100.0,
+            ref_arrow_px: 8.0,
+            ref_down_fraction: 0.7,
+            ref_vertical_min_px: 10.0,
 
             zoom_step_factor: 2.0,
             zoom_anim_ms: 200.0,
