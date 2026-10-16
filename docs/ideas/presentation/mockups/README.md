@@ -25,6 +25,7 @@ Boards 1 to 6 are from the design canvas "Inspect & Planetary Transition"; 7 onw
 | `19-frame-cue-and-label-halo.png` | The frame cue (flat cross against cross with a solid vertical axis), close in at an angle, across tilts, exposure rings with period and direction, and the label halo at 0 to 3 px (2026-10-16). Source: `19-frame-cue-and-label-halo.html`; `../presentation.md` 2 |
 | `20-fold-marker-size.png` | Fold marker size against planet marker at the system overview: today's 22 px marker against a 16 px natural-only marker, with planet markers of 12, 13 and 14 px, and enlarged pairs (2026-10-16, from F-244). Source: `20-fold-marker-size.html`; `../symbology.md` 4 |
 | `21-fold-marker-alternatives.png` | Moons as a property of the planet instead of a second marker: stacked ring with a count in the label, count badge, and moon pips, against today's 22 px marker; enlarged pairs (2026-10-16, from F-244). Source: `21-fold-marker-alternatives.html`; `../symbology.md` 4 |
+| `22-moon-count-label-weight.png` | How loud the moon count beside a planet's stacked ring should be: "N moons" on a second line, number only in the dim colour, number inline, and ring only with the count on hover; labels enlarged (2026-10-16, from F-244). Source: `22-moon-count-label-weight.html`; `../symbology.md` 4 |
 
 How to use them:
 
