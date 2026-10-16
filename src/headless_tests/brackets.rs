@@ -141,8 +141,8 @@ fn selection_and_hover_bracket_what_stands_for_the_object() {
 
     // GRP-07 / MUL-11: hovering the fold marker too leaves one full mark;
     // hovering it alone gives the hover mark.
-    let pill = target;
-    app.world_mut().entity_mut(pill).insert(Hovered);
+    let fold_marker = target;
+    app.world_mut().entity_mut(fold_marker).insert(Hovered);
     run(&mut app, 1);
     let marks = shown_brackets(&mut app);
     assert_eq!(marks.len(), 1);
@@ -152,7 +152,7 @@ fn selection_and_hover_bracket_what_stands_for_the_object() {
     let marks = shown_brackets(&mut app);
     assert_eq!(marks.len(), 1);
     assert_eq!(marks[0].alpha, tunables.bracket_hover_alpha);
-    app.world_mut().entity_mut(pill).remove::<Hovered>();
+    app.world_mut().entity_mut(fold_marker).remove::<Hovered>();
 
     // The frame body has no mark of its own.
     set_frame(&mut app, halden, Vec3::ZERO);

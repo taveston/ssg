@@ -750,7 +750,7 @@ fn morrow_ix_orbits() -> Vec<NamedOrbitBlueprint> {
     }]
 }
 
-/// TEST-09: Morrow IX's own satellites, for nested folding, nested pills
+/// TEST-09: Morrow IX's own satellites, for nested folding, nested fold markers
 /// and a frame three levels deep: a station fast enough to be an exposure
 /// ring at 1 d/s, and a trader slow enough to be a dot.
 fn morrow_ix_satellites() -> Vec<BodyBlueprint> {
