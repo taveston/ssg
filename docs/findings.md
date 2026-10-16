@@ -78,11 +78,6 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** PLNR-05, TEST-30, SOL-15, SOL-16 · **Type:** spec gap
 - **Disposition:** open. Accept, or name them in SOL-15 and SOL-16.
 
-### F-182 · A band of the primary itself has no window
-- **Observation:** PLNR-80 sets the Depart range from the periods of the start and end states. A trip to a band of the crossing's own primary (Halden IV High to Halden IV Low) ends on the band's ring, half a turn ahead of the start (XFER-01), so any point will do and the cost doesn't change with the depart day. Read literally, the two bands' periods would give a Depart range of about an hour and a Next window. The build treats a whole ring of the primary as having no period: the range is `depart_range_days` and there is no Next window. A station or ship in that band has a phase, so it keeps its window.
-- **Affects:** PLNR-80, PLNR-85 · **Type:** spec gap
-- **Disposition:** open. Accept, and say so in PLNR-80.
-
 ### F-183 · Words the spec doesn't give
 - **Observation:** PLNR-92 words nine of the solver's reasons. The others needed sentences too, and the build chose: no destination found "*target* can't be found"; no High band "*target* has no High orbit"; Hold "Holding is not a trip"; no path "No path gets there in that time"; a low-thrust drive and a coasting path "This drive can't match a coasting path"; a target in flight "*target* is under way, so it can't be met"; the ship in flight "The ship is under way"; already ordered "The ship already has an order"; no drive "The ship has no drive"; more than one leg "Only one leg can be ordered"; an Intercept in the ship's own orbit "*target* is in this ship's orbit, so it can only rendezvous". The laps readout (PLNR-40) says "1 lap" for one. A delta-v that rounds up to 1 km/s reads "1.0 km/s", not "1.00" (UNIT-04).
 - **Affects:** PLNR-92, PLNR-40, UNIT-04 · **Type:** spec gap
