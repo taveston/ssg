@@ -108,20 +108,17 @@ pub fn column_stride(span_days: f64, step_days: f64, max_columns: usize) -> u32 
     }
 }
 
-/// One slider's settings, in days.
+/// The Travel time slider's settings, in days. Depart has its own type,
+/// `DepartDays`.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Slider {
     /// Any setting from `start` to `end`, in steps (PLNR-23).
     Range { start: f64, end: f64 },
-    /// One setting and no slider: a phasing leg's depart day, a
-    /// low-thrust drive's travel time (PLNR-22, PLNR-40).
+    /// One setting and no slider: a low-thrust drive's travel time
+    /// (PLNR-22).
     Fixed(f64),
     /// These settings only, in order: a phasing leg's meetings (PLNR-40).
     Positions(Vec<f64>),
-    /// The Depart slider (PLNR-21, PLNR-23): Soonest, the moment the
-    /// planner last solved it, then each whole day after it up to `end`
-    /// whose day number is a multiple of `step` days.
-    Days { soonest: f64, end: f64, step: f64 },
 }
 
 impl Slider {
@@ -138,24 +135,14 @@ impl Slider {
             },
             Slider::Fixed(value) => vec![*value],
             Slider::Positions(positions) => positions.clone(),
-            Slider::Days { soonest, end, step } => {
-                let stride = column_stride(end - soonest, *step, count);
-                let mut columns = vec![*soonest];
-                columns.extend(whole_days(*soonest, *end, step * f64::from(stride)));
-                columns
-            }
         }
     }
 
     /// The gap between neighbouring samples of a range sampled `count`
-    /// times, or between the Depart slider's columns (PLNR-86); zero for
-    /// a slider that is neither.
+    /// times (PLNR-86); zero for a slider that is not a range.
     pub fn spacing(&self, count: usize) -> f64 {
         match self {
             Slider::Range { start, end } if count > 1 => (end - start) / (count - 1) as f64,
-            Slider::Days { soonest, end, step } => {
-                step * f64::from(column_stride(end - soonest, *step, count))
-            }
             _ => 0.0,
         }
     }
@@ -179,35 +166,100 @@ impl Slider {
             }
             Slider::Fixed(value) => vec![*value],
             Slider::Positions(positions) => positions.clone(),
-            Slider::Days { soonest, end, step } => {
-                let mut settings = vec![*soonest];
-                settings.extend(whole_days(*soonest, *end, *step));
-                settings
-            }
         }
     }
 
     /// The setting nearest `value`: where a slider set to it rests.
     pub fn snap(&self, value: f64, max_steps: u32) -> f64 {
-        self.settings(max_steps)
-            .into_iter()
-            .min_by(|a, b| (a - value).abs().total_cmp(&(b - value).abs()))
-            .unwrap_or(value)
+        nearest_setting(self.settings(max_steps), value)
     }
 
     /// PLNR-86: the settings within `within` days of `value`, or the
     /// nearest one if none is that close.
     pub fn settings_near(&self, value: f64, within: f64, max_steps: u32) -> Vec<f64> {
-        let near: Vec<f64> = self
-            .settings(max_steps)
-            .into_iter()
-            .filter(|setting| (setting - value).abs() <= within * (1.0 + STEP_ROUNDING))
-            .collect();
-        if near.is_empty() {
-            vec![self.snap(value, max_steps)]
-        } else {
-            near
+        settings_within(self.settings(max_steps), value, within)
+    }
+}
+
+/// The Depart slider (PLNR-21, PLNR-23): Soonest, the moment the planner
+/// last solved it, then each whole day after it up to `end` whose day
+/// number is a multiple of `step` days.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DepartDays {
+    pub soonest: f64,
+    pub end: f64,
+    pub step: f64,
+}
+
+impl DepartDays {
+    /// PLNR-82: the grid's depart columns: Soonest, then the positions
+    /// whose day number is a multiple of the column stride, so that at
+    /// most `count` columns cover the range.
+    pub fn samples(&self, count: usize) -> Vec<f64> {
+        let stride = column_stride(self.end - self.soonest, self.step, count);
+        let mut columns = vec![self.soonest];
+        columns.extend(whole_days(
+            self.soonest,
+            self.end,
+            self.step * f64::from(stride),
+        ));
+        columns
+    }
+
+    /// PLNR-86: the gap between the columns of `samples(count)`.
+    pub fn spacing(&self, count: usize) -> f64 {
+        self.step * f64::from(column_stride(self.end - self.soonest, self.step, count))
+    }
+
+    /// PLNR-23: every position, in order: Soonest, then each whole day
+    /// after it whose day number is a multiple of the step.
+    pub fn settings(&self) -> Vec<f64> {
+        let mut settings = vec![self.soonest];
+        settings.extend(whole_days(self.soonest, self.end, self.step));
+        settings
+    }
+
+    /// The position nearest `value`: where the slider set to it rests.
+    pub fn snap(&self, value: f64) -> f64 {
+        nearest_setting(self.settings(), value)
+    }
+
+    /// PLNR-86: the positions within `within` days of `value`, or the
+    /// nearest one if none is that close.
+    pub fn settings_near(&self, value: f64, within: f64) -> Vec<f64> {
+        settings_within(self.settings(), value, within)
+    }
+
+    /// PLNR-24: the same span and step from Soonest at `now`.
+    pub fn moved_on(&self, now: f64) -> DepartDays {
+        DepartDays {
+            soonest: now,
+            end: now + (self.end - self.soonest),
+            step: self.step,
         }
+    }
+}
+
+/// The one of `settings` nearest `value`, or `value` if there are none.
+fn nearest_setting(settings: Vec<f64>, value: f64) -> f64 {
+    settings
+        .into_iter()
+        .min_by(|a, b| (a - value).abs().total_cmp(&(b - value).abs()))
+        .unwrap_or(value)
+}
+
+/// Those of `settings` within `within` days of `value`, or the nearest
+/// one if none is that close.
+fn settings_within(settings: Vec<f64>, value: f64, within: f64) -> Vec<f64> {
+    let near: Vec<f64> = settings
+        .iter()
+        .copied()
+        .filter(|setting| (setting - value).abs() <= within * (1.0 + STEP_ROUNDING))
+        .collect();
+    if near.is_empty() {
+        vec![nearest_setting(settings, value)]
+    } else {
+        near
     }
 }
 
@@ -215,7 +267,7 @@ impl Slider {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Sliders {
     /// The order's depart day (PLNR-21, PLNR-80).
-    pub depart: Slider,
+    pub depart: DepartDays,
     /// The order's travel time (PLNR-22, PLNR-81, PLNR-40).
     pub travel: Slider,
     /// Whether the Depart range comes from two orbits' periods, so it
@@ -288,7 +340,7 @@ pub fn depart_range(
     from: EndOrbit,
     to: EndOrbit,
     tunables: &SimTunables,
-) -> (Slider, bool) {
+) -> (DepartDays, bool) {
     let window =
         window_interval_days(from, to).filter(|days| impulsive && *days >= WINDOW_WAIT_UNDER_DAYS);
     let span = match window {
@@ -300,8 +352,8 @@ pub fn depart_range(
 
 /// PLNR-23 / PLNR-40: the Depart slider over `span_days` from Soonest at
 /// `today`, in its whole-day step.
-pub fn days_slider(today: f64, span_days: f64, tunables: &SimTunables) -> Slider {
-    Slider::Days {
+pub fn days_slider(today: f64, span_days: f64, tunables: &SimTunables) -> DepartDays {
+    DepartDays {
         soonest: today,
         end: today + span_days,
         step: depart_step_days(span_days, tunables.slider_max_steps),
@@ -507,25 +559,22 @@ mod tests {
         let span = 1.1 * synodic;
         assert_eq!(
             range,
-            Slider::Days {
+            DepartDays {
                 soonest: 100.3,
                 end: 100.3 + span,
                 step: 5.0,
             },
             "{span} days in at most 400 steps: 5-day steps"
         );
-        let fixed = Slider::Days {
+        let fixed = DepartDays {
             soonest: 100.3,
             end: 280.3,
             step: 1.0,
         };
-        assert_eq!(depart_range(100.3, false, a, b, &t), (fixed.clone(), false));
+        assert_eq!(depart_range(100.3, false, a, b, &t), (fixed, false));
         let whole_band = orbit(2.0, None, true);
-        assert_eq!(
-            depart_range(100.3, true, a, whole_band, &t),
-            (fixed.clone(), false)
-        );
-        assert_eq!(depart_range(100.3, true, a, a, &t), (fixed.clone(), false));
+        assert_eq!(depart_range(100.3, true, a, whole_band, &t), (fixed, false));
+        assert_eq!(depart_range(100.3, true, a, a, &t), (fixed, false));
         let low = orbit(1.0, Some(0.07), true);
         let station = orbit(2.0, Some(1.95), true);
         assert!(window_interval_days(low, station).unwrap() < 1.0);
@@ -541,20 +590,20 @@ mod tests {
         assert_eq!(depart_step_days(180.0, 400), 1.0);
         assert_eq!(depart_step_days(401.0, 400), 5.0);
         assert_eq!(depart_step_days(1e5, 400), 30.0);
-        let slider = Slider::Days {
+        let slider = DepartDays {
             soonest: 10.4,
             end: 30.4,
             step: 5.0,
         };
-        assert_eq!(slider.settings(400), vec![10.4, 15.0, 20.0, 25.0, 30.0]);
-        let later = Slider::Days {
+        assert_eq!(slider.settings(), vec![10.4, 15.0, 20.0, 25.0, 30.0]);
+        let later = DepartDays {
             soonest: 15.0,
             end: 35.0,
             step: 5.0,
         };
-        assert_eq!(later.settings(400), vec![15.0, 20.0, 25.0, 30.0, 35.0]);
-        assert_eq!(slider.snap(12.0, 400), 10.4);
-        assert_eq!(slider.snap(13.0, 400), 15.0);
+        assert_eq!(later.settings(), vec![15.0, 20.0, 25.0, 30.0, 35.0]);
+        assert_eq!(slider.snap(12.0), 10.4);
+        assert_eq!(slider.snap(13.0), 15.0);
     }
 
     /// PLNR-82: the grid's depart columns are Soonest and the positions
@@ -565,7 +614,7 @@ mod tests {
     fn depart_columns_are_thinned_by_day_number() {
         assert_eq!(column_stride(180.0, 1.0, 60), 4);
         assert_eq!(column_stride(30.0, 1.0, 60), 1);
-        let today = Slider::Days {
+        let today = DepartDays {
             soonest: 10.4,
             end: 190.4,
             step: 1.0,
@@ -576,13 +625,13 @@ mod tests {
         assert_eq!(*columns.last().unwrap(), 188.0);
         assert!(columns[1..].iter().all(|day| day % 4.0 == 0.0));
         assert_eq!(today.spacing(60), 4.0);
-        let tomorrow = Slider::Days {
+        let tomorrow = DepartDays {
             soonest: 11.4,
             end: 191.4,
             step: 1.0,
         };
         assert_eq!(&tomorrow.samples(60)[1..], &columns[1..]);
-        let small = Slider::Days {
+        let small = DepartDays {
             soonest: 0.5,
             end: 5.5,
             step: 1.0,

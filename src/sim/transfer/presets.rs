@@ -204,7 +204,7 @@ fn refine(
     } else {
         sliders
             .depart
-            .settings_near(sample.setting.depart_day, depart_within, max_steps)
+            .settings_near(sample.setting.depart_day, depart_within)
     };
     let travels =
         sliders
@@ -226,7 +226,7 @@ fn refine(
     };
     picked.map_or(
         Setting {
-            depart_day: sliders.depart.snap(sample.setting.depart_day, max_steps),
+            depart_day: sliders.depart.snap(sample.setting.depart_day),
             travel_days: sliders.travel.snap(sample.setting.travel_days, max_steps),
         },
         |sample| sample.setting,
@@ -269,7 +269,7 @@ mod tests {
     use super::*;
     use crate::sim::transfer::grid::tests::{rejected, sample};
     use crate::sim::transfer::order::Infeasible;
-    use crate::sim::transfer::ranges::Slider;
+    use crate::sim::transfer::ranges::{DepartDays, Slider};
 
     /// PLNR-106: every day is in a window only when each day's cheapest
     /// trip is within the margin of the best; a day with no trip breaks
@@ -393,7 +393,7 @@ mod tests {
         // travel time. A trip arrives on its depart day plus its travel
         // time.
         let sliders = Sliders {
-            depart: Slider::Days {
+            depart: DepartDays {
                 soonest: 0.0,
                 end: 20.0,
                 step: 1.0,
@@ -465,7 +465,7 @@ mod tests {
     #[test]
     fn a_phasing_legs_presets_are_refined_on_soonest_alone() {
         let sliders = Sliders {
-            depart: Slider::Days {
+            depart: DepartDays {
                 soonest: 0.0,
                 end: 20.0,
                 step: 1.0,

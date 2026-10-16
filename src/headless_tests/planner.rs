@@ -617,7 +617,7 @@ fn positions_keep_their_day_as_the_clock_runs() {
             "day {day} kept"
         );
     }
-    let positions = search.sliders.depart.settings(400);
+    let positions = search.sliders.depart.settings();
     assert!(positions.contains(&3.0));
     assert!(!positions.contains(&1.0), "day 1 has come");
 

@@ -124,7 +124,7 @@ fn run_search(
 /// planned at all (so the reason shows).
 pub fn starting_setting(search: &Search, max_steps: u32) -> Setting {
     search.presets.starting().unwrap_or_else(|| Setting {
-        depart_day: search.sliders.depart.settings(max_steps)[0],
+        depart_day: search.sliders.depart.soonest,
         travel_days: search.sliders.travel.settings(max_steps)[0],
     })
 }
@@ -138,7 +138,7 @@ pub fn fitted(setting: Setting, sliders: &Sliders, max_steps: u32) -> Setting {
         _ => slider.snap(value, max_steps),
     };
     Setting {
-        depart_day: fit(&sliders.depart, setting.depart_day),
+        depart_day: sliders.depart.snap(setting.depart_day),
         travel_days: fit(&sliders.travel, setting.travel_days),
     }
 }
@@ -354,10 +354,11 @@ pub fn preview_hover(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::sim::transfer::ranges::DepartDays;
 
     fn sliders() -> Sliders {
         Sliders {
-            depart: Slider::Days {
+            depart: DepartDays {
                 soonest: 10.5,
                 end: 40.5,
                 step: 1.0,

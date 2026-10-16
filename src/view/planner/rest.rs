@@ -11,7 +11,7 @@
 //! anything else is solved, and a Travel time track solved for a depart
 //! day off the grid is kept for the session.
 
-use super::slider::{nearest_accepted, nearest_index, step_accepted, value_at};
+use super::slider::{day_at, nearest_accepted, nearest_index, step_accepted, value_at};
 use super::state::{PlannerSession, SliderKind};
 use crate::sim::transfer::grid::{Sample, Setting, any_accepted};
 use crate::sim::transfer::presets::moved_on;
@@ -69,11 +69,10 @@ impl Rest<'_> {
     /// track points at, before the solver is asked about it.
     pub fn value_at(&self, kind: SliderKind, fraction: f32) -> f64 {
         let sliders = &self.search.sliders;
-        let slider = match kind {
-            SliderKind::Depart => &sliders.depart,
-            SliderKind::Travel => &sliders.travel,
-        };
-        value_at(slider, fraction, self.max_steps())
+        match kind {
+            SliderKind::Depart => day_at(&sliders.depart, fraction),
+            SliderKind::Travel => value_at(&sliders.travel, fraction, self.max_steps()),
+        }
     }
 
     /// PLNR-34: whether anything on the grid is accepted. With nothing,
@@ -154,7 +153,7 @@ impl Rest<'_> {
         if !self.anything_accepted() {
             return None;
         }
-        let settings = self.search.sliders.depart.settings(self.max_steps());
+        let settings = self.search.sliders.depart.settings();
         let index = nearest_index(&settings, value);
         nearest_accepted(settings.len(), index, |i| self.depart_accepted(settings[i]))
             .map(|i| settings[i])
@@ -180,7 +179,7 @@ impl Rest<'_> {
         if !self.anything_accepted() {
             return None;
         }
-        let settings = self.search.sliders.depart.settings(self.max_steps());
+        let settings = self.search.sliders.depart.settings();
         let index = nearest_index(&settings, from);
         step_accepted(settings.len(), index, steps, |i| {
             self.depart_accepted(settings[i])

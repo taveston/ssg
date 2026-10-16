@@ -95,10 +95,7 @@ impl Search {
     /// PLNR-21: the Soonest setting's depart day: the clock's time when
     /// the search was made or last moved on.
     pub fn soonest(&self) -> f64 {
-        let Slider::Days { soonest, .. } = self.sliders.depart else {
-            unreachable!("a search's Depart slider is always in days from Soonest");
-        };
-        soonest
+        self.sliders.depart.soonest
     }
 }
 
@@ -418,13 +415,7 @@ impl SearchContext {
     /// moved on as thumbs are. Returns the depart days solved.
     pub fn advance(&mut self, request: Request, search: &mut Search, now: f64) -> Vec<f64> {
         let was_soonest = search.soonest();
-        if let Slider::Days { soonest, end, step } = search.sliders.depart {
-            search.sliders.depart = Slider::Days {
-                soonest: now,
-                end: now + (end - soonest),
-                step,
-            };
-        }
+        search.sliders.depart = search.sliders.depart.moved_on(now);
         self.today = now;
         let mut kept = std::mem::take(&mut search.grid.rows);
         let (first, starts) = self.soonest_column(request, &search.sliders, now);
@@ -498,6 +489,7 @@ mod tests {
 
     use super::*;
     use crate::sim::transfer::places::Band;
+    use crate::sim::transfer::ranges::DepartDays;
     use crate::sim::transfer::test_layout::{Layout, layout};
     use crate::sim::transfer::tree::ShipState;
 
@@ -539,14 +531,11 @@ mod tests {
         });
         let sliders = ctx.sliders(request).unwrap();
         assert!(sliders.windows);
-        let Slider::Days {
+        let DepartDays {
             soonest: start,
             end,
             ..
-        } = sliders.depart
-        else {
-            panic!("a Depart range");
-        };
+        } = sliders.depart;
         assert_eq!(start, 10.0);
         let period = |body| l.tree.bodies[&body].orbit.unwrap().period_days;
         let synodic = orbits::synodic_period(period(l.inner), period(l.capital));
@@ -592,7 +581,7 @@ mod tests {
                 search
                     .sliders
                     .depart
-                    .settings(max_steps)
+                    .settings()
                     .contains(&setting.depart_day)
             );
             assert!(
@@ -641,7 +630,7 @@ mod tests {
         assert!(!sliders.windows);
         assert_eq!(
             sliders.depart,
-            Slider::Days {
+            DepartDays {
                 soonest: 10.0,
                 end: 190.0,
                 step: 1.0,
@@ -683,7 +672,7 @@ mod tests {
         let sliders = ctx.sliders(request).unwrap();
         assert_eq!(
             sliders.depart,
-            Slider::Days {
+            DepartDays {
                 soonest: 10.0,
                 end: 190.0,
                 step: 1.0
@@ -818,9 +807,7 @@ mod tests {
                 travel_days: 1.0
             })
         );
-        let Slider::Days { soonest, end, .. } = search.sliders.depart else {
-            panic!("a Depart slider");
-        };
+        let DepartDays { soonest, end, .. } = search.sliders.depart;
         assert_eq!((soonest, end), (12.25, 192.25));
     }
 

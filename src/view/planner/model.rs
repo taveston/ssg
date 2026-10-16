@@ -22,7 +22,7 @@ use crate::sim::transfer::search::{Request, Search};
 use crate::view::readout::{format_duration, format_speed};
 use crate::view::tunables::Tunables;
 
-use super::slider::{Stretch, fraction_of, rejected_stretches, track_stops};
+use super::slider::{Stretch, day_fraction, fraction_of, rejected_stretches, track_stops};
 
 /// The colour a line of text is drawn in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -269,14 +269,14 @@ pub fn blocking_reason(
 /// gave there.
 fn stretches_of(
     facts: &TuningFacts,
-    slider: &Slider,
+    place: impl Fn(f64) -> f32,
     samples: &[(f64, Option<Infeasible>)],
 ) -> Vec<Stretch> {
     let placed: Vec<(f32, Option<String>)> = samples
         .iter()
         .map(|(value, why)| {
             (
-                fraction_of(slider, *value),
+                place(*value),
                 why.map(|why| reason(why, facts.primary, facts.destination)),
             )
         })
@@ -291,7 +291,7 @@ type DepartColumn = (f64, Option<Sample>, Option<Infeasible>);
 /// PLNR-28 / PLNR-40: the Depart track's columns, from the grid. A
 /// phasing leg's grid has Soonest alone, and every day costs the same, so
 /// that column spans the whole track.
-fn depart_columns(search: &Search, setting: Setting) -> Vec<DepartColumn> {
+fn depart_columns(search: &Search) -> Vec<DepartColumn> {
     let cheapest = search.grid.cheapest_per_day();
     let columns: Vec<DepartColumn> = search
         .grid
@@ -308,11 +308,8 @@ fn depart_columns(search: &Search, setting: Setting) -> Vec<DepartColumn> {
     if search.sliders.phasing()
         && let Some(&(_, best, why)) = columns.first()
     {
-        let (start, end) = match search.sliders.depart {
-            Slider::Days { soonest, end, .. } => (soonest, end),
-            _ => (setting.depart_day, setting.depart_day),
-        };
-        return vec![(start, best, why), (end, best, why)];
+        let days = &search.sliders.depart;
+        return vec![(days.soonest, best, why), (days.end, best, why)];
     }
     columns
 }
@@ -327,9 +324,10 @@ fn depart_model(
     tunables: &Tunables,
 ) -> SliderModel {
     let wait = facts.leg().map_or(0.0, |leg| leg.departure_wait_days);
-    let slider = &search.sliders.depart;
+    let days = &search.sliders.depart;
+    let place = |day: f64| day_fraction(days, day);
     let least = search.grid.least_delta_v_kms().unwrap_or(0.0);
-    let columns = depart_columns(search, setting);
+    let columns = depart_columns(search);
     let samples: Vec<(f64, Option<&Sample>)> =
         columns.iter().map(|(d, b, _)| (*d, b.as_ref())).collect();
     let reasons: Vec<(f64, Option<Infeasible>)> =
@@ -348,9 +346,9 @@ fn depart_model(
         ),
         tooltip,
         track: Some(TrackModel {
-            thumb: fraction_of(slider, setting.depart_day),
-            stops: track_stops(slider, &samples, least, facts.available_kms, tunables),
-            stretches: stretches_of(facts, slider, &reasons),
+            thumb: place(setting.depart_day),
+            stops: track_stops(place, &samples, least, facts.available_kms, tunables),
+            stretches: stretches_of(facts, place, &reasons),
         }),
         note: None,
     }
@@ -383,10 +381,11 @@ fn travel_model(
         .iter()
         .map(|sample| (sample.setting.travel_days, sample.result.err()))
         .collect();
+    let place = |value: f64| fraction_of(slider, value);
     let track = (!matches!(slider, Slider::Fixed(_))).then(|| TrackModel {
-        thumb: fraction_of(slider, setting.travel_days),
-        stops: track_stops(slider, &samples, least, facts.available_kms, tunables),
-        stretches: stretches_of(facts, slider, &reasons),
+        thumb: place(setting.travel_days),
+        stops: track_stops(place, &samples, least, facts.available_kms, tunables),
+        stretches: stretches_of(facts, place, &reasons),
     });
     let note = if matches!(slider, Slider::Fixed(_)) {
         Some(Line::new(TRAVEL_FIXED, Tone::Secondary))
@@ -542,7 +541,7 @@ mod tests {
     use crate::sim::transfer::order::{Arrival, Landing, LegBurns};
     use crate::sim::transfer::places::Place;
     use crate::sim::transfer::presets::Presets;
-    use crate::sim::transfer::ranges::Sliders;
+    use crate::sim::transfer::ranges::{DepartDays, Sliders};
     use bevy::prelude::*;
 
     fn sample(depart: f64, travel: f64, kms: f64) -> Sample {
@@ -579,7 +578,7 @@ mod tests {
         };
         Search {
             sliders: Sliders {
-                depart: Slider::Days {
+                depart: DepartDays {
                     soonest: 10.0,
                     end: 20.0,
                     step: 1.0,

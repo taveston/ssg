@@ -12,7 +12,7 @@
 use bevy::prelude::*;
 
 use crate::sim::transfer::grid::Sample;
-use crate::sim::transfer::ranges::Slider;
+use crate::sim::transfer::ranges::{DepartDays, Slider};
 use crate::view::colors;
 use crate::view::colors::mix;
 use crate::view::tunables::Tunables;
@@ -23,12 +23,7 @@ pub const FAST_STEPS: i32 = 10;
 /// Where along its track (0 at the start, 1 at the end) `value` sits.
 pub fn fraction_of(slider: &Slider, value: f64) -> f32 {
     match slider {
-        Slider::Range { start, end }
-        | Slider::Days {
-            soonest: start,
-            end,
-            ..
-        } if end > start => ((value - start) / (end - start)).clamp(0.0, 1.0) as f32,
+        Slider::Range { start, end } => fraction_between(*start, *end, value),
         Slider::Positions(positions) if positions.len() > 1 => {
             nearest_index(positions, value) as f32 / (positions.len() - 1) as f32
         }
@@ -36,17 +31,34 @@ pub fn fraction_of(slider: &Slider, value: f64) -> f32 {
     }
 }
 
+/// Where along the Depart track (0 at Soonest, 1 at the end) `day` sits.
+pub fn day_fraction(days: &DepartDays, day: f64) -> f32 {
+    fraction_between(days.soonest, days.end, day)
+}
+
+/// Where `value` sits between `start` and `end`, held on the track; 0
+/// for a track of no length.
+fn fraction_between(start: f64, end: f64, value: f64) -> f32 {
+    if end > start {
+        ((value - start) / (end - start)).clamp(0.0, 1.0) as f32
+    } else {
+        0.0
+    }
+}
+
+/// PLNR-21 / PLNR-23: the Depart position a press or drag at `fraction`
+/// of the track gives: the nearest of Soonest and the whole days.
+pub fn day_at(days: &DepartDays, fraction: f32) -> f64 {
+    let fraction = f64::from(fraction.clamp(0.0, 1.0));
+    days.snap(days.soonest + fraction * (days.end - days.soonest))
+}
+
 /// PLNR-23: the setting a press or drag at `fraction` of the track gives:
 /// the nearest step of a range, or the nearest position.
 pub fn value_at(slider: &Slider, fraction: f32, max_steps: u32) -> f64 {
     let fraction = f64::from(fraction.clamp(0.0, 1.0));
     match slider {
-        Slider::Range { start, end }
-        | Slider::Days {
-            soonest: start,
-            end,
-            ..
-        } => slider.snap(start + fraction * (end - start), max_steps),
+        Slider::Range { start, end } => slider.snap(start + fraction * (end - start), max_steps),
         Slider::Positions(positions) if !positions.is_empty() => {
             let index = (fraction * (positions.len() - 1) as f64).round() as usize;
             positions[index.min(positions.len() - 1)]
@@ -144,10 +156,10 @@ pub fn track_colour(
     mix(empty, colors::OWN, dim + (1.0 - dim) * (1.0 - t))
 }
 
-/// PLNR-28: a track as colour stops, each at its fraction of the track:
-/// one per sample of `slider`, with its result.
+/// PLNR-28: a track as colour stops, each at its fraction of the track
+/// as `place` gives it: one per sample, with its result.
 pub fn track_stops(
-    slider: &Slider,
+    place: impl Fn(f64) -> f32,
     samples: &[(f64, Option<&Sample>)],
     least_kms: f64,
     available_kms: f64,
@@ -157,7 +169,7 @@ pub fn track_stops(
         .iter()
         .map(|(value, sample)| {
             (
-                fraction_of(slider, *value),
+                place(*value),
                 track_colour(*sample, least_kms, available_kms, tunables),
             )
         })
@@ -225,8 +237,13 @@ mod tests {
     /// The setting `steps` on from `value` with every setting accepted,
     /// or `value` where the thumb stays.
     fn stepped(slider: &Slider, value: f64, steps: i32) -> f64 {
-        let settings = slider.settings(400);
-        let index = nearest_index(&settings, value);
+        stepped_in(&slider.settings(400), value, steps)
+    }
+
+    /// The setting of `settings` `steps` on from `value`, every one
+    /// accepted, or `value` where the thumb stays.
+    fn stepped_in(settings: &[f64], value: f64, steps: i32) -> f64 {
+        let index = nearest_index(settings, value);
         step_accepted(settings.len(), index, steps, |_| true).map_or(value, |i| settings[i])
     }
 
@@ -256,19 +273,20 @@ mod tests {
     /// whole days, and keys step from one position to the next.
     #[test]
     fn the_depart_slider_takes_soonest_or_a_whole_day() {
-        let slider = Slider::Days {
+        let days = DepartDays {
             soonest: 10.4,
             end: 20.4,
             step: 1.0,
         };
-        assert_eq!(fraction_of(&slider, 15.4), 0.5);
-        assert_eq!(value_at(&slider, 0.0, 400), 10.4);
-        assert_eq!(value_at(&slider, 0.02, 400), 10.4);
-        assert_eq!(value_at(&slider, 0.07, 400), 11.0);
-        assert_eq!(value_at(&slider, 1.0, 400), 20.0);
-        assert_eq!(stepped(&slider, 10.4, 1), 11.0);
-        assert_eq!(stepped(&slider, 11.0, -1), 10.4);
-        assert_eq!(stepped(&slider, 10.4, FAST_STEPS), 20.0);
+        assert_eq!(day_fraction(&days, 15.4), 0.5);
+        assert_eq!(day_at(&days, 0.0), 10.4);
+        assert_eq!(day_at(&days, 0.02), 10.4);
+        assert_eq!(day_at(&days, 0.07), 11.0);
+        assert_eq!(day_at(&days, 1.0), 20.0);
+        let settings = days.settings();
+        assert_eq!(stepped_in(&settings, 10.4, 1), 11.0);
+        assert_eq!(stepped_in(&settings, 11.0, -1), 10.4);
+        assert_eq!(stepped_in(&settings, 10.4, FAST_STEPS), 20.0);
     }
 
     /// PLNR-40: a phasing leg's slider has one position per meeting, laid
