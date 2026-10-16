@@ -103,6 +103,26 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** XFER-07, XFER-08, PLNR-30 · **Type:** spec gap
 - **Disposition:** open. Accept, or offer only Rendezvous for a Low band round the ship's own primary.
 
+### F-181 · Sol's drives have no display names
+- **Observation:** PLNR-05 gives every drive a display name, and TEST-30 names Corvane's two. Sol's Marlin and Vestige (SOL-15, SOL-16) have drives too, but no names. The build calls Marlin's "hydrogen NTR", like Orison's, and Vestige's "fusion torch".
+- **Affects:** PLNR-05, TEST-30, SOL-15, SOL-16 · **Type:** spec gap
+- **Disposition:** open. Accept, or name them in SOL-15 and SOL-16.
+
+### F-182 · A band of the primary itself has no window
+- **Observation:** PLNR-80 sets the Depart range from the periods of the start and end states. A trip to a band of the crossing's own primary (Halden IV High to Halden IV Low) ends on the band's ring, half a turn ahead of the start (XFER-01), so any point will do and the cost doesn't change with the depart day. Read literally, the two bands' periods would give a Depart range of about an hour and a Next window. The build treats a whole ring of the primary as having no period: the range is `depart_range_days` and there is no Next window. A station or ship in that band has a phase, so it keeps its window.
+- **Affects:** PLNR-80, PLNR-85 · **Type:** spec gap
+- **Disposition:** open. Accept, and say so in PLNR-80.
+
+### F-183 · Words the spec doesn't give
+- **Observation:** PLNR-92 words nine of the solver's reasons. The others needed sentences too, and the build chose: no destination found "*target* can't be found"; no High band "*target* has no High orbit"; Hold "Holding is not a trip"; no path "No path gets there in that time"; a low-thrust drive and a coasting path "This drive can't match a coasting path"; a target in flight "*target* is under way, so it can't be met"; the ship in flight "The ship is under way"; already ordered "The ship already has an order"; no drive "The ship has no drive"; more than one leg "Only one leg can be ordered"; an Intercept in the ship's own orbit "*target* is in this ship's orbit, so it can only rendezvous". The leave readout (PLNR-21) reads "now" when the leave day is under half a minute away, and the laps readout (PLNR-40) says "1 lap" for one. A delta-v that rounds up to 1 km/s reads "1.0 km/s", not "1.00" (UNIT-04).
+- **Affects:** PLNR-92, PLNR-21, PLNR-40, UNIT-04 · **Type:** spec gap
+- **Disposition:** open. Accept, or give the words.
+
+### F-184 · How the search fills the gaps in its rules
+- **Observation:** The build chose these where PLNR-80 to PLNR-87 are silent. A slider's settings are its start plus whole steps, and its end. Refining a preset (PLNR-86) solves those settings within one grid spacing of the sample; if none qualifies (no affordable one for Fastest), the setting nearest the sample is kept. Cheapest is refined by least delta-v alone, as PLNR-86 says, without PLNR-84's tie rule. A phasing leg's meetings are already all on the grid, so nothing is refined. A low-thrust drive's fixed travel time is the one its leg takes when leaving today. A phasing leg's meetings are the *k* whose own orbit fits (PHAS-08), solved with no budget, so a meeting the ship can't afford is still a position, coloured over budget. When nothing on the grid can be planned, the reason shown is the one the solver gave most often. The headless test that searches twice in Corvane, app start included, runs in about 30 ms.
+- **Affects:** PLNR-23, PLNR-82, PLNR-84, PLNR-86, PLNR-40, PLNR-12 · **Type:** spec gap
+- **Disposition:** open. Accept.
+
 ### F-185 · Brackets round an exposure ring's identity mark are offset
 - **Observation:** Seen in play. While an orbit is in exposure mode, the selection and hover brackets round its identity mark (the stationary marker on the ring) sit slightly off the mark. The mark itself may be slightly off the ring point.
 - **Affects:** HOV-06, HOV-07, MOT-14 · **Type:** bug

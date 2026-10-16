@@ -43,6 +43,7 @@ pub mod near_arcs;
 pub mod outline;
 pub mod parent_tab;
 pub mod pills;
+pub mod planner_words;
 pub mod plot_marks;
 pub mod projection;
 pub mod readout;

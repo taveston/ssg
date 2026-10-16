@@ -1,6 +1,7 @@
-//! Shared formatting for distances and durations in every readout (UNIT-01
-//! to UNIT-03). Panels call these rather than formatting figures
-//! themselves, so a distance or a time reads the same everywhere.
+//! Shared formatting for distances, durations and speeds in every readout
+//! (UNIT-01 to UNIT-04). Panels call these rather than formatting figures
+//! themselves, so a distance, a time or a delta-v reads the same
+//! everywhere.
 
 use crate::sim::units::KM_PER_AU;
 
@@ -35,6 +36,31 @@ pub fn format_duration(days: f64) -> String {
     } else {
         format!("{:.0} min", days * MINUTES_PER_DAY)
     }
+}
+
+/// A speed or a delta-v in km/s as a bare figure: one decimal place at 1
+/// km/s or more, two below ("9.9", "0.29"). A figure that rounds up to 1
+/// reads as one ("1.0") (UNIT-04).
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "shown by the planner panel, built next (PLNR-27)")
+)]
+pub fn format_speed_figure(kms: f64) -> String {
+    if (kms.abs() * 100.0).round() >= 100.0 {
+        format!("{kms:.1}")
+    } else {
+        format!("{kms:.2}")
+    }
+}
+
+/// A speed or a delta-v as a readout, with its unit: "9.9 km/s",
+/// "0.29 km/s" (UNIT-04).
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "shown by the planner panel, built next (PLNR-27)")
+)]
+pub fn format_speed(kms: f64) -> String {
+    format!("{} km/s", format_speed_figure(kms))
 }
 
 /// `value` rounded to `places` decimals, trailing zeros (and a bare
@@ -101,6 +127,20 @@ mod tests {
         assert_eq!(distance(2.0 * KM_PER_AU), "2 AU");
         assert_eq!(distance(0.01 * KM_PER_AU), "0.01 AU");
         assert_eq!(distance(1234.5 * KM_PER_AU), "1,234.5 AU");
+    }
+
+    /// UNIT-04: a speed reads in km/s to one decimal from 1 km/s, and to
+    /// two below.
+    #[test]
+    fn speeds_read_to_one_decimal_from_one_km_per_s() {
+        assert_eq!(format_speed(9.9), "9.9 km/s");
+        assert_eq!(format_speed(12.34), "12.3 km/s");
+        assert_eq!(format_speed(1.0), "1.0 km/s");
+        assert_eq!(format_speed(0.29), "0.29 km/s");
+        assert_eq!(format_speed(0.076), "0.08 km/s");
+        assert_eq!(format_speed(0.999), "1.0 km/s");
+        assert_eq!(format_speed_figure(0.0), "0.00");
+        assert_eq!(format_speed_figure(24.0), "24.0");
     }
 
     /// UNIT-02: each duration reads in the largest unit it reaches.
