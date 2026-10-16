@@ -44,6 +44,12 @@ pub struct Tunables {
     /// An exposure ring's identity mark and label fade in once its tail has
     /// closed, and out when it opens, over this many milliseconds (MOT-14).
     pub identity_mark_fade_ms: f32,
+    /// The direction chevron beside an exposure ring's identity mark is an
+    /// open arrowhead this many pixels across (MOT-14).
+    pub chevron_px: f32,
+    /// Space between an identity mark's edge and its direction chevron,
+    /// along the ring, in pixels (MOT-14).
+    pub chevron_gap_px: f32,
     /// Alpha of an exposure ring and of a tail's head, so an exposure ring
     /// never matches the full-white selected ring (MOT-01, MOT-02).
     pub exposure_ring_alpha: f32,
@@ -274,6 +280,8 @@ impl Default for Tunables {
             tail_ease_ms: 500.0,
             exposure_ring_width_px: 3.0,
             identity_mark_fade_ms: 150.0,
+            chevron_px: 8.0,
+            chevron_gap_px: 8.0,
             exposure_ring_alpha: 0.5,
             orbit_ring_width_px: 1.0,
             orbit_ring_alpha: 0.35,

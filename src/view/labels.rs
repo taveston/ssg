@@ -394,6 +394,12 @@ fn gather_obstacles(markers: &[MarkerBox], (pills, ring_marks): &Obstacles) -> V
             )
         })
     }));
+    // MOT-14: a ring's direction chevron counts as part of its mark.
+    obstacles.extend(
+        ring_marks
+            .iter()
+            .filter_map(|(node, mark)| mark.chevron.filter(|_| node.display != Display::None)),
+    );
     obstacles
 }
 

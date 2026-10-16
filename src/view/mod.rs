@@ -50,6 +50,7 @@ pub mod planner_words;
 pub mod plot_marks;
 pub mod projection;
 pub mod readout;
+pub mod ring_chevron;
 pub mod ring_marks;
 pub mod ring_picking;
 pub mod rings;

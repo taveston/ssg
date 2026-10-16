@@ -128,6 +128,16 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** PLNR-28, TEST-30, F-158 · **Type:** spec wrong
 - **Disposition:** open. Give Orison more delta-v or cheaper bands (F-158), and pick an empty colour darker than the hairline.
 
+### F-206 · An exposure ring's label never drops its period line
+- **Observation:** MOT-02 says the period line is the first part to go when there is no room (LBL-03). But a ring's label isn't placed by LBL-01 to LBL-03: it always sits beside its mark, so the build always shows the period. Seen on screen: in Halden IV's frame at 2 d/s, IVa's "1.5 d" runs into Halden IV's "+1" pill. A ring label can also overlap other labels, as before.
+- **Affects:** MOT-02, LBL-01, LBL-03 · **Type:** spec gap
+- **Disposition:** open. Bring ring labels into label placement with the label spacing item.
+
+### F-207 · Where the direction chevron sits exactly
+- **Observation:** MOT-14 doesn't say how "`chevron_gap_px` beyond the mark's edge" is measured on a curved ring. The build walks round the ring to the point whose straight-line distance from the mark's point is the mark's reach that way, plus the gap, plus half the arrowhead's length; the arrowhead has a right-angled tip, so it is half as long as it is wide. It turns along the ring there. A ring too small on screen to reach that far shows no chevron. The label moves to the mark's left only when the chevron's box would overlap the label's box on the right. On a selected moon the chevron sits close to the brackets.
+- **Affects:** MOT-14 · **Type:** spec gap
+- **Disposition:** open. Accept.
+
 ## Parked
 
 ### F-145 · An intercept needs a standoff distance

@@ -2494,6 +2494,121 @@ fn an_exposure_ring_carries_an_identity_mark() {
     assert_eq!(centre, centre.round(), "centred on a whole pixel");
 }
 
+/// MOT-02 / MOT-14: at 0.2 d/s in Halden IV's frame IVa's ring is an
+/// exposure ring. Its label's second line is the orbit's period, and its
+/// direction chevron shows on the ring, `chevron_gap_px` beyond the mark's
+/// edge on the side IVa is heading, pointing the way it moves on screen,
+/// and its box is kept for the labels to keep clear of.
+#[test]
+fn an_exposure_ring_shows_its_period_and_a_chevron_the_way_it_runs() {
+    use crate::sim::orbit::Orbit;
+    use crate::view::readout::format_duration;
+    use crate::view::ring_marks::{PeriodLine, RingChevron, RingMarkFor, RingMarksPlugin};
+    use crate::view::shared_orbit::{OrbitRings, ring_screen_point};
+    use crate::view::world::ViewNow;
+    use bevy::ecs::system::RunSystemOnce;
+
+    let mut app = camera_app_with(|app| {
+        app.insert_resource(placeholder_fonts()).add_plugins((
+            GroupingPlugin,
+            MotionPlugin,
+            HoveredPlugin,
+            SharedOrbitPlugin,
+            RingMarksPlugin,
+        ));
+    });
+    let halden = body(&mut app, "Halden IV");
+    let iva = body(&mut app, "Halden IVa");
+    let mut clock = app.world_mut().resource_mut::<GameClock>();
+    clock.toggle_pause();
+    clock.run_at(0.2);
+    app.world_mut().resource_mut::<FrameRequest>().0 = Some(halden);
+    run(&mut app, 60 + eased_frames());
+
+    let (mark, half, chevron_box) = {
+        let mut marks = app.world_mut().query::<(Entity, &RingMarkFor)>();
+        marks
+            .iter(app.world())
+            .find(|(_, m)| m.owner == iva)
+            .map(|(e, m)| (e, m.half, m.chevron))
+            .unwrap()
+    };
+    let parts = descendants(&mut app, mark);
+    let find = |app: &App, has: fn(&App, Entity) -> bool| {
+        *parts
+            .iter()
+            .find(|&&e| has(app, e))
+            .expect("a part of the mark")
+    };
+    let period = find(&app, |app, e| app.world().get::<PeriodLine>(e).is_some());
+    let days = app.world().get::<Orbit>(iva).unwrap().period_days;
+    assert_eq!(
+        app.world().get::<Text>(period).unwrap().0,
+        format_duration(days)
+    );
+
+    // The ring on screen, a full turn from the mark's point the way IVa
+    // runs.
+    const STEPS: usize = 3600;
+    let ring_points = app
+        .world_mut()
+        .run_system_once(move |rings: OrbitRings, view: ViewNow| {
+            let ring = rings.ring(iva).unwrap();
+            let angle = ring.label_angle();
+            (0..STEPS)
+                .map(|k| {
+                    let turn = std::f32::consts::TAU * k as f32 / STEPS as f32;
+                    ring_screen_point(&ring, angle + turn, &view).unwrap()
+                })
+                .collect::<Vec<Vec2>>()
+        })
+        .unwrap();
+    let at = ring_points[0];
+    let ahead = (ring_points[1] - at).normalize();
+    let node = app.world().get::<Node>(mark).unwrap();
+    let (Val::Px(left), Val::Px(top)) = (node.left, node.top) else {
+        panic!("the mark is placed");
+    };
+    let origin = Vec2::new(left, top);
+
+    let chevron = find(&app, |app, e| app.world().get::<RingChevron>(e).is_some());
+    let chevron_node = app.world().get::<Node>(chevron).unwrap();
+    assert_eq!(chevron_node.display, Display::Flex);
+    let (Val::Px(cl), Val::Px(ct)) = (chevron_node.left, chevron_node.top) else {
+        panic!("the chevron is placed");
+    };
+    let tunables = Tunables::default();
+    let centre = origin + Vec2::new(cl, ct) + Vec2::splat(tunables.chevron_px / 2.0);
+    let (nearest, gap) = ring_points
+        .iter()
+        .enumerate()
+        .map(|(k, p)| (k, p.distance(centre)))
+        .min_by(|a, b| a.1.total_cmp(&b.1))
+        .unwrap();
+    assert!(gap < 1.0, "on the ring, {gap} px off");
+    assert!(nearest < STEPS / 2, "ahead of the mark the way IVa runs");
+    let reach = half / ahead.x.abs().max(ahead.y.abs())
+        + tunables.chevron_gap_px
+        + crate::view::ring_chevron::chevron_half_length(tunables.chevron_px);
+    let away = centre.distance(at);
+    assert!(
+        (away - reach).abs() < 1.5,
+        "{away} px from the mark's point, expected {reach}"
+    );
+    let along = (ring_points[nearest + 1] - ring_points[nearest - 1]).normalize();
+    let rotation = app.world().get::<UiTransform>(chevron).unwrap().rotation;
+    let pointing = rotation * Vec2::NEG_Y;
+    assert!(
+        pointing.dot(along) > 0.95,
+        "pointing along the ring the way IVa runs"
+    );
+    assert_eq!(
+        chevron_box.map(|b| b.center().round()),
+        Some(centre.round()),
+        "the labels keep clear of the chevron's box"
+    );
+}
+
 /// The outline's rows, as the body or orbit each stands for, in order.
 fn outline_rows(app: &mut App) -> Vec<Entity> {
     use crate::view::outline::OutlineRow;

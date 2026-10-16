@@ -35,6 +35,9 @@ pub enum SymbolMask {
     /// A filled isosceles triangle filling its node, tip up: the north
     /// dial's head (MRK-17).
     Head,
+    /// An open arrowhead filling its node's width, tip up, drawn as two
+    /// strokes: an exposure ring's direction chevron (MOT-14).
+    Chevron,
 }
 
 /// A symbol part on a node `size_px` across, drawn in `color`.
@@ -90,6 +93,7 @@ pub fn shape_uniform(part: &SymbolPart, stroke_px: f32) -> ShapeUniform {
         SymbolMask::Crate => (4, 0, false, false),
         SymbolMask::UnitBox { crossed } => (5, 0, false, crossed),
         SymbolMask::Head => (6, 0, false, false),
+        SymbolMask::Chevron => (7, 0, false, false),
     };
     ShapeUniform {
         color: part.color.to_linear().to_vec4(),

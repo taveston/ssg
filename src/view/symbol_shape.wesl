@@ -8,7 +8,8 @@ import bevy_ui_render::ui_vertex_output::UiVertexOutput;
 
 struct SymbolShape {
     color: vec4<f32>,
-    // 0 frame, 1 fill, 2 triangle, 3 drop, 4 crate, 5 unit box, 6 head.
+    // 0 frame, 1 fill, 2 triangle, 3 drop, 4 crate, 5 unit box, 6 head,
+    // 7 chevron.
     mask: u32,
     // 0 circle, 1 square, 2 diamond, 3 quatrefoil.
     shape: u32,
@@ -116,6 +117,14 @@ fn region(p: vec2<f32>) -> f32 {
             let h = part.size_px / 2.0;
             let w = h * HEAD_WIDTH;
             return triangle_sdf(p, vec2<f32>(0.0, -h), vec2<f32>(w, h), vec2<f32>(-w, h));
+        }
+        case 7u: {
+            // An open arrowhead, tip up: two strokes from the lower
+            // corners to the tip, half as long as it is wide.
+            let tip = vec2<f32>(0.0, -half / 2.0);
+            let left = segment_distance(p, vec2<f32>(-half, half / 2.0), tip);
+            let right = segment_distance(p, vec2<f32>(half, half / 2.0), tip);
+            return min(left, right) - part.stroke_px / 2.0;
         }
         default: {
             let corner = vec2<f32>(icon * 1.1, icon * 0.65);

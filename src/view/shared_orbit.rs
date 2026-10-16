@@ -63,6 +63,9 @@ pub struct Member {
     pub angle: f32,
     /// Its start phase: the fixed spot its label sits at (MOT-02).
     pub phase0: f32,
+    /// Its orbital period in days. Its angle grows with time while this is
+    /// positive, and shrinks while it is negative.
+    pub period_days: f64,
     /// GRP-01: folded into its parent, so not drawn.
     pub hidden: bool,
     pub mode: MotionModeState,
@@ -122,6 +125,18 @@ impl Ring {
     /// mark sit at: the first member's start phase.
     pub fn label_angle(&self) -> f32 {
         self.members.first().map_or(0.0, |m| m.phase0)
+    }
+
+    /// MOT-02: the ring's period in days: its members share one, so any
+    /// member's.
+    pub fn period_days(&self) -> f64 {
+        self.members.first().map_or(0.0, |m| m.period_days)
+    }
+
+    /// MOT-14: the way the ring's bodies circle it: +1 while their angle
+    /// grows with time, -1 while it shrinks.
+    pub fn sense(&self) -> f32 {
+        if self.period_days() < 0.0 { -1.0 } else { 1.0 }
     }
 
     /// MOT-14: what the identity pill of a shared orbit shows: its member
@@ -192,6 +207,7 @@ impl OrbitRings<'_, '_> {
             affiliation: *affiliation,
             angle: local.0.z.atan2(local.0.x) as f32,
             phase0: orbit.phase0_rad as f32,
+            period_days: orbit.period_days,
             hidden: fold.is_some_and(|f| f.effective_hidden),
             mode: mode.copied().unwrap_or_default(),
         })
@@ -272,6 +288,7 @@ mod tests {
             affiliation,
             angle: 0.0,
             phase0: 1.0,
+            period_days: 1.0,
             hidden: false,
             mode: MotionModeState::default(),
         }
@@ -342,6 +359,25 @@ mod tests {
                 has_own_ship: true
             }
         );
+    }
+
+    /// MOT-02 / MOT-14: a ring's period is its members', and its bodies
+    /// circle with growing angle for a positive period, shrinking for a
+    /// negative one, which turns the direction chevron round.
+    #[test]
+    fn a_rings_period_gives_the_way_its_bodies_circle() {
+        let mut world = World::new();
+        let forward = Member {
+            period_days: 1.5,
+            ..member(&mut world, BodyClass::Moon, Affiliation::Neutral)
+        };
+        let backward = Member {
+            period_days: -1.5,
+            ..forward
+        };
+        let ahead = ring(&mut world, vec![forward]);
+        assert_eq!((ahead.period_days(), ahead.sense()), (1.5, 1.0));
+        assert_eq!(ring(&mut world, vec![backward]).sense(), -1.0);
     }
 
     /// MOT-02 / MOT-14: the label spot is the first member's start phase,
