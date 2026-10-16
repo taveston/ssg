@@ -58,6 +58,10 @@ pub struct Leg {
     pub arrival_day: f64,
     pub landing: Landing,
     pub intercept_speed_kms: Option<f64>,
+    /// XFER-14 / XFER-10: an Intercept's closing speed at its target.
+    pub closing_speed_kms: Option<f64>,
+    /// XFER-13: the turn of an Intercept through another body's Low band.
+    pub turn_rad: Option<f64>,
     /// PHAS-03: days waited in the departure orbit for the exit point.
     pub departure_wait_days: f64,
     /// PHAS-10: days waited for the target to reach the capture point.
@@ -87,6 +91,8 @@ impl Leg {
             arrival_day: solved.arrival_day,
             landing: solved.landing,
             intercept_speed_kms: solved.intercept_speed_kms,
+            closing_speed_kms: solved.closing_speed_kms,
+            turn_rad: solved.turn_rad,
             departure_wait_days: solved.departure_wait_days,
             arrival_wait_days: solved.arrival_wait_days,
             closest_approach_rad: solved.closest_approach_rad,
@@ -688,6 +694,8 @@ mod tests {
                 Landing::Intercept
             },
             intercept_speed_kms: (!rendezvous).then_some(4.0),
+            closing_speed_kms: None,
+            turn_rad: None,
             departure_wait_days: 0.0,
             arrival_wait_days: 0.0,
             closest_approach_rad: None,

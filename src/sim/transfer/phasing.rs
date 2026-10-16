@@ -221,6 +221,8 @@ fn phasing_leg(
             phase0_rad: target_phase,
         },
         intercept_speed_kms: None,
+        closing_speed_kms: None,
+        turn_rad: None,
         departure_wait_days: 0.0,
         arrival_wait_days: 0.0,
         closest_approach_rad: None,

@@ -55,9 +55,6 @@ pub enum Infeasible {
     HoldIsNotACrossing,
     /// No path joins the two ends in the time given (XFER-03).
     NoPath,
-    /// An Intercept through Low needs the flyby turn, which is not specced
-    /// (XFER-08).
-    PassThroughLow,
     /// A low-thrust crossing needs circular orbits at both ends (XFER-06).
     LowThrustNeedsCircularEnds,
     /// A target ship's primary is not the crossing's (XFER-10).
@@ -142,8 +139,17 @@ pub struct SolvedLeg {
     pub delta_v_kms: f64,
     pub burns: LegBurns,
     pub landing: Landing,
-    /// XFER-09 / XFER-10: the closing speed at an Intercept, in km/s.
+    /// XFER-09 / XFER-10: an Intercept's speed relative to the body it
+    /// passes, at the band; or relative to the target, when the crossing
+    /// ends at the target itself. In km/s.
     pub intercept_speed_kms: Option<f64>,
+    /// XFER-14 / XFER-10: the speed at which an Intercept at a station or
+    /// a ship goes by it, in km/s; `None` for an Intercept at a body or a
+    /// Rendezvous.
+    pub closing_speed_kms: Option<f64>,
+    /// XFER-13: how far an Intercept through another body's Low band
+    /// turned the ship, in radians; `None` for any other leg.
+    pub turn_rad: Option<f64>,
     /// PHAS-03: days spent waiting in the departure orbit for the exit
     /// point; the ship leaves its orbit on the depart day plus this.
     pub departure_wait_days: f64,

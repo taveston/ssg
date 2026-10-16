@@ -54,7 +54,7 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Disposition:** open. Accept, make a low-thrust Intercept at a station infeasible, or trim it by waiting before departure.
 
 ### F-171 · Which band an Intercept at a station passes through
-- **Observation:** XFER-10 says an Intercept at a station or parked ship takes the target's band, but the order also carries `Intercept { band }`. The build uses the target's band and ignores the order's. So an Intercept at a station in a Low band (Arden Highport) is refused as "through Low" until **Intercept through Low** is built. Its speed (XFER-09) is taken at the target's band; for a station round the crossing's primary it is the plain relative speed (XFER-10).
+- **Observation:** XFER-10 says an Intercept at a station or parked ship takes the target's band, but the order also carries `Intercept { band }`. The build uses the target's band and ignores the order's, so an Intercept at a station in a Low band (Arden Highport) passes through Low and is turned (XFER-13). Its speed (XFER-09) is taken at the target's band; for a station round the crossing's primary it is the plain relative speed (XFER-10).
 - **Affects:** XFER-10, XFER-08, XFER-09 · **Type:** spec gap
 - **Disposition:** open. Accept, or say what the order's band means for a station.
 
@@ -67,6 +67,16 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** PHAS-14 needs the ships of a group to be together, but nothing in play forms a group (F-159). The build adds the check only: `SystemTree::all_together` says whether ships could be one group (all parked in one orbit, every two together). Whatever forms or merges groups should call it. The departure wait, the arrival wait and docking all read phase, so ships that are together leave and arrive together.
 - **Affects:** PHAS-14 · **Type:** spec gap
 - **Disposition:** open. Use the check when group orders are specced.
+
+### F-180 · A pass through a moon's Low band from beyond its planet
+- **Observation:** A crossing from another planet to a moon goes round the star and aims at the moon's planet (XFER-01). An Intercept through the moon's Low band then turns by the moon's gravity, but at the planet's position and with the velocity relative to the planet, which is what the crossing ends on. The closest-approach phase (PHAS-11) already reads the same way. The build accepts this.
+- **Affects:** XFER-13, XFER-01 · **Type:** spec gap
+- **Disposition:** open. Accept, or say how a pass through a moon's band is aimed from outside its planet's frame.
+
+### F-181 · A low-thrust pass through Low reads as half a turn
+- **Observation:** A low-thrust crossing ends on the body's circle at almost the body's own velocity (XFER-06), so it arrives with almost no excess speed. XFER-13 then gives a turn of nearly 180°, though turning an excess velocity that small changes almost nothing. The build applies the rule as written, so the planner's label (PLNR-65) would read "turn 180°".
+- **Affects:** XFER-13, XFER-06, PLNR-65 · **Type:** spec gap
+- **Disposition:** open. Accept, show no turn for a low-thrust leg, or make a low-thrust Intercept through Low infeasible.
 
 ## Parked
 

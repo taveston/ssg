@@ -1,5 +1,5 @@
-//! Solving one leg (XFER-01 to XFER-10, PHAS-03, PHAS-10, PHAS-11,
-//! PHAS-15): from where a ship is and the order it was given to the
+//! Solving one leg (XFER-01 to XFER-10, XFER-13, XFER-14, PHAS-03,
+//! PHAS-10, PHAS-11, PHAS-15): from where a ship is and the order it was given to the
 //! crossing it will fly, its timing, its trajectory and its delta-v, or
 //! the reason it can't be flown. Pure functions over the system snapshot
 //! (`tree.rs`) and plain values (ARCH-20, XFER-11); the maths is the
@@ -11,14 +11,17 @@
 //! wait: for the exit point on leaving, for the target on arriving. An
 //! impulsive drive gets a two-burn Lambert arc; a low-thrust drive gets a
 //! spiral whose length the drive fixes. A destination in the ship's own
-//! orbit is not a crossing at all (`phasing.rs`).
+//! orbit is not a crossing at all (`phasing.rs`). An Intercept that skims
+//! another body's Low band is swung round by it, and coasts on from
+//! there on a new path round the primary.
 
 use std::f64::consts::TAU;
 
 use bevy::math::DVec3;
 use bevy::prelude::*;
 use orbits::{
-    Conic, Rail, Segment, Sense, Spiral, State, capture_angle, circular_speed, exit_angle, lambert,
+    Conic, Rail, Segment, Sense, Spiral, State, capture_angle, circular_speed, closing_speed,
+    exit_angle, lambert, pass_speed, turn_angle, turned_velocity,
 };
 
 use super::ends::{End, Own, Target, departure_end, phase_for_angle, resolve, target_end};
@@ -83,6 +86,17 @@ struct Flight {
     departure_wait: f64,
 }
 
+/// XFER-13: an Intercept through another body's Low band. The body
+/// swings the ship round, so from the crossing end day it coasts on a new
+/// conic round the primary, not on the crossing's own.
+struct LowPass {
+    /// How far the pass turned the ship's velocity relative to the body,
+    /// in radians, prograde.
+    turn_rad: f64,
+    /// The conic the ship coasts on after the pass, round the primary.
+    coast: Conic,
+}
+
 /// How a Rendezvous ends: in an orbit or on a conic, and when.
 struct Arrived {
     landing: Landing,
@@ -118,9 +132,6 @@ impl Setup<'_> {
             }
             (Arrival::Intercept { band }, _) => Some(band),
         };
-        if intercept_band == Some(Band::Low) {
-            return Err(Infeasible::PassThroughLow);
-        }
         let rendezvous = order.arrival == Arrival::Rendezvous;
         let depart = from.charges(tree, primary);
         let arrive = if rendezvous {
@@ -440,24 +451,78 @@ impl Setup<'_> {
         Some(self.capture_point(&self.intercept_ring()?, crossing))
     }
 
-    /// XFER-09 / XFER-10: the closing speed at an Intercept: through a
-    /// body's band, the excess speed boosted by the body's gravity at the
-    /// band's radius; at a ship or station whose state is the end state,
-    /// the plain relative speed.
-    fn intercept_speed_kms(&self, crossing: &Crossing) -> Result<f64, Infeasible> {
-        let v_inf = crossing.arrival_relative_velocity().length();
-        let through = match self.target {
+    /// The band of another body an Intercept passes through: the
+    /// destination body's band, or a station's or ship's own band beyond
+    /// the primary's frame. `None` when the crossing ends at the target
+    /// itself.
+    fn ring_passed(&self) -> Result<Option<OrbitNode>, Infeasible> {
+        Ok(match self.target {
             Target::Ring { .. } => Some(self.intercept_ring().ok_or(Infeasible::NoHighBand)?),
             Target::Point { node, .. } if node.body != self.primary => Some(node),
             _ => None,
+        })
+    }
+
+    /// XFER-09 / XFER-10: the speed at an Intercept: through a body's
+    /// band, the excess speed boosted by the body's gravity at the band's
+    /// radius; at a ship or station whose state is the end state, the
+    /// plain relative speed.
+    fn intercept_speed_kms(&self, crossing: &Crossing) -> Result<f64, Infeasible> {
+        let v_inf = crossing.arrival_relative_velocity().length();
+        Ok(km_per_day_to_km_per_s(match self.ring_passed()? {
+            Some(ring) => pass_speed(self.tree.mu(ring.body), ring.radius_km, v_inf),
+            None => v_inf,
+        }))
+    }
+
+    /// XFER-14 / XFER-10: the speed at which an Intercept at a station or
+    /// a ship goes by it. A target in another body's band moves the way
+    /// the pass goes round, so the pass closes at its own speed less the
+    /// band's circular speed; a target whose state is the end state
+    /// closes at the plain relative speed. An Intercept at a body has no
+    /// target to close on.
+    fn closing_speed_kms(&self, crossing: &Crossing) -> Option<f64> {
+        let v_inf = crossing.arrival_relative_velocity().length();
+        let closing = match self.target {
+            Target::Ring { .. } => return None,
+            Target::Point { node, .. } if node.body != self.primary => {
+                closing_speed(self.tree.mu(node.body), node.radius_km, v_inf)
+            }
+            Target::Point { .. } | Target::Coasting { .. } => v_inf,
         };
-        let Some(ring) = through else {
-            return Ok(km_per_day_to_km_per_s(v_inf));
+        Some(km_per_day_to_km_per_s(closing))
+    }
+
+    /// XFER-13: an Intercept through the Low band of a body other than
+    /// the primary is swung round by it. Its velocity relative to the body
+    /// keeps its size and turns prograde by 2 arcsin(1 / e); the ship
+    /// leaves from the body's position with the body's velocity plus the
+    /// turned one. Costs no delta-v and no time. A pass through High, or
+    /// inside the primary's own frame, takes no turn.
+    fn low_pass(&self, crossing: &Crossing) -> Result<Option<LowPass>, Infeasible> {
+        if self.rendezvous {
+            return Ok(None);
+        }
+        let Some(ring) = self.ring_passed()? else {
+            return Ok(None);
         };
+        if ring.band != Some(Band::Low) || ring.body == self.primary {
+            return Ok(None);
+        }
         let mu = self.tree.mu(ring.body);
-        Ok(km_per_day_to_km_per_s(
-            (v_inf * v_inf + 2.0 * mu / ring.radius_km).sqrt(),
-        ))
+        let v_inf = crossing.arrival_relative_velocity();
+        let velocity = crossing.end.velocity + turned_velocity(mu, ring.radius_km, v_inf);
+        let coast = Conic::from_state(
+            self.mu,
+            State::new(crossing.end.position, velocity),
+            crossing.end_day,
+            self.tunables.parabola_epsilon,
+        )
+        .ok_or(Infeasible::NoPath)?;
+        Ok(Some(LowPass {
+            turn_rad: turn_angle(mu, ring.radius_km, v_inf.length()),
+            coast,
+        }))
     }
 
     /// BAND-06 / PHAS-10 / XFER-08 / XFER-10: what happens at the
@@ -550,9 +615,10 @@ fn departure_segment(tree: &SystemTree, departure: &Departure) -> Option<Segment
 }
 
 /// XFER-02: the leg's rail: the departure segment until the crossing
-/// starts (waits included), the crossing, then (for a Rendezvous) the
-/// destination segment from the crossing's end; an Intercept extends the
-/// crossing without end. A low-thrust Intercept coasts on from the
+/// starts (waits included), the crossing, then `last` from the crossing's
+/// end: the destination segment of a Rendezvous, or the coast after an
+/// Intercept through Low (XFER-13). Any other Intercept extends the
+/// crossing without end, and a low-thrust one coasts on from the
 /// spiral's end on the circle it reached.
 fn build_trajectory(
     setup: &Setup,
@@ -604,7 +670,7 @@ fn target_lock(target: &Target) -> Option<TargetLock> {
     }
 }
 
-/// XFER-01 to XFER-10, PHAS-04 to PHAS-15: the leg a ship with `drive`
+/// XFER-01 to XFER-14, PHAS-04 to PHAS-15: the leg a ship with `drive`
 /// and `budget_kms` of delta-v to spare flies for `order` from
 /// `departure`, or why it can't. A destination in the ship's own orbit is
 /// already reached or met by a phasing leg; anything else is a crossing.
@@ -649,15 +715,24 @@ pub fn solve_leg(
         });
     }
     let arrived = setup.arrive(crossing);
-    let (intercept_speed_kms, closest_approach_rad) = if setup.rendezvous {
-        (None, None)
+    let (intercept_speed_kms, closing_speed_kms, closest_approach_rad) = if setup.rendezvous {
+        (None, None, None)
     } else {
         (
             Some(setup.intercept_speed_kms(crossing)?),
+            setup.closing_speed_kms(crossing),
             setup.closest_approach(crossing),
         )
     };
-    let trajectory = build_trajectory(&setup, departure, order, crossing, arrived.last)?;
+    let low_pass = setup.low_pass(crossing)?;
+    let last = match &low_pass {
+        Some(pass) => Some(SegmentKind::Conic {
+            primary: setup.primary,
+            conic: pass.coast,
+        }),
+        None => arrived.last,
+    };
+    let trajectory = build_trajectory(&setup, departure, order, crossing, last)?;
     Ok(SolvedLeg {
         origin,
         primary: setup.primary,
@@ -670,6 +745,8 @@ pub fn solve_leg(
         burns: flight.burns,
         landing: arrived.landing,
         intercept_speed_kms,
+        closing_speed_kms,
+        turn_rad: low_pass.map(|pass| pass.turn_rad),
         departure_wait_days: flight.departure_wait,
         arrival_wait_days: arrived.wait_days,
         closest_approach_rad,
@@ -1006,8 +1083,8 @@ mod tests {
     /// pays departure and burn 1 only, has no arrival approach, leaves the
     /// crossing conic open-ended, reports the closing speed boosted by the
     /// body's gravity at the band's radius, and records its closest
-    /// approach: the capture point's angle at the band's radius. An
-    /// Intercept through Low is not specced.
+    /// approach: the capture point's angle at the band's radius. It takes
+    /// no turn and has no target to close on.
     #[test]
     fn an_intercept_skips_capture_and_coasts_on() {
         let l = layout();
@@ -1052,15 +1129,154 @@ mod tests {
         let closest = capture_angle(inner.mu, high, v_inf);
         assert!(angle_between(leg.closest_approach_rad.unwrap(), closest) < 1e-6);
         assert_eq!(rendezvous.closest_approach_rad, None);
+        assert_eq!(leg.turn_rad, None, "a pass through High takes no turn");
+        assert_eq!(
+            leg.closing_speed_kms, None,
+            "a body has no target to close on"
+        );
+    }
 
-        let low = Order {
+    /// XFER-08 / XFER-13 / XFER-09: an Intercept through another body's
+    /// Low band costs what one through High does, but the crossing ends on
+    /// the crossing end day: from then the ship coasts on a new conic
+    /// round the star, from the body's position, with the body's velocity
+    /// plus its excess velocity turned prograde by 2 arcsin(1 / e). The
+    /// excess speed is unchanged.
+    #[test]
+    fn an_intercept_through_low_is_turned_by_the_body() {
+        let l = layout();
+        let from = l.parked(l.capital, Band::High);
+        let intercept = Order {
             arrival: Arrival::Intercept { band: Band::Low },
+            ..rendezvous_with(l.inner, Band::Low, 111.0)
+        };
+        let (order, leg) = l.cheapest(&from, intercept, &l.ntr);
+        let high = Order {
+            arrival: Arrival::Intercept { band: Band::High },
+            destination: Place::Body {
+                body: l.inner,
+                band: Band::High,
+            },
             ..order
         };
-        assert_eq!(
-            l.solve(&from, &low, &l.ntr),
-            Err(Infeasible::PassThroughLow)
+        let through_high = l.solve(&from, &high, &l.ntr).unwrap();
+        assert!((leg.delta_v_kms - through_high.delta_v_kms).abs() < 1e-9);
+        assert_eq!(leg.crossing_end_day, through_high.crossing_end_day);
+        assert_eq!(leg.arrival_day, leg.crossing_end_day);
+        assert_eq!(leg.landing, Landing::Intercept);
+
+        let segments = leg.trajectory.segments();
+        assert_eq!(segments.len(), 3);
+        assert_eq!(segments[1].end_day, Some(leg.crossing_end_day));
+        assert_eq!(segments[2].start_day, leg.crossing_end_day);
+        assert_eq!(segments[2].end_day, None);
+        let SegmentKind::Conic { primary, .. } = segments[2].kind else {
+            panic!("the ship coasts on after the pass");
+        };
+        assert_eq!(primary, l.star);
+
+        let inner = l.tree.bodies[&l.inner];
+        let body = inner.orbit.unwrap().state_at(leg.crossing_end_day);
+        let v_in = arrival_v_inf(&l, &leg, l.inner);
+        let after = leg.trajectory.state_at(leg.crossing_end_day).unwrap();
+        assert!((after.position - body.position).length() < 1.0);
+        let v_out = after.velocity - body.velocity;
+        within(v_out.length(), v_in.length(), 1e-6, "excess speed");
+        let low = l.node(l.inner, Band::Low).radius_km;
+        let e = 1.0 + low * v_in.length_squared() / inner.mu;
+        let turn = 2.0 * (1.0 / e).asin();
+        within(leg.turn_rad.unwrap(), turn, 1e-9, "turn");
+        let turned = gap_rad(angle_of(v_in), angle_of(v_out));
+        assert!((turned - turn).abs() < 1e-6, "turned {turned} prograde");
+        assert!(turn > 10f64.to_radians(), "a Low pass is a real turn");
+
+        // XFER-09: the speed is taken at the Low band's radius.
+        let expected =
+            km_per_day_to_km_per_s((v_in.length_squared() + 2.0 * inner.mu / low).sqrt());
+        within(
+            leg.intercept_speed_kms.unwrap(),
+            expected,
+            1e-6,
+            "intercept speed",
         );
+        let closest = capture_angle(inner.mu, low, v_in);
+        assert!(angle_between(leg.closest_approach_rad.unwrap(), closest) < 1e-6);
+    }
+
+    /// XFER-13: an Intercept through a Low band of the crossing's own
+    /// primary takes no turn: the crossing's conic already goes round that
+    /// body, and runs on without end.
+    #[test]
+    fn an_intercept_through_the_primarys_own_low_band_is_not_turned() {
+        let l = layout();
+        let capital_mu = l.tree.bodies[&l.capital].mu;
+        let low = l.node(l.capital, Band::Low).radius_km;
+        let high = l.node(l.capital, Band::High).radius_km;
+        let order = Order {
+            arrival: Arrival::Intercept { band: Band::Low },
+            ..rendezvous_with(l.capital, Band::Low, hohmann(capital_mu, high, low).days)
+        };
+        let leg = l
+            .solve(&l.parked(l.capital, Band::High), &order, &l.ntr)
+            .unwrap();
+        assert_eq!(leg.primary, l.capital);
+        assert_eq!(leg.turn_rad, None);
+        let segments = leg.trajectory.segments();
+        assert_eq!(segments.len(), 2);
+        assert_eq!(segments[1].end_day, None);
+    }
+
+    /// XFER-14 / XFER-13 / PHAS-15: an Intercept at a station in another
+    /// body's Low band goes through that band: it is trimmed to meet the
+    /// station, turned by the body, and passes the station at the pass's
+    /// speed less the band's circular speed. One at a station in a High
+    /// band closes the same way and takes no turn.
+    #[test]
+    fn an_intercept_at_a_station_closes_at_the_pass_speed_less_the_bands() {
+        let l = layout();
+        let raid = |station| Order {
+            destination: Place::Station { station },
+            arrival: Arrival::Intercept { band: Band::High },
+            ..rendezvous_with(l.capital, Band::Low, 111.0)
+        };
+        let (_, leg) = l.cheapest(&l.parked(l.inner, Band::High), raid(l.station), &l.ntr);
+        let capital = l.tree.bodies[&l.capital];
+        let low = l.node(l.capital, Band::Low);
+        assert!(leg.trim_days.is_some_and(|trim| trim < low.period_days));
+        assert!(leg.turn_rad.is_some());
+        assert_eq!(leg.trajectory.segments().len(), 3);
+        let v_inf = arrival_v_inf(&l, &leg, l.capital);
+        let pass = (v_inf.length_squared() + 2.0 * capital.mu / low.radius_km).sqrt();
+        let closing = km_per_day_to_km_per_s(pass - (capital.mu / low.radius_km).sqrt());
+        within(
+            leg.closing_speed_kms.unwrap(),
+            closing,
+            1e-6,
+            "closing speed",
+        );
+        within(
+            leg.intercept_speed_kms.unwrap(),
+            km_per_day_to_km_per_s(pass),
+            1e-6,
+            "speed relative to the capital",
+        );
+        let station = low.path(STATION_PHASE).angle_at(leg.crossing_end_day);
+        let closest = leg.closest_approach_rad.unwrap();
+        assert!(low.radius_km * angle_between(station, closest) < l.tunables.together_km);
+
+        let from = l.parked(l.capital, Band::High);
+        let (_, leg) = l.cheapest(&from, raid(l.far_station), &l.ntr);
+        let inner = l.tree.bodies[&l.inner];
+        let high = l.node(l.inner, Band::High).radius_km;
+        let v_inf = arrival_v_inf(&l, &leg, l.inner).length();
+        let closing = (v_inf * v_inf + 2.0 * inner.mu / high).sqrt() - (inner.mu / high).sqrt();
+        within(
+            leg.closing_speed_kms.unwrap(),
+            km_per_day_to_km_per_s(closing),
+            1e-6,
+            "closing speed in High",
+        );
+        assert_eq!(leg.turn_rad, None);
     }
 
     /// XFER-10 / PHAS-10 / PLAN-11: a parked ship in another body's band

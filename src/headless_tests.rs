@@ -3283,6 +3283,62 @@ fn an_intercept_leaves_the_ship_coasting_unchanged_by_the_planet() {
     assert!((spent - leg.delta_v_kms).abs() < 1e-9);
 }
 
+/// XFER-13 / PLAN-10 / BAND-07: Orison passes Iver through its Low band.
+/// At the crossing's end the plan is Done and the ship coasts round the
+/// star on a new conic, swung round by Iver: it leaves Iver at the speed
+/// it came in with, its direction turned prograde by the leg's turn.
+#[test]
+fn an_intercept_through_low_leaves_the_ship_coasting_on_the_turned_path() {
+    use crate::sim::transfer::phase::gap_rad;
+    use orbits::{CircularOrbit, Rail, angle_of};
+
+    let mut app = sim_app();
+    let iver = body(&mut app, "Iver");
+    let orison = body(&mut app, "Orison");
+    let order = Order {
+        destination: Place::Body {
+            body: iver,
+            band: Band::Low,
+        },
+        arrival: Arrival::Intercept { band: Band::Low },
+        ..cheapest_intercept_of_iver(&mut app, orison, iver)
+    };
+    schedule(&mut app, orison, order).unwrap();
+    let leg = plan(&app, orison).leg().clone();
+    let turn = leg.turn_rad.expect("a pass through Low turns");
+    let SegmentKind::Conic {
+        conic: crossing, ..
+    } = leg.trajectory.segments()[1].kind
+    else {
+        panic!("a conic crossing");
+    };
+
+    run_until(&mut app, 20.0, leg.crossing_end_day + 30.0);
+    assert_eq!(plan(&app, orison).status, Status::Done);
+    assert!(app.world().get::<InNamedOrbit>(orison).is_none());
+    let rail = app.world().get::<ShipRail>(orison).unwrap().0.clone();
+    let segment = rail.segment_at(day(&app)).unwrap();
+    assert_eq!(segment.end_day, None);
+    let SegmentKind::Conic {
+        conic: after,
+        primary,
+    } = segment.kind
+    else {
+        panic!("coasting after the pass");
+    };
+    assert_eq!(primary, body(&mut app, "Corvane"));
+    assert_ne!(after, crossing, "the pass changed the path");
+
+    let end = leg.crossing_end_day;
+    let iver_v = CircularOrbit::from(app.world().get::<Orbit>(iver).unwrap())
+        .state_at(end)
+        .velocity;
+    let v_in = crossing.state_at(end).velocity - iver_v;
+    let v_out = after.state_at(end).velocity - iver_v;
+    assert!((v_out.length() - v_in.length()).abs() < 1e-6 * v_in.length());
+    assert!((gap_rad(angle_of(v_in), angle_of(v_out)) - turn).abs() < 1e-6);
+}
+
 /// BAND-08: a coasting ship on a hyperbola round the star is removed
 /// once it is `lost_beyond_au` out; a bound coaster is not.
 #[test]
