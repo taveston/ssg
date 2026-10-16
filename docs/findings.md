@@ -238,11 +238,6 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** PLNR-106, PLNR-96 · **Type:** spec gap
 - **Disposition:** open. Accept, and add the sentence to PLNR-106.
 
-### F-240 · The panel fill shows the map through the tray
-- **Observation:** The panel fill is 0.97 alpha, and blending happens in linear light, so bright labels and the belt under the tray show faintly through it (about 15% on a white label). The inset uses the same fill, but it seldom sits over the map.
-- **Affects:** MUL-08, INS-09 · **Type:** idea
-- **Disposition:** open. Make the tray's fill opaque.
-
 ### F-241 · When a changing cluster stops existing
 - **Observation:** MUL-10 closes the tray when its marker stops existing. Together and overlap markers are known by their first thing, so if that thing leaves while the others stay, or a new thing joins ahead of it, the build treats the marker as gone and closes the tray, though most of its things are still on one marker.
 - **Affects:** MUL-10, MUL-05 · **Type:** spec gap

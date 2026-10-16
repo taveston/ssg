@@ -43,6 +43,9 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - A click on a shared ring selects the parent and expands that orbit's row in the outline in both modes, and opens the identity mark's tray only in exposure-ring mode; in dot mode it opens no tray. The identity mark's tray header reads "HIGH ORBIT · N THINGS", with the orbit's name.
   - Tests: dot mode, a click on a shared ring opens no tray and closes an open one; ring mode, a click on the mark opens it with the orbit's header.
 
+- [ ] **The tray's fill is opaque** · F-240 · MUL-08
+  - Draw the tray's fill at full alpha, so labels and the belt don't show through it. The inset keeps the panel fill as it is. Test: the tray's background colour has alpha 1.
+
 ## Fixes
 
 - [ ] **Orbit membership follows the ship** · F-242, F-201 · RAIL-09, SCL-07, HOV-04, INS-05, MRK-09, HOV-02
