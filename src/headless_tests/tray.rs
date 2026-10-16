@@ -320,12 +320,14 @@ fn a_click_on_the_tray_over_a_ring_hits_the_row() {
     let highport = body(&mut app, "Arden Highport");
     click_fold_marker(&mut app, halden);
     assert!(open_tray(&app).is_some());
-    // Let the rings come to rest on screen.
+    // The click selected Halden IV, so the inset is sliding open and the
+    // map area narrowing, carrying the rings with it (INS-07). Let the
+    // slide finish so the point found below stays on its ring.
     run(&mut app, SETTLE_FRAMES);
 
     // A point on a drawn ring, clear of every other ring, that stands for
-    // something other than Halden IV, the selection, so a click on it
-    // would show.
+    // neither Halden IV, the selection, nor the row's station, so a click
+    // that reached the ring would show.
     let tolerance = Tunables::default().ring_hit_px;
     let (ring, point) = {
         let paths = &app.world().resource::<RingPaths>().0;
@@ -338,7 +340,7 @@ fn a_click_on_the_tray_over_a_ring_hits_the_row() {
             .iter()
             .filter(|(ring, _)| {
                 let body = app.world().get::<MarkerFor>(**ring).map(|m| m.0);
-                body.is_some() && body != Some(halden)
+                body.is_some_and(|body| body != halden && body != highport)
             })
             .flat_map(|(&ring, segments)| {
                 segments.iter().map(move |&(a, b)| (ring, a.lerp(b, 0.5)))
