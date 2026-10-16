@@ -46,6 +46,10 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 - [ ] **The tray's fill is opaque** · F-240 · MUL-08
   - Draw the tray's fill at full alpha, so labels and the belt don't show through it. The inset keeps the panel fill as it is. Test: the tray's background colour has alpha 1.
 
+- [ ] **A tray follows the marker that keeps most of its things** · F-241 · MUL-10
+  - Identify a tray's marker by the set of things on its rows, not by its first thing. When things leave or join, the tray moves to the marker holding most of them, a tie going to the one holding the first row's thing, and rebuilds its rows; it closes only when no marker holds any of them.
+  - Tests: a convoy's lead leaves and the tray stays open on the rest; a new thing joins ahead of the first and the tray stays; everything parts and the tray closes with the selection kept.
+
 ## Fixes
 
 - [ ] **Orbit membership follows the ship** · F-242, F-201 · RAIL-09, SCL-07, HOV-04, INS-05, MRK-09, HOV-02

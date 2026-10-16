@@ -238,11 +238,6 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** PLNR-106, PLNR-96 · **Type:** spec gap
 - **Disposition:** open. Accept, and add the sentence to PLNR-106.
 
-### F-241 · When a changing cluster stops existing
-- **Observation:** MUL-10 closes the tray when its marker stops existing. Together and overlap markers are known by their first thing, so if that thing leaves while the others stay, or a new thing joins ahead of it, the build treats the marker as gone and closes the tray, though most of its things are still on one marker.
-- **Affects:** MUL-10, MUL-05 · **Type:** spec gap
-- **Disposition:** open. Accept, or say the tray follows the marker that keeps most of its things.
-
 ### F-242 · A ship that transfers to another body stays with the old one
 - **Observation:** In play, a ship sent from one body's band to another body's (for example Earth's Low band to the Moon's Low band) arrives, but its symbol isn't moved to the new body and the "In orbit" outline still lists it under the old one. A transfer between two bands of the same body works as expected. Likely the same root as F-201: what a ship orbits, and which orbit it belongs to, is fixed at spawn and only the band is updated on arrival.
 - **Affects:** XFER-01, SCL-07, INS-05, GRP-01 · **Type:** bug
