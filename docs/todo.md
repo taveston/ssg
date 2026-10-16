@@ -14,6 +14,8 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 - [ ] **Ship groups and condition** · SYM-09, SYM-10, SYM-12, GRP-09, TEST-06
   - The symbols are built; groups add to them (`view/symbols.rs`, `symbol_draw.rs`).
+  - A group holds its members and takes its class, armed status, load and condition from them (SYM-01, SYM-09). Add `group_offset_px` to `Tunables`.
+  - SYM-13 is still open for the order countdown (**Transfer planner**). Its group parts come with this item: the member count by class, and the label clear of the symbol's amplifiers.
   - The ships of a group share one phase (PHAS-14, TEST-10), so TEST-10's check that no two ships share a phase must skip ships of one group.
 - [ ] **Stations in bands** · SCL-07, BAND-02, TEST-02, TEST-09, TEST-10
   - A station takes a place in a body's Low or High band, as a ship does; the Station place becomes the band it occupies. Move Arden Highport and Tern Relay into Low bands (`content/corvane.rs`) and drop the station's own-orbit placement.
