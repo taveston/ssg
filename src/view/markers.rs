@@ -20,6 +20,7 @@
 //! keeps its own marker at every zoom.
 
 use bevy::color::Mix;
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
 use super::colors;
@@ -727,14 +728,79 @@ pub fn fade_parts(root: Entity, alpha: f32, children: &Query<&Children>, parts: 
     }
 }
 
+/// Where markers go this frame: the bodies' screen positions, the gates
+/// pinned to the map's edge, and the true-size discs' radii.
+#[derive(SystemParam)]
+struct MarkerScreen<'w> {
+    screen: Res<'w, ScreenPositions>,
+    edges: Res<'w, GateEdgeTargets>,
+    discs: Res<'w, DiscRadii>,
+}
+
+impl MarkerScreen<'_> {
+    /// MRK-03: a marker's centre, moving towards its parent's as it folds;
+    /// `None` while the body is off screen, faded out, or a gate pinned
+    /// to the edge.
+    fn centre(
+        &self,
+        body: Entity,
+        parent: Option<Entity>,
+        alpha: f32,
+        fold_anim_t: f32,
+    ) -> Option<Vec2> {
+        let own = self
+            .screen
+            .get(body)
+            .filter(|pos| self.screen.in_viewport(*pos))
+            .filter(|_| alpha > MIN_VISIBLE_ALPHA && !self.edges.is_pinned(body))?;
+        let parent = parent.and_then(|parent| self.screen.get(parent));
+        Some(marker_position(own, parent, fold_anim_t))
+    }
+}
+
+/// A marker's coloured parts and its class detail, and the tunables
+/// they are coloured by.
+#[derive(SystemParam)]
+struct MarkerPaint<'w, 's> {
+    children: Query<'w, 's, &'static Children>,
+    parts: TintedParts<'w, 's>,
+    details: DetailNodes<'w, 's>,
+    tunables: Res<'w, Tunables>,
+}
+
+impl MarkerPaint<'_, '_> {
+    /// Fades a marker's parts to `alpha`. A disc (`true_size` is `Some`)
+    /// grown past its marker is first filled and loses its class detail
+    /// (MRK-07, MRK-11, MRK-13).
+    fn paint(&mut self, marker: Entity, true_size: Option<bool>, alpha: f32) {
+        if let Some(true_size) = true_size {
+            if let Ok((mut tint, ..)) = self.parts.get_mut(marker) {
+                tint.color = body_fill(true_size, &self.tunables);
+            }
+            show_body_detail(marker, !true_size, &self.children, &mut self.details);
+        }
+        fade_parts(marker, alpha, &self.children, &mut self.parts);
+    }
+}
+
+/// A marker's alpha and how far its fold has run, from its body's fold
+/// and motion mode.
+fn marker_fade(fold: Option<&SatelliteFoldState>, motion: Option<&MotionModeState>) -> (f32, f32) {
+    let fold_anim_t = fold.map(|f| f.anim_t).unwrap_or(1.0);
+    let alpha = marker_alpha(
+        fold_anim_t,
+        fold.map(|f| f.effective_hidden).unwrap_or(false),
+        motion.map(MotionModeState::dot_alpha).unwrap_or(1.0),
+    );
+    (alpha, fold_anim_t)
+}
+
 /// MRK-03 / MRK-07: place, fade and colour every marker for this frame.
-#[allow(clippy::too_many_arguments)]
 fn update_markers(
-    (screen, edges, discs): (Res<ScreenPositions>, Res<GateEdgeTargets>, Res<DiscRadii>),
+    place: MarkerScreen,
     bodies: MarkerBodies,
     mut markers: MarkerNodes,
-    (children, mut parts, mut details): (Query<&Children>, TintedParts, DetailNodes),
-    tunables: Res<Tunables>,
+    mut paint: MarkerPaint,
 ) {
     for (entity, marker_for, half, shape, mut node, mut drawn_at) in &mut markers {
         let body = marker_for.0;
@@ -743,41 +809,21 @@ fn update_markers(
             node.display = Display::None;
             continue;
         };
-
-        let fold_anim_t = fold.map(|f| f.anim_t).unwrap_or(1.0);
-        let alpha = marker_alpha(
-            fold_anim_t,
-            fold.map(|f| f.effective_hidden).unwrap_or(false),
-            motion.map(MotionModeState::dot_alpha).unwrap_or(1.0),
-        );
-        let own = screen
-            .get(body)
-            .filter(|pos| screen.in_viewport(*pos))
-            .filter(|_| alpha > MIN_VISIBLE_ALPHA && !edges.is_pinned(body));
-        let Some(own) = own else {
+        let (alpha, fold_anim_t) = marker_fade(fold, motion);
+        let parent = child_of.map(ChildOf::parent);
+        let Some(pos) = place.centre(body, parent, alpha, fold_anim_t) else {
             node.display = Display::None;
             continue;
         };
-        let parent = child_of.and_then(|child_of| screen.get(child_of.parent()));
-        let pos = marker_position(own, parent, fold_anim_t);
-
-        let drawn = drawn_half(half.0.x, *shape == MarkerShape::Disc, discs.get(body));
+        let disc = *shape == MarkerShape::Disc;
+        let drawn = drawn_half(half.0.x, disc, place.discs.get(body));
         drawn_at.set_if_neq(MarkerDrawn(Some((pos, drawn))));
         node.display = Display::Flex;
         node.width = px(drawn * 2.0);
         node.height = px(drawn * 2.0);
         node.left = px(pos.x - drawn);
         node.top = px(pos.y - drawn);
-        if *shape == MarkerShape::Disc {
-            // MRK-07 / MRK-11 / MRK-13: grown past its marker, a body is
-            // a filled disc without its class detail.
-            let true_size = drawn > half.0.x;
-            if let Ok((mut tint, ..)) = parts.get_mut(entity) {
-                tint.color = body_fill(true_size, &tunables);
-            }
-            show_body_detail(entity, !true_size, &children, &mut details);
-        }
-        fade_parts(entity, alpha, &children, &mut parts);
+        paint.paint(entity, disc.then_some(drawn > half.0.x), alpha);
     }
 }
 
