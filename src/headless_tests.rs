@@ -3011,7 +3011,7 @@ fn high_to_low(app: &mut App, halden: Entity, depart_day: f64) -> Order {
             body: halden,
             band: Band::Low,
         },
-        arrival: Arrival::Stop,
+        arrival: Arrival::Rendezvous,
         depart_day,
         travel_days,
     }
@@ -3087,7 +3087,7 @@ fn a_warship_flies_from_high_to_low_and_parks() {
     let orbit = app.world().get::<Orbit>(orison).unwrap();
     assert_eq!(orbit.radius_km, low_km);
     let Landing::Orbit { phase0_rad, .. } = leg.landing else {
-        panic!("a Stop lands in an orbit");
+        panic!("a Rendezvous lands in an orbit");
     };
     assert_eq!(orbit.phase0_rad, phase0_rad);
     let parked = app
@@ -3143,9 +3143,9 @@ fn a_tanker_spirals_between_bands() {
     assert_eq!(app.world().get::<InNamedOrbit>(tolland).unwrap().0, low);
 }
 
-/// The cheapest Pass of Iver's High band for Orison, searching departure
+/// The cheapest Intercept of Iver's High band for Orison, searching departure
 /// days over one synodic period.
-fn cheapest_pass_of_iver(app: &mut App, orison: Entity, iver: Entity) -> Order {
+fn cheapest_intercept_of_iver(app: &mut App, orison: Entity, iver: Entity) -> Order {
     let halden = body(app, "Halden IV");
     let halden_orbit = *app.world().get::<Orbit>(halden).unwrap();
     let iver_orbit = *app.world().get::<Orbit>(iver).unwrap();
@@ -3160,7 +3160,7 @@ fn cheapest_pass_of_iver(app: &mut App, orison: Entity, iver: Entity) -> Order {
                 body: iver,
                 band: Band::High,
             },
-            arrival: Arrival::Pass { band: Band::High },
+            arrival: Arrival::Intercept { band: Band::High },
             depart_day: depart,
             travel_days,
         };
@@ -3179,7 +3179,7 @@ fn cheapest_pass_of_iver(app: &mut App, orison: Entity, iver: Entity) -> Order {
 /// the same conic, unchanged by passing through Iver's Hill sphere; its
 /// plan still says where it came from and what it did.
 #[test]
-fn a_pass_leaves_the_ship_coasting_unchanged_by_the_planet() {
+fn an_intercept_leaves_the_ship_coasting_unchanged_by_the_planet() {
     use crate::sim::transfer::tree::{ShipState, TreeQuery};
     use bevy::ecs::system::RunSystemOnce;
 
@@ -3187,11 +3187,11 @@ fn a_pass_leaves_the_ship_coasting_unchanged_by_the_planet() {
     let halden = body(&mut app, "Halden IV");
     let iver = body(&mut app, "Iver");
     let orison = body(&mut app, "Orison");
-    let order = cheapest_pass_of_iver(&mut app, orison, iver);
+    let order = cheapest_intercept_of_iver(&mut app, orison, iver);
     schedule(&mut app, orison, order).unwrap();
     let leg = plan(&app, orison).leg().clone();
-    assert_eq!(leg.arrival, Arrival::Pass { band: Band::High });
-    assert!(leg.pass_speed_kms.is_some());
+    assert_eq!(leg.arrival, Arrival::Intercept { band: Band::High });
+    assert!(leg.intercept_speed_kms.is_some());
     assert_eq!(leg.trajectory.segments().len(), 2);
 
     run_until(&mut app, 20.0, leg.crossing_start_day + 1.0);

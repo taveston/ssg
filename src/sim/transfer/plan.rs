@@ -53,7 +53,7 @@ pub struct Leg {
     pub crossing_end_day: f64,
     pub arrival_day: f64,
     pub landing: Landing,
-    pub pass_speed_kms: Option<f64>,
+    pub intercept_speed_kms: Option<f64>,
 }
 
 impl Leg {
@@ -72,7 +72,7 @@ impl Leg {
             crossing_end_day: solved.crossing_end_day,
             arrival_day: solved.arrival_day,
             landing: solved.landing,
-            pass_speed_kms: solved.pass_speed_kms,
+            intercept_speed_kms: solved.intercept_speed_kms,
         }
     }
 
@@ -161,8 +161,8 @@ pub enum Effect {
 /// the orbit assumed (`in_departure_orbit`) and can still pay
 /// (`available_kms` counts what this plan reserved), else Failed; in
 /// flight, the burns are made as their days pass, the ship leaves and
-/// joins orbits, and the plan is Done on arrival (Stop) or at the
-/// crossing's end (Pass).
+/// joins orbits, and the plan is Done on arrival (Rendezvous) or at the
+/// crossing's end (Intercept).
 pub fn advance(
     plan: &mut Plan,
     day: f64,
@@ -211,10 +211,13 @@ pub fn advance(
                 plan.reserved_kms -= leg.burns.end_kms;
                 effects.push(Effect::Burn(leg.burns.end_kms));
             }
-            Landing::Pass => plan.status = Status::Done,
+            Landing::Intercept => plan.status = Status::Done,
         }
     }
-    if plan.status == Status::InFlight && leg.arrival == Arrival::Stop && day >= leg.arrival_day {
+    if plan.status == Status::InFlight
+        && leg.arrival == Arrival::Rendezvous
+        && day >= leg.arrival_day
+    {
         plan.status = Status::Done;
     }
     effects
@@ -579,7 +582,7 @@ mod tests {
             1e-6,
         )
         .unwrap();
-        let stop = arrival == Arrival::Stop;
+        let rendezvous = arrival == Arrival::Rendezvous;
         let mut segments = vec![
             Segment {
                 start_day: 5.0,
@@ -592,11 +595,11 @@ mod tests {
             },
             Segment {
                 start_day: 10.0,
-                end_day: stop.then_some(20.0),
+                end_day: rendezvous.then_some(20.0),
                 kind: SegmentKind::Conic { primary, conic },
             },
         ];
-        if stop {
+        if rendezvous {
             segments.push(Segment {
                 start_day: 20.0,
                 end_day: None,
@@ -621,24 +624,24 @@ mod tests {
                 band: Band::Low,
             }),
             primary,
-            delta_v_kms: if stop { 5.0 } else { 3.0 },
+            delta_v_kms: if rendezvous { 5.0 } else { 3.0 },
             burns: LegBurns {
                 start_kms: 3.0,
-                end_kms: if stop { 2.0 } else { 0.0 },
+                end_kms: if rendezvous { 2.0 } else { 0.0 },
             },
             crossing_start_day: 10.0,
             crossing_end_day: 20.0,
             arrival_day: 22.0,
-            landing: if stop {
+            landing: if rendezvous {
                 Landing::Orbit {
                     orbit: dest,
                     body,
                     phase0_rad: 0.4,
                 }
             } else {
-                Landing::Pass
+                Landing::Intercept
             },
-            pass_speed_kms: (!stop).then_some(4.0),
+            intercept_speed_kms: (!rendezvous).then_some(4.0),
         };
         (Plan::new(ship, vec![leg]).unwrap(), orbit, dest)
     }
@@ -647,7 +650,7 @@ mod tests {
     #[test]
     fn plans_with_more_than_one_leg_are_rejected() {
         let mut world = World::new();
-        let (one, ..) = plan(&mut world, Arrival::Stop);
+        let (one, ..) = plan(&mut world, Arrival::Rendezvous);
         let ship = one.ship;
         let leg = one.leg().clone();
         assert_eq!(
@@ -657,13 +660,13 @@ mod tests {
         assert_eq!(Plan::new(ship, vec![]).unwrap_err(), Infeasible::MultiLeg);
     }
 
-    /// PLAN-10 / PLAN-21: a Stop leg launches on its depart day, burns
+    /// PLAN-10 / PLAN-21: a Rendezvous leg launches on its depart day, burns
     /// and leaves orbit at the crossing start, burns and joins the
     /// destination at the crossing end, and is Done on arrival.
     #[test]
-    fn a_stop_leg_runs_through_its_transitions() {
+    fn a_rendezvous_leg_runs_through_its_transitions() {
         let mut world = World::new();
-        let (mut plan, _, dest) = plan(&mut world, Arrival::Stop);
+        let (mut plan, _, dest) = plan(&mut world, Arrival::Rendezvous);
         assert!(advance(&mut plan, 4.0, true, 0.0).is_empty());
         assert_eq!(plan.status, Status::Scheduled);
 
@@ -687,12 +690,12 @@ mod tests {
         assert!(!plan.is_active());
     }
 
-    /// PLAN-10: a Pass leg is Done at the crossing's end, with no second
+    /// PLAN-10: an Intercept leg is Done at the crossing's end, with no second
     /// burn and no orbit to join: the ship coasts.
     #[test]
-    fn a_pass_leg_is_done_at_the_crossing_end() {
+    fn an_intercept_leg_is_done_at_the_crossing_end() {
         let mut world = World::new();
-        let (mut plan, ..) = plan(&mut world, Arrival::Pass { band: Band::High });
+        let (mut plan, ..) = plan(&mut world, Arrival::Intercept { band: Band::High });
         advance(&mut plan, 5.0, true, 0.0);
         advance(&mut plan, 10.0, true, 0.0);
         let effects = advance(&mut plan, 20.0, true, 0.0);
@@ -706,12 +709,12 @@ mod tests {
     #[test]
     fn a_plan_fails_if_the_ship_moved_or_cannot_pay() {
         let mut world = World::new();
-        let (mut plan, ..) = plan(&mut world, Arrival::Stop);
+        let (mut plan, ..) = plan(&mut world, Arrival::Rendezvous);
         let effects = advance(&mut plan, 5.0, false, 10.0);
         assert_eq!(effects, vec![Effect::Release(5.0)]);
         assert_eq!(plan.status, Status::Failed);
 
-        let (mut plan, ..) = self::plan(&mut world, Arrival::Stop);
+        let (mut plan, ..) = self::plan(&mut world, Arrival::Rendezvous);
         // 1 available plus the 5 reserved is short of a leg that now
         // needs more than 6.
         plan.legs[0].delta_v_kms = 7.0;
@@ -726,7 +729,7 @@ mod tests {
     #[test]
     fn hold_cuts_the_rail_and_drops_later_burns() {
         let mut world = World::new();
-        let (mut plan, ..) = plan(&mut world, Arrival::Stop);
+        let (mut plan, ..) = plan(&mut world, Arrival::Rendezvous);
         assert!(hold(&mut plan).is_empty());
         assert_eq!(plan.status, Status::Scheduled);
         advance(&mut plan, 5.0, true, 0.0);
@@ -747,10 +750,10 @@ mod tests {
     #[test]
     fn cancelling_releases_a_scheduled_plan_only() {
         let mut world = World::new();
-        let (mut plan, ..) = plan(&mut world, Arrival::Stop);
+        let (mut plan, ..) = plan(&mut world, Arrival::Rendezvous);
         assert_eq!(cancel(&mut plan), Some(Effect::Release(5.0)));
         assert!(!plan.is_active());
-        let (mut plan, ..) = self::plan(&mut world, Arrival::Stop);
+        let (mut plan, ..) = self::plan(&mut world, Arrival::Rendezvous);
         advance(&mut plan, 5.0, true, 0.0);
         assert_eq!(cancel(&mut plan), None);
         assert_eq!(plan.status, Status::InFlight);

@@ -29,13 +29,13 @@ use crate::sim::tunables::SimTunables;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Arrival {
     /// Capture into the destination's orbit.
-    Stop,
+    Rendezvous,
     /// Fly past through `band` and coast on.
     #[cfg_attr(
         not(test),
         expect(dead_code, reason = "ordered by the planner UI, not yet specced")
     )]
-    Pass { band: Band },
+    Intercept { band: Band },
 }
 
 /// One leg as ordered (PLAN-01, PLAN-03): everything a trajectory is
@@ -70,7 +70,7 @@ pub enum Infeasible {
     HoldIsNotACrossing,
     /// No path joins the two ends in the time given (XFER-03).
     NoPath,
-    /// A Pass through Low needs the flyby turn, which is not specced
+    /// An Intercept through Low needs the flyby turn, which is not specced
     /// (XFER-08).
     PassThroughLow,
     /// A low-thrust crossing needs circular orbits at both ends (XFER-06).
@@ -98,7 +98,7 @@ pub enum Infeasible {
 pub struct LegBurns {
     /// Departure cost and burn 1, or a spiral's whole delta-v.
     pub start_kms: f64,
-    /// Burn 2 and the capture cost; zero for a Pass.
+    /// Burn 2 and the capture cost; zero for an Intercept.
     pub end_kms: f64,
 }
 
@@ -114,7 +114,7 @@ pub enum Landing {
     /// Shares a coasting target's conic (XFER-10).
     Coast,
     /// Coasts on past the destination (XFER-08).
-    Pass,
+    Intercept,
 }
 
 /// A leg solved: its timing, path and cost.
@@ -133,8 +133,8 @@ pub struct SolvedLeg {
     pub delta_v_kms: f64,
     pub burns: LegBurns,
     pub landing: Landing,
-    /// XFER-09 / XFER-10: the closing speed at a Pass, in km/s.
-    pub pass_speed_kms: Option<f64>,
+    /// XFER-09 / XFER-10: the closing speed at an Intercept, in km/s.
+    pub intercept_speed_kms: Option<f64>,
 }
 
 /// What a destination comes to (BAND-02).
@@ -343,10 +343,10 @@ struct Setup<'a> {
     from: End,
     to: End,
     target: Target,
-    stop: bool,
+    rendezvous: bool,
     /// Departure cost (km/s) and approach days.
     depart: (f64, f64),
-    /// Capture cost (km/s) and approach days; zero for a Pass.
+    /// Capture cost (km/s) and approach days; zero for an Intercept.
     arrive: (f64, f64),
 }
 
@@ -380,12 +380,12 @@ impl Setup<'_> {
         {
             return Err(Infeasible::ShipPrimary);
         }
-        if let Arrival::Pass { band: Band::Low } = order.arrival {
+        if let Arrival::Intercept { band: Band::Low } = order.arrival {
             return Err(Infeasible::PassThroughLow);
         }
-        let stop = order.arrival == Arrival::Stop;
+        let rendezvous = order.arrival == Arrival::Rendezvous;
         let depart = from.charges(tree, primary);
-        let arrive = if stop {
+        let arrive = if rendezvous {
             to.charges(tree, primary)
         } else {
             (0.0, 0.0)
@@ -399,7 +399,7 @@ impl Setup<'_> {
                 from,
                 to,
                 target,
-                stop,
+                rendezvous,
                 depart,
                 arrive,
             },
@@ -470,7 +470,7 @@ impl Setup<'_> {
             km_per_day_to_km_per_s((crossing.end.velocity - crossing.path_end_velocity).length());
         let burns = LegBurns {
             start_kms: self.depart.0 + burn_1,
-            end_kms: if self.stop {
+            end_kms: if self.rendezvous {
                 burn_2 + self.arrive.0
             } else {
                 0.0
@@ -556,10 +556,10 @@ impl Setup<'_> {
         Ok(())
     }
 
-    /// XFER-09 / XFER-10: the closing speed at a Pass: through a body's
+    /// XFER-09 / XFER-10: the closing speed at an Intercept: through a body's
     /// High band, the excess speed boosted by the body's gravity at that
     /// radius; at a ship, the plain relative speed.
-    fn pass_speed_kms(&self, crossing: &Crossing) -> Result<f64, Infeasible> {
+    fn intercept_speed_kms(&self, crossing: &Crossing) -> Result<f64, Infeasible> {
         let v_inf = (crossing.path_end_velocity - crossing.end.velocity).length();
         let through_body = match self.target {
             Target::Orbit {
@@ -584,8 +584,8 @@ impl Setup<'_> {
     /// BAND-06 / XFER-08 / XFER-10: what happens at the crossing's end,
     /// and the final segment it leaves the ship on.
     fn landing(&self, crossing: &Crossing, arrival_day: f64) -> (Landing, Option<SegmentKind>) {
-        if !self.stop {
-            return (Landing::Pass, None);
+        if !self.rendezvous {
+            return (Landing::Intercept, None);
         }
         match self.target {
             Target::Orbit { orbit, node, .. } => {
@@ -633,9 +633,9 @@ fn departure_segment(tree: &SystemTree, departure: &Departure) -> Option<Segment
 }
 
 /// XFER-02: the leg's rail: the departure segment until the crossing
-/// starts, the crossing, then (for a Stop) the destination segment from
-/// the crossing's end; a Pass extends the crossing without end. A
-/// low-thrust Pass coasts on from the spiral's end on the circle it
+/// starts, the crossing, then (for a Rendezvous) the destination segment from
+/// the crossing's end; an Intercept extends the crossing without end. A
+/// low-thrust Intercept coasts on from the spiral's end on the circle it
 /// reached.
 fn build_trajectory(
     setup: &Setup,
@@ -696,7 +696,7 @@ pub fn solve_leg(
         setup.low_thrust(order, drive)?
     };
     setup.check_periapsis(&crossing)?;
-    // XFER-04: Stop pays both ends; Pass only the departure.
+    // XFER-04: Rendezvous pays both ends; Intercept only the departure.
     let delta_v_kms = burns.start_kms + burns.end_kms;
     if delta_v_kms > budget_kms {
         return Err(Infeasible::DeltaV {
@@ -706,10 +706,10 @@ pub fn solve_leg(
     }
     let arrival_day = crossing.end_day + setup.arrive.1;
     let (landing, last) = setup.landing(&crossing, arrival_day);
-    let pass_speed_kms = if setup.stop {
+    let intercept_speed_kms = if setup.rendezvous {
         None
     } else {
-        Some(setup.pass_speed_kms(&crossing)?)
+        Some(setup.intercept_speed_kms(&crossing)?)
     };
     let trajectory = build_trajectory(&setup, departure, order, &crossing, last)?;
     Ok(SolvedLeg {
@@ -723,7 +723,7 @@ pub fn solve_leg(
         delta_v_kms,
         burns,
         landing,
-        pass_speed_kms,
+        intercept_speed_kms,
     })
 }
 
@@ -963,10 +963,10 @@ mod tests {
         }
     }
 
-    fn stop_to(body: Entity, band: Band, travel_days: f64) -> Order {
+    fn rendezvous_with(body: Entity, band: Band, travel_days: f64) -> Order {
         Order {
             destination: Place::Body { body, band },
-            arrival: Arrival::Stop,
+            arrival: Arrival::Rendezvous,
             depart_day: 0.0,
             travel_days,
         }
@@ -987,7 +987,7 @@ mod tests {
     fn a_planet_to_planet_leg_costs_the_hohmann_burns_plus_the_bands() {
         let l = layout();
         let from = l.parked(l.capital, Band::High);
-        let (_, leg) = l.cheapest(&from, stop_to(l.inner, Band::High, 111.0), &l.ntr);
+        let (_, leg) = l.cheapest(&from, rendezvous_with(l.inner, Band::High, 111.0), &l.ntr);
         assert_eq!(leg.primary, l.star);
         let (depart_cost, _) = l.charges(l.capital, Band::High);
         let (capture_cost, _) = l.charges(l.inner, Band::High);
@@ -1013,7 +1013,7 @@ mod tests {
     fn leg_timing_adds_approach_and_burn_days_at_each_end() {
         let l = layout();
         let from = l.parked(l.capital, Band::High);
-        let (order, leg) = l.cheapest(&from, stop_to(l.inner, Band::High, 111.0), &l.ntr);
+        let (order, leg) = l.cheapest(&from, rendezvous_with(l.inner, Band::High, 111.0), &l.ntr);
         let (_, depart_approach) = l.charges(l.capital, Band::High);
         let (_, arrive_approach) = l.charges(l.inner, Band::High);
         assert!(
@@ -1072,7 +1072,7 @@ mod tests {
         let low = l.tree.orbits[&l.band(l.capital, Band::Low)].radius_km;
         let high = l.tree.orbits[&l.band(l.capital, Band::High)].radius_km;
         let expected = hohmann(capital.mu, low, high);
-        let order = stop_to(l.capital, Band::High, expected.days);
+        let order = rendezvous_with(l.capital, Band::High, expected.days);
         let leg = l
             .solve(&l.parked(l.capital, Band::Low), &order, &l.ntr)
             .unwrap();
@@ -1099,7 +1099,7 @@ mod tests {
     fn a_low_thrust_leg_is_a_spiral_of_fixed_length() {
         let l = layout();
         let star_mu = l.tree.bodies[&l.star].mu;
-        let order = stop_to(l.inner, Band::High, 1.0);
+        let order = rendezvous_with(l.inner, Band::High, 1.0);
         let leg = l
             .solve(&l.parked(l.capital, Band::High), &order, &l.nep)
             .unwrap();
@@ -1155,14 +1155,14 @@ mod tests {
             primary: l.star,
             conic,
         };
-        let order = stop_to(l.inner, Band::High, 1.0);
+        let order = rendezvous_with(l.inner, Band::High, 1.0);
         assert_eq!(
             l.solve(&from, &order, &l.nep),
             Err(Infeasible::LowThrustNeedsCircularEnds)
         );
         // The same coast is fine for an impulsive drive, with no departure
         // cost and no origin place.
-        let (_, leg) = l.cheapest(&from, stop_to(l.inner, Band::High, 60.0), &l.ntr);
+        let (_, leg) = l.cheapest(&from, rendezvous_with(l.inner, Band::High, 60.0), &l.ntr);
         assert_eq!(leg.origin, None);
         let (_, capture_cost) = (0.0, l.charges(l.inner, Band::High).0);
         assert!(leg.burns.end_kms > capture_cost);
@@ -1177,7 +1177,7 @@ mod tests {
     fn a_crossing_too_close_to_the_primary_is_infeasible() {
         let mut l = layout();
         let from = l.parked(l.inner, Band::High);
-        let (order, _) = l.cheapest(&from, stop_to(l.capital, Band::High, 111.0), &l.ntr);
+        let (order, _) = l.cheapest(&from, rendezvous_with(l.capital, Band::High, 111.0), &l.ntr);
         assert!(l.solve(&from, &order, &l.ntr).is_ok());
         l.tunables.min_periapsis_radii = 0.6 * KM_PER_AU / 500_000.0;
         let result = l.solve(&from, &order, &l.ntr);
@@ -1188,37 +1188,37 @@ mod tests {
         // Inward, the periapsis lies past the arrival point, so the limit
         // is never reached on the crossing.
         let from = l.parked(l.capital, Band::High);
-        let (order, _) = l.cheapest(&from, stop_to(l.inner, Band::High, 111.0), &l.ntr);
+        let (order, _) = l.cheapest(&from, rendezvous_with(l.inner, Band::High, 111.0), &l.ntr);
         assert!(l.solve(&from, &order, &l.ntr).is_ok());
     }
 
-    /// XFER-08 / XFER-09: a Pass through the High band pays departure and
+    /// XFER-08 / XFER-09: an Intercept through the High band pays departure and
     /// burn 1 only, has no arrival approach, leaves the crossing conic
     /// open-ended, and reports the closing speed boosted by the body's
-    /// gravity at the band's radius. A Pass through Low is not specced.
+    /// gravity at the band's radius. An Intercept through Low is not specced.
     #[test]
-    fn a_pass_skips_capture_and_coasts_on() {
+    fn an_intercept_skips_capture_and_coasts_on() {
         let l = layout();
         let from = l.parked(l.capital, Band::High);
-        let pass = Order {
-            arrival: Arrival::Pass { band: Band::High },
-            ..stop_to(l.inner, Band::High, 111.0)
+        let intercept = Order {
+            arrival: Arrival::Intercept { band: Band::High },
+            ..rendezvous_with(l.inner, Band::High, 111.0)
         };
-        let (order, leg) = l.cheapest(&from, pass, &l.ntr);
-        let stop = l
+        let (order, leg) = l.cheapest(&from, intercept, &l.ntr);
+        let rendezvous = l
             .solve(
                 &from,
                 &Order {
-                    arrival: Arrival::Stop,
+                    arrival: Arrival::Rendezvous,
                     ..order
                 },
                 &l.ntr,
             )
             .unwrap();
-        assert!((leg.delta_v_kms - stop.burns.start_kms).abs() < 1e-9);
+        assert!((leg.delta_v_kms - rendezvous.burns.start_kms).abs() < 1e-9);
         assert_eq!(leg.burns.end_kms, 0.0);
         assert_eq!(leg.arrival_day, leg.crossing_end_day);
-        assert_eq!(leg.landing, Landing::Pass);
+        assert_eq!(leg.landing, Landing::Intercept);
         let segments = leg.trajectory.segments();
         assert_eq!(segments.len(), 2);
         assert_eq!(segments[1].end_day, None);
@@ -1231,11 +1231,16 @@ mod tests {
             .length();
         let high = l.tree.orbits[&l.band(l.inner, Band::High)].radius_km;
         let expected = km_per_day_to_km_per_s((v_inf * v_inf + 2.0 * inner.mu / high).sqrt());
-        within(leg.pass_speed_kms.unwrap(), expected, 1e-5, "pass speed");
-        assert!(leg.pass_speed_kms.unwrap() > km_per_day_to_km_per_s(v_inf));
+        within(
+            leg.intercept_speed_kms.unwrap(),
+            expected,
+            1e-5,
+            "intercept speed",
+        );
+        assert!(leg.intercept_speed_kms.unwrap() > km_per_day_to_km_per_s(v_inf));
 
         let low = Order {
-            arrival: Arrival::Pass { band: Band::Low },
+            arrival: Arrival::Intercept { band: Band::Low },
             ..order
         };
         assert_eq!(
@@ -1275,7 +1280,7 @@ mod tests {
         let from = l.parked(l.capital, Band::High);
         let to_ship = |ship| Order {
             destination: Place::Ship { ship },
-            ..stop_to(l.inner, Band::High, 111.0)
+            ..rendezvous_with(l.inner, Band::High, 111.0)
         };
         let (_, leg) = l.cheapest(&from, to_ship(target), &l.ntr);
         assert!(matches!(leg.landing, Landing::Orbit { orbit, .. } if orbit == inner_high));
@@ -1290,7 +1295,7 @@ mod tests {
             Err(Infeasible::TargetInFlight)
         );
 
-        // From the capital's own band the drifter is reachable, and a Stop
+        // From the capital's own band the drifter is reachable, and a Rendezvous
         // shares its conic.
         let (_, leg) = l.cheapest(
             &from,
@@ -1313,7 +1318,7 @@ mod tests {
     fn a_leg_beyond_the_budget_is_infeasible() {
         let l = layout();
         let from = l.parked(l.capital, Band::High);
-        let (order, leg) = l.cheapest(&from, stop_to(l.inner, Band::High, 111.0), &l.ntr);
+        let (order, leg) = l.cheapest(&from, rendezvous_with(l.inner, Band::High, 111.0), &l.ntr);
         let short = solve_leg(&l.tree, &l.tunables, &from, &order, &l.ntr, 1.0);
         assert_eq!(
             short,
@@ -1331,7 +1336,7 @@ mod tests {
     fn a_captured_ship_sits_at_its_arrival_direction() {
         let l = layout();
         let from = l.parked(l.capital, Band::High);
-        let (_, leg) = l.cheapest(&from, stop_to(l.inner, Band::High, 111.0), &l.ntr);
+        let (_, leg) = l.cheapest(&from, rendezvous_with(l.inner, Band::High, 111.0), &l.ntr);
         let Landing::Orbit { phase0_rad, .. } = leg.landing else {
             panic!()
         };
@@ -1357,7 +1362,7 @@ mod tests {
     fn solving_the_same_order_twice_gives_the_same_leg() {
         let l = layout();
         let from = l.parked(l.capital, Band::High);
-        let (order, leg) = l.cheapest(&from, stop_to(l.inner, Band::High, 111.0), &l.ntr);
+        let (order, leg) = l.cheapest(&from, rendezvous_with(l.inner, Band::High, 111.0), &l.ntr);
         assert_eq!(l.solve(&from, &order, &l.ntr).unwrap(), leg);
     }
 
@@ -1370,7 +1375,7 @@ mod tests {
         let high = l.tree.orbits[&l.band(l.capital, Band::High)].radius_km;
         let order = Order {
             destination: Place::Station { station: l.station },
-            ..stop_to(
+            ..rendezvous_with(
                 l.capital,
                 Band::High,
                 hohmann(capital_mu, high, 20_000.0).days,
@@ -1388,7 +1393,7 @@ mod tests {
         };
         let gate = Order {
             destination: Place::Gate { gate: l.gate },
-            ..stop_to(l.capital, Band::High, 200.0)
+            ..rendezvous_with(l.capital, Band::High, 200.0)
         };
         let (_, leg) = l.cheapest(&from_station, gate, &l.ntr);
         assert_eq!(leg.origin, Some(Place::Station { station: l.station }));
