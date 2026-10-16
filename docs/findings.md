@@ -2,7 +2,7 @@
 
 Open observations from building and playing the prototype. Each one is waiting for a decision. Once it's settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings take the next free number from F-158.
+Format and types are in `docs/README.md`. New findings take the next free number from F-159.
 
 ---
 
@@ -75,3 +75,8 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Observation:** SOL-22 says how `--system <name>` picks the system but not what happens to other arguments. The build ignores them, so `cargo run -- --verbose` still starts on Corvane. Only an unknown or missing name after `--system` stops the program. Names are matched exactly, so `--system Sol` is unknown.
 - **Affects:** SOL-22 · **Type:** spec gap
 - **Disposition:** open. Accept, or say whether unknown arguments and other capitalisations should be errors.
+
+### F-158 · Departure and capture costs add up to far more than a real trip
+- **Observation:** Raised while sizing Marlin for Sol (SOL-15). BAND-03 and XFER-04 charge a ship the cost of escaping its band to rest at infinity, then the burn that sets its speed round the primary, and the same again at the far end. A real burn deep in a gravity well does both at once and is much cheaper (the Oberth effect). From Earth's Low band to a Low band at the target, with a Hohmann crossing, the spec's cost against a patched-conic figure for the same bands: Venus 11.3 against 6.7 km/s, Mars 10.1 against 5.6, Ceres 14.4 against 9.5, Mercury 21.4 against 13.2. The spec is 1.5 to 1.8 times too high. The low-thrust crossing (XFER-06) adds the same escape cost, which for a spiral is too low: a spiral escape costs the full circular speed, not √2 − 1 of it.
+- **Affects:** BAND-03, XFER-04, XFER-06, XFER-12, SOL-15 · **Type:** spec wrong
+- **Disposition:** open. The model needs fixing, and the fix is a significant piece of work, so the spec and the build stay as they are for now (decided 2026-10-16). Option: for an impulsive drive, replace departure cost + burn 1 (and burn 2 + capture cost) with one burn from the band's circular orbit to a hyperbola with the crossing's excess speed, √(*v∞*² + 2μ/*r*) − √(μ/*r*). The excess speed is already computed for BAND-06, XFER-09 and PHAS-03. Open: how burn days (XFER-05) and approach days (BAND-04) fit, what the spiral should cost, and new figures for the XFER-12 worked checks. Marlin's delta-v would then be set again.
