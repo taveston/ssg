@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Several objects, one symbol idiom</title>
+<!--
+  Orphan Worlds: how several objects standing for one place on screen are drawn, and how a member is picked.
+  Candidate (docs/ideas/presentation/symbology.md 4). Symbols follow 7-symbology.html, with opaque insides (SYM-03)
+  and a 22 px frame (SYM-04). Names are placeholders. Render at 1440 wide.
+-->
+<style>
+@font-face{font-family:"Plex Cond";src:url("../../../../assets/fonts/IBMPlexSansCondensed-Regular.ttf")}
+@font-face{font-family:"Plex Cond";font-weight:600;src:url("../../../../assets/fonts/IBMPlexSansCondensed-SemiBold.ttf")}
+@font-face{font-family:"Plex Sans";src:url("../../../../assets/fonts/IBMPlexSans-Regular.ttf")}
+@font-face{font-family:"Plex Mono";src:url("../../../../assets/fonts/IBMPlexMono-Regular.ttf")}
+:root{--ground:#070A0E;--panel:#0B1016;--line:rgba(159,182,196,.20);--line2:rgba(159,182,196,.10);--text:#DCE6EC;--muted:#9FB6C4;--dim:#6F8696;--own:#5AA9E6;--hostile:#EE6A5F;--warn:#F0A040}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--ground);color:var(--text)}
+body{font-family:"Plex Cond",sans-serif;font-size:14px;width:1440px;padding:24px 32px 28px}
+h1{font-size:14px;font-weight:600;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin:0 0 6px;display:flex;gap:12px;align-items:center}
+.tag{font:11px "Plex Mono",monospace;color:var(--warn);border:1px solid var(--warn);border-radius:2px;padding:1px 6px;letter-spacing:.06em}
+.lede{color:var(--muted);margin:0 0 16px;font-size:13.5px;max-width:1180px;line-height:1.45}
+.row{display:flex;gap:20px;margin-bottom:20px}
+.board h2{font-size:12px;font-weight:600;color:var(--muted);margin:0 0 8px;letter-spacing:.06em;text-transform:uppercase}
+.frame{position:relative;border:1px solid #1E2A35;border-radius:4px;overflow:hidden}
+.cap{color:var(--muted);font-size:12.5px;line-height:1.45;margin:8px 2px 0}
+.cap b{color:var(--text);font-weight:600}
+.two{display:flex;gap:20px}
+.cells{display:grid;grid-template-columns:repeat(5,1fr);gap:0}
+.cell{padding:14px 12px 14px;border-left:1px solid var(--line2);font-size:12.5px;color:var(--muted);line-height:1.4}
+.cell:first-child{border-left:0}
+.cell svg{display:block;margin:0 auto 6px}
+.cell b{display:block;color:var(--text);font-weight:600;font-size:13px;margin-bottom:3px}
+.rules{padding:12px 16px;border-top:1px solid var(--line2);font-size:12.5px;color:var(--muted);line-height:1.5}
+.rules b{color:var(--text);font-weight:600}
+</style>
+</head>
+<body>
+<h1>Several objects, one symbol idiom <span class="tag">CANDIDATE</span></h1>
+<p class="lede">One idiom for anything that stands for several objects: a normal frame, the count where the icon would be, a second frame behind to say "several". It replaces the fold pill (GRP-05, GRP-06) and the loose-group stack (SYM-09). It also covers symbols that would overlap on screen. Picking a member is done in a tray at the marker, not only in the inset's outline. Names are placeholders.</p>
+
+<div class="row">
+  <section class="board" style="width:660px"><h2>Today's pill and the proposed marker</h2><div class="frame" id="a"></div>
+    <p class="cap">Beside a planet, the marker replaces the pill. The front frame is the most pressing affiliation, as the pill's outline colour is now (GRP-06), so the shape reads without colour. Own ships show as the frame behind. A neutral ship among hostile ones is not shown, as today.</p></section>
+  <section class="board" style="width:696px"><h2>One idiom for several objects</h2><div class="frame" id="b"></div></section>
+</div>
+
+<section class="board"><h2>In context: Halden IV's High band, paused, 14 ships</h2>
+  <div class="two">
+    <div style="width:678px"><div class="frame" id="c1"></div>
+      <p class="cap"><b>Today.</b> Symbols within a frame's width of each other pile up, and their labels are hidden for want of room (LBL-01, LBL-03). The ring here is about 220 px across. Smaller, it is worse.</p></div>
+    <div style="width:678px"><div class="frame" id="c2"></div>
+      <p class="cap"><b>Proposed.</b> Symbols that would overlap collapse into one marker. The marker with the selection ring is open: its tray lists the four members, and the row you step to is selected, so the inset follows it. Single ships keep their labels.</p></div>
+  </div>
+</section>
+
+<script>
+const C = {ground:'#070A0E', text:'#DCE6EC', muted:'#9FB6C4', own:'#5AA9E6', civil:'#A9CBE3',
+           neutral:'#8CCB8A', hostile:'#EE6A5F', unknown:'#F0A040', body:'#DCE6EC', panel:'#0B1016'};
+const hex = h => [1,3,5].map(i => parseInt(h.slice(i,i+2),16));
+const mix = (a,b,t) => { const A=hex(a), B=hex(b); return '#'+A.map((v,i)=>Math.round(v*t+B[i]*(1-t)).toString(16).padStart(2,'0')).join(''); };
+
+// Frames fit a 22 px square (SYM-04).
+const FRAME = {
+  own: '<circle r="10.25"/>',
+  neutral: '<rect x="-10.25" y="-10.25" width="20.5" height="20.5"/>',
+  hostile: '<path d="M0,-10.5 L10.5,0 L0,10.5 L-10.5,0 Z"/>',
+  unknown: '<path d="M-6.1,-6.1 A6.3,6.3 0 0 1 6.1,-6.1 A6.3,6.3 0 0 1 6.1,6.1 A6.3,6.3 0 0 1 -6.1,6.1 A6.3,6.3 0 0 1 -6.1,-6.1 Z"/>',
+  body: '<circle r="10.25"/>'
+};
+const colOf = (aff, civil) => civil ? C.civil : C[aff];
+const fillOf = (aff, civil) => (civil || aff === 'body') ? C.ground : mix(C[aff], C.ground, aff === 'own' ? 0.30 : 0.16);
+
+function icon(kind, col) {
+  const g = inner => `<g transform="scale(.85)" stroke-width="1.76" fill="none">${inner}</g>`;
+  switch (kind) {
+    case 'warship':   return `<path transform="scale(.85)" d="M0,-7 L7,5 L-7,5 Z" fill="${col}" stroke="none"/>`;
+    case 'supply':    return g('<path d="M0,-8 C3,-4 6,-1 6,2.5 A6,6 0 0 1 -6,2.5 C-6,-1 -3,-4 0,-8 Z"/>');
+    case 'cargo':     return g('<rect x="-6" y="-5" width="12" height="10"/><line x1="-6" y1="0" x2="6" y2="0"/>');
+    case 'transport': return g('<rect x="-8" y="-5" width="16" height="10"/>');
+    case 'embarked':  return g('<rect x="-8" y="-5" width="16" height="10"/><path d="M-8,-5 L8,5 M8,-5 L-8,5"/>');
+    default: return '';
+  }
+}
+const mono = (txt, x, y, size, col, anchor='middle') =>
+  `<text x="${x}" y="${y}" text-anchor="${anchor}" font-family="Plex Mono, monospace" font-size="${size}" fill="${col}" stroke="none">${txt}</text>`;
+
+// One symbol centred on 0,0.
+// o: aff, civil, icon, dim, echelon, back (affiliation of the copy behind), count (shown in the icon slot),
+//    tf (task force: bracket and corner count)
+function sym(o) {
+  const col = colOf(o.aff, o.civil);
+  let s = `<g stroke="${col}" stroke-width="1.5" stroke-linejoin="round"${o.dim ? ' opacity="0.55"' : ''}>`;
+  if (o.back) {
+    const bc = C[o.back];
+    s += `<g transform="translate(4,-4)" fill="${fillOf(o.back)}" stroke="${bc}">${FRAME[o.back]}</g>`;
+  }
+  s += `<g fill="${fillOf(o.aff, o.civil)}"${o.dashed ? ' stroke-dasharray="3 2.4"' : ''}>${FRAME[o.aff]}</g>`;
+  if (o.count !== undefined && !o.tf) s += mono(o.count, 0, 3.6, 10.5, col);
+  else s += icon(o.icon, col);
+  if (o.echelon) s += mono(o.echelon, 0, -14, 10, col);
+  if (o.tf) {
+    s += `<path d="M-10,-14 L-10,-18 L10,-18 L10,-14" fill="none" stroke-width="1.3"/>`;
+    s += mono(o.count, 14, -9, 10, col, 'start');
+  }
+  return s + '</g>';
+}
+const place = (o, x, y, k = 1) => `<g transform="translate(${x},${y}) scale(${k})">${sym(o)}</g>`;
+const ring = (x, y, r = 17.5) => `<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="#fff" stroke-width="1.5"/>`;
+
+// Planet marker (MRK-13): outline circle, opaque inside, centre dot.
+const planet = (x, y) => `<circle cx="${x}" cy="${y}" r="6" fill="${C.ground}" stroke="${C.text}" stroke-width="1"/><circle cx="${x}" cy="${y}" r="1.5" fill="${C.text}"/>`;
+const label = (x, y, name, sub, col) =>
+  `<text x="${x}" y="${y}" font-family="Plex Cond, sans-serif" font-size="13" fill="${col}">${name}</text>` +
+  (sub ? mono(sub, x, y + 14, 10.5, C.muted, 'start') : '');
+
+// Today's pill (GRP-05, GRP-06).
+function pill(x, y, txt, outline, own) {
+  return `<rect x="${x-15}" y="${y-8}" width="30" height="16" rx="8" fill="${C.ground}" stroke="${outline}" stroke-width="1.2"/>` +
+         mono(txt, x, y + 3.5, 10, C.text) + (own ? `<circle cx="${x+15}" cy="${y-8}" r="2.6" fill="${C.own}"/>` : '');
+}
+
+// ---------- Board A: today and proposed ----------
+(function () {
+  const W = 660, H = 330;
+  let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
+  s += `<rect width="${W}" height="${H}" fill="${C.ground}"/>`;
+  s += mono('TODAY', 330, 34, 11, C.muted) + mono('PROPOSED', 520, 34, 11, C.muted);
+  s += `<line x1="20" y1="48" x2="${W-20}" y2="48" stroke="rgba(159,182,196,.2)"/>`;
+  const rows = [
+    ['Own ships among the folded satellites', 'rgba(220,230,236,.75)', true,  '5',  {aff:'own', back:'own', count:'5'}],
+    ['A foreign contact among them',          C.unknown,               true,  '5',  {aff:'unknown', back:'own', count:'5'}],
+    ['A hostile ship among them',             C.hostile,               true,  '14', {aff:'hostile', back:'own', count:'14'}],
+    ['Moons only',                            'rgba(220,230,236,.75)', false, '3',  {aff:'body', back:'body', count:'3'}]
+  ];
+  rows.forEach((r, i) => {
+    const y = 96 + i * 62;
+    s += `<text x="24" y="${y+4}" font-family="Plex Cond, sans-serif" font-size="13" fill="${C.text}">${r[0]}</text>`;
+    s += planet(300, y) + pill(334, y, '+' + r[3], r[1], r[2]);
+    s += planet(490, y) + place(r[4], 526, y);
+  });
+  s += `<line x1="20" y1="${H-26}" x2="${W-20}" y2="${H-26}" stroke="rgba(159,182,196,.12)"/>`;
+  s += `<text x="24" y="${H-9}" font-family="Plex Cond, sans-serif" font-size="12" fill="${C.muted}">The pill shows affiliation by colour only, and own ships by a separate dot.</text>`;
+  document.getElementById('a').innerHTML = s + '</svg>';
+})();
+
+// ---------- Board B: the idiom ----------
+(function () {
+  const cells = [
+    [{aff:'own', icon:'warship'}, 'One ship', 'Frame = affiliation, icon = what it is, as now.'],
+    [{aff:'own', back:'own', count:'4'}, 'Several, no formation', 'The count sits where the icon would. The frame behind says "several".'],
+    [{aff:'hostile', back:'own', count:'9'}, 'Mixed', 'The front frame is the most pressing affiliation: hostile, unknown, neutral or allied, own. Own ships show behind it.'],
+    [{aff:'body', back:'body', count:'3'}, 'Bodies only', 'Moons and the like: a plain neutral circle, as bodies are drawn (MRK-10).'],
+    [{aff:'own', icon:'warship', tf:true, count:'4'}, 'A formation', 'Icon and bracket: ships under one commander. Not specced yet (F-159).']
+  ];
+  let html = '<div class="cells">';
+  cells.forEach(c => {
+    html += `<div class="cell"><svg width="90" height="84" viewBox="-45 -46 90 84">${place(c[0], 0, 4, 2.2)}</svg><b>${c[1]}</b>${c[2]}</div>`;
+  });
+  html += '</div><div class="rules"><b>Rules.</b> A marker appears wherever symbols would overlap on screen, and wherever satellites fold into a body. It splits again as the view zooms, with the hysteresis of GRP-01. A cluster can hold ships from different orbits, so its members cannot be read from one branch of the outline.</div>';
+  document.getElementById('b').innerHTML = html;
+})();
+
+// ---------- Board C: a ring of ships ----------
+const SHIPS = [
+  {a:20,  aff:'own',     icon:'warship',   name:'Orison'},
+  {a:26,  aff:'own',     icon:'supply',    name:'RFA Tolland'},
+  {a:80,  aff:'own',     icon:'embarked',  echelon:'II', name:'Transport Cassel'},
+  {a:86,  aff:'own',     icon:'cargo',     civil:true, name:'Varga Mining ore carrier'},
+  {a:92,  aff:'own',     icon:'cargo',     name:'Ore carrier, chartered'},
+  {a:150, aff:'neutral', icon:'cargo',     name:'Ostra trader'},
+  {a:156, aff:'own',     icon:'warship',   civil:true, name:'Licensed armed hauler'},
+  {a:205, aff:'unknown', icon:'cargo',     name:'Unidentified cargo contact'},
+  {a:212, aff:'own',     icon:'warship',   name:'Second warship'},
+  {a:250, aff:'hostile', icon:'warship',   dim:true, dashed:true, name:'Raider R-2', sub:'last seen 6 d ago'},
+  {a:318, aff:'own',     icon:'warship',   name:'Own warship'},
+  {a:329, aff:'hostile', icon:'transport', echelon:'?', name:'Hostile transport'},
+  {a:333, aff:'neutral', icon:'warship',   name:'Allied warship'},
+  {a:338, aff:'own',     icon:'warship',   civil:true, name:'Licensed armed hauler'}
+];
+const R = 110, CX = 230, CY = 200, W2 = 678, H2 = 400;
+const pos = SHIPS.map(s => ({x: CX + R*Math.cos(s.a*Math.PI/180), y: CY - R*Math.sin(s.a*Math.PI/180)}));
+const backdrop = () => `<rect width="${W2}" height="${H2}" fill="${C.ground}"/>` +
+  `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="${C.muted}" stroke-opacity=".35"/>` +
+  planet(CX, CY) + label(CX + 12, CY + 18, 'Halden IV', '', C.text);
+
+// Today: every symbol drawn where it is.
+(function () {
+  let s = `<svg width="${W2}" height="${H2}" viewBox="0 0 ${W2} ${H2}">` + backdrop();
+  SHIPS.forEach((sh, i) => { s += place(sh, pos[i].x, pos[i].y); });
+  s += mono('all labels hidden: no free position', 20, H2 - 14, 10.5, C.muted, 'start');
+  document.getElementById('c1').innerHTML = s + '</svg>';
+})();
+
+// Proposed: single-linkage clusters of symbols closer than a frame plus a gap.
+const parent = SHIPS.map((_, i) => i);
+const find = i => parent[i] === i ? i : (parent[i] = find(parent[i]));
+for (let i = 0; i < SHIPS.length; i++)
+  for (let j = i + 1; j < SHIPS.length; j++)
+    if (Math.hypot(pos[i].x - pos[j].x, pos[i].y - pos[j].y) < 24) parent[find(i)] = find(j);
+const groups = {};
+SHIPS.forEach((_, i) => (groups[find(i)] = groups[find(i)] || []).push(i));
+const rank = {hostile: 3, unknown: 2, neutral: 1, own: 0};
+
+(function () {
+  let s = `<svg width="${W2}" height="${H2}" viewBox="0 0 ${W2} ${H2}">` + backdrop();
+  let openCluster = null;
+  Object.values(groups).forEach(g => {
+    const cx = g.reduce((a, i) => a + pos[i].x, 0) / g.length, cy = g.reduce((a, i) => a + pos[i].y, 0) / g.length;
+    if (g.length === 1) {
+      const sh = SHIPS[g[0]];
+      s += place(sh, cx, cy);
+      s += label(cx + 18, cy + 4, sh.name, sh.sub, colOf(sh.aff, sh.civil));
+      return;
+    }
+    const front = g.map(i => SHIPS[i].aff).reduce((a, b) => rank[b] > rank[a] ? b : a);
+    const hasOwn = g.some(i => SHIPS[i].aff === 'own');
+    s += place({aff: front, back: hasOwn ? 'own' : front, count: String(g.length)}, cx, cy);
+    if (g.length === 4) openCluster = {g, cx, cy};
+  });
+  // Open cluster: selection ring, notch and tray.
+  const {g, cx, cy} = openCluster;
+  s += ring(cx, cy);
+  const tx = cx + 30, rowH = 26, hdr = 28, ftr = 26, th = hdr + g.length * rowH + ftr, ty = cy - 56;
+  s += `<path d="M${tx},${cy-6} L${tx-7},${cy} L${tx},${cy+6} Z" fill="${C.panel}" stroke="rgba(159,182,196,.35)"/>`;
+  s += `<rect x="${tx}" y="${ty}" width="240" height="${th}" rx="4" fill="${C.panel}" stroke="rgba(159,182,196,.35)"/>`;
+  s += `<rect x="${tx-1}" y="${cy-5}" width="2.5" height="10" fill="${C.panel}"/>`;
+  s += `<text x="${tx+14}" y="${ty+18}" font-family="Plex Cond, sans-serif" font-size="10.5" font-weight="600" letter-spacing="1.2" fill="${C.muted}">HIGH ORBIT · ${g.length} OF ${SHIPS.length}</text>`;
+  s += `<line x1="${tx}" y1="${ty+hdr}" x2="${tx+240}" y2="${ty+hdr}" stroke="rgba(159,182,196,.15)"/>`;
+  g.forEach((i, k) => {
+    const sh = SHIPS[i], ry = ty + hdr + k * rowH;
+    if (k === 2) s += `<rect x="${tx+1}" y="${ry}" width="238" height="${rowH}" fill="rgba(220,230,236,.10)"/><rect x="${tx+1}" y="${ry}" width="2.5" height="${rowH}" fill="#fff"/>`;
+    s += place({...sh, echelon: undefined}, tx + 24, ry + rowH / 2, 14 / 22);
+    s += `<text x="${tx+44}" y="${ry+rowH/2+4.5}" font-family="Plex Cond, sans-serif" font-size="13" fill="${C.text}">${sh.name}</text>`;
+  });
+  const fy = ty + hdr + g.length * rowH;
+  s += `<line x1="${tx}" y1="${fy}" x2="${tx+240}" y2="${fy}" stroke="rgba(159,182,196,.15)"/>`;
+  s += mono('↑ ↓ step · Esc close', tx + 14, fy + 17, 10.5, C.muted, 'start');
+  document.getElementById('c2').innerHTML = s + '</svg>';
+})();
+</script>
+</body>
+</html>
