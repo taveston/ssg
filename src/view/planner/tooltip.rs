@@ -3,6 +3,7 @@
 //! rested on it for `tooltip_delay_ms`. These are labels' tooltips, not
 //! markers': nothing on the map has one (HOV-01).
 
+use bevy::ecs::system::SystemParam;
 use bevy::picking::hover::HoverMap;
 use bevy::picking::pointer::PointerId;
 use bevy::prelude::*;
@@ -66,38 +67,47 @@ pub fn spawn_tooltip_box(mut commands: Commands, fonts: Res<Fonts>, tunables: Re
         });
 }
 
-/// The label with a tooltip that the mouse is over, if any: the hit
-/// itself or one of its ancestors.
-fn hovered_label(
-    hover: Option<&HoverMap>,
-    labels: &Query<&Tooltip>,
-    parents: &Query<&ChildOf>,
-) -> Option<Entity> {
-    let hits = hover?.0.get(&PointerId::Mouse)?;
-    hits.keys().find_map(|&hit| {
-        std::iter::successors(Some(hit), |&node| {
-            parents.get(node).ok().map(ChildOf::parent)
+/// The labels that carry a tooltip, and what the mouse is over.
+#[derive(SystemParam)]
+pub struct TooltipLabels<'w, 's> {
+    hover: Option<Res<'w, HoverMap>>,
+    labels: Query<'w, 's, &'static Tooltip>,
+    parents: Query<'w, 's, &'static ChildOf>,
+}
+
+impl TooltipLabels<'_, '_> {
+    /// The label with a tooltip that the mouse is over, if any: the hit
+    /// itself or one of its ancestors.
+    fn hovered(&self) -> Option<Entity> {
+        let hits = self.hover.as_deref()?.0.get(&PointerId::Mouse)?;
+        hits.keys().find_map(|&hit| {
+            std::iter::successors(Some(hit), |&node| {
+                self.parents.get(node).ok().map(ChildOf::parent)
+            })
+            .find(|&node| self.labels.contains(node))
         })
-        .find(|&node| labels.contains(node))
-    })
+    }
+}
+
+/// The tooltip box and its text.
+#[derive(SystemParam)]
+pub struct TooltipBoxes<'w, 's> {
+    boxes: Query<'w, 's, (&'static mut Node, &'static Children), With<TooltipBox>>,
+    texts: Query<'w, 's, &'static mut Text>,
 }
 
 /// PLNR-91 / PLNR-94: times how long the pointer rests on a label, and
 /// shows that label's tooltip by the pointer once it is due.
-#[allow(clippy::too_many_arguments)]
 pub fn show_tooltips(
     time: Res<Time<Real>>,
     tunables: Res<Tunables>,
-    hover: Option<Res<HoverMap>>,
-    labels: Query<&Tooltip>,
-    parents: Query<&ChildOf>,
+    labels: TooltipLabels,
     windows: Query<&Window>,
     mut rest: ResMut<TooltipHover>,
-    mut boxes: Query<(&mut Node, &Children), With<TooltipBox>>,
-    mut texts: Query<&mut Text>,
+    mut boxes: TooltipBoxes,
 ) {
     let now = time.elapsed_secs();
-    let label = hovered_label(hover.as_deref(), &labels, &parents);
+    let label = labels.hovered();
     if rest.label.map(|(entity, _)| entity) != label {
         rest.label = label.map(|entity| (entity, now));
     }
@@ -110,12 +120,13 @@ pub fn show_tooltips(
         .ok()
         .and_then(Window::cursor_position)
         .unwrap_or_default();
-    for (mut node, children) in &mut boxes {
+    let TooltipBoxes { boxes, texts } = &mut boxes;
+    for (mut node, children) in boxes.iter_mut() {
         let Some((entity, _)) = due else {
             node.display = Display::None;
             continue;
         };
-        let Ok(tooltip) = labels.get(entity) else {
+        let Ok(tooltip) = labels.labels.get(entity) else {
             continue;
         };
         node.display = Display::Flex;

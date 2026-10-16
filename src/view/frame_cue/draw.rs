@@ -6,6 +6,7 @@
 //! it can be checked without a renderer; `draw_frame_cue` gathers them and
 //! applies the result to the nodes.
 
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
 use super::geometry::{
@@ -92,22 +93,37 @@ fn screen_heading<P: Fn(Vec3) -> Option<Vec2>>(
     ((camera.project)(to)? - centre).try_normalize()
 }
 
-/// REF-01 to REF-05: one arm along `direction` in the plane from the
-/// frame body at `body`: from the gap round its box to the map's edge or
-/// the horizon, ticked at multiples of `tick_render` (the scale bar's
-/// distance in render units), at `strength` times the fade.
-#[allow(clippy::too_many_arguments)]
-fn arm<P: Fn(Vec3) -> Option<Vec2>>(
-    camera: &CueCamera<P>,
+/// Where every arm starts from: the frame body at `body` (render units),
+/// landing at `centre` on screen, with its `look`; the map area the arms
+/// stay inside, and the ticks' spacing in render units (the scale bar's
+/// distance).
+#[derive(Clone, Copy)]
+struct ArmBase {
     body: Vec3,
     centre: Vec2,
-    direction: Vec3,
     look: FrameBodyLook,
     map: Rect,
     tick_render: f32,
+}
+
+/// REF-01 to REF-05: one arm along `direction` in the plane from the
+/// frame body: from the gap round its box to the map's edge or the
+/// horizon, ticked at multiples of the ticks' spacing, at `strength`
+/// times the fade.
+fn arm<P: Fn(Vec3) -> Option<Vec2>>(
+    camera: &CueCamera<P>,
+    base: &ArmBase,
+    direction: Vec3,
     strength: f32,
     t: &Tunables,
 ) -> Option<Stroke> {
+    let ArmBase {
+        body,
+        centre,
+        look,
+        map,
+        tick_render,
+    } = *base;
     let reach = body.distance(camera.eye);
     let dir = screen_heading(camera, centre, body + direction * reach * STEP_FRACTION)?;
     // A direction leading away from the camera meets the horizon at its
@@ -189,23 +205,20 @@ pub fn cue_layout<P: Fn(Vec3) -> Option<Vec2>>(
     let Some(centre) = (camera.project)(body) else {
         return CueLayout::default();
     };
+    let base = ArmBase {
+        body,
+        centre,
+        look,
+        map,
+        tick_render,
+    };
     let arms = ARM_DIRECTIONS.map(|direction| {
         let strength = if direction == NORTH {
             1.0
         } else {
             t.ref_minor_factor
         };
-        arm(
-            camera,
-            body,
-            centre,
-            direction,
-            look,
-            map,
-            tick_render,
-            strength,
-            t,
-        )
+        arm(camera, &base, direction, strength, t)
     });
     let (upper, lower) = vertical(camera, body, centre, look, t);
     let north_label = arms[0]
@@ -273,13 +286,25 @@ pub fn spawn_frame_cue(mut commands: Commands, fonts: Res<Fonts>) {
         ));
 }
 
+/// The markers as drawn this frame, and the bodies' true radii.
+#[derive(SystemParam)]
+pub struct FrameBodyMarkers<'w, 's> {
+    markers: Query<
+        'w,
+        's,
+        (
+            &'static MarkerFor,
+            &'static MarkerDrawn,
+            &'static MarkerShape,
+            &'static MarkerHalfSize,
+        ),
+    >,
+    radii: Query<'w, 's, &'static PhysicalRadius>,
+}
+
 /// The frame body's look on screen, from its marker (HOV-07, MRK-07).
-fn frame_body_look(
-    body: Entity,
-    markers: &Query<(&MarkerFor, &MarkerDrawn, &MarkerShape, &MarkerHalfSize)>,
-    radii: &Query<&PhysicalRadius>,
-    t: &Tunables,
-) -> FrameBodyLook {
+fn frame_body_look(body: Entity, bodies: &FrameBodyMarkers, t: &Tunables) -> FrameBodyLook {
+    let FrameBodyMarkers { markers, radii } = bodies;
     let marker = markers.iter().find(|(marker_for, ..)| marker_for.0 == body);
     let Some((_, drawn, shape, class_half)) = marker else {
         return FrameBodyLook {
@@ -338,21 +363,26 @@ type StrokeNodes<'w, 's> = Query<
     Without<CueNorthLabel>,
 >;
 
+/// The cue's nodes: its strokes and the "N".
+#[derive(SystemParam)]
+pub struct CueNodes<'w, 's> {
+    strokes: StrokeNodes<'w, 's>,
+    labels: Query<'w, 's, &'static mut Node, With<CueNorthLabel>>,
+}
+
 /// REF-01 to REF-09: lays the cue out round the frame body for this
 /// frame's camera, after the markers (for the body's box) and the scale
 /// bar (for the ticks' distance).
-#[allow(clippy::too_many_arguments)]
 pub fn draw_frame_cue(
     view: ViewNow,
     frame: Res<Frame>,
     map_view: MapView,
     scale_km: Res<ScaleBarKm>,
     tunables: Res<Tunables>,
-    markers: Query<(&MarkerFor, &MarkerDrawn, &MarkerShape, &MarkerHalfSize)>,
-    radii: Query<&PhysicalRadius>,
-    mut strokes: StrokeNodes,
-    mut labels: Query<&mut Node, With<CueNorthLabel>>,
+    bodies: FrameBodyMarkers,
+    mut nodes: CueNodes,
 ) {
+    let CueNodes { strokes, labels } = &mut nodes;
     let layout = match (view.camera(), view.position(frame.body), map_view.area()) {
         (Some((_, transform)), Some(body), Some(area)) => {
             let camera = CueCamera {
@@ -361,13 +391,13 @@ pub fn draw_frame_cue(
                 project: |p| view.project(p),
             };
             let map = area.rect();
-            let look = frame_body_look(frame.body, &markers, &radii, &tunables);
+            let look = frame_body_look(frame.body, &bodies, &tunables);
             let tick_render = km_to_render(scale_km.0);
             cue_layout(&camera, body, look, map, tick_render, &tunables)
         }
         _ => CueLayout::default(),
     };
-    for (part, mut look, mut node, mut turn) in &mut strokes {
+    for (part, mut look, mut node, mut turn) in strokes.iter_mut() {
         let stroke = match *part {
             CuePart::Arm(index) => layout.arms.get(index).cloned().flatten(),
             CuePart::Upper => layout.upper.clone(),
@@ -375,7 +405,7 @@ pub fn draw_frame_cue(
         };
         place_stroke(stroke, &mut look, &mut node, &mut turn);
     }
-    for mut node in &mut labels {
+    for mut node in labels.iter_mut() {
         match layout.north_label {
             Some(at) => {
                 node.display = Display::Flex;

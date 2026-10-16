@@ -18,6 +18,7 @@
 
 use std::collections::{HashMap, HashSet};
 
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
 use super::camera::requests::{FrameRequest, PlanetaryViewRequest};
@@ -304,38 +305,49 @@ type Bodies<'w, 's> = Query<
     ),
 >;
 
-/// INS-05: every body as an outline node. The star is the root; anything
-/// else with no parent orbits the star.
-pub fn gather_nodes(bodies: &Bodies, named: &Query<&NamedOrbit>) -> Vec<OutlineNode> {
-    let star = bodies
-        .iter()
-        .find(|(_, _, class, ..)| **class == BodyClass::Star)
-        .map(|(entity, ..)| entity);
-    bodies
-        .iter()
-        .map(
-            |(entity, name, class, affiliation, record, orbit, child_of, in_orbit, group)| {
-                let parent = match child_of {
-                    Some(child_of) => Some(child_of.parent()),
-                    None if Some(entity) == star => None,
-                    None => star,
-                };
-                OutlineNode {
-                    body: entity,
-                    name: name.0.clone(),
-                    class: *class,
-                    affiliation: *affiliation,
-                    record: record.cloned(),
-                    parent,
-                    orbit_radius_km: orbit.map_or(0.0, |o| o.radius_km),
-                    named_orbit: in_orbit.and_then(|in_orbit| {
-                        Some((in_orbit.0, named.get(in_orbit.0).ok()?.name.clone()))
-                    }),
-                    members: group.map(|group| group.members.len()),
-                }
-            },
-        )
-        .collect()
+/// The bodies the outline is built from, and the named orbits they sit
+/// in.
+#[derive(SystemParam)]
+struct OutlineBodies<'w, 's> {
+    bodies: Bodies<'w, 's>,
+    named: Query<'w, 's, &'static NamedOrbit>,
+}
+
+impl OutlineBodies<'_, '_> {
+    /// INS-05: every body as an outline node. The star is the root;
+    /// anything else with no parent orbits the star.
+    fn nodes(&self) -> Vec<OutlineNode> {
+        let star = self
+            .bodies
+            .iter()
+            .find(|(_, _, class, ..)| **class == BodyClass::Star)
+            .map(|(entity, ..)| entity);
+        self.bodies
+            .iter()
+            .map(
+                |(entity, name, class, affiliation, record, orbit, child_of, in_orbit, group)| {
+                    let parent = match child_of {
+                        Some(child_of) => Some(child_of.parent()),
+                        None if Some(entity) == star => None,
+                        None => star,
+                    };
+                    OutlineNode {
+                        body: entity,
+                        name: name.0.clone(),
+                        class: *class,
+                        affiliation: *affiliation,
+                        record: record.cloned(),
+                        parent,
+                        orbit_radius_km: orbit.map_or(0.0, |o| o.radius_km),
+                        named_orbit: in_orbit.and_then(|in_orbit| {
+                            Some((in_orbit.0, self.named.get(in_orbit.0).ok()?.name.clone()))
+                        }),
+                        members: group.map(|group| group.members.len()),
+                    }
+                },
+            )
+            .collect()
+    }
 }
 
 pub struct OutlinePlugin;
@@ -361,8 +373,7 @@ impl Plugin for OutlinePlugin {
 /// satellites, and the orbit a ring click came through.
 fn reveal_on_selection(
     selection: Res<Selection>,
-    bodies: Bodies,
-    named: Query<&NamedOrbit>,
+    bodies: OutlineBodies,
     mut expanded: ResMut<Expanded>,
     mut scroll: ResMut<ScrollToSelection>,
 ) {
@@ -372,7 +383,7 @@ fn reveal_on_selection(
     let Some(selected) = selection.selected else {
         return;
     };
-    let nodes = gather_nodes(&bodies, &named);
+    let nodes = bodies.nodes();
     reveal_selection(&mut expanded, &nodes, selected);
     if let Some(orbit) = selection.revealed_orbit {
         expanded.orbits.insert(orbit);
@@ -382,23 +393,20 @@ fn reveal_on_selection(
 
 /// INS-05: fill a new outline, and refill it when the selection or the
 /// expansion changes, in place.
-#[allow(clippy::too_many_arguments)]
 fn fill_outline(
     mut commands: Commands,
-    fonts: Res<Fonts>,
-    tunables: Res<Tunables>,
+    (fonts, tunables): (Res<Fonts>, Res<Tunables>),
     selection: Res<Selection>,
     expanded: Res<Expanded>,
     roots: Query<Entity, With<OutlineRoot>>,
     new_roots: Query<(), Added<OutlineRoot>>,
-    bodies: Bodies,
-    named: Query<&NamedOrbit>,
+    bodies: OutlineBodies,
 ) {
     for root in &roots {
         if !selection.is_changed() && !expanded.is_changed() && !new_roots.contains(root) {
             continue;
         }
-        let nodes = gather_nodes(&bodies, &named);
+        let nodes = bodies.nodes();
         let rows = outline_rows(&nodes, &expanded, selection.selected);
         let by_body: HashMap<Entity, &OutlineNode> = nodes.iter().map(|n| (n.body, n)).collect();
         let mut root = commands.entity(root);

@@ -6,6 +6,7 @@
 //! labels in the label layer, placed with every other label (`labels.rs`).
 //! None of them takes a click (HOV-02).
 
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
 use super::gather::{Ghost, MapPaths, PathDraw};
@@ -171,38 +172,40 @@ type LabelNodes<'w, 's> = Query<
 type LabelTexts<'w, 's> =
     Query<'w, 's, (&'static mut Text, &'static mut TextColor), With<PathLabelText>>;
 
+/// The pools of mark nodes: start dots, ghosts, and labels with their
+/// texts.
+#[derive(SystemParam)]
+pub struct MarkPools<'w, 's> {
+    dots: DotNodes<'w, 's>,
+    ghosts: GhostNodes<'w, 's>,
+    labels: LabelNodes<'w, 's>,
+    texts: LabelTexts<'w, 's>,
+}
+
 /// Every path's marks, written to the pools of nodes, which grow as
 /// needed; unused nodes are hidden.
-#[allow(clippy::too_many_arguments)]
 pub fn place_path_marks(
     mut commands: Commands,
     (paths, drawn, screen): (Res<MapPaths>, Res<DrawnPaths>, Res<ScreenPositions>),
     (view, tunables, fonts): (ViewNow, Res<Tunables>, Res<Fonts>),
     objects: GhostObjects,
-    mut dots: DotNodes,
-    mut ghosts: GhostNodes,
-    mut labels: LabelNodes,
-    mut texts: LabelTexts,
+    mut pools: MarkPools,
 ) {
+    let MarkPools {
+        dots,
+        ghosts,
+        labels,
+        texts,
+    } = &mut pools;
     let on_screen =
         |world: Option<Vec3>| view.project(world?).filter(|&pos| screen.in_viewport(pos));
     let mut marks = Marks::default();
     for (path, laid) in paths.0.iter().zip(&drawn.0) {
         path_marks(path, laid, &on_screen, &objects, &tunables, &mut marks);
     }
-    write_dots(
-        &mut commands,
-        &marks.dots,
-        &mut dots,
-        tunables.departure_dot_px,
-    );
-    write_ghosts(&mut commands, &marks.ghosts, &mut ghosts);
-    write_labels(
-        &mut commands,
-        &marks.labels,
-        (&mut labels, &mut texts),
-        &fonts,
-    );
+    write_dots(&mut commands, &marks.dots, dots, tunables.departure_dot_px);
+    write_ghosts(&mut commands, &marks.ghosts, ghosts);
+    write_labels(&mut commands, &marks.labels, (labels, texts), &fonts);
 }
 
 /// A node centred on `centre`, `size` across, shown or hidden.
