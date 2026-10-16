@@ -25,7 +25,7 @@ You plan, dispatch, merge and talk. Agents build. Each to-do item ends as a gree
 ## 3. Merge each finished item
 
 0. Review first: start a review agent in the item's worktree (medium effort, high for large or orbital items). It reviews `git diff master...HEAD`, commits simple behaviour-preserving fixes, and reports larger issues. Put larger issues that need no design decision straight onto `docs/todo.md` (bugs under Fixes, clean-up under Other) without asking the user. Only spec questions go to the user, as findings.
-1. In the agent's worktree: `git rebase master`. Conflicts should now be in code only. Resolve them with small Python scripts. Run every merge script under `set -e`, and never chain `git add`/commit after a script that might have failed.
+1. In the agent's worktree: `git rebase master`. Conflicts should now be in code only. Resolve them with small Python scripts. Chain every step of a merge with `&&`: `set -e` is not reliable in the Bash tool (a failed `git merge --ff-only` once went on to delete the branch). Never chain `git add`/commit after a script that might have failed.
 2. Run `touch crates/orbits/src/*.rs`, then `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test --workspace`.
 3. From the repo root: `git merge --ff-only <branch>`. Then `git worktree remove --force <path>`, `git worktree prune` and `git branch -D <branch>`.
 4. Apply the agent's **Bookkeeping** on master as one commit:
@@ -64,7 +64,8 @@ When the user asks, run a high-level code review agent once the scheduled work i
 - Worktrees share `CARGO_TARGET_DIR=<repo>/target`, because a full target is about 26 GB.
   - Every worktree's `orbits` crate has the same name in it, so a stale copy gives "unresolved imports" or doctest failures. Touch its sources and rerun.
   - `target/debug/orphan_worlds.exe` may be another worktree's build.
-  - A parallel agent's build can replace the test binary mid-run, so a check may run another branch's tests (a failing test whose name isn't on the branch). Run checks with `set -o pipefail` so a failure stops the merge, and rerun before trusting a failure or a pass.
+  - A parallel agent's build can replace the test binary mid-run, so a check may run another branch's tests (a failing test whose name isn't on the branch). Write test output to a file and fail the `&&` chain on a nonzero exit, so a failure stops the merge; rerun before trusting a failure or a pass.
 - A worktree can start from an old commit, so the brief's first step syncs it with master.
 - Game runs hang if a shot can't finish. `OW_SHOT` has a `timeout` key, and agents also wrap runs in their own timeout. If a game window lingers, find its parent `cargo run` and close it.
+- Pushing or pulling `origin/master` moves master under a running merge check, so its fast-forward fails. If only `docs/` changed, rebase and fast-forward without rerunning the checks.
 - On Windows, `git worktree remove` often says "Permission denied". Use `--force`, then prune. Leftover folders under `.claude/worktrees/` are harmless; delete them at the end of the session.
