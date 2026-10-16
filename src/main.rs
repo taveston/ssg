@@ -40,7 +40,8 @@ pub enum Stage {
     Overlay,
 }
 
-fn main() {
+/// Returns the app's exit status, so a failed `OW_SHOT` exits non-zero.
+fn main() -> AppExit {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
@@ -67,5 +68,5 @@ fn main() {
         )
         .add_plugins(FrameTimeDiagnosticsPlugin::default())
         .add_plugins((content::ContentPlugin, sim::SimPlugin, view::ViewPlugin))
-        .run();
+        .run()
 }

@@ -17,10 +17,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Other
 
-- [ ] **`OW_SHOT` fails fast when its order can't be planned**
-  - With `planner=<body>;fly=<days>`, a destination the ship can't reach (over budget, or rejected by the solver) leaves the shot waiting in its Scheduling phase until the timeout. Instead, exit at once with an error that gives the planner's reason (the PLNR-92 sentence) and what was asked.
-  - Also exit at once when `planner` is given but nothing is selected, or the selected body isn't a ship that can open the planner (PLNR-01).
-  - Code is in `src/view/debug_shot.rs`. Test the new exits headlessly. No change to the game's behaviour.
 - [ ] **Bring older docs up to the writing style**
   - The rules are in `docs/README.md` (Writing). Do it one doc at a time, with no change of meaning.
   - The longest are the likeliest to need it: `ideas/mechanics/requirements-and-bids.md`, `ideas/mechanics/component-stats.md` and `ideas/mechanics/transfers.md`.
