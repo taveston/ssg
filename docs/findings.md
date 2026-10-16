@@ -2,7 +2,7 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-174.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-176.
 
 ---
 
@@ -68,12 +68,12 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** PHAS-14 · **Type:** spec gap
 - **Disposition:** open. Use the check when group orders are specced.
 
-### F-180 · A pass through a moon's Low band from beyond its planet
+### F-174 · A pass through a moon's Low band from beyond its planet
 - **Observation:** A crossing from another planet to a moon goes round the star and aims at the moon's planet (XFER-01). An Intercept through the moon's Low band then turns by the moon's gravity, but at the planet's position and with the velocity relative to the planet, which is what the crossing ends on. The closest-approach phase (PHAS-11) already reads the same way. The build accepts this.
 - **Affects:** XFER-13, XFER-01 · **Type:** spec gap
 - **Disposition:** open. Accept, or say how a pass through a moon's band is aimed from outside its planet's frame.
 
-### F-181 · A low-thrust pass through Low reads as half a turn
+### F-175 · A low-thrust pass through Low reads as half a turn
 - **Observation:** A low-thrust crossing ends on the body's circle at almost the body's own velocity (XFER-06), so it arrives with almost no excess speed. XFER-13 then gives a turn of nearly 180°, though turning an excess velocity that small changes almost nothing. The build applies the rule as written, so the planner's label (PLNR-65) would read "turn 180°".
 - **Affects:** XFER-13, XFER-06, PLNR-65 · **Type:** spec gap
 - **Disposition:** open. Accept, show no turn for a low-thrust leg, or make a low-thrust Intercept through Low infeasible.
