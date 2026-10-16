@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Marker pops out near the planet</title>
+<!--
+  Orphan Worlds: at rest a planet with things folded into it shows only its ring (mock-up 24 A); when the pointer comes
+  near, the ring grows into the multi-marker (MUL-01) below the planet, and a click opens its tray (MUL-08).
+  Candidate (F-229, F-239). Planet marker 12 px, multi-marker frames 22 px. Render at 1440 wide.
+-->
+<style>
+@font-face{font-family:"Plex Cond";src:url("../../../../assets/fonts/IBMPlexSansCondensed-Regular.ttf")}
+@font-face{font-family:"Plex Cond";font-weight:600;src:url("../../../../assets/fonts/IBMPlexSansCondensed-SemiBold.ttf")}
+@font-face{font-family:"Plex Mono";src:url("../../../../assets/fonts/IBMPlexMono-Regular.ttf")}
+:root{--ground:#070A0E;--text:#DCE6EC;--muted:#9FB6C4;--warn:#F0A040}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--ground);color:var(--text)}
+body{font-family:"Plex Cond",sans-serif;font-size:14px;width:1440px;padding:24px 32px 28px}
+h1{font-size:14px;font-weight:600;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin:0 0 6px;display:flex;gap:12px;align-items:center}
+.tag{font:11px "Plex Mono",monospace;color:var(--warn);border:1px solid var(--warn);border-radius:2px;padding:1px 6px;letter-spacing:.06em}
+.lede{color:var(--muted);margin:0 0 16px;font-size:13.5px;max-width:1180px;line-height:1.45}
+.grid{display:grid;grid-template-columns:678px 678px;gap:18px 20px;margin-bottom:22px}
+.board h2{font-size:12px;font-weight:600;color:var(--muted);margin:0 0 8px;letter-spacing:.06em;text-transform:uppercase}
+.frame{border:1px solid #1E2A35;border-radius:4px;overflow:hidden}
+.cap{color:var(--muted);font-size:12.5px;line-height:1.45;margin:8px 2px 0}
+.cap b{color:var(--text);font-weight:600}
+</style>
+</head>
+<body>
+<h1>Marker pops out near the planet <span class="tag">CANDIDATE</span></h1>
+<p class="lede">The same Sol overview in three states. At rest, a planet with things folded into it shows only its ring and a dim "+N"; the ring takes the colour of the most pressing contact. When the pointer comes within about 24 px of the planet, the ring grows into the full multi-marker below it. A click on the marker opens its tray. Saturn here holds two moons and a hostile ship. Real pixel size; the strip enlarges the growth 4 times.</p>
+
+<div class="grid">
+  <section class="board"><h2>1 · At rest</h2><div class="frame" id="a"></div>
+    <p class="cap"><b>Rings only.</b> Nothing next to the planets to compete with them; labels and the count line never change.</p></section>
+  <section class="board"><h2>2 · Pointer near Saturn</h2><div class="frame" id="b"></div>
+    <p class="cap"><b>The ring grows into the marker, below the planet.</b> The dashed circle (not drawn in the game) is the 24 px reach. Hostile front frame, the count of three. It also shows while the planet is selected, so a keyboard, gamepad or touch player gets it without a pointer.</p></section>
+  <section class="board"><h2>3 · Click on the marker</h2><div class="frame" id="c"></div>
+    <p class="cap"><b>The tray opens to its right,</b> clear of the planet and its label, as it does for any multi-marker (MUL-08).</p></section>
+  <section class="board"><h2>The growth, enlarged 4 times</h2><div class="frame" id="z"></div></section>
+</div>
+
+<script>
+const C = {ground:'#070A0E', text:'#DCE6EC', muted:'#9FB6C4', dim:'#6F8696', own:'#5AA9E6', allied:'#8CCB8A', hostile:'#EE6A5F', unknown:'#F0A040', panel:'#0B1016', line:'rgba(159,182,196,.35)'};
+const hex = h => [1,3,5].map(i => parseInt(h.slice(i,i+2),16));
+const mix = (a,b,t) => { const A=hex(a), B=hex(b); return '#'+A.map((v,i)=>Math.round(v*t+B[i]*(1-t)).toString(16).padStart(2,'0')).join(''); };
+const mono = (txt, x, y, size, col, anchor='middle') =>
+  `<text x="${x}" y="${y}" text-anchor="${anchor}" font-family="Plex Mono, monospace" font-size="${size}" fill="${col}" stroke="none">${txt}</text>`;
+const HALO = `stroke="${C.ground}" stroke-width="3" paint-order="stroke" stroke-linejoin="round"`;
+const name = (x, y, txt, anchor) =>
+  `<text x="${x}" y="${y}" text-anchor="${anchor}" font-family="Plex Cond, sans-serif" font-size="12" fill="${C.text}" ${HALO}>${txt}</text>`;
+const sub = (x, y, txt, anchor) =>
+  `<text x="${x}" y="${y}" text-anchor="${anchor}" font-family="Plex Mono, monospace" font-size="9" fill="${C.dim}" ${HALO}>${txt}</text>`;
+
+const P = 12;
+const planetMark = (x, y) =>
+  `<circle cx="${x}" cy="${y}" r="${P/2 - .5}" fill="${C.ground}" stroke="${C.text}" stroke-width="1"/><circle cx="${x}" cy="${y}" r="1.5" fill="${C.text}"/>`;
+const starMark = (x, y, S) => {
+  let s = `<circle cx="${x}" cy="${y}" r="${S/2 - .5}" fill="${C.ground}" stroke="${C.text}" stroke-width="1"/>`;
+  for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4;
+    s += `<line x1="${x + S/2*Math.cos(a)}" y1="${y + S/2*Math.sin(a)}" x2="${x + (S/2+3)*Math.cos(a)}" y2="${y + (S/2+3)*Math.sin(a)}" stroke="${C.text}" stroke-width="1"/>`; }
+  return s;
+};
+
+// The resting ring (mock-up 24 A): a circle behind the planet in the most pressing contact's colour.
+function ring(x, y, aff, alpha = 1) {
+  const stroke = aff ? C[aff] : C.text, fill = aff ? mix(C[aff], C.ground, aff === 'own' ? .30 : .16) : C.ground;
+  return `<circle cx="${x+3}" cy="${y-3}" r="5.5" fill="${fill}" stroke="${stroke}" stroke-width="${aff ? 1.4 : 1}" opacity="${alpha}"/>`;
+}
+// Frames at 22 px (SYM-02): own circle, allied square, hostile diamond, unknown quatrefoil.
+const FRAME = {
+  own: '<circle r="10.25"/>', allied: '<rect x="-10.25" y="-10.25" width="20.5" height="20.5"/>',
+  hostile: '<path d="M0,-10.5 L10.5,0 L0,10.5 L-10.5,0 Z"/>',
+  unknown: '<path d="M-6.1,-6.1 A6.3,6.3 0 0 1 6.1,-6.1 A6.3,6.3 0 0 1 6.1,6.1 A6.3,6.3 0 0 1 -6.1,6.1 A6.3,6.3 0 0 1 -6.1,-6.1 Z"/>'
+};
+// The multi-marker (MUL-01): front frame, count, a copy behind offset 4 px right and up. `k` scales it, `a` is opacity.
+function multi(x, y, aff, n, k = 1, a = 1, showCount = true) {
+  const col = C[aff], fill = mix(col, C.ground, aff === 'own' ? .30 : .16);
+  return `<g transform="translate(${x},${y}) scale(${k})" opacity="${a}" stroke="${col}" stroke-width="${1.5/k}" stroke-linejoin="round">` +
+    `<g transform="translate(4,-4)" fill="${fill}">${FRAME[aff]}</g><g fill="${fill}">${FRAME[aff]}</g>` +
+    (showCount ? mono(n, 0, 3.6, 10.5, col) : '') + `</g>`;
+}
+const cursor = (x, y) => `<path d="M${x},${y} L${x},${y+14} L${x+4},${y+10.5} L${x+7},${y+16.5} L${x+9.5},${y+15.3} L${x+6.6},${y+9.4} L${x+11.5},${y+9.4} Z" fill="#fff" stroke="${C.ground}" stroke-width="1"/>`;
+
+// A tray (MUL-08) to the right of a marker box, with a notch pointing at it.
+function tray(leftX, midY) {
+  const rows = [['Titan', 'moon', null], ['Rhea', 'moon', null], ['K-9', 'hostile', 'hostile']], w = 168, h = 22 + rows.length * 26 + 20, y = midY - h/2;
+  let s = `<rect x="${leftX}" y="${y}" width="${w}" height="${h}" fill="${C.panel}" stroke="${C.line}"/>`;
+  s += `<path d="M${leftX},${midY - 5} L${leftX - 5},${midY} L${leftX},${midY + 5} Z" fill="${C.panel}" stroke="${C.line}"/>`;
+  s += mono('SATURN · 3 IN ORBIT', leftX + 8, y + 15, 9, C.muted, 'start');
+  rows.forEach(([nm, tag, aff], i) => { const ry = y + 22 + i * 26 + 13;
+    s += aff ? `<path transform="translate(${leftX + 16},${ry}) scale(.55)" d="M0,-10.5 L10.5,0 L0,10.5 L-10.5,0 Z" fill="${mix(C.hostile, C.ground, .16)}" stroke="${C.hostile}" stroke-width="2"/>`
+             : `<circle cx="${leftX + 16}" cy="${ry}" r="4" fill="${C.ground}" stroke="${C.text}" stroke-width="1"/>`;
+    s += `<text x="${leftX + 30}" y="${ry + 4}" font-family="Plex Cond, sans-serif" font-size="12" fill="${C.text}">${nm}</text>`;
+    s += mono(tag, leftX + w - 8, ry + 3.5, 9, C.muted, 'end'); });
+  s += mono('↑↓ pick · esc close', leftX + 8, y + h - 7, 8.5, C.muted, 'start');
+  return s;
+}
+
+const SOL = [
+  {name:'Earth',  rx:52,  a:40,  n:5, aff:'own'},
+  {name:'Ceres',  rx:92,  a:-35, n:2},
+  {name:'Jupiter',rx:110, a:195, n:5},
+  {name:'Saturn', rx:178, a:150, n:3, aff:'hostile'},
+  {name:'Uranus', rx:262, a:25,  n:4, aff:'unknown'}
+];
+function scene(el, state) {
+  const W = 678, H = 270, cx = 338, cy = 135, k = 0.42, star = 16;
+  let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="${C.ground}"/>`;
+  SOL.forEach(b => s += `<ellipse cx="${cx}" cy="${cy}" rx="${b.rx}" ry="${b.rx*k}" fill="none" stroke="rgba(159,182,196,.28)" stroke-width="1"/>`);
+  s += starMark(cx, cy, star) + name(cx, cy - star/2 - 9, 'Sol', 'middle');
+  let pop = null;
+  SOL.forEach(b => {
+    const t = b.a * Math.PI / 180, x = Math.round(cx + b.rx*Math.cos(t)), y = Math.round(cy + b.rx*k*Math.sin(t)), lx = x - P/2 - 6;
+    const popped = state !== 'rest' && b.name === 'Saturn';
+    s += (popped ? '' : ring(x, y, b.aff)) + planetMark(x, y) + name(lx, y - 1, b.name, 'end') + sub(lx, y + 11, '+' + b.n, 'end');
+    if (popped) pop = {x, y, b};
+  });
+  if (pop) {
+    // The marker sits below the planet, its two frames touching the planet's box (the union box starts at the planet's lower edge).
+    const mx = pop.x, my = pop.y + P/2 + 4 + 11;
+    s += `<circle cx="${pop.x}" cy="${pop.y}" r="24" fill="none" stroke="rgba(255,255,255,.18)" stroke-dasharray="3 3"/>`;
+    s += multi(mx, my, 'hostile', pop.b.n);
+    if (state === 'near') s += cursor(pop.x + 22, pop.y + 4);
+    if (state === 'tray') s += tray(mx + 4 + 11 + 8, my) + cursor(mx + 1, my + 2);
+  }
+  document.getElementById(el).innerHTML = s + '</svg>';
+}
+scene('a', 'rest'); scene('b', 'near'); scene('c', 'tray');
+
+// The growth: the ring (12 px circle, 3 px up and right) becomes the marker (22 px frame, below the planet).
+(function () {
+  const Z = 4, steps = [0, .5, 1], W = 678, H = 270, colW = W / steps.length;
+  let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="${C.ground}"/>`;
+  steps.forEach((t, i) => {
+    const x0 = i * colW + colW/2, y0 = 100;
+    // The ring slides down, swells and fades; the marker fades in on the same path and size, the count last.
+    const ease = t * t * (3 - 2 * t), px = 3 * (1 - ease), py = -3 + (P/2 + 4 + 11 + 3) * ease, sc = (12 + 10 * ease) / 22;
+    s += `<g transform="translate(${x0 - 8},${y0}) scale(${Z})">` +
+         `<circle cx="${px}" cy="${py}" r="${5.5 * (sc * 22 / 12)}" fill="${mix(C.hostile, C.ground, .16)}" stroke="${C.hostile}" stroke-width="1.4" opacity="${1 - ease}"/>` +
+         multi(px - 3 * (1 - ease) * 0, py, 'hostile', 3, sc, ease, ease > .9) +
+         planetMark(0, 0) + `</g>`;
+    s += mono(['at rest', 'growing', 'popped out'][i], x0, 236, 10, C.muted);
+    if (i) s += `<line x1="${i*colW}" y1="14" x2="${i*colW}" y2="${H-14}" stroke="rgba(159,182,196,.10)"/>`;
+  });
+  document.getElementById('z').innerHTML = s + '</svg>';
+})();
+</script>
+</body>
+</html>

@@ -28,6 +28,7 @@ Boards 1 to 6 are from the design canvas "Inspect & Planetary Transition"; 7 onw
 | `22-moon-count-label-weight.png` | How loud the moon count beside a planet's stacked ring should be: "N moons" on a second line, number only in the dim colour, number inline, and ring only with the count on hover; labels enlarged (2026-10-16, from F-244). Source: `22-moon-count-label-weight.html`; `../symbology.md` 4 |
 | `23-fold-marker-placement.png` | Where a planet's fold marker sits: level right against directly below, each quiet, with a neighbour in the label's left slot, and with the tray open to the left (2026-10-16, from F-229 and F-239). Source: `23-fold-marker-placement.html`; `../symbology.md` 4 |
 | `24-contacts-on-the-planet-marker.png` | No fold marker for planets: the moon ring takes the affiliation of the most pressing contact folded in, as colour only, as frame shape and colour, or neutral with glyphs on the label; Sol overview and enlarged rings (2026-10-16, from F-229 and F-239). Source: `24-contacts-on-the-planet-marker.html`; `../symbology.md` 4 |
+| `25-marker-pops-out-near-the-planet.png` | At rest a planet with things folded in shows only its ring; with the pointer near, the ring grows into the multi-marker below the planet, and a click opens its tray; the growth enlarged (2026-10-16, from F-229 and F-239). Source: `25-marker-pops-out-near-the-planet.html`; `../symbology.md` 4 |
 
 How to use them:
 
