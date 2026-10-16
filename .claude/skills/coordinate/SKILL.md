@@ -24,6 +24,7 @@ You plan, dispatch, merge and talk. Agents build. Each to-do item ends as a gree
 
 ## 3. Merge each finished item
 
+0. Review first: start a review agent in the item's worktree (medium effort, high for large or orbital items). It reviews `git diff master...HEAD`, commits simple behaviour-preserving fixes, and reports larger issues. Put larger issues that need no design decision straight onto `docs/todo.md` (bugs under Fixes, clean-up under Other) without asking the user. Only spec questions go to the user, as findings.
 1. In the agent's worktree: `git rebase master`. Conflicts should now be in code only. Resolve them with small Python scripts. Run every merge script under `set -e`, and never chain `git add`/commit after a script that might have failed.
 2. Run `touch crates/orbits/src/*.rs`, then `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test --workspace`.
 3. From the repo root: `git merge --ff-only <branch>`. Then `git worktree remove --force <path>`, `git worktree prune` and `git branch -D <branch>`.
