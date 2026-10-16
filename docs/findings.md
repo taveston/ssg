@@ -2,7 +2,7 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-245.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-246.
 
 ---
 
@@ -132,11 +132,6 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** The coast of a traffic path (PLNR-62) is drawn at `traffic_path_alpha` too, at `consequence_width_px`. Every drawn path has its start dot, traffic included. The coast and its label are drawn only while their event is still ahead; once a coasting ship has passed it, only the crossing it flew is drawn, as PLNR-88 gives no later event. A hovered place's preview (PLNR-12) is a Rendezvous, so it has no coast.
 - **Affects:** PLNR-61, PLNR-62, PLNR-67, PLNR-88 · **Type:** spec gap
 - **Disposition:** open. Accept, or say what a coast shows after its event.
-
-### F-201 · A ship that arrives in an orbit gets no tail
-- **Observation:** A named orbit's members are fixed at spawn (`shared_orbit.rs`, SCL-07). A ship that joins an orbit at the end of a Rendezvous gets its fold and motion state back (GRP-01, MOT-08), but it is not one of the orbit's members, so its ring draws no tail behind it (MRK-09) and hovering or clicking the ring doesn't reach it (HOV-02). If no one was in that orbit at the start, no ring is drawn at all. Leaving an orbit works: the ship drops out of the ring.
-- **Affects:** SCL-07, MRK-09, HOV-02, HOV-04 · **Type:** bug
-- **Disposition:** open. Fix: keep the members, ring strokes and ring targets up to date as ships come and go.
 
 ### F-202 · Dashes crawl along a path in flight
 - **Observation:** Dashes and dots are laid on screen from the start of the dashed part, so their length stays `path_dash_px` at any zoom (PLNR-61). In flight that start is the ship, which moves, so the dashes slide along the path as the ship flies and as the camera moves. Laying them from the path's end would hold them still while the ship flies, but not while the camera zooms.
@@ -303,15 +298,15 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** MUL-10, MUL-05 · **Type:** spec gap
 - **Disposition:** open. Accept, or say the tray follows the marker that keeps most of its things.
 
-### F-242 · A ship that transfers to another body stays with the old one
-- **Observation:** In play, a ship sent from one body's band to another body's (for example Earth's Low band to the Moon's Low band) arrives, but its symbol isn't moved to the new body and the "In orbit" outline still lists it under the old one. A transfer between two bands of the same body works as expected. Likely the same root as F-201: what a ship orbits, and which orbit it belongs to, is fixed at spawn and only the band is updated on arrival.
-- **Affects:** XFER-01, SCL-07, INS-05, GRP-01 · **Type:** bug
-- **Disposition:** open. Seen by the user in play (build 907d98e).
-
 ### F-244 · At system scale the fold marker dwarfs its planet
 - **Observation:** In play, the multi-marker looks fine on its own, but in the system overview a planet's fold marker looks massive next to the planet. The fold marker is a ship symbol's frame (`ship_symbol_px`, 22 px) with a back frame offset 4 px, so about 26 px across, sitting beside a planet marker of `planet_marker_px` (12 px). Every planet with satellites (Halden IV, Iver, Morrow) then reads as a small dot with a big badge, and the badge, not the planet, draws the eye. A fold marker holding only natural bodies (Morrow's "11") is the same size as one holding ships.
 - **Affects:** MUL-01, GRP-05, MRK-03 · **Type:** spec wrong
 - **Disposition:** open. Seen by the user in play. Options: a fold marker of its own size (a tunable near the planet marker's), or a smaller one only when it holds natural bodies alone. Bears on F-229 (where it sits).
+
+### F-245 · The outline follows a selected ship that moves
+- **Observation:** INS-05 opens the path to the selection only when the selection changes. A selected ship that arrives at another body would then drop out of the outline, because its new parent and orbit row are still collapsed. The build also opens the new path (the parent entry and the named orbit's row) when the selected body's parent or named orbit changes, and scrolls it into view; other entries keep their state. That scroll can override where the player had scrolled the outline, on departure and on arrival.
+- **Affects:** INS-05, RAIL-09 · **Type:** spec gap
+- **Disposition:** open. Accept and say so in INS-05, or open the path without scrolling.
 
 ## Parked
 

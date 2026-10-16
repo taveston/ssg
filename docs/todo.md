@@ -15,19 +15,10 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Fixes
 
-- [ ] **Orbit membership follows the ship** · F-242, F-201 · RAIL-09, SCL-07, HOV-04, INS-05, MRK-09, HOV-02
-  - The spec already says it: a ship on a Parked segment is a member of its named orbit and nothing else (RAIL-09), wherever that orbit is. The build fixes membership at spawn, so a ship that arrives in an orbit isn't one of its members: after a transfer to another body its symbol and outline entry stay with the old body (F-242), and its new ring draws no tail and doesn't reach it on hover or click (F-201).
-  - Keep each orbit's members, ring strokes, ring targets, identity mark, outline rows and fold parent up to date as ships leave and arrive, including an orbit that had no members before and one left empty.
-  - Leads from the clean-up: `index_members` in `shared_orbit.rs` runs only at Startup, so `OrbitMembers` never changes (F-201). Arrival already moves the ship's `ChildOf` to the new body (`sim/transfer/plan.rs`), but `fill_outline` refills only when the selection or the expanded rows change, which may be why the outline lags (F-242). Check both.
-  - From the clean-up's review, in the same code:
-    - `rings/marks.rs` `sync_ring_marks` now removes a band's identity mark as soon as its last ship leaves, since `rings.owners()` lists an orbit only while it has members. A ship coming back then fades the mark in from 0 instead of resuming. Decide with the membership rework (keep the mark while the orbit exists), and fix the doc comment that says an empty ring keeps its mark.
-    - `multi_markers/gather.rs` falls back to a thing's own `orbit.radius_km` when its named orbit isn't found; `together_sets` assumes one radius per orbit. Take the radius from the orbit, or skip the slot.
-    - `overlap_clusters` relies on two unchecked invariants from `units()`: each thing is in at most one spot a frame, and each spot's lead is unique and one of its own things. Add a `debug_assert`.
-    - `link.rs` `linking_many_things_does_not_test_every_pair` has a 3 s timing bound in a debug test (about 0.1 s now). Count comparisons instead of timing, so it can't flake.
-  - Tests: Earth Low to Moon Low moves the ship's symbol, fold parent and outline entry to the Moon; a ship arriving in an empty orbit gets a ring with its tail, and hover and click on that ring reach it; the orbit it left loses it.
-  - Delete F-242 and F-201 when done.
-
 ## Other
+
+- [ ] **Rings: resync on a lone orbit's change**
+  - `rings/mod.rs` `sync_ring_strokes` and `rings/picking.rs` `sync_ring_targets` rerun only when `OrbitMembers` changes. A ship or station with an orbit of its own, outside any named orbit, would leave a stale empty stroke and target behind when it departs, until the next membership change. No content has such a ship today. Also resync when an `Orbit` is added or removed.
 
 - [ ] **Bring older docs up to the writing style**
   - The rules are in `docs/README.md` (Writing). Do it one doc at a time, with no change of meaning.
