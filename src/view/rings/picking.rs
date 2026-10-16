@@ -33,7 +33,7 @@ use crate::view::hovered::HoveredBodies;
 use crate::view::scale::km_to_render;
 use crate::view::screen::ScreenPositions;
 use crate::view::selection::Selection;
-use crate::view::shared_orbit::{OrbitMembers, OrbitRings, Ring, ring_screen_point};
+use crate::view::shared_orbit::{OrbitRings, Ring, ring_screen_point, rings_changed};
 use crate::view::targets::{MarkerFor, OrbitFor};
 use crate::view::tunables::Tunables;
 use crate::view::world::ViewNow;
@@ -96,10 +96,7 @@ impl Plugin for RingPickingPlugin {
             .add_systems(Startup, sync_ring_targets.in_set(Boot::Overlay))
             .add_systems(
                 Update,
-                (
-                    sync_ring_targets.run_if(resource_changed::<OrbitMembers>),
-                    trace_rings,
-                )
+                (sync_ring_targets.run_if(rings_changed), trace_rings)
                     .chain()
                     .in_set(Stage::Overlay),
             )

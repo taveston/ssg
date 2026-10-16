@@ -28,7 +28,7 @@ use crate::view::motion_mode::{MotionModeState, degrees_behind, tail_brightness}
 use crate::view::scale::km_to_render;
 use crate::view::screen::{MapArea, ScreenPositions};
 use crate::view::selection::Selection;
-use crate::view::shared_orbit::{OrbitMembers, OrbitRings};
+use crate::view::shared_orbit::{OrbitRings, rings_changed};
 use crate::view::tunables::Tunables;
 use crate::view::world::{RenderOrigin, WorldPositions};
 use crate::{Boot, Stage};
@@ -94,7 +94,7 @@ impl Plugin for RingsPlugin {
             .add_systems(
                 Update,
                 (
-                    sync_ring_strokes.run_if(resource_changed::<OrbitMembers>),
+                    sync_ring_strokes.run_if(rings_changed),
                     draw_orbit_rings.in_set(RingsDrawn),
                 )
                     .chain()

@@ -46,6 +46,20 @@ impl Plugin for SharedOrbitPlugin {
     }
 }
 
+/// Run condition for what is built per ring (strokes, hit targets): true
+/// when the named orbits' membership changed, or a body gained or lost an
+/// orbit of its own. A lone ship or station outside any named orbit owns
+/// its ring through that orbit, and changes no membership when it leaves.
+pub fn rings_changed(
+    members: Res<OrbitMembers>,
+    added: Query<(), Added<Orbit>>,
+    mut removed: RemovedComponents<Orbit>,
+) -> bool {
+    // Read every removal, so none is seen again on a later frame.
+    let removed = removed.read().count() > 0;
+    members.is_changed() || !added.is_empty() || removed
+}
+
 /// SCL-07 / RAIL-09: which bodies sit in which named orbit, in spawn order
 /// (an entity's index rises with its spawn). A ship that leaves an orbit
 /// drops out of it and one that arrives joins it, whatever body the orbit

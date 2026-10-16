@@ -770,3 +770,56 @@ fn a_lone_bodys_mark_follows_its_look_and_goes_with_its_ring() {
     app.update();
     assert!(marks(&mut app).is_empty(), "no orbit, no mark");
 }
+
+/// HOV-04 / RAIL-09: a lone station with an orbit of its own, outside any
+/// named orbit, owns its ring's stroke and hit target. When it loses that
+/// orbit (as on leaving), both go, though no named orbit's membership
+/// changed.
+#[test]
+fn a_lone_orbit_lost_takes_its_ring_stroke_and_target_with_it() {
+    use crate::view::rings::picking::{RingPickingPlugin, RingTarget};
+    use crate::view::rings::{RingStrokeFor, RingsPlugin};
+
+    let mut app = camera_app_with(|app| {
+        app.add_message::<bevy::picking::backend::PointerHits>()
+            .insert_resource(placeholder_fonts())
+            // The strokes' gizmo store, without the asset plugin.
+            .init_resource::<Assets<bevy::gizmos::GizmoAsset>>()
+            .add_plugins((
+                GroupingPlugin,
+                MotionPlugin,
+                HoveredPlugin,
+                SharedOrbitPlugin,
+                RingsPlugin,
+                RingPickingPlugin,
+            ));
+    });
+    let highport = body(&mut app, "Arden Highport");
+    // Test-only: free the station from its named orbit, keeping its own.
+    app.world_mut()
+        .entity_mut(highport)
+        .remove::<InNamedOrbit>();
+    run(&mut app, 2);
+    let owned = |app: &mut App| {
+        let stroke = app
+            .world_mut()
+            .query::<&RingStrokeFor>()
+            .iter(app.world())
+            .any(|s| s.0 == highport);
+        let target = app
+            .world_mut()
+            .query::<&RingTarget>()
+            .iter(app.world())
+            .any(|t| t.0 == highport);
+        (stroke, target)
+    };
+    assert_eq!(
+        owned(&mut app),
+        (true, true),
+        "its own ring is drawn and hit"
+    );
+
+    app.world_mut().entity_mut(highport).remove::<Orbit>();
+    run(&mut app, 2);
+    assert_eq!(owned(&mut app), (false, false), "nothing stale is left");
+}
