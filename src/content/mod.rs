@@ -10,6 +10,14 @@ use bevy::prelude::*;
 use crate::sim::system::{SystemData, SystemDataResource};
 
 pub mod corvane;
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "nothing calls the sector generator until the sector view (SECT-01)"
+    )
+)]
+pub mod generator;
 pub mod sol;
 
 /// The argument that names the system to load (SOL-22).

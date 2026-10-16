@@ -3,6 +3,25 @@
 
 /// One astronomical unit, in km.
 pub const KM_PER_AU: f64 = 149_597_870.7;
+/// One parsec, in km: the distance at which one AU subtends one second of
+/// arc, 648,000 ÷ π AU. Star positions in a sector are measured in it.
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "read by the sector generator, which the sector view will call (SECT-01)"
+    )
+)]
+pub const KM_PER_PARSEC: f64 = KM_PER_AU * 648_000.0 / std::f64::consts::PI;
+/// Earth's mean radius, in km, the unit generated planets' radii are in.
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "read by the sector generator, which the sector view will call (SECT-01)"
+    )
+)]
+pub const EARTH_RADIUS_KM: f64 = 6_371.0;
 /// Earth's mass, the unit content uses for planets.
 pub const EARTH_MASS_KG: f64 = 5.972e24;
 /// The Sun's mass, the unit content uses for stars.
