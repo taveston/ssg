@@ -27,5 +27,6 @@ How to use them:
 
 - They are sketches, not pixel specs. Everything in them is a candidate unless the spec (`docs/spec/`) says otherwise.
 - Where a mock-up and the spec (`docs/spec/system-view.md`) disagree, the spec wins. In particular, the bubble around Halden IV in board 2 and the magnifier in board 6 are rejected. Satellites are reached by focus and the inset's "In orbit" list.
+- Mock-ups drawn before 2026-10-16 show selection and hover as a white ring round the marker. The spec uses four corner brackets (HOV-06) instead.
 - Colours in the images are the real ones (the palette in `../presentation-sketches.md`, specced as MRK-01 in `docs/spec/system-view.md`). Boards up to 8 use the first build's fonts (Barlow, JetBrains Mono); 13 onwards load IBM Plex from `assets/fonts/`, so they render with the real fonts when opened from the repo.
 - Planet images are CSS placeholder gradients, not art direction for renders.

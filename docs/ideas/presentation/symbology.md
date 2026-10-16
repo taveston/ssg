@@ -80,6 +80,7 @@ The pill was drawn before the symbols settled. One idiom for anything that stand
 - Bodies only (moons and the like): a plain neutral circle with the count, as bodies are drawn (MRK-10).
 - A task force keeps its bracket and corner count. It counts as **one thing** in any marker it is part of.
 - A station is never folded into a ship count: it keeps its own frame and installation bar, with the number of things docked where an icon would be. Its frame keeps the station's own affiliation.
+- **Direction (2026-10-16):** selection and hover bracket the whole marker, the second frame behind included, as the fold pill is bracketed now (HOV-06). Details wait for the idiom.
 
 ### Candidate: the member tray
 
@@ -120,7 +121,7 @@ Placed around the frame, never inside it, so the core symbol always reads the sa
 - **Dashed frame:** the position is estimated, not a current observation (NATO uses dashed for anticipated).
 - **Stale track:** dashed and dimmed; the age goes in the label.
 - **Echelon** above the frame (troop transports).
-- **Selection and focus** keep the white ring and corner brackets (CAM-22), sized to the frame.
+- **Selection and hover** are white corner brackets round the frame, hover dimmer (HOV-06, HOV-07). They enclose the frame's square, not the amplifiers. The frame body has no mark.
 
 ## 7. Identification ladder
 

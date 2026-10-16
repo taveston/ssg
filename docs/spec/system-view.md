@@ -6,7 +6,7 @@
 
 *How to read it:* each requirement has a stable ID. **Built** is ✓ once the requirement is in the code. Numbers in `code` are tunables (table at the end), read from `src/view/tunables.rs`, never hard-coded.
 
-*Retired IDs* (never reuse): CAM-21, CLK-03, ZOOM-03, ZOOM-04, ZOOM-06, ZOOM-07, ZOOM-08, ZOOM-09, ZOOM-12, MAG-01 to MAG-08, MOT-03, MOT-05, MOT-06, MOT-09, CAM-09.
+*Retired IDs* (never reuse): CAM-21, CLK-03, ZOOM-03, ZOOM-04, ZOOM-06, ZOOM-07, ZOOM-08, ZOOM-09, ZOOM-12, MAG-01 to MAG-08, MOT-03, MOT-05, MOT-06, MOT-09, CAM-09, CAM-22.
 
 ---
 
@@ -43,7 +43,7 @@
 
 | ID | Requirement | Built |
 |---|---|---|
-| MRK-01 | Palette: ground #070A0E; natural bodies and text #DCE6EC; orbits and secondary text #9FB6C4; own ships, groups and stations #5AA9E6 (blue); warnings #F0A040 (orange); selection and hover as a white ring. Ships, groups and stations take their colour from their affiliation (SYM-02). | ✓ |
+| MRK-01 | Palette: ground #070A0E; natural bodies and text #DCE6EC; orbits and secondary text #9FB6C4; own ships, groups and stations #5AA9E6 (blue); warnings #F0A040 (orange). Ships, groups and stations take their colour from their affiliation (SYM-02). | ✓ |
 | MRK-02 | Type has three roles. The **label face** is for names on the map, labels, buttons, headings and the breadcrumb; the **text face** is for running prose (report and request bodies, descriptions); the **data face** is for dates, figures, status readouts and stamps. Every requirement names a role, never a font. The font behind each role, and its weights, is named once, in the type roles table below; no other code names a font file. | ✓ |
 | MRK-03 | Each object is a fixed-size screen marker by class, projected from its 3D position each frame; marker size never depends on physical size. Natural bodies are drawn as body markers (MRK-13) of `star_marker_px`, `planet_marker_px` and `moon_marker_px` across. | ✓ |
 | MRK-04 | Marker shapes: body marker (MRK-13) = star, planet or moon; X = salvage site. Ships, groups of ships and stations are drawn as symbols (section 3a). | ✓ |
@@ -85,7 +85,7 @@ Ships and stations are drawn as symbols adapted from NATO APP-6: the **frame** s
 | SYM-11 | A ship or group in transit has a velocity leader: a line from the edge of the frame in the on-screen direction of its velocity relative to the star. Its length rises with the logarithm of speed from `leader_min_px` at `leader_speed_min_kms` to `leader_max_px` at `leader_speed_max_kms`, clamped at both ends; below `leader_speed_min_kms`, and for stale tracks, there is no leader. Orbiting and parked ships have no leader. | |
 | SYM-12 | Own ships and own groups (commanded or civilian) have a condition bar under the frame, `ship_symbol_px` wide and 3 px high, filled to their condition in the symbol's colour, or in orange below `condition_warn_fraction`. A group shows the mean of its members. | |
 | SYM-13 | A symbol's label sits to the right of it, clear of its amplifiers (the count, the echelon, the bracket and the condition bar): `label_gap_px` (LBL-01) is measured from the outer edge of the frame and its amplifiers, not from the frame alone. The label is in the symbol's colour: the name in the label face, then a second line in the data face in the secondary text colour summarising the parts that apply, joined by " · ": a group's member count by class ("4 warships"); embarked formations ("1st Arden Guard"); "own flag · civilian" or "requisitioned"; the stale age (SYM-08); and the countdown of the ship's order (PLNR-66). With none of these, there is no second line. | |
-| SYM-14 | Hover and click target a symbol through its `ship_symbol_px` square. The hover ring, the selection ring and the frame brackets (CAM-22) are sized to enclose that square, not the amplifiers. | ✓ |
+| SYM-14 | Hover and click target a symbol through its `ship_symbol_px` square. The hover and selection brackets (HOV-06) enclose that square, not the amplifiers. | |
 | SYM-15 | Ownership text in insets uses: "own", "own flag · civilian", "requisitioned", "allied", "neutral", "hostile" or "unknown". | ✓ |
 | SYM-16 | Each marker, symbol and pill is placed with its centre on a whole screen pixel, so its outlines are as sharp as the orbit rings. | ✓ |
 | SYM-17 | Symbols, icons, body markers and pills are drawn as vector geometry at their screen size each frame, never as bitmaps scaled to size. *Checked in review.* | ✓ |
@@ -105,11 +105,13 @@ Applies to every label on the map: body labels and symbol labels (SYM-13).
 
 | ID | Requirement | Built |
 |---|---|---|
-| HOV-01 | Hovering a marker draws a white ring round it. There is no hover tooltip: the name and type are already on the map, and everything else is in the inset. This includes a fold pill: its folded satellites are listed in the inset's "In orbit" outline (INS-05), not on hover. | ✓ |
+| HOV-01 | Hovering a marker, symbol or pill draws the hover brackets round it (HOV-06). There is no hover tooltip: the name and type are already on the map, and everything else is in the inset. This includes a fold pill: its folded satellites are listed in the inset's "In orbit" outline (INS-05), not on hover. | |
 | HOV-02 | Every drawn orbit ring, tail or exposure ring (dot mode or ring mode, MOT-01 and MOT-02) is a hover and click target for its object, as its marker is; a shared orbit's ring targets its members together (HOV-05). A pointer within `ring_hit_px` of the ring hits it. A marker, pill, label or panel under the pointer wins over a ring, and of two rings in reach the nearer wins. Clicking a ring selects as clicking the marker does (INS-01); double-clicking it behaves as ZOOM-16 and ZOOM-17. Folded satellites have no drawn orbit and are reached through the pill (GRP-07). An orbit that isn't drawn is not a target, and the frame body's own orbit ring and tail are drawn but are never targets. If the frame body is in a shared orbit (HOV-04), the shared ring is not a target either, but the other members' dots, tails and markers still target those members (HOV-05). | ✓ |
 | HOV-03 | A hovered object's orbit ring is drawn in white at `orbit_hover_alpha`; the selected object's orbit ring is drawn in white at `orbit_selected_alpha` for as long as it is selected, in either motion mode. A ring that is both takes the selected style. Hovering or selecting the marker highlights its ring the same way. A hovered or selected ring is drawn `orbit_highlight_width_px` wide. | ✓ |
 | HOV-04 | A named orbit (SCL-07) with members is a **shared orbit**, drawn as one ring at its radius: in exposure-ring mode one exposure ring, drawn once at `exposure_ring_alpha`, never stacked; in dot mode each member's dot and tail are drawn on it as MOT-01 says. A folded member (GRP-01) is not drawn. Nothing is grouped by radius at render time. | ✓ |
-| HOV-05 | A shared orbit with one member is that member's ring (HOV-02). With several members: hovering highlights the ring (HOV-03) and its identity pill (MOT-14); clicking selects the parent and opens the inset with that orbit's row expanded in the "In orbit" outline (INS-05); double-clicking behaves as a double-click on the parent (ZOOM-16). A member's own dot, marker or tail still targets that member, and wins over the shared ring. | ✓ |
+| HOV-05 | A shared orbit with one member is that member's ring (HOV-02). With several members: hovering highlights the ring (HOV-03) and brackets its identity pill (HOV-06, MOT-14); clicking selects the parent and opens the inset with that orbit's row expanded in the "In orbit" outline (INS-05); double-clicking behaves as a double-click on the parent (ZOOM-16). A member's own dot, marker or tail still targets that member, and wins over the shared ring. | |
+| HOV-06 | The **selection mark** is four white corner brackets round the selected object; the **hover mark** is the same brackets at `bracket_hover_alpha`. An object that is both takes the selection mark. They go round whatever stands for the object on the map: its marker, symbol or true-size disc; the fold pill that holds it while it is folded (INS-06); or, while its exposure ring shows its identity mark (MOT-14), that mark. A marker that is fully folded or faded (GRP-01, MOT-11) has none, and one part-way fades by the same alpha. A bracket is two straight arms meeting at a corner of the object's box (HOV-07): each arm is `bracket_arm_fraction` of the box's shorter side long and `bracket_stroke_px` wide, drawn inside the box's edge. The brackets are drawn with the labels and pills, above all markers (MRK-12). The frame body (CAM-05) has no mark of its own: the breadcrumb (CAM-25) names it. | |
+| HOV-07 | The **box** is the smallest square that clears the object by `bracket_margin_px` on every side, centred on it: a pill's box is the rectangle that clears the pill by the same margin. The object is what is drawn: a symbol's `ship_symbol_px` square (SYM-14), a body's marker (MRK-03) or, when MRK-07 draws one, its true-size disc measured to the outer edge of its rim (MRK-11), and any other marker as drawn. So the box stays at marker size until the disc outgrows the marker, then grows with the disc as the camera closes in. Amplifiers and labels are never enclosed. | |
 | INS-01 | Clicking a marker or its orbit ring (HOV-02) selects that object and opens the inspection inset (INS-07); the clock keeps running. Only the primary button selects, and only when the release is within `drag_threshold_px` of the press, so the end of a pan never selects. While the transfer planner is open, a click that hits a place picks a destination instead (PLNR-03). | |
 | INS-02 | The inset shows: header (name, class and ownership line), a Focus button (secondary) and a Close button (quiet); for a ship the faction commands, a Transfer button (secondary, PLNR-01) beside Focus; an image for the knowledge state (INS-04); key facts (INS-09); and an "Open planetary view" button (secondary), disabled until the planetary view exists. Button styles follow BTN-01. | |
 | INS-03 | There is at most one selection and one inset. Selecting another object replaces the inset's contents in place. Close, Esc and a click on empty map space (a press and release within `drag_threshold_px` that hits no marker, pill, ring or panel) clear the selection and close the inset. While the transfer planner is open, Esc ends the planner first and a click on empty map space does nothing (PLNR-03). | |
@@ -118,7 +120,7 @@ Applies to every label on the map: body labels and symbol labels (SYM-13).
 | INS-07 | The inset is a sidebar at the right of the window, from the top bar to the bottom, `inset_width_px` wide. While it is open, the map area ends at its left edge: the camera's viewport, the centre the frame body is placed at (CAM-05), the fits (ZOOM-15), the pan clamp (CAM-07) and the edge arrows (EDGE-01) all use the narrower map area. Opening or closing it slides it over `sidebar_slide_ms`; the map area and the view follow the slide, so the frame body stays centred in the visible map throughout, at the same scale. Selecting another object while it is open changes neither. Content taller than the sidebar scrolls inside it. | ✓ |
 | INS-08 | A body's inset lists, in its key facts: **Orbit** (distance to its parent, UNIT-01) and **Period** (UNIT-02); for the star, **Mass** in solar masses to 2 decimals instead; and, for a star, planet or moon only, **Mean radius** (UNIT-01, from SCL-05). Ships, stations, gates and salvage sites show no radius. | ✓ |
 | INS-09 | The inset's key facts are label-over-value pairs, laid out in rows and wrapping as needed: the label in small spaced capitals in the secondary colour, the value in the data face in the neutral colour. Each section below them (the "In orbit" outline, INS-05) has a heading in small spaced capitals and is separated by a hairline. Type sizes in the sidebar: running text, values, buttons and outline entries at `sidebar_text_px`, spaced capitals at `sidebar_caps_px`, the header name at `sidebar_header_px`; the outline's body markers are `list_marker_px` across. | ✓ |
-| INS-06 | When the selected object is folded into its parent (GRP-01), the parent's pill carries the white selection ring. When the object unfolds, the ring moves to its own marker without a jump. | ✓ |
+| INS-06 | When the selected object is folded into its parent (GRP-01), the parent's pill carries the selection mark (HOV-06). When the object unfolds, the mark moves to its own marker without a jump. | |
 
 ## 4a. Units in readouts
 
@@ -182,7 +184,6 @@ Selection and frame may be different objects: for example, the frame is Halden I
 | CAM-23 | A zoom-out step that reaches the system fit also sets the star's frame, and eases the pivot to the star and the tilt to `standard_tilt_deg`, within the same zoom animation. The heading is kept. | ✓ |
 | CAM-24 | An object in exposure-ring mode (MOT-02) can't be a frame, and the inset's Focus button is disabled while it is in that mode. If the frame body enters ring mode, the frame moves to its nearest ancestor not in ring mode (the star if none) and the view moves as ZOOM-16 would for it, or to the system fit for the star. The frame never moves back when the object leaves ring mode. | ✓ |
 | CAM-25 | The breadcrumb in the top bar reads "Cluster / *system name*", then the frame body's ancestors below the star, then the frame body: for example "Cluster / Corvane / Halden IV / Arden Highport". The system entry stands for the star's frame. Clicking an ancestor's entry makes it the frame and moves the view as ZOOM-16 would (the system entry: to the system fit). Clicking the frame body's own entry re-centres it with zero offset at its current scale. The Cluster entry is unchanged until the cluster view exists. | ✓ |
-| CAM-22 | The frame body's marker, unless it is the star, carries four corner brackets in the neutral colour (MRK-01), so the frame is never mistaken for the white selection ring. The bracket box encloses the selection ring's size (whether or not the ring is showing) with `focus_bracket_margin_px` to spare on each side. | ✓ |
 
 ## 6. Satellite grouping
 
@@ -196,7 +197,7 @@ A **satellite** is anything orbiting a body other than the star: moons, stations
 | GRP-04 | At the system fit every moon and planetary station is folded. | ✓ |
 | GRP-05 | A parent with folded satellites shows a "+N" pill beside its marker without overlapping it. | ✓ |
 | GRP-06 | The pill's outline takes the colour (SYM-02) of the most pressing affiliation among its folded satellites: hostile, then unknown, then neutral or allied; with none of these it keeps its normal outline. A small blue dot shows if own ships are parked there. | ✓ |
-| GRP-07 | Hovering the pill draws a white ring round it, as for a marker (HOV-01); clicking it does exactly what clicking the parent does, so the inset's outline shows the folded satellites. | ✓ |
+| GRP-07 | Hovering the pill draws the hover mark round it, as for a marker (HOV-01); clicking it does exactly what clicking the parent does, so the inset's outline shows the folded satellites. | |
 | GRP-08 | Ships in transit are never folded. | ✓ (rule only; no transit ships yet) |
 | GRP-09 | A group (SYM-09) folds as one satellite: it counts once in the "+N" pill and is listed by name with its member count. | |
 
@@ -272,13 +273,16 @@ All in the `Tunables` resource (`src/view/tunables.rs`). Defaults are starting v
 | `edge_scroll_enabled` | false | CAM-17 |
 | `edge_scroll_px` | 8 px | CAM-17 |
 | `pan_bound_factor` | 1.5 | CAM-19 |
-| `focus_bracket_margin_px` | 2 px | CAM-22 |
 | `min_hit_radius_px` | 10 px | MRK-08 |
 | `inset_width_px` | 320 px | INS-07 |
 | `sidebar_slide_ms` | 200 ms | INS-07 |
 | `ring_hit_px` | 7 px | HOV-02 |
 | `orbit_hover_alpha` | 0.6 | HOV-03 |
 | `orbit_selected_alpha` | 0.85 | HOV-03 |
+| `bracket_hover_alpha` | 0.6 | HOV-06 |
+| `bracket_arm_fraction` | 0.3 | HOV-06 |
+| `bracket_stroke_px` | 2 px | HOV-06 |
+| `bracket_margin_px` | 4 px | HOV-07 |
 | `distance_au_threshold_au` | 0.1 AU | UNIT-01 |
 | `star_marker_px` | 16 px | MRK-03, MRK-13 |
 | `planet_marker_px` | 12 px | MRK-03, MRK-13 |

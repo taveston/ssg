@@ -14,7 +14,7 @@ Everything shown is **candidate** unless *Presentation & Visual Style* marks it 
   - pale grey-blue (#9FB6C4): orbits and secondary text
   - **blue (#5AA9E6): own assets**
   - **orange (#F0A040): foreign contacts and warnings**
-  - white ring: selection or hover
+  - white corner brackets: selection or hover
 
   Blue and orange were chosen so own and foreign stay distinct for colour-blind players.
 - **Type:** Barlow for labels and UI; JetBrains Mono for dates, figures and status readouts.
