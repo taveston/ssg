@@ -16,11 +16,6 @@ Format and types are in `docs/README.md`. New findings take the next free number
 - **Affects:** XFER-08, XFER-09, XFER-10, PHAS-15 · **Type:** spec gap
 - **Disposition:** open. Option: a `standoff_km` on an Intercept whose destination is a ship, so the crossing ends offset from the target's rail rather than on it. A Rendezvous keeps zero. What the standoff should default to, and how the resolver reads it, are for the conflict doc to settle.
 
-### F-146 · Morrow's two innermost moons can't have a High band
-- **Observation:** TEST-20 says every star, planet and moon in Corvane carries its two bands. BAND-01 caps High at `high_band_hill_fraction` of the Hill radius, and for a moon the Hill radius scales with its own radius: at 143,000 km from a Jupiter-mass giant, a rocky moon's Hill radius is about 1.9 times its radius, so half of it never clears Low (radius + 500 km). Morrow I and II have a Low band only, whatever plausible mass they are given. The moons now carry masses from their radii at rock density (3,000 kg/m³); every other moon gets both bands.
-- **Affects:** TEST-20, BAND-01 · **Type:** spec wrong
-- **Disposition:** open. Accept that some small moons have no High band (the build does this), or move Morrow I and II out.
-
 ### F-147 · Halden IV's High band makes every parked ship an exposure ring at 1 d/s
 - **Observation:** TEST-20 makes Corvane's "High" orbit the BAND-01 band: 10 radii = 67,000 km, a period of about 1.9 d (it was 12 d). TEST-05 and TEST-10 put every parked ship there, and TEST-05 says they sit in "slow orbits (dot mode at 1 d/s)". At 1 d/s the band is now an exposure ring with a "+14" pill (MOT-14), and the symbols only show when paused or below 0.24 d/s. The build follows TEST-20; the headless identity-mark test now runs at 0.2 d/s.
 - **Affects:** TEST-05, TEST-10, TEST-20, BAND-01 · **Type:** conflict
