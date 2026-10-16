@@ -22,6 +22,21 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - The mock-ups (9 to 12) show a blue Schedule button and a choice labelled Stop / Pass; BTN-01, BTN-02 and PLNR-30 decide, so it is the neutral primary button and Rendezvous / Intercept.
 - [ ] **Velocity leaders** · SYM-11
   - Build after **Transfer planner**, which draws ships in flight (PLNR-68).
+- [ ] **Bracket and label spacing** · LBL-01, SYM-09, SYM-12, HOV-06, INS-06
+  - Settles the bracket and label spacing findings. Most of it is already how the build behaves; the spec now says so. The ✓ on these is cleared until the code is checked against the new text.
+  - What changes: a label's gap is measured from the box (HOV-07) for every marker, so labels no longer move on hover, and `label_gap_px` drops to 4. Bracket arms are capped by `bracket_arm_max_px`. New tunables: `amplifier_gap_px`, `condition_track_mix`.
+  - SYM-13's wording on the gap changed too; it lands with **Transfer planner**.
+  - Touches the same code as **Playtest bugs** (HOV-06). Build them together.
+- [ ] **Label halo** · LBL-05
+  - A 2 px ground-colour outline round every label's glyphs (`label_halo_px`), not a box. Mock-up 19, last board.
+- [ ] **Reference frame cue** · REF-01 to REF-10, MRK-01, MRK-12
+  - A dotted crosshair in the orbital plane through the frame body, with ticks, an N on the north arm and a solid vertical axis. Mock-up 19. Violet (#9B8CE8) is a starting hue: tune it on screen.
+  - Build after **Label halo**: the N uses it.
+  - Tests can run through projected positions: where an arm starts and ends, tick spacing against the scale bar, the vertical axis shortening with tilt, and the draw order.
+- [ ] **Belt** · MRK-18
+  - Replaces the hard-edged band: soft edges and a seeded scatter of faint points.
+- [ ] **Exposure ring cues** · MOT-02, MOT-14
+  - A period line under the ring's label and a direction chevron beside the identity mark. Mock-up 19, exposure rings board.
 - [ ] **Ideology profile** · IDEO-01 to IDEO-31
   - Decide the open points in `docs/spec/ideology.md` first.
   - IDEO-11: an exact tie between the two lowest scores is Pluralist. Six of the 216 histories land on one (3/3/6 in some order), so test them.
@@ -29,9 +44,9 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 ## Fixes
 
 - [ ] **Playtest bugs: brackets, disc clicks, empty-space clicks** · HOV-06, HOV-07, MOT-14, MRK-08, INS-03
-  - F-185: brackets round an exposure ring's identity mark sit slightly off it. Put the box and the mark on the same point.
-  - F-186: a body drawn at its true size (MRK-07) can't be clicked. Its hit area is at least the disc. Add that sentence to MRK-08 (agreed 2026-10-16).
-  - F-187: a click on empty map space doesn't clear the selection (INS-03). Find what takes the click.
+  - Brackets round an exposure ring's identity mark sit slightly off it. Put the box and the mark on the same point.
+  - A body drawn at its true size (MRK-07) can't be clicked. Its hit area is at least the disc. MRK-08 now says so.
+  - A click on empty map space doesn't clear the selection (INS-03). Find what takes the click.
 
 ## Other
 

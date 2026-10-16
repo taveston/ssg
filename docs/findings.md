@@ -18,26 +18,6 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** XFER-05, SOL-16, SOL-17 · **Type:** spec gap
 - **Disposition:** open. Accept the delay as a stand-in, or say how a burn that lasts a large share of an orbit is modelled (bears on F-158).
 
-### F-164 · How the selection mark moves while a satellite folds
-- **Observation:** HOV-06 says a marker part-way folded or faded has a mark faded by the same alpha, and INS-06 says the mark moves from the pill to the marker without a jump. The build follows INS-06 for the fold: the mark keeps its full strength and its box slides between the pill's box and the marker's as the satellite slides (`fold_unfold_anim_ms`). The fade by the marker's alpha is applied only to the dot fading into its exposure ring (MOT-11). When a parent's last folded satellite unfolds, its pill hides at once, so that mark starts from the parent's marker instead of the pill.
-- **Affects:** HOV-06, INS-06, GRP-03 · **Type:** spec gap
-- **Disposition:** open. Accept, or say whether the mark should fade with the fold slide.
-
-### F-165 · What a shared orbit's identity pill brackets for
-- **Observation:** HOV-05 brackets a shared orbit's identity pill while the orbit is hovered. HOV-06 puts an object's mark on its exposure ring's identity mark, and a member of a shared orbit has the pill as its mark. The build gives the pill the selection mark while any member is selected, and the hover mark while the orbit or any member is hovered (for example, from the outline).
-- **Affects:** HOV-05, HOV-06, MOT-14 · **Type:** spec gap
-- **Disposition:** open. Accept, or say which objects the pill stands for.
-
-### F-166 · Labels sit very close to the brackets
-- **Observation:** Seen on screen. LBL-01 measures `label_gap_px` (6 px) from the marker's edge, and the bracket box reaches `bracket_margin_px` (4 px) beyond it. A selected or hovered object's label starts 2 px outside its brackets, and at the system fit the right-hand arms nearly touch Halden IV's first letter. The build leaves label placement as it was.
-- **Affects:** LBL-01, HOV-06, HOV-07 · **Type:** spec wrong
-- **Disposition:** open. Options: measure the label gap from the bracket box (for every marker, so labels don't move on hover), or raise `label_gap_px`.
-
-### F-167 · Where the condition bar sits, and what an empty bar looks like
-- **Observation:** SYM-12 puts the bar "under the frame" but gives no gap. Directly under the frame, the selection and hover brackets (HOV-07, 4 px clear of the frame) would cross it. The build starts the bar 1 px below the bracket box, so 5 px below the frame. The spec doesn't say how the unfilled part looks either. The build draws it in the bar's colour mixed 25 % into the ground, so a part-full bar shows its whole length. An own ship with no known condition (Corvane's own-flag civilians) has no bar.
-- **Affects:** SYM-12, HOV-07 · **Type:** spec gap
-- **Disposition:** open. Accept, or give the gap and the empty part's look.
-
 ### F-168 · Capture and closest approach inside the primary's frame
 - **Observation:** BAND-06 and PHAS-11 read the point from the hyperbola a ship arrives on from outside a body's frame. A crossing round the body itself (band to band, or to a gate round the star) has no such hyperbola: its arc ends at a real place. The build lands a Rendezvous where the arc ends, and gives an Intercept there the angle of the arc's end as its closest-approach phase. The old rule (the angle of the arrival velocity) put the ship somewhere it never flew.
 - **Affects:** BAND-06, PHAS-11 · **Type:** spec gap
@@ -88,11 +68,6 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** SYM-13, GRP-09 · **Type:** spec gap
 - **Disposition:** open. Confirm the words, or give the class names.
 
-### F-178 · Where a group's count and bracket sit
-- **Observation:** SYM-09 puts the count "just outside the frame's upper right" and the bracket above the frame. Drawn hard against the frame, as in mock-up 7, the selection and hover brackets covered both. The build starts them outside the brackets' box (`bracket_margin_px` + 1 px), as the condition bar already is: the count to the right of the box, level with the frame's top, and the bracket's feet just above the box (or above the echelon, if higher). Labels keep `label_gap_px` from this outer edge (SYM-13), and other labels keep off it too. The count's width is estimated from the data face's fixed advance.
-- **Affects:** SYM-09, SYM-13, HOV-07 · **Type:** spec gap
-- **Disposition:** open. Confirm, or set the offsets as tunables.
-
 ### F-179 · Which ends of a crossing take the Low band limit
 - **Observation:** XFER-07 gives the Low band limit to a crossing or coast that starts or ends "in a place round the primary itself (a band, or a station in one)". It doesn't say whether a ship coasting round the primary counts: one setting out from a coast, or a ship target on one. The build gives the Low band limit to every end round the primary, coasts included, as the old exemption did, and also a gate's or site's own orbit round it. A path solved to touch the Low band lands a hair either side of it, so a periapsis within a millionth of the limit (about 6 mm at a Low band) counts as at it.
 - **Affects:** XFER-07 · **Type:** spec gap
@@ -122,43 +97,6 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** The build chose these where PLNR-80 to PLNR-87 are silent. A slider's settings are its start plus whole steps, and its end. Refining a preset (PLNR-86) solves those settings within one grid spacing of the sample; if none qualifies (no affordable one for Fastest), the setting nearest the sample is kept. Cheapest is refined by least delta-v alone, as PLNR-86 says, without PLNR-84's tie rule. A phasing leg's meetings are already all on the grid, so nothing is refined. A low-thrust drive's fixed travel time is the one its leg takes when leaving today. A phasing leg's meetings are the *k* whose own orbit fits (PHAS-08), solved with no budget, so a meeting the ship can't afford is still a position, coloured over budget. When nothing on the grid can be planned, the reason shown is the one the solver gave most often. The headless test that searches twice in Corvane, app start included, runs in about 30 ms.
 - **Affects:** PLNR-23, PLNR-82, PLNR-84, PLNR-86, PLNR-40, PLNR-12 · **Type:** spec gap
 - **Disposition:** open. Accept.
-
-### F-185 · Brackets round an exposure ring's identity mark are offset
-- **Observation:** Seen in play. While an orbit is in exposure mode, the selection and hover brackets round its identity mark (the stationary marker on the ring) sit slightly off the mark. The mark itself may be slightly off the ring point.
-- **Affects:** HOV-06, HOV-07, MOT-14 · **Type:** bug
-- **Disposition:** open. Fix: put the box and the mark on the same point.
-
-### F-186 · A body drawn at its true size can't be clicked
-- **Observation:** Seen in play. Once a body is drawn as a true-size disc (MRK-07), clicking it does nothing. MRK-08 gives every marker a hit area of at least `min_hit_radius_px`, but says nothing about a disc that outgrows it.
-- **Affects:** MRK-07, MRK-08 · **Type:** bug
-- **Disposition:** open. Fix: a disc's hit area is at least the disc. Say so in MRK-08.
-
-### F-187 · Clicking empty space doesn't clear the selection
-- **Observation:** Seen in play. A click on empty map space leaves the selection and inset in place. INS-03 says it clears them, and `view/selection.rs` has the rule, so something else is taking the click or the click isn't seen as one.
-- **Affects:** INS-03 · **Type:** bug
-- **Disposition:** open. Fix the code.
-
-### F-188 · Bracket arms grow with a close disc
-- **Observation:** Seen in play. HOV-06 makes each arm `bracket_arm_fraction` of the box's shorter side. When the box grows with a true-size disc (HOV-07), the arms grow too, and at close zoom the corners dominate the view.
-- **Affects:** HOV-06, HOV-07 · **Type:** spec wrong
-- **Disposition:** open. Options: cap the arm length in pixels (a new tunable), or fix it in pixels for every box.
-
-### F-189 · A scene of terrain alone is grey and bland
-- **Observation:** Seen in play. A view showing only natural bodies, with no ships, stations or gates, is all greyscale: neutral markers, neutral discs and faint rings. Nothing draws the eye.
-- **Affects:** MRK-01, MRK-11, MRK-13 · **Type:** spec wrong
-- **Disposition:** open. Decide whether natural bodies get any colour (for example a tint per body class or composition), or another accent.
-
-### F-190 · The belt doesn't read as an asteroid belt
-- **Observation:** Seen in play. The belt's band has hard edges, and as a whole it doesn't convey a field of rocks.
-- **Affects:** MRK-05 · **Type:** spec wrong
-- **Disposition:** open. Options: soft edges that fade in and out, a density falling off towards the edges, or a scatter of faint points.
-
-### F-191 · An exposure ring doesn't say what it is
-- **Observation:** Seen in play. An exposure ring reads as an orbit ring drawn slightly thicker. Nothing tells the player that the object is moving too fast to show as a dot, so the identity mark sitting still on the ring looks like a parked object, not a stand-in for one that is circling.
-- **Affects:** MOT-08 to MOT-14 · **Type:** spec wrong
-- **Disposition:** open. Options: a distinct look for the ring (dashes, a gradient or a sweep in the sense of motion), a motion cue on the identity mark (a small arrow or a trail), or a word on hover ("orbiting, period 2 h").
-
-## Parked
 
 ### F-145 · An intercept needs a standoff distance
 - **Observation:** Raised in a combat design session. XFER-10 ends a ship-as-destination crossing at the target's position on the crossing end day, so an Intercept is a collision course with zero miss distance. A real engagement has a chosen miss distance, and it sets how long each side is in weapon range and which weapons can act. The order has no way to carry one. An Intercept at a station is trimmed to meet it (PHAS-15), so it too has zero miss distance.
