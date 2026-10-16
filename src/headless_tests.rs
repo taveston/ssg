@@ -3116,11 +3116,12 @@ fn labels_keep_clear_of_each_other_and_of_markers() {
             return None;
         };
         let square = Rect::from_corners(Vec2::new(l, t), Vec2::new(l + w, t + h));
-        // SYM-13: a symbol's box takes in its amplifiers.
+        // SYM-13: a symbol's box is its frame's box with its amplifiers.
         let reach = app
             .world()
             .get::<crate::view::symbol_draw::AmplifierReach>(marker);
-        Some(reach.map_or(square, |reach| reach.grow(square)))
+        let margin = app.world().resource::<Tunables>().bracket_margin_px;
+        Some(reach.map_or(square, |reach| reach.label_box(square, margin)))
     };
     let gap = app.world().resource::<Tunables>().label_gap_px;
     let mut shown: Vec<(Entity, Entity, Rect)> = Vec::new();
@@ -4531,8 +4532,8 @@ fn a_folded_group_counts_once_in_the_pill() {
 }
 
 /// SYM-13: TF-1's label sits `label_gap_px` from the outer edge of its
-/// frame and amplifiers - the count to the right, the bracket above, the
-/// condition bar below - not from the frame alone.
+/// frame's box (HOV-07) and its amplifiers - the count to the right, the
+/// bracket above, the condition bar below - not from the frame alone.
 #[test]
 fn a_group_label_keeps_clear_of_its_amplifiers() {
     use crate::view::labels::{LabelState, label_rect};
@@ -4579,7 +4580,8 @@ fn a_group_label_keeps_clear_of_its_amplifiers() {
         .unwrap();
     let placement = state.shown.expect("the selection's label is shown");
     let gap = app.world().resource::<Tunables>().label_gap_px;
-    let grown = reach.grow(Rect::from_corners(Vec2::ZERO, size));
+    let margin = app.world().resource::<Tunables>().bracket_margin_px;
+    let grown = reach.label_box(Rect::from_corners(Vec2::ZERO, size), margin);
     let want = label_rect(grown, LABEL_SIZE, placement.slot, gap).min;
     let (Val::Px(left), Val::Px(top)) = (node.left, node.top) else {
         panic!("label not placed in pixels");

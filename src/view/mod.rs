@@ -9,7 +9,7 @@
 //! module - `selection`, `fold`, `motion_mode`, `targets`, `screen`,
 //! `shared_orbit`, `sidebar`, `planner_state` - so no two feature modules
 //! import each other (ARCH-03). The transfer planner's panel is
-//! `planner/`.
+//! `planner/`; transfers drawn on the map are `paths/`.
 
 use bevy::prelude::*;
 
@@ -21,6 +21,7 @@ pub mod breadcrumb;
 pub mod buttons;
 pub mod camera;
 pub mod colors;
+pub mod countdown;
 pub mod date;
 pub mod debug_shot;
 pub mod edge;
@@ -43,6 +44,7 @@ pub mod motion_mode;
 pub mod near_arcs;
 pub mod outline;
 pub mod parent_tab;
+pub mod paths;
 pub mod pills;
 pub mod planner;
 pub mod planner_state;
@@ -122,6 +124,8 @@ impl Plugin for ViewPlugin {
                 true_size::TrueSizePlugin,
                 debug_shot::DebugShotPlugin,
                 planner::PlannerPlugin,
+                paths::PathsPlugin,
+                paths::ghost::GhostMaterialPlugin,
             ));
     }
 }

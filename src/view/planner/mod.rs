@@ -33,6 +33,11 @@ pub mod pick;
 pub mod slider;
 pub mod tooltip;
 
+/// The planner's systems have brought its state up to date for this
+/// frame; the map's paths are drawn after (`view/paths/`).
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct PlannerUpdated;
+
 pub struct PlannerPlugin;
 
 impl Plugin for PlannerPlugin {
@@ -59,6 +64,7 @@ impl Plugin for PlannerPlugin {
                     tooltip::show_tooltips,
                 )
                     .chain()
+                    .in_set(PlannerUpdated)
                     .in_set(Stage::Overlay),
             );
     }

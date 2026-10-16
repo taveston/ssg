@@ -108,6 +108,14 @@ impl AmplifierReach {
             square.max + Vec2::new(self.right, self.bottom),
         )
     }
+
+    /// SYM-13: what a symbol's label keeps `label_gap_px` from, and other
+    /// labels keep clear of: the frame's box, the square grown by
+    /// `margin` (`bracket_margin_px`, HOV-07) on every side, together with
+    /// the amplifiers.
+    pub fn label_box(&self, square: Rect, margin: f32) -> Rect {
+        self.grow(square).union(square.inflate(margin))
+    }
 }
 
 /// The height of the echelon's line above the frame, or zero without one.

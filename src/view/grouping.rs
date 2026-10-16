@@ -7,8 +7,9 @@
 //! the simulation only ever gives `ChildOf` to bodies that orbit a parent,
 //! so "has `Orbit` and `ChildOf`" is exactly the set of satellites, with no
 //! class matching and no special case for future ship types. GRP-08 (ships
-//! in transit are never folded) falls out of that: a ship in transit has no
-//! parent to fold into.
+//! in transit are never folded) falls out of that: a ship in flight has no
+//! orbit to fold, so it loses its fold state when it leaves its orbit and
+//! gets a new one when it joins another (PLNR-68).
 
 use std::collections::HashMap;
 
@@ -34,7 +35,13 @@ impl Plugin for GroupingPlugin {
             .add_systems(Startup, attach_fold_state.in_set(Boot::Derive))
             .add_systems(
                 Update,
-                (fold_satellites, resolve_hidden, summarise_folds)
+                (
+                    attach_fold_state,
+                    drop_fold_state_in_flight,
+                    fold_satellites,
+                    resolve_hidden,
+                    summarise_folds,
+                )
                     .chain()
                     .in_set(Stage::Grouping),
             );
@@ -45,12 +52,24 @@ impl Plugin for GroupingPlugin {
 type UnfoldedSatellites = (With<Orbit>, With<ChildOf>, Without<SatelliteFoldState>);
 
 /// GRP-04: every satellite starts folded - the opening view is the whole
-/// system, where no moon or station is drawn individually.
+/// system, where no moon or station is drawn individually. A ship that
+/// joins a body's orbit at the end of a transfer becomes a satellite then.
 fn attach_fold_state(mut commands: Commands, satellites: Query<Entity, UnfoldedSatellites>) {
     for entity in &satellites {
         commands
             .entity(entity)
             .insert(SatelliteFoldState::default());
+    }
+}
+
+/// GRP-08 / PLNR-68: a ship that leaves its orbit is in flight and is
+/// never folded, so it drops the fold state it had as a satellite.
+fn drop_fold_state_in_flight(
+    mut commands: Commands,
+    in_flight: Query<Entity, (With<SatelliteFoldState>, Without<Orbit>)>,
+) {
+    for entity in &in_flight {
+        commands.entity(entity).remove::<SatelliteFoldState>();
     }
 }
 

@@ -133,13 +133,6 @@ impl LegWords<'_> {
     /// *place* in N" for an Intercept at a body or station, "rendezvous
     /// in N" or "intercept in N" at a ship. `days` is to the leave day,
     /// then to the leg's end.
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "shown by the planner's map marks, built next (PLNR-66)"
-        )
-    )]
     pub fn countdown(&self, left: bool, days: f64) -> String {
         let n = format_duration(days.max(0.0));
         if !left {
@@ -156,13 +149,6 @@ impl LegWords<'_> {
     /// PLNR-65: the arrival ghost's label: "arrive *date*", "intercept
     /// *date* · *speed*" (with " · turn *N*°" after a pass through a Low
     /// band), or "meeting *date* · *speed* closing" at a ship.
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "shown by the planner's map marks, built next (PLNR-65)"
-        )
-    )]
     pub fn ghost_label(&self, day: f64, speed_kms: Option<f64>, turn_rad: Option<f64>) -> String {
         let speed = speed_kms.map(format_speed);
         match (self.to_ship, self.intercept, speed) {
@@ -297,13 +283,6 @@ pub fn coasting_place(destination: &str, origin: &str) -> String {
 /// PLNR-67: the label at the coast's event, `days` from today: "then
 /// coasting · crosses Iver's orbit in 41.0 d", or "then coasting · leaves
 /// the system in 2.1 y" when `body` is `None`.
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "shown by the planner's map marks, built next (PLNR-67)"
-    )
-)]
 pub fn coast_label(body: Option<&str>, days: f64) -> String {
     let n = format_duration(days.max(0.0));
     match body {

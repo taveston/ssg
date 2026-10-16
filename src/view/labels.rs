@@ -23,6 +23,7 @@ use super::anim::{advance_towards, step_per_frame};
 use super::frame::Frame;
 use super::hovered::HoveredBodies;
 use super::markers::{MarkerHalfSize, MarkerLabel, MarkersPlaced, SecondLineFor};
+use super::paths::marks::PathLabel;
 use super::ring_marks::RingMarkFor;
 use super::selection::Selection;
 use super::symbol_draw::AmplifierReach;
@@ -230,10 +231,20 @@ impl Plugin for LabelsPlugin {
     }
 }
 
+/// PLNR-65: the paths' labels are placed after every label LBL-02 ranks
+/// (whose ranks run to 10), so they give way to all of them.
+pub const PATH_LABEL_RANK: u8 = 11;
+
 /// Every label gets placement state, hidden until placed.
 fn attach_label_state(
     mut commands: Commands,
-    labels: Query<Entity, (With<MarkerLabel>, Without<LabelState>)>,
+    labels: Query<
+        Entity,
+        (
+            Or<(With<MarkerLabel>, With<PathLabel>)>,
+            Without<LabelState>,
+        ),
+    >,
 ) {
     for label in &labels {
         commands.entity(label).insert(LabelState::default());
@@ -287,10 +298,12 @@ type Markers<'w, 's> = Query<
 /// to the node's, which is what a label's offset is measured from.
 type MarkerBox = (Entity, Entity, Rect, Vec2);
 
-/// SYM-13: a marker's box with its amplifiers, and the shift from the
-/// node's top-left to the box's.
-pub fn marker_box(square: Rect, reach: Option<&AmplifierReach>) -> (Rect, Vec2) {
-    let grown = reach.map_or(square, |reach| reach.grow(square));
+/// SYM-13: a marker's box: a symbol's is its frame's box (`margin` round
+/// its square, HOV-07) with its amplifiers; any other marker's is the
+/// marker itself. Returns the box and the shift from the node's top-left
+/// to the box's.
+pub fn marker_box(square: Rect, reach: Option<&AmplifierReach>, margin: f32) -> (Rect, Vec2) {
+    let grown = reach.map_or(square, |reach| reach.label_box(square, margin));
     (grown, grown.min - square.min)
 }
 
@@ -309,12 +322,39 @@ type Labels<'w, 's> = Query<
     (With<MarkerLabel>, Without<MarkerHalfSize>),
 >;
 
+/// The paths' labels (PLNR-65, PLNR-67): each with the box it sits beside
+/// this frame, if it is used.
+type PathLabels<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static PathLabel,
+        &'static ComputedNode,
+        &'static mut Node,
+        &'static mut LabelState,
+        &'static mut Visibility,
+    ),
+    (
+        Without<MarkerLabel>,
+        Without<MarkerHalfSize>,
+        Without<SecondLineFor>,
+        Without<GroupPillFor>,
+        Without<RingMarkFor>,
+    ),
+>;
+
 /// A label's second line: its node, for showing or hiding it, and its
 /// size.
 type SecondLines<'w, 's> = Query<
     'w,
     's,
-    (&'static ChildOf, &'static ComputedNode, &'static mut Node),
+    (
+        &'static ChildOf,
+        &'static ComputedNode,
+        &'static mut Node,
+        &'static Text,
+    ),
     (
         With<SecondLineFor>,
         Without<MarkerLabel>,
@@ -410,7 +450,7 @@ fn place_marker_labels(
     (time, tunables): (Res<Time>, Res<Tunables>),
     ranking: Ranking,
     markers: Markers,
-    mut labels: Labels,
+    (mut labels, mut path_labels): (Labels, PathLabels),
     mut second_lines: SecondLines,
     obstacles: Obstacles,
     mut colors: Query<(&ChildOf, &mut TextColor)>,
@@ -418,7 +458,11 @@ fn place_marker_labels(
     let marker_rects: Vec<MarkerBox> = markers
         .iter()
         .filter_map(|(entity, marker_for, node, computed, reach)| {
-            let (rect, shift) = marker_box(node_rect(node, computed)?, reach);
+            let (rect, shift) = marker_box(
+                node_rect(node, computed)?,
+                reach,
+                tunables.bracket_margin_px,
+            );
             Some((entity, marker_for.0, rect, shift))
         })
         .collect();
@@ -440,7 +484,7 @@ fn place_marker_labels(
         let second = second_lines
             .iter()
             .find(|(line_of, ..)| line_of.parent() == label)
-            .map_or(0.0, |(_, c, _)| c.size.y * c.inverse_scale_factor);
+            .map_or(0.0, |(_, c, ..)| c.size.y * c.inverse_scale_factor);
         entries.push((
             label,
             Candidate {
@@ -456,12 +500,21 @@ fn place_marker_labels(
             shift,
         ));
     }
+    entries.extend(path_label_entries(&path_labels));
     let candidates: Vec<Candidate> = entries.iter().map(|(_, c, _)| *c).collect();
     let placements = place_labels(&candidates, &obstacles, tunables.label_gap_px);
     let step = step_per_frame(time.delta_secs(), tunables.label_fade_ms);
+    hide_unused_path_labels(&mut path_labels);
 
     for ((label, candidate, shift), wanted) in entries.into_iter().zip(placements) {
-        let Ok((_, _, _, mut node, mut state, mut visibility)) = labels.get_mut(label) else {
+        let found = match labels.get_mut(label) {
+            Ok((_, _, _, node, state, visibility)) => Some((node, state, visibility)),
+            Err(_) => path_labels
+                .get_mut(label)
+                .ok()
+                .map(|(_, _, _, node, state, visibility)| (node, state, visibility)),
+        };
+        let Some((mut node, mut state, mut visibility)) = found else {
             continue;
         };
         let (alpha, shown) = advance_fade(state.alpha, state.shown, wanted, step);
@@ -491,9 +544,17 @@ fn place_marker_labels(
         } else {
             Visibility::Hidden
         });
-        for (line_of, _, mut line) in &mut second_lines {
+        // SYM-13: an empty second line (nothing applies) takes no room.
+        for (line_of, _, mut line, text) in &mut second_lines {
             if line_of.parent() == label {
-                line.display = if full { Display::Flex } else { Display::None };
+                let display = if full && !text.0.is_empty() {
+                    Display::Flex
+                } else {
+                    Display::None
+                };
+                if line.display != display {
+                    line.display = display;
+                }
             }
         }
         // The marker's fade has already been written to the text; the
@@ -503,6 +564,48 @@ fn place_marker_labels(
                 let faded = color.0.with_alpha(color.0.alpha() * alpha);
                 color.0 = faded;
             }
+        }
+    }
+}
+
+/// PLNR-65 / PLNR-67: each used path label as a candidate after every
+/// ranked label, in the order the paths list them, beside its anchor box
+/// on screen. Its node sits on the screen, not under a marker, so its
+/// offset is measured from the screen's corner.
+fn path_label_entries(path_labels: &PathLabels) -> Vec<(Entity, Candidate, Vec2)> {
+    let mut used: Vec<(Entity, Rect, Vec2, Option<Placement>)> = path_labels
+        .iter()
+        .filter_map(|(label, path, computed, _, state, _)| {
+            let size = computed.size * computed.inverse_scale_factor;
+            Some((label, path.anchor?, size, state.shown))
+        })
+        .collect();
+    used.sort_by_key(|(label, ..)| label.index_u32());
+    used.into_iter()
+        .enumerate()
+        .map(|(order, (label, anchor, size, previous))| {
+            let candidate = Candidate {
+                body: label,
+                rank: PATH_LABEL_RANK,
+                depth: order as f32,
+                marker: anchor,
+                full_size: size,
+                name_size: size,
+                pinned: false,
+                previous,
+            };
+            (label, candidate, anchor.min)
+        })
+        .collect()
+}
+
+/// A path label with nothing to say this frame is hidden at once, and
+/// starts afresh when it is used again.
+fn hide_unused_path_labels(path_labels: &mut PathLabels) {
+    for (_, path, _, _, mut state, mut visibility) in path_labels {
+        if path.anchor.is_none() {
+            visibility.set_if_neq(Visibility::Hidden);
+            state.set_if_neq(LabelState::default());
         }
     }
 }

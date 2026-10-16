@@ -266,6 +266,37 @@ pub struct Tunables {
     /// A label's tooltip shows after the pointer has rested on it this
     /// long (PLNR-91, PLNR-94).
     pub tooltip_delay_ms: f32,
+
+    // --- Transfer paths on the map (docs/spec/planner.md section 6) ---
+    /// A path's line width while it is planned, selected or hovered
+    /// (PLNR-61, PLNR-62).
+    pub path_width_px: f32,
+    /// The part of a path the ship has yet to fly is dashed: dashes this
+    /// long on screen... (PLNR-61)
+    pub path_dash_px: f32,
+    /// ...with gaps this long between them (PLNR-61).
+    pub path_gap_px: f32,
+    /// The dot that marks where a path starts is this wide (PLNR-61).
+    pub departure_dot_px: f32,
+    /// The coast after an Intercept is a dotted line this wide (PLNR-61,
+    /// PLNR-67)...
+    pub consequence_width_px: f32,
+    /// ...of dots this long on screen... (PLNR-61)
+    pub consequence_dot_px: f32,
+    /// ...this far apart (PLNR-61).
+    pub consequence_gap_px: f32,
+    /// A ship's path in flight, while the ship is neither hovered nor
+    /// selected, is drawn at this opacity... (PLNR-62)
+    pub traffic_path_alpha: f32,
+    /// ...and this wide (PLNR-62).
+    pub traffic_path_width_px: f32,
+    /// A ghost, an object's marker where it will be, is drawn at this
+    /// opacity, times its object's dot opacity (PLNR-63, PLNR-64).
+    pub ghost_alpha: f32,
+    /// A ghost's dashed outline is this wide... (PLNR-63)
+    pub ghost_width_px: f32,
+    /// ...with dashes this long and as far apart (PLNR-63).
+    pub ghost_dash_px: f32,
 }
 
 impl Default for Tunables {
@@ -366,6 +397,19 @@ impl Default for Tunables {
             segment_fill_mix: 0.30,
             delta_bar_px: 8.0,
             tooltip_delay_ms: 400.0,
+
+            path_width_px: 1.5,
+            path_dash_px: 5.0,
+            path_gap_px: 4.0,
+            departure_dot_px: 5.0,
+            consequence_width_px: 1.2,
+            consequence_dot_px: 2.0,
+            consequence_gap_px: 4.0,
+            traffic_path_alpha: 0.35,
+            traffic_path_width_px: 1.0,
+            ghost_alpha: 0.5,
+            ghost_width_px: 1.0,
+            ghost_dash_px: 2.0,
         }
     }
 }

@@ -278,6 +278,15 @@ pub fn member_count_text(classes: &[ShipClass]) -> Option<String> {
     (!parts.is_empty()).then(|| parts.join(", "))
 }
 
+/// SYM-13 / PLNR-66: the countdown of the ship's order goes last on the
+/// second line, after whatever else applies.
+pub fn with_countdown(line: Option<String>, countdown: Option<String>) -> Option<String> {
+    match (line, countdown) {
+        (Some(line), Some(countdown)) => Some(format!("{line} · {countdown}")),
+        (line, countdown) => line.or(countdown),
+    }
+}
+
 /// SYM-08: a stale track's age, "last seen *N* d ago", in whole days of
 /// game time.
 pub fn last_seen_text(last_observed_day: f64, now_day: f64) -> String {
@@ -622,6 +631,26 @@ mod tests {
                 .as_deref(),
             Some("1 warship, 1 troop transport · 1st Arden Guard")
         );
+    }
+
+    /// SYM-13 / PLNR-66: the countdown is the last part of the second
+    /// line, or the whole of it when nothing else applies.
+    #[test]
+    fn the_countdown_goes_last_on_the_second_line() {
+        let countdown = || Some("departs in 12.0 d".to_string());
+        assert_eq!(
+            with_countdown(Some("requisitioned".into()), countdown()).as_deref(),
+            Some("requisitioned · departs in 12.0 d")
+        );
+        assert_eq!(
+            with_countdown(None, countdown()).as_deref(),
+            Some("departs in 12.0 d")
+        );
+        assert_eq!(
+            with_countdown(Some("requisitioned".into()), None).as_deref(),
+            Some("requisitioned")
+        );
+        assert_eq!(with_countdown(None, None), None);
     }
 
     /// SYM-15: the ownership words.

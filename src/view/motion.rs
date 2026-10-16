@@ -6,6 +6,8 @@
 //!
 //! MOT-08: applies to everything that orbits, not just satellites -
 //! close-in planets get it too. Gates keep their edge-indicator treatment.
+//! A ship in flight doesn't orbit, so it has no motion state and is always
+//! a dot (PLNR-68); it gets one again when it joins an orbit.
 
 use bevy::prelude::*;
 
@@ -21,13 +23,25 @@ pub struct MotionPlugin;
 impl Plugin for MotionPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, attach_motion_state.in_set(Boot::Derive))
-            .add_systems(Update, update_motion_modes.in_set(Stage::Motion));
+            .add_systems(
+                Update,
+                (
+                    attach_motion_state,
+                    drop_motion_state_in_flight,
+                    update_motion_modes,
+                )
+                    .chain()
+                    .in_set(Stage::Motion),
+            );
     }
 }
 
-/// Every orbiting body gets motion state. Gates keep their edge-indicator
-/// treatment instead.
-fn attach_motion_state(mut commands: Commands, bodies: Query<(Entity, &BodyClass), With<Orbit>>) {
+/// Every orbiting body gets motion state, a ship that joins an orbit too.
+/// Gates keep their edge-indicator treatment instead.
+fn attach_motion_state(
+    mut commands: Commands,
+    bodies: Query<(Entity, &BodyClass), (With<Orbit>, Without<MotionModeState>)>,
+) {
     for (entity, class) in &bodies {
         if *class == BodyClass::Gate {
             continue;
@@ -35,6 +49,20 @@ fn attach_motion_state(mut commands: Commands, bodies: Query<(Entity, &BodyClass
         commands
             .entity(entity)
             .insert((MotionModeState::default(), TailEase::default()));
+    }
+}
+
+/// MOT-08 / PLNR-68: a ship that leaves its orbit is in flight: the
+/// motion rule ignores it, so it is drawn as a dot, never as an exposure
+/// ring.
+fn drop_motion_state_in_flight(
+    mut commands: Commands,
+    in_flight: Query<Entity, (With<MotionModeState>, Without<Orbit>)>,
+) {
+    for entity in &in_flight {
+        commands
+            .entity(entity)
+            .remove::<(MotionModeState, TailEase)>();
     }
 }
 

@@ -23,6 +23,7 @@ use bevy::color::Mix;
 use bevy::prelude::*;
 
 use super::colors;
+use super::countdown::Countdowns;
 use super::edge::GateEdgeTargets;
 use super::fold::SatelliteFoldState;
 use super::fonts::Fonts;
@@ -33,7 +34,9 @@ use super::screen::ScreenPositions;
 use super::ship_groups::GroupFaces;
 use super::symbol_draw::{Tint, TintSlot, amplifier_gap, amplifier_reach, spawn_symbol_parts};
 use super::symbol_shape::SymbolPart;
-use super::symbols::{GroupFace, SymbolSettings, label_second_line, symbol_look, with_group};
+use super::symbols::{
+    GroupFace, SymbolSettings, label_second_line, symbol_look, with_countdown, with_group,
+};
 use super::targets::MarkerFor;
 use super::true_size::{DiscRadii, disc_half_px};
 use super::tunables::Tunables;
@@ -224,10 +227,14 @@ fn spawn_markers(
         };
         let assets = (&*fonts, &*tunables);
         let members = groups.member_classes(body);
+        // SYM-13: a symbol always has a second line, empty while nothing
+        // applies, so a countdown can appear on it later (PLNR-66).
         let label = MarkerText {
             name: &name.0,
-            second_line: record
-                .and_then(|r| label_second_line(*affiliation, r, &members, clock.elapsed_days())),
+            second_line: record.map(|r| {
+                label_second_line(*affiliation, r, &members, clock.elapsed_days())
+                    .unwrap_or_default()
+            }),
         };
         spawn_marker(&mut commands, assets, body, marker, label);
     }
@@ -518,12 +525,14 @@ fn spawn_label(
         .observe(hover::on_marker_click);
 }
 
-/// SYM-08 / SYM-13: keep each second line true as game time passes, so a
-/// stale track's age counts up.
+/// SYM-08 / SYM-13 / PLNR-66: keep each second line true as game time
+/// passes, so a stale track's age counts up and an order's countdown
+/// counts down.
 fn update_second_lines(
     clock: Res<GameClock>,
     bodies: Query<(&Affiliation, &ShipRecord)>,
     groups: GroupFaces,
+    countdowns: Countdowns,
     mut lines: Query<(&SecondLineFor, &mut Text)>,
 ) {
     for (line_for, mut text) in &mut lines {
@@ -531,8 +540,11 @@ fn update_second_lines(
             continue;
         };
         let members = groups.member_classes(line_for.0);
-        let line = label_second_line(*affiliation, record, &members, clock.elapsed_days())
-            .unwrap_or_default();
+        let line = with_countdown(
+            label_second_line(*affiliation, record, &members, clock.elapsed_days()),
+            countdowns.of(line_for.0),
+        )
+        .unwrap_or_default();
         if text.0 != line {
             text.0 = line;
         }

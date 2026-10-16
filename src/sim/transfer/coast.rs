@@ -4,23 +4,61 @@
 //! the leg and the system snapshot (ARCH-20); the map draws the coast up
 //! to that event (PLNR-67).
 
-#![cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "drawn by the planner's map marks, built next (PLNR-67)"
-    )
-)]
-
 use bevy::prelude::*;
 use orbits::{Conic, Rail};
 
 use super::ends::resolve;
 use super::order::{Landing, SolvedLeg};
 use super::places::Place;
+use super::plan::Leg;
 use super::tree::SystemTree;
 use crate::sim::body::BodyClass;
-use crate::sim::rail::SegmentKind;
+use crate::sim::rail::{SegmentKind, ShipTrajectory};
+
+/// What the coast rule reads of a leg, solved or ordered: how it ends,
+/// its trajectory (the coast is its last segment), the day its crossing
+/// ends and its destination.
+#[derive(Debug, Clone, Copy)]
+pub struct CoastOf<'a> {
+    pub landing: Landing,
+    pub trajectory: &'a ShipTrajectory,
+    pub crossing_end_day: f64,
+    pub destination: Place,
+}
+
+impl<'a> CoastOf<'a> {
+    /// A solved leg to `destination`.
+    pub fn solved(leg: &'a SolvedLeg, destination: Place) -> Self {
+        Self {
+            landing: leg.landing,
+            trajectory: &leg.trajectory,
+            crossing_end_day: leg.crossing_end_day,
+            destination,
+        }
+    }
+
+    /// A plan's leg.
+    pub fn ordered(leg: &'a Leg) -> Self {
+        Self {
+            landing: leg.landing,
+            trajectory: &leg.trajectory,
+            crossing_end_day: leg.crossing_end_day,
+            destination: leg.destination,
+        }
+    }
+
+    /// PLNR-67: the conic the ship coasts on after an Intercept, and the
+    /// body it goes round; `None` for any other leg.
+    pub fn conic(&self) -> Option<(Entity, Conic)> {
+        if self.landing != Landing::Intercept {
+            return None;
+        }
+        match self.trajectory.segments().last()?.kind {
+            SegmentKind::Conic { primary, conic } => Some((primary, conic)),
+            _ => None,
+        }
+    }
+}
 
 /// PLNR-88: the first event of an Intercept's coast, with the days to it
 /// counted from today.
@@ -89,29 +127,21 @@ pub fn first_coast_event(
 }
 
 /// PLNR-88: the coast event of a leg, counted from `today`. Defined only
-/// for an Intercept whose coast goes round the star; any other leg, or a
-/// coast that meets nothing, has none. The planets are the bodies that
-/// orbit the star; the intercepted one is the destination's planet.
+/// for an Intercept whose coast goes round the star (the one body with
+/// no parent); any other leg, or a coast that meets nothing, has none.
+/// The planets are the bodies that orbit the star; the intercepted one is
+/// the destination's planet.
 pub fn coast_event(
     tree: &SystemTree,
     lost_beyond_km: f64,
-    leg: &SolvedLeg,
-    destination: Place,
+    leg: CoastOf,
     today: f64,
 ) -> Option<CoastEvent> {
-    if leg.landing != Landing::Intercept {
-        return None;
-    }
-    let star = leg.primary;
+    let (star, conic) = leg.conic()?;
     if tree.bodies.get(&star)?.parent.is_some() {
         return None;
     }
-    let SegmentKind::Conic { primary, conic } = leg.trajectory.segments().last()?.kind else {
-        return None;
-    };
-    if primary != star {
-        return None;
-    }
+    let destination = leg.destination;
     let planets: Vec<PlanetOrbit> = tree
         .bodies
         .iter()
@@ -253,7 +283,8 @@ mod tests {
         };
         let leg = l.solve(&from, &order, &l.ntr).unwrap();
         let lost = l.tunables.lost_beyond_au * KM_PER_AU;
-        let event = coast_event(&l.tree, lost, &leg, order.destination, 5.0).unwrap();
+        let event =
+            coast_event(&l.tree, lost, CoastOf::solved(&leg, order.destination), 5.0).unwrap();
         let days = match event {
             CoastEvent::Crosses { days, .. } | CoastEvent::Leaves { days } => days,
         };
@@ -265,7 +296,7 @@ mod tests {
         };
         let leg = l.solve(&from, &rendezvous, &l.ntr).unwrap();
         assert_eq!(
-            coast_event(&l.tree, lost, &leg, order.destination, 5.0),
+            coast_event(&l.tree, lost, CoastOf::solved(&leg, order.destination), 5.0),
             None
         );
     }
