@@ -123,21 +123,6 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** PLNR-23, PLNR-82, PLNR-84, PLNR-86, PLNR-40, PLNR-12 · **Type:** spec gap
 - **Disposition:** open. Accept.
 
-### F-185 · Brackets round an exposure ring's identity mark are offset
-- **Observation:** Seen in play. While an orbit is in exposure mode, the selection and hover brackets round its identity mark (the stationary marker on the ring) sit slightly off the mark. The mark itself may be slightly off the ring point.
-- **Affects:** HOV-06, HOV-07, MOT-14 · **Type:** bug
-- **Disposition:** open. Fix: put the box and the mark on the same point.
-
-### F-186 · A body drawn at its true size can't be clicked
-- **Observation:** Seen in play. Once a body is drawn as a true-size disc (MRK-07), clicking it does nothing. MRK-08 gives every marker a hit area of at least `min_hit_radius_px`, but says nothing about a disc that outgrows it.
-- **Affects:** MRK-07, MRK-08 · **Type:** bug
-- **Disposition:** open. Fix: a disc's hit area is at least the disc. Say so in MRK-08.
-
-### F-187 · Clicking empty space doesn't clear the selection
-- **Observation:** Seen in play. A click on empty map space leaves the selection and inset in place. INS-03 says it clears them, and `view/selection.rs` has the rule, so something else is taking the click or the click isn't seen as one.
-- **Affects:** INS-03 · **Type:** bug
-- **Disposition:** open. Fix the code.
-
 ### F-188 · Bracket arms grow with a close disc
 - **Observation:** Seen in play. HOV-06 makes each arm `bracket_arm_fraction` of the box's shorter side. When the box grows with a true-size disc (HOV-07), the arms grow too, and at close zoom the corners dominate the view.
 - **Affects:** HOV-06, HOV-07 · **Type:** spec wrong

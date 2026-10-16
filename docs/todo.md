@@ -28,11 +28,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Fixes
 
-- [ ] **Playtest bugs: brackets, disc clicks, empty-space clicks** · HOV-06, HOV-07, MOT-14, MRK-08, INS-03
-  - F-185: brackets round an exposure ring's identity mark sit slightly off it. Put the box and the mark on the same point.
-  - F-186: a body drawn at its true size (MRK-07) can't be clicked. Its hit area is at least the disc. Add that sentence to MRK-08 (agreed 2026-10-16).
-  - F-187: a click on empty map space doesn't clear the selection (INS-03). Find what takes the click.
-
 ## Other
 
 - [ ] **Bring older docs up to the writing style**
