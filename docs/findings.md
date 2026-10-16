@@ -156,6 +156,7 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 ### F-203 · Small choices on the map marks
 - **Observation:** The ghost's and the coast's labels are in the data face at 12 px, a marker name's size. The coast's label sits beside its event's point as if beside a marker of no size. A ghost's dashes are `ghost_dash_px` long and as far apart, with their count rounded so they meet evenly round the circle. Paths are world lines like the orbit rings, so they pass under a true-size disc rather than over it (MRK-12 draws near arcs over discs only for rings).
 - **Affects:** PLNR-63, PLNR-65, PLNR-67, PLNR-69 · **Type:** spec gap
+- **Disposition:** open. Accept.
 
 ### F-204 · An exposure ring's label never drops its period line
 - **Observation:** MOT-02 says the period line is the first part to go when there is no room (LBL-03). But a ring's label isn't placed by LBL-01 to LBL-03: it always sits beside its mark, so the build always shows the period. Seen on screen: in Halden IV's frame at 2 d/s, IVa's "1.5 d" runs into Halden IV's "+1" pill. A ring label can also overlap other labels, as before.
