@@ -2,7 +2,7 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-181.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-191.
 
 ---
 
@@ -102,6 +102,36 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** Under XFER-07, an arc from a planet's High band to its own Low band touches the band only at its periapsis. Faster than the Hohmann time, it passes its periapsis under the band before it arrives, so even a Rendezvous is refused. Slower, it arrives still heading down, so a Rendezvous is flown but an Intercept's coast would dip under the band. So an Intercept through the primary's own Low band is flown only at the Hohmann time, and only when the target sits half a turn ahead then. In the reference layout, no departure phase gave a feasible Intercept at the capital's Low band station. The same holds for leaving a Low band: an arc faster than the Hohmann time first dips under the band.
 - **Affects:** XFER-07, XFER-08, PLNR-30 · **Type:** spec gap
 - **Disposition:** open. Accept, or offer only Rendezvous for a Low band round the ship's own primary.
+
+### F-185 · Brackets round an exposure ring's identity mark are offset
+- **Observation:** Seen in play. While an orbit is in exposure mode, the selection and hover brackets round its identity mark (the stationary marker on the ring) sit slightly off the mark. The mark itself may be slightly off the ring point.
+- **Affects:** HOV-06, HOV-07, MOT-14 · **Type:** bug
+- **Disposition:** open. Fix: put the box and the mark on the same point.
+
+### F-186 · A body drawn at its true size can't be clicked
+- **Observation:** Seen in play. Once a body is drawn as a true-size disc (MRK-07), clicking it does nothing. MRK-08 gives every marker a hit area of at least `min_hit_radius_px`, but says nothing about a disc that outgrows it.
+- **Affects:** MRK-07, MRK-08 · **Type:** bug
+- **Disposition:** open. Fix: a disc's hit area is at least the disc. Say so in MRK-08.
+
+### F-187 · Clicking empty space doesn't clear the selection
+- **Observation:** Seen in play. A click on empty map space leaves the selection and inset in place. INS-03 says it clears them, and `view/selection.rs` has the rule, so something else is taking the click or the click isn't seen as one.
+- **Affects:** INS-03 · **Type:** bug
+- **Disposition:** open. Fix the code.
+
+### F-188 · Bracket arms grow with a close disc
+- **Observation:** Seen in play. HOV-06 makes each arm `bracket_arm_fraction` of the box's shorter side. When the box grows with a true-size disc (HOV-07), the arms grow too, and at close zoom the corners dominate the view.
+- **Affects:** HOV-06, HOV-07 · **Type:** spec wrong
+- **Disposition:** open. Options: cap the arm length in pixels (a new tunable), or fix it in pixels for every box.
+
+### F-189 · A scene of terrain alone is grey and bland
+- **Observation:** Seen in play. A view showing only natural bodies, with no ships, stations or gates, is all greyscale: neutral markers, neutral discs and faint rings. Nothing draws the eye.
+- **Affects:** MRK-01, MRK-11, MRK-13 · **Type:** spec wrong
+- **Disposition:** open. Decide whether natural bodies get any colour (for example a tint per body class or composition), or another accent.
+
+### F-190 · The belt doesn't read as an asteroid belt
+- **Observation:** Seen in play. The belt's band has hard edges, and as a whole it doesn't convey a field of rocks.
+- **Affects:** MRK-05 · **Type:** spec wrong
+- **Disposition:** open. Options: soft edges that fade in and out, a density falling off towards the edges, or a scatter of faint points.
 
 ## Parked
 
