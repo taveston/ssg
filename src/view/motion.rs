@@ -36,11 +36,14 @@ impl Plugin for MotionPlugin {
     }
 }
 
+/// Orbiting bodies with no motion state yet.
+type WithoutMotionState = (With<Orbit>, Without<MotionModeState>);
+
 /// Every orbiting body gets motion state, a ship that joins an orbit too.
 /// Gates keep their edge-indicator treatment instead.
 fn attach_motion_state(
     mut commands: Commands,
-    bodies: Query<(Entity, &BodyClass), (With<Orbit>, Without<MotionModeState>)>,
+    bodies: Query<(Entity, &BodyClass), WithoutMotionState>,
 ) {
     for (entity, class) in &bodies {
         if *class == BodyClass::Gate {

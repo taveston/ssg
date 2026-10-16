@@ -22,6 +22,10 @@
 //! - `planner`: opens the transfer planner for the selected ship: `open`
 //!   leaves it choosing; a body's name picks that body as the destination,
 //!   as a click on it would (PLNR-02, PLNR-11).
+//! - `fly`: with `planner` naming a destination, schedules the planner's
+//!   order as Schedule would (PLNR-50), then moves the clock on to this
+//!   many days after the ship leaves its orbit (PLNR-21), so the shot
+//!   shows the ship in flight. Negative days stop short of the leave day.
 //!
 //! Names are the bodies' display names. The app starts, waits a moment for
 //! the world to load, applies the selection, the rate and the frame, waits
@@ -37,6 +41,8 @@ use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured, save_to_dis
 use super::camera::requests::FrameRequest;
 use super::camera::rules::clamp_tilt;
 use super::camera::state::{ActiveMove, CameraRig, MAX_DISTANCE, MIN_DISTANCE};
+use super::countdown::leave_day;
+use super::planner::input::order_to_schedule;
 use super::planner_state::{PickTarget, PlannerState};
 use super::scale::km_to_render;
 use super::selection::Selection;
@@ -45,6 +51,7 @@ use super::tunables::Tunables;
 use crate::Stage;
 use crate::sim::body::DisplayName;
 use crate::sim::clock::GameClock;
+use crate::sim::transfer::plan::{Plan, ShipOrder};
 
 /// The environment variable that asks for a screenshot.
 pub const SHOT_ENV: &str = "OW_SHOT";
@@ -69,6 +76,9 @@ pub struct ShotPlan {
     pub wait_secs: f32,
     /// `open`, or the name of a destination to pick.
     pub planner: Option<String>,
+    /// Days after the leave day to move the clock to, once the planner's
+    /// order is scheduled.
+    pub fly_days: Option<f64>,
 }
 
 /// The `planner` value that opens the planner without picking.
@@ -90,6 +100,7 @@ impl ShotPlan {
             rate_days_per_sec: None,
             wait_secs: DEFAULT_WAIT_SECS,
             planner: None,
+            fly_days: None,
         };
         let pairs = spec.split(';').map(str::trim).filter(|p| !p.is_empty());
         for pair in pairs {
@@ -108,6 +119,7 @@ impl ShotPlan {
                 "rate" => plan.rate_days_per_sec = Some(number(key, value)?),
                 "wait" => plan.wait_secs = number(key, value)?,
                 "planner" => plan.planner = Some(value.to_string()),
+                "fly" => plan.fly_days = Some(number(key, value)?),
                 _ => return Err(format!("unknown key `{key}`")),
             }
         }
@@ -129,6 +141,10 @@ fn number<T: std::str::FromStr>(key: &str, value: &str) -> Result<T, String> {
 pub enum ShotPhase {
     /// Waiting for the world to load.
     Starting,
+    /// Waiting for the planner's order to be ready, to schedule it.
+    Scheduling,
+    /// Waiting for the order to reach the ship, to move the clock on.
+    Flying,
     /// The frame move is in flight.
     Framing,
     /// The view is set; waiting for it to settle.
@@ -166,7 +182,8 @@ impl Plugin for DebugShotPlugin {
         }
         app.add_systems(
             Update,
-            run_shot
+            (fly_order, run_shot)
+                .chain()
                 .run_if(resource_exists::<Shot>)
                 .after(Stage::Simulation)
                 .before(Stage::Camera),
@@ -235,7 +252,11 @@ fn run_shot(
                 None => {}
             }
             frame_request.0 = plan.frame.as_deref().and_then(find);
-            shot.phase = ShotPhase::Framing;
+            shot.phase = if plan.fly_days.is_some() && destination.is_some() {
+                ShotPhase::Scheduling
+            } else {
+                ShotPhase::Framing
+            };
         }
         ShotPhase::Framing if frame_request.0.is_none() && active.0.is_none() => {
             set_pose(&shot.plan, &mut rig, &tunables);
@@ -253,6 +274,46 @@ fn run_shot(
         ShotPhase::Saved => {
             info!("{SHOT_ENV}: saved {}", shot.plan.out.display());
             exit.write(AppExit::Success);
+        }
+        _ => {}
+    }
+}
+
+/// `fly`: schedules the planner's order once it can be flown, then, once
+/// the ship has its plan, moves the clock on to `fly` days after the ship
+/// leaves its orbit, and lets the shot go on to framing.
+fn fly_order(
+    mut shot: ResMut<Shot>,
+    mut planner: ResMut<PlannerState>,
+    mut orders: MessageWriter<ShipOrder>,
+    mut clock: ResMut<GameClock>,
+    selection: Res<Selection>,
+    plans: Query<&Plan>,
+) {
+    match shot.phase {
+        ShotPhase::Scheduling => {
+            if let Some((ship, order, _)) = order_to_schedule(&planner) {
+                orders.write(ShipOrder::Transfer { ship, order });
+                planner.end();
+                shot.phase = ShotPhase::Flying;
+            }
+        }
+        ShotPhase::Flying => {
+            let Some(plan) = selection.selected.and_then(|ship| plans.get(ship).ok()) else {
+                return;
+            };
+            let target = leave_day(plan.leg()) + shot.plan.fly_days.unwrap_or(0.0);
+            let paused = clock.is_paused();
+            if paused {
+                clock.toggle_pause();
+            }
+            let days = (target - clock.elapsed_days()).max(0.0);
+            let rate = clock.rate_days_per_sec();
+            clock.advance(days / rate);
+            if paused {
+                clock.toggle_pause();
+            }
+            shot.phase = ShotPhase::Framing;
         }
         _ => {}
     }
@@ -280,7 +341,7 @@ mod tests {
     fn a_full_spec_parses_every_key() {
         let plan = ShotPlan::parse(
             "out=shots/a.png; frame=Halden IV;select=Halden IV I;hover=Morrow;\
-             distance=2e6;tilt=40;heading=-15;rate=0;wait=3.5;planner=Iver",
+             distance=2e6;tilt=40;heading=-15;rate=0;wait=3.5;planner=Iver;fly=12",
         )
         .unwrap();
         assert_eq!(plan.out, PathBuf::from("shots/a.png"));
@@ -293,6 +354,7 @@ mod tests {
         assert_eq!(plan.rate_days_per_sec, Some(0.0));
         assert_eq!(plan.wait_secs, 3.5);
         assert_eq!(plan.planner.as_deref(), Some("Iver"));
+        assert_eq!(plan.fly_days, Some(12.0));
     }
 
     #[test]

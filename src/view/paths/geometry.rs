@@ -38,7 +38,7 @@ pub fn sample_rail(
     view: RingView,
 ) -> Vec<PathPoint> {
     let mut points = Vec::new();
-    if !(to > from) {
+    if to.partial_cmp(&from) != Some(std::cmp::Ordering::Greater) {
         return points;
     }
     let step = (to - from) / BASE_PIECES as f64;

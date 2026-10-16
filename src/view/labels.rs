@@ -235,17 +235,14 @@ impl Plugin for LabelsPlugin {
 /// (whose ranks run to 10), so they give way to all of them.
 pub const PATH_LABEL_RANK: u8 = 11;
 
+/// Labels, of markers or of paths, that have no placement state yet.
+type UnplacedLabels = (
+    Or<(With<MarkerLabel>, With<PathLabel>)>,
+    Without<LabelState>,
+);
+
 /// Every label gets placement state, hidden until placed.
-fn attach_label_state(
-    mut commands: Commands,
-    labels: Query<
-        Entity,
-        (
-            Or<(With<MarkerLabel>, With<PathLabel>)>,
-            Without<LabelState>,
-        ),
-    >,
-) {
+fn attach_label_state(mut commands: Commands, labels: Query<Entity, UnplacedLabels>) {
     for label in &labels {
         commands.entity(label).insert(LabelState::default());
     }
@@ -657,6 +654,36 @@ mod tests {
             ),
             "touching edges don't overlap"
         );
+    }
+
+    /// PLNR-65: a path's label is placed after every label LBL-02 ranks,
+    /// so it gives way to them, and is hidden with no free position.
+    #[test]
+    fn a_path_label_gives_way_to_every_ranked_label() {
+        let mut world = World::new();
+        // A ghost's label beside a moon's marker, listed first; the moon's
+        // own label, the lowest LBL-02 rank, still goes first.
+        let spot = marker(100.0, 100.0, 20.0);
+        let path = candidate(&mut world, spot, PATH_LABEL_RANK);
+        let moon = candidate(
+            &mut world,
+            spot,
+            label_rank(
+                (false, false, false),
+                BodyClass::Moon,
+                Affiliation::Neutral,
+                None,
+            ),
+        );
+        let placements = place_labels(&[path, moon], &[], 6.0);
+        assert_eq!(placements[1].unwrap().slot, Slot::Right);
+        assert_eq!(placements[0].unwrap().slot, Slot::Left);
+        // Boxed in on every side, the path label is hidden.
+        let walls: Vec<Rect> = SLOTS
+            .iter()
+            .map(|&slot| label_rect(spot, Vec2::new(60.0, 26.0), slot, 6.0))
+            .collect();
+        assert_eq!(place_labels(&[path], &walls, 6.0), vec![None]);
     }
 
     /// LBL-01 / LBL-02: a label whose right slot is taken by a higher

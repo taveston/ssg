@@ -62,11 +62,23 @@ impl Plugin for GhostMaterialPlugin {
     }
 }
 
+/// Ghosts added or changed since the last frame, with their material.
+type ChangedGhosts<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static GhostLook,
+        Option<&'static MaterialNode<GhostMaterial>>,
+    ),
+    Changed<GhostLook>,
+>;
+
 /// Gives each new ghost its material, and copies a changed look into it.
 fn sync_ghost_materials(
     mut commands: Commands,
     mut materials: ResMut<Assets<GhostMaterial>>,
-    ghosts: Query<(Entity, &GhostLook, Option<&MaterialNode<GhostMaterial>>), Changed<GhostLook>>,
+    ghosts: ChangedGhosts,
 ) {
     for (entity, look, node) in &ghosts {
         let ghost = GhostUniform::from(*look);
