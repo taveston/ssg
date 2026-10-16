@@ -93,7 +93,10 @@ pub use circular::{
     escape_cost, hill_radius, hohmann, synodic_period,
 };
 pub use conic::Conic;
-pub use hyperbola::{capture_angle, exit_angle, pass_eccentricity};
+pub use hyperbola::{
+    capture_angle, closing_speed, exit_angle, pass_eccentricity, pass_speed, turn_angle,
+    turned_velocity,
+};
 pub use lambert::{Lambert, lambert};
 pub use phasing::{PhasingOrbit, PhasingSide, meeting_days, phasing_orbit};
 pub use spiral::Spiral;

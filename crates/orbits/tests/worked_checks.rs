@@ -1,4 +1,4 @@
-//! The worked checks of the transfer spec (XFER-12, PHAS-13, ARCH-44), in plain
+//! The worked checks of the transfer spec (XFER-12, XFER-15, PHAS-13, ARCH-44), in plain
 //! figures: a K-type star of 0.75 solar masses; a capital planet of
 //! radius 5,753 km and surface gravity 0.82 g at 0.8 AU; an inner planet
 //! at 0.5 AU; a belt at 0.64 AU. Every figure must hold within 3%.
@@ -8,9 +8,9 @@ use std::f64::consts::TAU;
 use glam::DVec3;
 use orbits::{
     CircularOrbit, PhasingOrbit, PhasingSide, Rail, Sense, capture_angle, circular_period,
-    circular_speed, escape_cost, exit_angle, hohmann, km_per_day_to_km_per_s,
+    circular_speed, closing_speed, escape_cost, exit_angle, hohmann, km_per_day_to_km_per_s,
     km_per_s_to_km_per_day, km3_per_s2_to_km3_per_day2, lambert, meeting_days, pass_eccentricity,
-    phasing_orbit, synodic_period,
+    pass_speed, phasing_orbit, synodic_period, turn_angle,
 };
 
 const KM_PER_AU: f64 = 149_597_870.7;
@@ -269,4 +269,30 @@ fn capture_and_exit_points_match_the_spec() {
         -129.0,
         "Low exit point",
     );
+}
+
+// --- Intercept through Low (XFER-15) ---
+
+/// XFER-15: an Intercept through the Low band, 500 km up, arriving at 2,
+/// 5 and 10 km/s relative to the planet, turns by 132°, 78° and 35°.
+#[test]
+fn turns_through_the_low_band_match_the_spec() {
+    let mu = capital_mu();
+    for (kms, degrees) in [(2.0, 132.0), (5.0, 78.0), (10.0, 35.0)] {
+        let turn = turn_angle(mu, LOW_KM, km_per_s_to_km_per_day(kms));
+        assert_within_3_percent(turn.to_degrees(), degrees, &format!("turn at {kms} km/s"));
+    }
+}
+
+/// XFER-15: at 5 km/s the pass through the Low band is at 10.5 km/s
+/// relative to the planet, and closes on a station in the band at
+/// 4.0 km/s.
+#[test]
+fn speeds_through_the_low_band_match_the_spec() {
+    let mu = capital_mu();
+    let v_inf = km_per_s_to_km_per_day(5.0);
+    let relative = km_per_day_to_km_per_s(pass_speed(mu, LOW_KM, v_inf));
+    assert_within_3_percent(relative, 10.5, "speed relative to the planet");
+    let closing = km_per_day_to_km_per_s(closing_speed(mu, LOW_KM, v_inf));
+    assert_within_3_percent(closing, 4.0, "closing speed at a station");
 }
