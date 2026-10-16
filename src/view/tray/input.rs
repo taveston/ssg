@@ -20,10 +20,13 @@ use crate::sim::group::MemberOf;
 use crate::view::bindings::{Bindings, pressed};
 use crate::view::hover::ClickCheck;
 use crate::view::inset::inspect::scrolled;
+use crate::view::inset::outline::scroll_to_reveal;
 use crate::view::multi::{OpenTray, TrayRequest};
+use crate::view::node_box::node_size;
 use crate::view::planner::state::{PickTarget, PlannerState};
 use crate::view::selection::Selection;
 use crate::view::targets::PointerTargets;
+use crate::view::tunables::Tunables;
 
 /// How far one wheel line scrolls a tray's rows.
 const SCROLL_LINE_PX: f32 = 24.0;
@@ -127,7 +130,10 @@ pub fn tray_keys(
     }
     let rows = contents.rows();
     let cursor = select.cursor();
-    for (keys_bound, forward) in [(&bindings.tray_next, true), (&bindings.tray_previous, false)] {
+    for (keys_bound, forward) in [
+        (&bindings.tray_next, true),
+        (&bindings.tray_previous, false),
+    ] {
         if pressed(&keys, keys_bound)
             && let Some(row) = step_row(&rows, cursor, forward)
         {
@@ -178,4 +184,33 @@ pub fn scroll_tray(
     };
     let max = ((computed.content_size() - computed.size()) * computed.inverse_scale_factor()).y;
     position.y = scrolled(position.y, -scroll.delta.y * lines, max);
+}
+
+/// MUL-08 / MUL-10: when the selected row changes in a tray that scrolls,
+/// its rows scroll just enough to show it, as the outline does (INS-05).
+pub fn reveal_selected_row(
+    state: Res<TrayState>,
+    contents: Res<TrayContents>,
+    tunables: Res<Tunables>,
+    mut lists: Query<(&mut ScrollPosition, &ComputedNode), With<TrayList>>,
+) {
+    if !state.is_changed() {
+        return;
+    }
+    let Some(index) = contents
+        .lines
+        .iter()
+        .position(|line| Some(line.row.entity) == state.cursor)
+    else {
+        return;
+    };
+    let Ok((mut position, computed)) = lists.single_mut() else {
+        return;
+    };
+    let height = node_size(computed).y;
+    if height <= 0.0 {
+        return;
+    }
+    let top = index as f32 * tunables.tray_row_px - position.y;
+    position.y += scroll_to_reveal(top, top + tunables.tray_row_px, height);
 }

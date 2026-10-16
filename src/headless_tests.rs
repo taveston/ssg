@@ -82,6 +82,7 @@ mod rings;
 mod symbols;
 mod systems;
 mod transfers;
+mod tray;
 
 /// One frame at 60 fps.
 const FRAME: Duration = Duration::from_micros(16_667);

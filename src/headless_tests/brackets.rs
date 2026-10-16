@@ -261,3 +261,59 @@ fn hovering_a_shared_orbit_brackets_its_identity_multi_marker() {
     assert!(close(around.size, Vec2::splat(side)));
     assert!((around.alpha - tunables.bracket_hover_alpha).abs() < 1e-3);
 }
+
+/// INS-06 / HOV-06: Iver Yard, alone in Iver's fold marker and selected,
+/// carries its mark on that marker. Framing Iver unfolds it: the fold
+/// marker hides at once, as it held nothing else, and the mark goes with
+/// the yard's own marker, which starts out from its parent and slides to
+/// its place, so the mark never jumps.
+#[test]
+fn a_last_things_mark_leaves_its_multi_marker_with_it() {
+    use crate::view::fold::SatelliteFoldState;
+    let mut app = brackets_app();
+    run(&mut app, SETTLE_FRAMES);
+    let iver = body(&mut app, "Iver");
+    let yard = body(&mut app, "Iver Yard");
+    app.world_mut().resource_mut::<Selection>().select(yard);
+    run(&mut app, 2);
+    let fold = multi_marker(&app, MultiKey::Fold(iver)).expect("Iver's fold marker");
+    assert_eq!(fold.things, [yard]);
+    let marks = shown_brackets(&mut app);
+    assert_eq!(marks.len(), 1);
+    let offset = Tunables::default().back_frame_offset_px;
+    assert!(close(
+        marks[0].centre(),
+        fold.centre + Vec2::new(offset, -offset) / 2.0
+    ));
+
+    app.world_mut().resource_mut::<FrameRequest>().0 = Some(iver);
+    let mut first_out: Option<f32> = None;
+    for _ in 0..(60 + move_frames()) {
+        run(&mut app, 1);
+        let t = app.world().get::<SatelliteFoldState>(yard).unwrap().anim_t;
+        let Some((at, _)) = marker_drawn(&mut app, yard) else {
+            continue;
+        };
+        if t <= 0.0 || t >= 1.0 {
+            continue;
+        }
+        assert!(multi_marker(&app, MultiKey::Fold(iver)).is_none());
+        let marks = shown_brackets(&mut app);
+        assert_eq!(marks.len(), 1);
+        // The yard is a station marker: its box takes in its back frame.
+        let marker = marker_of(&mut app, yard);
+        let back = app
+            .world()
+            .get::<crate::view::multi::BackFrame>(marker)
+            .and_then(|b| b.0)
+            .unwrap_or(Vec2::ZERO);
+        let centre = marks[0].centre();
+        assert!(close(centre, at + back / 2.0), "{centre} is not on {at}");
+        let positions = app.world().resource::<ScreenPositions>();
+        let (parent, own) = (positions.get(iver).unwrap(), positions.get(yard).unwrap());
+        // How far out from its parent towards its own place the marker is.
+        first_out.get_or_insert(at.distance(parent) / own.distance(parent));
+    }
+    let first_out = first_out.expect("never caught the yard unfolding");
+    assert!(first_out < 0.5, "it starts from its parent: {first_out}");
+}

@@ -339,7 +339,11 @@ type Placed<'w, 's> = (
     Query<
         'w,
         's,
-        (&'static mut Node, &'static mut Visibility, &'static ComputedNode),
+        (
+            &'static mut Node,
+            &'static mut Visibility,
+            &'static ComputedNode,
+        ),
         (With<TrayRoot>, Without<TrayNotch>, Without<TrayPanel>),
     >,
     Query<'w, 's, &'static mut Node, (With<TrayNotch>, Without<TrayPanel>)>,

@@ -113,7 +113,9 @@ pub enum TagFacts {
     },
     /// A member of an open group, with its condition when the group is
     /// own and the condition known.
-    Member { condition: Option<f64> },
+    Member {
+        condition: Option<f64>,
+    },
     /// Anything else: no tag.
     Plain,
 }
@@ -176,10 +178,9 @@ pub fn key_hint(bindings: &Bindings, side: SideKey) -> String {
         key_name(&bindings.tray_next)
     )];
     match side {
-        SideKey::Open(noun) => parts.push(format!(
-            "{} open {noun}",
-            key_name(&bindings.tray_open_row)
-        )),
+        SideKey::Open(noun) => {
+            parts.push(format!("{} open {noun}", key_name(&bindings.tray_open_row)))
+        }
         SideKey::Close(noun) => parts.push(format!(
             "{} close {noun}",
             key_name(&bindings.tray_close_row)
@@ -236,7 +237,10 @@ mod tests {
         let members = |e: Entity| members.get(&e).cloned().unwrap_or_default();
         let closed = tray_rows(&[station, group, ship], &members, &HashSet::new());
         assert_eq!(
-            closed.iter().map(|r| (r.entity, r.open)).collect::<Vec<_>>(),
+            closed
+                .iter()
+                .map(|r| (r.entity, r.open))
+                .collect::<Vec<_>>(),
             [(station, None), (group, Some(false)), (ship, None)]
         );
         let open = tray_rows(&[station, group, ship], &members, &[group].into());
@@ -319,10 +323,7 @@ mod tests {
     #[test]
     fn the_key_hint_follows_the_bindings_and_the_selected_row() {
         let mut bindings = Bindings::default();
-        assert_eq!(
-            key_hint(&bindings, SideKey::None),
-            "↑↓ step · Esc close"
-        );
+        assert_eq!(key_hint(&bindings, SideKey::None), "↑↓ step · Esc close");
         assert_eq!(
             key_hint(&bindings, SideKey::Open("group")),
             "↑↓ step · → open group · Esc close"

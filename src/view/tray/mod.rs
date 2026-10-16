@@ -56,6 +56,7 @@ impl Plugin for TrayPlugin {
                     draw::place_tray_panel,
                     draw::dim_rows,
                     input::scroll_tray,
+                    input::reveal_selected_row,
                 )
                     .chain()
                     .in_set(Stage::Overlay)

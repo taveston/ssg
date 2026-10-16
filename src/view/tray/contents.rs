@@ -73,12 +73,15 @@ impl TrayContents {
     }
 }
 
+/// Things docked at stations, by station (MUL-04).
+type Docked = Vec<(Entity, Vec<Entity>)>;
+
 /// What a marker holds, ready to list: the things at the top in order,
 /// what each opens to, and the header.
 struct Held {
     top: Vec<Entity>,
     /// Things docked at a station, listed under its row (MUL-04).
-    docked: Vec<(Entity, Vec<Entity>)>,
+    docked: Docked,
     header: String,
 }
 
@@ -96,15 +99,8 @@ type RowBodies<'w, 's> = Query<
 >;
 
 /// A group member's parts.
-type Members<'w, 's> = Query<
-    'w,
-    's,
-    (
-        &'static DisplayName,
-        &'static ShipRecord,
-        &'static MemberOf,
-    ),
->;
+type Members<'w, 's> =
+    Query<'w, 's, (&'static DisplayName, &'static ShipRecord, &'static MemberOf)>;
 
 /// Where the markers a tray can open beside are on screen.
 #[derive(SystemParam)]
@@ -198,7 +194,7 @@ impl TrayInputs<'_, '_> {
 
     /// MUL-04: the things a shared orbit holds, groups once and docked
     /// things under their station, and those docked.
-    fn orbit_things(&self, orbit: Entity) -> Option<(Vec<Entity>, Vec<(Entity, Vec<Entity>)>)> {
+    fn orbit_things(&self, orbit: Entity) -> Option<(Vec<Entity>, Docked)> {
         let ring = self.rings.ring(orbit)?;
         Some(ring_things(&ring, self.sim.together_km))
     }
@@ -294,9 +290,7 @@ impl TrayInputs<'_, '_> {
                     .bodies
                     .get(member_of.0)
                     .map_or(Affiliation::Unknown, |b| *b.2);
-                let condition = record
-                    .condition
-                    .filter(|_| affiliation == Affiliation::Own);
+                let condition = record.condition.filter(|_| affiliation == Affiliation::Own);
                 let look = RowLook {
                     class: BodyClass::Ship,
                     affiliation,

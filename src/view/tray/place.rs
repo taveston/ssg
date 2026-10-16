@@ -36,7 +36,8 @@ pub fn place_tray(anchor: Rect, size: Vec2, area: Rect, gap: f32, notch_inset: f
     let y = (anchor.center().y - height / 2.0)
         .min(area.max.y - height)
         .max(area.min.y);
-    let notch_y = (anchor.center().y - y).clamp(notch_inset, (height - notch_inset).max(notch_inset));
+    let notch_y =
+        (anchor.center().y - y).clamp(notch_inset, (height - notch_inset).max(notch_inset));
     TrayPlace {
         top_left: Vec2::new(x, y),
         left_side,
@@ -88,7 +89,10 @@ mod tests {
         for centre in [Vec2::new(300.0, 45.0), Vec2::new(5.0, 895.0)] {
             let place = place_tray(anchor_at(centre), SIZE, AREA, 8.0, 10.0);
             let tray = Rect::from_corners(place.top_left, place.top_left + SIZE);
-            assert!(AREA.contains(tray.min) && AREA.contains(tray.max), "{tray:?}");
+            assert!(
+                AREA.contains(tray.min) && AREA.contains(tray.max),
+                "{tray:?}"
+            );
             assert!((10.0..=SIZE.y - 10.0).contains(&place.notch_y));
         }
         let top = place_tray(anchor_at(Vec2::new(300.0, 60.0)), SIZE, AREA, 8.0, 10.0);
