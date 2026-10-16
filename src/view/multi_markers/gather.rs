@@ -154,6 +154,14 @@ pub fn fold_marker_centre(parent: Vec2, parent_clear: f32, half: f32, margin: f3
     parent + Vec2::new(parent_clear + margin + half, 0.0)
 }
 
+/// MUL-06 / SYM-16: where an overlap cluster's marker is centred: the
+/// mean of its symbols' centres, on a whole physical pixel (`scale`
+/// physical pixels per logical one).
+pub fn overlap_centre(centres: &[Vec2], scale: f32) -> Vec2 {
+    let mean = centres.iter().sum::<Vec2>() / centres.len().max(1) as f32;
+    snap_to_pixel(mean, scale)
+}
+
 /// Last frame's joined pairs of symbols (MUL-05).
 #[derive(Resource, Default, Debug)]
 pub struct ClusterLatch(pub HashSet<(Entity, Entity)>);
@@ -423,7 +431,7 @@ fn cluster_markers(
                 (key, unit.things.clone(), centre, unit.visible)
             }
             _ => {
-                let mean = members.iter().map(|u| u.pos).sum::<Vec2>() / members.len() as f32;
+                let centres: Vec<Vec2> = members.iter().map(|u| u.pos).collect();
                 let lead = members
                     .iter()
                     .map(|u| u.lead)
@@ -433,7 +441,7 @@ fn cluster_markers(
                 (
                     MultiKey::Overlap(lead),
                     things,
-                    snap_to_pixel(mean, scale),
+                    overlap_centre(&centres, scale),
                     true,
                 )
             }
@@ -726,6 +734,17 @@ mod tests {
         ];
         let (clusters, _) = overlap_clusters(&units, &HashSet::new(), 24.0, 28.0);
         assert_eq!(clusters, vec![vec![0, 1, 2], vec![3]]);
+    }
+
+    /// MUL-06 / SYM-16: an overlap marker sits on the mean of its
+    /// symbols' centres, moved to a whole physical pixel.
+    #[test]
+    fn an_overlap_marker_sits_on_the_mean_of_its_symbols() {
+        let centres = [Vec2::new(0.0, 0.0), Vec2::new(10.0, 3.0)];
+        assert_eq!(overlap_centre(&centres, 1.0), Vec2::new(5.0, 2.0));
+        assert_eq!(overlap_centre(&centres, 2.0), Vec2::new(5.0, 1.5));
+        let three = [Vec2::ZERO, Vec2::new(9.0, 0.0), Vec2::new(0.0, 9.0)];
+        assert_eq!(overlap_centre(&three, 1.0), Vec2::new(3.0, 3.0));
     }
 
     /// GRP-05 / MUL-06: a fold marker sits level with its parent and

@@ -21,8 +21,8 @@ use crate::sim::transfer::places::Place;
 use crate::sim::transfer::search::{Request, Search, SearchContext, SearchKey};
 
 /// What a click on the map or in the outline hit while the planner is
-/// open (PLNR-11): a body (marker, disc, pill, entry or a lone object's
-/// ring) or a named orbit (a shared ring or an orbit row).
+/// open (PLNR-11): a body (marker, disc, fold marker, entry or a lone
+/// object's ring) or a named orbit (a shared ring or an orbit row).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PickTarget {
     Body(Entity),

@@ -3,7 +3,7 @@
 //! fills a given share of the map. The zoom limits call the functions; the
 //! `DiscRadii` resource holds each body's true on-screen radius this frame,
 //! shared by everything sized by what is drawn (the markers, the fold
-//! fold markers and the selection brackets, HOV-07; ARCH-03).
+//! markers and the selection brackets, HOV-07; ARCH-03).
 
 use std::collections::HashMap;
 

@@ -823,6 +823,22 @@ mod tests {
         );
     }
 
+    /// MUL-13 / HOV-07: a station marker's label is placed beside the box
+    /// round both its frames: the back frame, offset right and up, widens
+    /// the box to the right and raises its top, and the shift from the
+    /// node's corner follows the box's.
+    #[test]
+    fn a_station_markers_label_box_takes_in_its_back_frame() {
+        let drawn = marker(100.0, 100.0, 22.0);
+        let (alone, _) = marker_box(drawn, (None, None), 4.0);
+        assert_eq!(alone, drawn.inflate(4.0));
+        let back = crate::view::multi::back_offset(4.0);
+        let (both, shift) = marker_box(drawn, (None, Some(back)), 4.0);
+        assert_eq!(both.min, Vec2::new(96.0, 92.0));
+        assert_eq!(both.max, Vec2::new(130.0, 126.0));
+        assert_eq!(shift, Vec2::new(-4.0, -8.0));
+    }
+
     /// PLNR-65: a path's label is placed after every label LBL-02 ranks,
     /// so it gives way to them, and is hidden with no free position.
     #[test]

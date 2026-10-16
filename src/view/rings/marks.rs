@@ -3,10 +3,11 @@
 //! what is on it without reading the label beside it. A lone ship or
 //! station shows its symbol at `ship_symbol_px`, a lone natural body its
 //! body marker, and a shared orbit a multi-marker holding its members
-//! (MUL-01, MUL-02), with the orbit's name as its label. The mark shows only once the tail has
-//! closed to a full circle and the dot has gone (MOT-11), fading in and
-//! out over `identity_mark_fade_ms`, so a ring held short of closing never
-//! shows a moving dot and a still mark together.
+//! (MUL-01, MUL-02), with the orbit's name as its label. The mark shows
+//! only once the tail has closed to a full circle and the dot has gone
+//! (MOT-11), fading in and out over `identity_mark_fade_ms`, so a ring
+//! held short of closing never shows a moving dot and a still mark
+//! together.
 //!
 //! Under the name, a second line gives the orbit's period, so the ring
 //! says it is a fast orbit. Beside the mark, a direction chevron on the

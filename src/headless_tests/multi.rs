@@ -187,10 +187,10 @@ fn marlin_docked_at_perigee_station_gives_a_count_of_one() {
     assert_eq!(count_under(&mut app, marker), ["1"]);
 }
 
-/// MUL-05 / TEST-12: TF-2 and the two haulers parked at its phase are
-/// together, so once the High band is large enough that no other ship
-/// overlaps them they are one multi-marker counting 3, and none of them
-/// draws its own symbol.
+/// MUL-05 / MUL-06 / TEST-12: TF-2 and the two haulers parked at its
+/// phase are together, so once the High band is large enough that no
+/// other ship overlaps them they are one multi-marker counting 3, centred
+/// on their shared point, and none of them draws its own symbol.
 #[test]
 fn things_together_are_one_multi_marker() {
     let mut app = symbols_app_with(|_| {});
@@ -207,6 +207,14 @@ fn things_together_are_one_multi_marker() {
     want.sort();
     assert_eq!(things, want);
     assert_eq!(together.count(), 3);
+    // MUL-06 / SYM-16: centred on their shared point, on a whole pixel.
+    let shared = app
+        .world()
+        .resource::<ScreenPositions>()
+        .get(trio[0])
+        .unwrap();
+    assert_eq!(together.centre, together.centre.round());
+    assert!((together.centre - shared).abs().max_element() <= 0.5);
     for thing in trio {
         assert_eq!(joined_into(&app, thing), Some(key));
         assert!(!drawn(&mut app, thing));

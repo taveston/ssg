@@ -39,10 +39,10 @@ pub fn ship_can_be_picked(facts: &BodyFacts) -> bool {
     !facts.group && facts.firm_track && !(facts.in_flight && !facts.commanded) && !facts.active_plan
 }
 
-/// PLNR-11: the place a click on a body's marker, disc, pill, outline
-/// entry or lone ring picks: a star, planet or moon's High band (its Low
-/// band if it has no High); the station, gate or site itself; a ship
-/// that can be picked. `None` for anything else.
+/// PLNR-11: the place a click on a body's marker, disc, fold marker,
+/// outline entry or lone ring picks: a star, planet or moon's High band
+/// (its Low band if it has no High); the station, gate or site itself; a
+/// ship that can be picked. `None` for anything else.
 pub fn body_place(body: Entity, facts: &BodyFacts) -> Option<Place> {
     match facts.class {
         BodyClass::Star | BodyClass::Planet | BodyClass::Moon => Some(Place::Body {

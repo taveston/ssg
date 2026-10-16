@@ -33,8 +33,9 @@ impl FrameLook {
 }
 
 /// What a multi-marker shows: its two frames and its count. A station
-/// marker's front is the station's own symbol, so for one `front` is
-/// unused and only the back frame and count are drawn (MUL-03).
+/// marker's front frame is the station's own symbol, drawn by its marker,
+/// so for one only the back frame and the count are drawn from the look;
+/// `front` gives the count its colour (MUL-03).
 #[derive(Debug, Clone, PartialEq)]
 pub struct MultiLook {
     pub front: FrameLook,
