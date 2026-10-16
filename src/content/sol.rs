@@ -701,7 +701,7 @@ mod tests {
 
     /// SOL-13: Perigee Station, Marlin and Vestige are in Earth's Low band
     /// and Apogee Station in its High band, none with an orbit of its own.
-    /// Low is 6,871 km out (94.5 min) and High 63,710 km out (1.85 d).
+    /// Low is 6,871 km out (94.5 min) and High 216,614 km out (11.6 d).
     #[test]
     fn the_craft_sit_in_earths_low_and_high_bands() {
         for (name, band) in [
@@ -724,9 +724,9 @@ mod tests {
         let low_minutes = kepler_period_days(bands.low_km, earth_mass) * 24.0 * 60.0;
         assert!((low_minutes - 94.5).abs() < 0.1, "{low_minutes} min");
         let high_km = bands.high_km.expect("Earth has a High band");
-        assert!((high_km - 63_710.0).abs() < 1.0, "{bands:?}");
+        assert!((high_km - 216_614.0).abs() < 1.0, "{bands:?}");
         let high_days = kepler_period_days(high_km, earth_mass);
-        assert!((high_days - 1.85).abs() < 0.005, "{high_days} d");
+        assert!((high_days - 11.6).abs() < 0.05, "{high_days} d");
     }
 
     /// SOL-14: the craft start at table 3's phases: Marlin at Perigee

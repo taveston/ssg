@@ -12,11 +12,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **High band default** · BAND-01, SOL-13
-  - Changes BAND-01 (its ✓ is cleared): `high_band_radii` becomes 34 (it was 10), so a planet's High band turns about every twelve days (Halden IV 12 d, Earth 11.6 d) and its parked ships show as dots at 1 d/s. Change the default in `SimTunables`; it is a starting point to tune in play.
-  - Check the tests that assumed Halden IV's old 1.9 d High band: the headless identity-mark test runs at 0.2 d/s for it, and a test of the "+N" pill on an exposure ring (MOT-14) now needs a rate fast enough for ring mode. Drop the F-147 note in `content/corvane.rs`.
-  - SOL-13 now gives Earth's High band as 216,614 km (period 11.6 d); its ✓ is cleared. Update its test in `content/sol.rs`, and check SOL-17's crossing figures still hold.
-  - F-163 was written against the old 9.2 h crossing; with the 52 h crossing Vestige's 4.2 h burn is a small share. Update or delete F-163 to match.
 - [ ] **Ship groups** · SYM-09, SYM-10, GRP-09, TEST-06
   - Nothing forms groups in play yet (F-159), so only the test content (TEST-06) has them. TEST-06 now has the one task force; give the own ships of TEST-03 and TEST-05 conditions above `condition_warn_fraction`.
   - The symbols are built; groups add to them (`view/symbols.rs`, `symbol_draw.rs`).

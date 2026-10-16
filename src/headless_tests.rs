@@ -388,8 +388,8 @@ fn zoom_stops_come_from_corvanes_orbits() {
 
     for (planet, outermost_km) in [
         ("Halden IV", 726_432.0),
-        // Iver Yard, in Iver's High band of ten radii (BAND-01).
-        ("Iver", 58_000.0),
+        // Iver Yard, in Iver's High band of 34 radii (BAND-01).
+        ("Iver", 197_200.0),
         ("Morrow", 6_619_046.0),
     ] {
         let entity = body(&mut app, planet);
@@ -2311,7 +2311,7 @@ fn descendants(app: &mut App, root: Entity) -> Vec<Entity> {
 /// station, a body marker for a lone moon. At 0.2 d/s in Halden IV's
 /// frame IVa's ring (1.5 d, 7.5 s apparent) is an exposure ring, so its
 /// mark shows, centred on a whole pixel; the parked ships' High band
-/// (about 1.9 d, 9.5 s) is in dot mode, so its pill is hidden, and the
+/// (about 12 d, 60 s) is in dot mode, so its pill is hidden, and the
 /// highport, folded at that fit, shows no mark either.
 #[test]
 fn an_exposure_ring_carries_an_identity_mark() {
@@ -2410,7 +2410,7 @@ fn an_exposure_ring_carries_an_identity_mark() {
     assert_eq!(
         shown(&app, high_mark),
         Display::None,
-        "1.9 d at 0.2 d/s is dot mode"
+        "12 d at 0.2 d/s is dot mode"
     );
     assert_eq!(
         shown(&app, highport_mark),
@@ -3955,8 +3955,8 @@ fn a_ships_box_encloses_its_symbol_square() {
     assert!(checked, "Orison was never drawn on its own");
 }
 
-/// HOV-05 / HOV-06 / MOT-14: at 1 d/s in Halden IV's frame the parked
-/// ships' High band is an exposure ring with a "+N" identity pill;
+/// HOV-05 / HOV-06 / MOT-14: at 4 d/s in Halden IV's frame the parked
+/// ships' High band (about 12 d, 3 s apparent) is an exposure ring with a "+N" identity pill;
 /// hovering the orbit brackets that pill at `bracket_hover_alpha`.
 #[test]
 fn hovering_a_shared_orbit_brackets_its_identity_pill() {
@@ -3969,7 +3969,7 @@ fn hovering_a_shared_orbit_brackets_its_identity_pill() {
     let high = app.world().get::<InNamedOrbit>(orison).unwrap().0;
     let mut clock = app.world_mut().resource_mut::<GameClock>();
     clock.toggle_pause();
-    clock.run_at(1.0);
+    clock.run_at(4.0);
     app.world_mut().resource_mut::<FrameRequest>().0 = Some(halden);
     run(&mut app, 60 + eased_frames());
 

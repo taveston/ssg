@@ -42,7 +42,7 @@ impl Default for SimTunables {
     fn default() -> Self {
         Self {
             low_band_altitude_km: 500.0,
-            high_band_radii: 10.0,
+            high_band_radii: 34.0,
             high_band_hill_fraction: 0.5,
             lost_beyond_au: 6.0,
             min_periapsis_radii: 2.0,

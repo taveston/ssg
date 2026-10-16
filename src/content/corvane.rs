@@ -997,8 +997,7 @@ mod tests {
     }
 
     /// TEST-05: one of each kind of ship the symbols tell apart, and own
-    /// stations. (Their orbit, Halden IV's High band, is no longer slow
-    /// at 1 d/s: F-147.)
+    /// stations.
     #[test]
     fn corvane_has_one_of_each_kind_of_ship() {
         let check = |name: &str, want: &dyn Fn(Affiliation, &ShipRecord) -> bool| {

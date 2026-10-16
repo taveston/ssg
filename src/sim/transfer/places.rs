@@ -145,18 +145,18 @@ mod tests {
         gravitational_parameter_km3_per_day2(EARTH_MASS_KG)
     }
 
-    /// BAND-01: Low is the altitude above the surface; High is ten radii
+    /// BAND-01: Low is the altitude above the surface; High is 34 radii
     /// unless half the Hill radius is less; the star, with no Hill radius,
-    /// takes ten radii.
+    /// takes 34 radii.
     #[test]
     fn bands_follow_radius_and_hill_sphere() {
         let tunables = SimTunables::default();
         let star = band_radii(500_000.0, None, &tunables);
         assert_eq!(star.low_km, 500_500.0);
-        assert_eq!(star.high_km, Some(5_000_000.0));
+        assert_eq!(star.high_km, Some(17_000_000.0));
 
         let roomy = band_radii(6_000.0, Some(1_000_000.0), &tunables);
-        assert_eq!(roomy.high_km, Some(60_000.0));
+        assert_eq!(roomy.high_km, Some(204_000.0));
 
         let cramped = band_radii(6_000.0, Some(50_000.0), &tunables);
         assert_eq!(cramped.high_km, Some(25_000.0));

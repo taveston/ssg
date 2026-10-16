@@ -72,7 +72,12 @@ pub fn layout() -> Layout {
     let mut world = World::new();
     let [star, inner, capital, station, far_station, gate, gate_orbit] =
         [(); 7].map(|_| world.spawn_empty().id());
-    let tunables = SimTunables::default();
+    // The reference layout fixes the High band at ten radii (XFER-12,
+    // PHAS-13), whatever the game's default.
+    let tunables = SimTunables {
+        high_band_radii: 10.0,
+        ..SimTunables::default()
+    };
     let star_mass = 0.75 * SOLAR_MASS_KG;
     let star_mu = gravitational_parameter_km3_per_day2(star_mass);
     let mut tree = SystemTree::default();
