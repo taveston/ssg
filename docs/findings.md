@@ -2,7 +2,7 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-176.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-181.
 
 ---
 
@@ -78,16 +78,6 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** XFER-13, XFER-06, PLNR-65 · **Type:** spec gap
 - **Disposition:** open. Accept, show no turn for a low-thrust leg, or make a low-thrust Intercept through Low infeasible.
 
-### F-180 · Which ends of a crossing take the Low band limit
-- **Observation:** XFER-07 gives the Low band limit to a crossing or coast that starts or ends "in a place round the primary itself (a band, or a station in one)". It doesn't say whether a ship coasting round the primary counts: one setting out from a coast, or a ship target on one. The build gives the Low band limit to every end round the primary, coasts included, as the old exemption did, and also a gate's or site's own orbit round it. A path solved to touch the Low band lands a hair either side of it, so a periapsis within a millionth of the limit (about 6 mm at a Low band) counts as at it.
-- **Affects:** XFER-07 · **Type:** spec gap
-- **Disposition:** open. Accept, or say which ends count as round the primary.
-
-### F-181 · An Intercept through its primary's own Low band needs the Hohmann time
-- **Observation:** Under XFER-07, an arc from a planet's High band to its own Low band touches the band only at its periapsis. Faster than the Hohmann time, it passes its periapsis under the band before it arrives, so even a Rendezvous is refused. Slower, it arrives still heading down, so a Rendezvous is flown but an Intercept's coast would dip under the band. So an Intercept through the primary's own Low band is flown only at the Hohmann time, and only when the target sits half a turn ahead then. In the reference layout, no departure phase gave a feasible Intercept at the capital's Low band station. The same holds for leaving a Low band: an arc faster than the Hohmann time first dips under the band.
-- **Affects:** XFER-07, XFER-08, PLNR-30 · **Type:** spec gap
-- **Disposition:** open. Accept, or offer only Rendezvous for a Low band round the ship's own primary.
-
 ### F-176 · How a group is held in the simulation
 - **Observation:** SYM-01 says a group holds its members, but not how. The build makes a group one body (class Ship, with a `ShipGroup` component) in its named orbit, at its own phase. Its ships are member entities holding a name and a ship record only: no orbit, phase, class marker or drive. So the view draws and folds the group as one body and never sees the members (SYM-09, GRP-09). The group's ship record is derived from the members' and kept in step each frame. The spec names class, armed status, load and condition; the build also chose: the track is the weakest member's (stale before weak, the older stale date), command is shared, and a group is requisitioned only if every member is. A group has no drive, so it can't be ordered anyway.
 - **Affects:** SYM-01, SYM-09, PHAS-14, TEST-10 · **Type:** spec gap
@@ -102,6 +92,16 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** SYM-09 puts the count "just outside the frame's upper right" and the bracket above the frame. Drawn hard against the frame, as in mock-up 7, the selection and hover brackets covered both. The build starts them outside the brackets' box (`bracket_margin_px` + 1 px), as the condition bar already is: the count to the right of the box, level with the frame's top, and the bracket's feet just above the box (or above the echelon, if higher). Labels keep `label_gap_px` from this outer edge (SYM-13), and other labels keep off it too. The count's width is estimated from the data face's fixed advance.
 - **Affects:** SYM-09, SYM-13, HOV-07 · **Type:** spec gap
 - **Disposition:** open. Confirm, or set the offsets as tunables.
+
+### F-179 · Which ends of a crossing take the Low band limit
+- **Observation:** XFER-07 gives the Low band limit to a crossing or coast that starts or ends "in a place round the primary itself (a band, or a station in one)". It doesn't say whether a ship coasting round the primary counts: one setting out from a coast, or a ship target on one. The build gives the Low band limit to every end round the primary, coasts included, as the old exemption did, and also a gate's or site's own orbit round it. A path solved to touch the Low band lands a hair either side of it, so a periapsis within a millionth of the limit (about 6 mm at a Low band) counts as at it.
+- **Affects:** XFER-07 · **Type:** spec gap
+- **Disposition:** open. Accept, or say which ends count as round the primary.
+
+### F-180 · An Intercept through its primary's own Low band needs the Hohmann time
+- **Observation:** Under XFER-07, an arc from a planet's High band to its own Low band touches the band only at its periapsis. Faster than the Hohmann time, it passes its periapsis under the band before it arrives, so even a Rendezvous is refused. Slower, it arrives still heading down, so a Rendezvous is flown but an Intercept's coast would dip under the band. So an Intercept through the primary's own Low band is flown only at the Hohmann time, and only when the target sits half a turn ahead then. In the reference layout, no departure phase gave a feasible Intercept at the capital's Low band station. The same holds for leaving a Low band: an arc faster than the Hohmann time first dips under the band.
+- **Affects:** XFER-07, XFER-08, PLNR-30 · **Type:** spec gap
+- **Disposition:** open. Accept, or offer only Rendezvous for a Low band round the ship's own primary.
 
 ## Parked
 
