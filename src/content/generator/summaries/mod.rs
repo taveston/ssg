@@ -8,7 +8,7 @@
 
 mod belts;
 mod facts;
-mod planets;
+pub mod planets;
 
 use super::bodies::Summary;
 use super::catalogue::{Entry, Star, StarClass};
@@ -148,10 +148,25 @@ mod tests {
                 );
             }
         }
-        for (template, weight) in t.template_weights.m.iter() {
-            let share = *tally.get(&(StarClass::M, *template)).unwrap_or(&0) as f64
-                / per_class[&StarClass::M] as f64;
-            assert!((share - weight).abs() < 0.02, "{template:?}: {share}");
+        let classes = [
+            StarClass::M,
+            StarClass::K,
+            StarClass::G,
+            StarClass::F,
+            StarClass::A,
+        ];
+        for class in classes {
+            let systems = per_class[&class] as f64;
+            for (template, weight) in t.template_weights.get(class) {
+                let share = *tally.get(&(class, *template)).unwrap_or(&0) as f64 / systems;
+                // Four standard errors of a share from this many systems,
+                // so rare classes (few A stars) get a fair margin.
+                let margin = 4.0 * (weight * (1.0 - weight) / systems).sqrt();
+                assert!(
+                    (share - weight).abs() <= margin.max(0.02),
+                    "{class:?} {template:?}: {share} vs {weight} over {systems}"
+                );
+            }
         }
     }
 
@@ -178,7 +193,9 @@ mod tests {
                         let inner = own.first().map(|p| p.orbit_au);
                         if let Some(inner) = inner {
                             let first = planets::orbit_for_period_au(0.8, star.mass_msun);
+                            let last = planets::orbit_for_period_au(6.0, star.mass_msun);
                             assert!(inner >= first * (1.0 - 1e-9));
+                            assert!(inner <= last * (1.0 + 1e-9));
                         }
                         assert!(own.iter().all(|p| p.orbit_au <= 0.5 * snow * (1.0 + 1e-9)));
                     }

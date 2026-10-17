@@ -15,7 +15,7 @@ use super::stellar::{
     effective_temperature_k, main_sequence_lifetime_gyr, main_sequence_luminosity,
     main_sequence_radius, spectral_type,
 };
-use super::tunables::GeneratorTunables;
+use super::tunables::{GeneratorTunables, Log10Normal};
 use super::volume::Volume;
 use crate::sim::units::KM_PER_AU;
 
@@ -26,8 +26,11 @@ const GIANT_AGE_FACTOR: (f64, f64) = (1.0, 1.1);
 /// A companion's separation that falls outside its limits is drawn again
 /// up to this many times, then pulled to the nearer limit (SGEN-26).
 const SEPARATION_TRIES: usize = 20;
-/// The letters companions add to a designation, nearest first (SGEN-20).
-const COMPANION_LETTERS: [char; 3] = ['B', 'C', 'D'];
+/// The letter the nearest companion adds to a designation; the next ones
+/// take the letters after it (SGEN-20).
+const FIRST_COMPANION_LETTER: u8 = b'B';
+/// The most companions a system can letter, B to Z.
+const MAX_COMPANIONS: usize = (b'Z' - FIRST_COMPANION_LETTER + 1) as usize;
 
 /// Runs stage 2: every system site becomes a system (two for a wide
 /// pair), every brown-dwarf site a brown dwarf (SGEN-20 to SGEN-29).
@@ -214,13 +217,25 @@ fn draw_companions(
     companions.sort_by(|a, b| a.1.total_cmp(&b.1));
     companions
         .into_iter()
-        .zip(COMPANION_LETTERS)
-        .map(|((star, separation_au), letter)| Companion {
+        .enumerate()
+        .map(|(rank, (star, separation_au))| Companion {
             star,
             separation_au,
-            designation: format!("{designation} {letter}"),
+            designation: format!("{designation} {}", companion_letter(rank)),
         })
         .collect()
+}
+
+/// The letter of the companion `rank` places from the nearest: B for the
+/// nearest, then C, D and on (SGEN-20). Star counts are tunable, so a
+/// system with more companions than letters is refused loudly rather
+/// than lettered wrongly.
+fn companion_letter(rank: usize) -> char {
+    assert!(
+        rank < MAX_COMPANIONS,
+        "a system has more than {MAX_COMPANIONS} companions to letter"
+    );
+    char::from(FIRST_COMPANION_LETTER + rank as u8)
 }
 
 /// The classes a companion of a `primary` star can take, with their
@@ -244,20 +259,32 @@ fn companion_classes(primary: StarClass, t: &GeneratorTunables) -> Vec<(StarClas
 /// `wide_pair_min_au` by drawing again, and pulled inside if every draw
 /// falls out.
 fn draw_separation_au(primary: StarClass, rng: &mut Rng, t: &GeneratorTunables) -> f64 {
-    let spread = if primary == StarClass::M {
-        t.separation_log10_au.m
-    } else {
-        t.separation_log10_au.other
-    };
+    let spread = separation_spread(primary, t);
     let (min, max) = (t.companion_min_au, t.wide_pair_min_au);
     let mut separation = min;
     for _ in 0..SEPARATION_TRIES {
-        separation = 10f64.powf(rng.normal(spread.mean, spread.spread));
+        separation = 10f64.powf(draw_log10_separation(spread, rng));
         if separation >= min && separation < max {
             return separation;
         }
     }
     separation.clamp(min, max)
+}
+
+/// The log-normal spread of companion separations round a primary of
+/// this class: M dwarfs have their own, closer one (SGEN-26).
+fn separation_spread(primary: StarClass, t: &GeneratorTunables) -> Log10Normal {
+    if primary == StarClass::M {
+        t.separation_log10_au.m
+    } else {
+        t.separation_log10_au.other
+    }
+}
+
+/// log10 of a separation in AU, before the limits: normal with the
+/// spread's mean and standard deviation (SGEN-26).
+fn draw_log10_separation(spread: Log10Normal, rng: &mut Rng) -> f64 {
+    rng.normal(spread.mean, spread.spread)
 }
 
 /// A brown dwarf: catalogue-only, with a mass, an age and a metallicity
@@ -287,6 +314,7 @@ pub fn is_eligible(primary: &Star, companions: &[Companion]) -> bool {
 mod tests {
     use super::*;
     use crate::content::generator::testing::{check_seeds, check_sizes, stars_for};
+    use crate::content::generator::tunables::ByClass;
 
     /// SGEN-20: ids run 0 to T + B − 1 and designations are the prefix
     /// and four digits; companions add a letter.
@@ -489,6 +517,120 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// The mean and standard deviation of a normal distribution with this
+    /// spread, cut to [lo, hi], by numerical integration of its density.
+    fn truncated_normal_moments(spread: Log10Normal, lo: f64, hi: f64) -> (f64, f64) {
+        const STEPS: usize = 20_000;
+        let step = (hi - lo) / STEPS as f64;
+        let (mut weight, mut first, mut second) = (0.0, 0.0, 0.0);
+        for i in 0..STEPS {
+            let x = lo + (i as f64 + 0.5) * step;
+            let density = (-0.5 * ((x - spread.mean) / spread.spread).powi(2)).exp();
+            weight += density;
+            first += density * x;
+            second += density * x * x;
+        }
+        let mean = first / weight;
+        (mean, (second / weight - mean * mean).sqrt())
+    }
+
+    /// SGEN-26: log10 of the separations has the class's mean and spread
+    /// before the limits: inside them, the sectors' companions match a
+    /// normal of that mean and spread cut at the limits, for M dwarfs and
+    /// for the other classes.
+    #[test]
+    fn companion_separations_follow_their_class_spread() {
+        let t = GeneratorTunables::default();
+        let (mut m, mut other) = (Vec::new(), Vec::new());
+        for seed in check_seeds(20) {
+            for entry in stars_for(200, seed).1 {
+                let Some(system) = entry.system() else {
+                    continue;
+                };
+                let logs = system.companions.iter().map(|c| c.separation_au.log10());
+                if system.primary.class == StarClass::M {
+                    m.extend(logs);
+                } else {
+                    other.extend(logs);
+                }
+            }
+        }
+        let (lo, hi) = (t.companion_min_au.log10(), t.wide_pair_min_au.log10());
+        for (logs, spread) in [
+            (&m, t.separation_log10_au.m),
+            (&other, t.separation_log10_au.other),
+        ] {
+            assert!(logs.len() > 1000, "{}", logs.len());
+            let n = logs.len() as f64;
+            let mean = logs.iter().sum::<f64>() / n;
+            let sd = (logs.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / n).sqrt();
+            let (expected_mean, expected_sd) = truncated_normal_moments(spread, lo, hi);
+            assert!(
+                (mean - expected_mean).abs() < 0.08,
+                "{mean} vs {expected_mean}"
+            );
+            assert!((sd - expected_sd).abs() < 0.08, "{sd} vs {expected_sd}");
+        }
+        // Before the limits the draw is the plain normal.
+        let mut rng = Rng::new(26);
+        let raw: Vec<f64> = (0..20_000)
+            .map(|_| draw_log10_separation(separation_spread(StarClass::G, &t), &mut rng))
+            .collect();
+        let mean = raw.iter().sum::<f64>() / raw.len() as f64;
+        assert!((mean - 1.7).abs() < 0.03, "{mean}");
+        assert_eq!(separation_spread(StarClass::M, &t).mean, 1.0);
+    }
+
+    /// SGEN-27: wide-pair separations are log-uniform between their
+    /// limits: each quarter of the log range holds about a quarter of
+    /// them.
+    #[test]
+    fn wide_pair_separations_are_log_uniform() {
+        let t = GeneratorTunables::default();
+        let mut rng = Rng::new(27);
+        let (lo, hi) = (t.wide_pair_min_au.log10(), t.wide_pair_max_au.log10());
+        let mut quarters = [0usize; 4];
+        const DRAWS: usize = 8000;
+        for _ in 0..DRAWS {
+            let au = wide_pair_offset_km(&mut rng, &t).length() / KM_PER_AU;
+            let place = (au.log10() - lo) / (hi - lo);
+            assert!((-1e-9..=1.0 + 1e-9).contains(&place));
+            quarters[((place * 4.0) as usize).min(3)] += 1;
+        }
+        for count in quarters {
+            let share = count as f64 / DRAWS as f64;
+            assert!((share - 0.25).abs() < 0.02, "{quarters:?}");
+        }
+    }
+
+    /// SGEN-20: companions are lettered from B, nearest first, however
+    /// many the star counts allow.
+    #[test]
+    fn every_companion_gets_its_own_letter() {
+        let t = GeneratorTunables {
+            multiplicity_by_class: ByClass {
+                g: 1.0,
+                ..GeneratorTunables::default().multiplicity_by_class
+            },
+            star_count_weights: vec![(6, 1.0)],
+            ..GeneratorTunables::default()
+        };
+        let primary = draw_star(StarClass::G, 1.0, &mut Rng::new(1), &t);
+        let companions = draw_companions(&primary, "OW-0001", &mut Rng::new(2), &t);
+        let names: Vec<&str> = companions.iter().map(|c| c.designation.as_str()).collect();
+        assert_eq!(
+            names,
+            [
+                "OW-0001 B",
+                "OW-0001 C",
+                "OW-0001 D",
+                "OW-0001 E",
+                "OW-0001 F"
+            ]
+        );
+        assert_eq!(companion_letter(24), 'Z');
     }
 
     /// SGEN-27: P sites hold a wide pair, two entries that record each

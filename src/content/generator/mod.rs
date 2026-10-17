@@ -141,6 +141,22 @@ mod tests {
         );
     }
 
+    /// The positions the volume stage placed: every entry's but the second
+    /// member of a wide pair, which the stars stage places beside its
+    /// partner.
+    fn site_positions(sector: &Sector) -> Vec<bevy::math::DVec3> {
+        sector
+            .entries
+            .iter()
+            .filter(|e| {
+                e.system()
+                    .and_then(|s| s.wide_partner)
+                    .is_none_or(|partner| partner > e.id)
+            })
+            .map(|e| e.position_km)
+            .collect()
+    }
+
     /// SGEN-03: changing a tunable of one stage leaves every earlier
     /// stage's output equal.
     #[test]
@@ -170,8 +186,7 @@ mod tests {
         };
         let tuned = generate_sector(settings, &stars_tuned).unwrap();
         assert_eq!(tuned.slab, base.slab);
-        let positions = |s: &Sector| s.entries.iter().map(|e| e.position_km).collect::<Vec<_>>();
-        assert_eq!(positions(&tuned), positions(&base));
+        assert_eq!(site_positions(&tuned), site_positions(&base));
         assert_ne!(tuned.entries, base.entries);
     }
 

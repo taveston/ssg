@@ -80,6 +80,11 @@ pub struct PlanetSummary {
     pub equilibrium_temperature_k: f64,
     pub atmosphere: Atmosphere,
     pub water: Water,
+    /// A rocky planet's volatile endowment, the factor its retention
+    /// index is scaled by (SGEN-40); `None` for a planet with an
+    /// envelope. Kept so that a planet moved later has its atmosphere
+    /// worked out again from the same draw (SGEN-59).
+    pub volatile_endowment: Option<f64>,
 }
 
 /// The fractions of a belt's mass that are rocky, metallic and icy; they

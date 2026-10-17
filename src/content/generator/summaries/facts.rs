@@ -127,14 +127,17 @@ pub fn planet_summary(
         planet.orbit_au,
         t.equilibrium_albedo,
     );
-    let atmosphere = if planet.kind.is_rocky() {
+    let volatile_endowment = planet.kind.is_rocky().then(|| {
         let range = t.volatile_endowment_range;
-        let endowment = rng.log_uniform(range.min, range.max);
-        let escape = escape_velocity_kms(planet.mass_earth, radius);
-        atmosphere_for_index(retention_index(escape, temperature, endowment), t)
-    } else {
-        Atmosphere::Envelope
-    };
+        rng.log_uniform(range.min, range.max)
+    });
+    let atmosphere = atmosphere_of(
+        planet.mass_earth,
+        radius,
+        temperature,
+        volatile_endowment,
+        t,
+    );
     let beyond = planet.orbit_au >= ctx.snow_line_au;
     PlanetSummary {
         kind: planet.kind,
@@ -145,7 +148,75 @@ pub fn planet_summary(
         equilibrium_temperature_k: temperature,
         atmosphere,
         water: draw_water(atmosphere, temperature, beyond, rng, t),
+        volatile_endowment,
     }
+}
+
+/// A planet's atmosphere from its mass, radius, equilibrium temperature
+/// and volatile endowment (SGEN-40). A planet with no endowment is one
+/// with an envelope.
+fn atmosphere_of(
+    mass_earth: f64,
+    radius_earth: f64,
+    temperature_k: f64,
+    endowment: Option<f64>,
+    t: &GeneratorTunables,
+) -> Atmosphere {
+    match endowment {
+        Some(endowment) => {
+            let escape = escape_velocity_kms(mass_earth, radius_earth);
+            atmosphere_for_index(retention_index(escape, temperature_k, endowment), t)
+        }
+        None => Atmosphere::Envelope,
+    }
+}
+
+/// The water a planet keeps when its temperature or atmosphere changes:
+/// the same class unless the new conditions rule it out, with no new
+/// draw. Surface water that can no longer stay liquid freezes to ice if
+/// the planet is cool enough for ice, and is lost otherwise; ice on a
+/// planet now too warm for it is lost. A planet without water gains none
+/// (SGEN-41, SGEN-59).
+pub fn water_kept(
+    water: Water,
+    atmosphere: Atmosphere,
+    temperature_k: f64,
+    t: &GeneratorTunables,
+) -> Water {
+    let ice_possible = atmosphere != Atmosphere::Envelope && temperature_k <= t.ice_t_eq_max_k;
+    let surface_possible = match atmosphere {
+        Atmosphere::Thin => t.surface_water_t_k.thin.contains(temperature_k),
+        Atmosphere::Dense => t.surface_water_t_k.dense.contains(temperature_k),
+        Atmosphere::Airless | Atmosphere::Envelope => false,
+    };
+    match water {
+        Water::Surface if surface_possible => Water::Surface,
+        Water::Surface | Water::Ice if ice_possible => Water::Ice,
+        _ => Water::None,
+    }
+}
+
+/// Works out again the facts of a planet that has moved to a new orbit
+/// (SGEN-59): its equilibrium temperature, its atmosphere from the
+/// endowment it was given, and its water as `water_kept` allows. Its
+/// mass, radius and gravity do not depend on the orbit.
+pub fn rework_moved_planet(
+    planet: &mut PlanetSummary,
+    luminosity_lsun: f64,
+    t: &GeneratorTunables,
+) {
+    let temperature =
+        equilibrium_temperature_k(luminosity_lsun, planet.orbit_au, t.equilibrium_albedo);
+    let atmosphere = atmosphere_of(
+        planet.mass_earth,
+        planet.radius_earth,
+        temperature,
+        planet.volatile_endowment,
+        t,
+    );
+    planet.equilibrium_temperature_k = temperature;
+    planet.atmosphere = atmosphere;
+    planet.water = water_kept(planet.water, atmosphere, temperature, t);
 }
 
 #[cfg(test)]
@@ -287,5 +358,83 @@ mod tests {
             draw_water(Atmosphere::Dense, 400.0, true, &mut rng, &t),
             Water::None
         );
+    }
+
+    /// SGEN-40: a rocky planet keeps the endowment its atmosphere came
+    /// from, in range, and the atmosphere follows from it; an envelope
+    /// has none.
+    #[test]
+    fn rocky_planets_keep_their_volatile_endowment() {
+        let t = GeneratorTunables::default();
+        for summary in all_summaries(5) {
+            for planet in &summary.planets {
+                assert_eq!(planet.volatile_endowment.is_some(), planet.kind.is_rocky());
+                let Some(endowment) = planet.volatile_endowment else {
+                    continue;
+                };
+                assert!(t.volatile_endowment_range.contains(endowment));
+                let again = atmosphere_of(
+                    planet.mass_earth,
+                    planet.radius_earth,
+                    planet.equilibrium_temperature_k,
+                    Some(endowment),
+                    &t,
+                );
+                assert_eq!(again, planet.atmosphere);
+            }
+        }
+    }
+
+    /// SGEN-41, SGEN-59: water is kept unless the new conditions rule it
+    /// out: surface water freezes when it can't stay liquid, ice melts
+    /// away when too warm, and a dry planet stays dry.
+    #[test]
+    fn moved_water_is_kept_unless_ruled_out() {
+        let t = GeneratorTunables::default();
+        let kept = |water, atmosphere, temperature| water_kept(water, atmosphere, temperature, &t);
+        assert_eq!(
+            kept(Water::Surface, Atmosphere::Dense, 250.0),
+            Water::Surface
+        );
+        assert_eq!(kept(Water::Surface, Atmosphere::Dense, 150.0), Water::Ice);
+        assert_eq!(kept(Water::Surface, Atmosphere::Thin, 240.0), Water::Ice);
+        assert_eq!(kept(Water::Surface, Atmosphere::Dense, 400.0), Water::None);
+        assert_eq!(kept(Water::Ice, Atmosphere::Airless, 100.0), Water::Ice);
+        assert_eq!(kept(Water::Ice, Atmosphere::Airless, 340.0), Water::None);
+        assert_eq!(kept(Water::Ice, Atmosphere::Dense, 250.0), Water::Ice);
+        assert_eq!(kept(Water::None, Atmosphere::Dense, 250.0), Water::None);
+    }
+
+    /// SGEN-59: a moved planet's temperature, atmosphere and water are
+    /// worked out again from its stored endowment; mass, radius and
+    /// gravity stay.
+    #[test]
+    fn a_moved_planet_has_its_facts_worked_out_again() {
+        let t = GeneratorTunables::default();
+        let radius = 1.0;
+        let mut planet = PlanetSummary {
+            kind: PlanetKind::Rocky,
+            mass_earth: 1.0,
+            radius_earth: radius,
+            orbit_au: 1.0,
+            gravity_g: gravity_g(1.0, radius),
+            equilibrium_temperature_k: equilibrium_temperature_k(1.0, 1.0, 0.3),
+            atmosphere: Atmosphere::Dense,
+            water: Water::Surface,
+            volatile_endowment: Some(1.0),
+        };
+        let before = planet.clone();
+        planet.orbit_au = 4.0;
+        rework_moved_planet(&mut planet, 1.0, &t);
+        let colder = equilibrium_temperature_k(1.0, 4.0, 0.3);
+        assert_eq!(planet.equilibrium_temperature_k, colder);
+        assert_eq!(planet.atmosphere, Atmosphere::Dense);
+        // About 127 K: too cold for surface water, so it freezes.
+        assert_eq!(planet.water, Water::Ice);
+        assert_eq!(
+            (planet.mass_earth, planet.radius_earth, planet.gravity_g),
+            (before.mass_earth, before.radius_earth, before.gravity_g)
+        );
+        assert_eq!(planet.volatile_endowment, before.volatile_endowment);
     }
 }
