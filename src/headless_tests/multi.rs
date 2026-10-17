@@ -201,6 +201,101 @@ fn a_stations_docked_line_follows_its_docked_count_in_the_same_frame() {
     assert_eq!(second(&mut app), ["1 docked"]);
 }
 
+/// Adds a second station, Iver Dock, to Iver's "High" band 0.002 rad on
+/// from Iver Yard: tens of km apart, so not together (PHAS-02) but one
+/// spot on screen. A tender is docked at the dock, at its phase.
+fn add_a_station_beside_iver_yard(mut waiting: ResMut<SystemDataResource>) {
+    use crate::sim::track::ShipClass;
+    let data = waiting.0.as_mut().unwrap();
+    let iver = data.planets.iter_mut().find(|p| p.name == "Iver").unwrap();
+    let yard = iver
+        .children
+        .iter()
+        .find(|c| c.name == "Iver Yard")
+        .unwrap();
+    let phase0_rad = yard.phase0_rad + 0.002;
+    let in_high = |name, class, record| BodyBlueprint {
+        affiliation: Affiliation::Own,
+        record: Some(record),
+        orbit: OrbitPlacement::Named("High"),
+        phase0_rad,
+        ..blueprint(name, class, 0.0)
+    };
+    let dock = in_high(
+        "Iver Dock",
+        BodyClass::Station,
+        ShipRecord::new(ShipClass::Station, true),
+    );
+    let tender = in_high(
+        "Dock tender",
+        BodyClass::Ship,
+        ShipRecord::new(ShipClass::Cargo, true),
+    );
+    iver.children.extend([dock, tender]);
+}
+
+/// MUL-03 / MUL-04 / MUL-05: two stations whose markers overlap join as
+/// two things: one marker counting 2, holding both stations, neither
+/// docked at the other, each with its own docked things listed under it.
+#[test]
+fn two_overlapping_stations_are_a_marker_of_two_with_neither_docked() {
+    let mut app = symbols_app_with(|app| {
+        app.add_systems(
+            Startup,
+            add_a_station_beside_iver_yard
+                .in_set(Boot::World)
+                .before(crate::sim::spawn::spawn_system),
+        );
+    });
+    let iver = body(&mut app, "Iver");
+    let [yard, dock, tender, corvid, pellam] = [
+        "Iver Yard",
+        "Iver Dock",
+        "Dock tender",
+        "Corvid",
+        "Pellam trader",
+    ]
+    .map(|n| body(&mut app, n));
+    app.world_mut().resource_mut::<FrameRequest>().0 = Some(iver);
+    run(&mut app, 60 + move_frames());
+
+    let key = joined_into(&app, yard).expect("the yard is joined");
+    assert!(matches!(key, MultiKey::Overlap(_)), "{key:?}");
+    assert_eq!(joined_into(&app, dock), Some(key));
+    let marker = multi_marker(&app, key).unwrap();
+    assert!(marker.drawn);
+    assert_eq!(marker.count(), 2);
+    let mut things = marker.things.clone();
+    things.sort();
+    let mut want = vec![yard, dock];
+    want.sort();
+    assert_eq!(things, want);
+    let docked_at = |station| {
+        let mut at = marker
+            .docked
+            .iter()
+            .find(|(s, _)| *s == station)
+            .map(|(_, d)| d.clone())
+            .unwrap_or_default();
+        at.sort();
+        at
+    };
+    let mut at_yard = vec![corvid, pellam];
+    at_yard.sort();
+    assert_eq!(docked_at(yard), at_yard);
+    assert_eq!(docked_at(dock), [tender]);
+    assert!(
+        marker
+            .docked
+            .iter()
+            .all(|(_, d)| !d.contains(&yard) && !d.contains(&dock)),
+        "neither station is docked"
+    );
+    let stations = app.world().resource::<MultiMarkers>();
+    assert!(stations.get(MultiKey::Station(yard)).is_none());
+    assert!(stations.get(MultiKey::Station(dock)).is_none());
+}
+
 /// Swaps Corvane for Sol before the system is spawned.
 fn load_sol(mut waiting: ResMut<SystemDataResource>) {
     waiting.0 = Some(crate::content::sol::sol_system());

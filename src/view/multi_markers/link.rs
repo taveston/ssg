@@ -112,6 +112,20 @@ pub fn together_sets(slots: &[OrbitSlot], together_km: f64) -> Vec<Vec<Entity>> 
         .collect()
 }
 
+/// MUL-03: the station among the `stations` of one set of things
+/// together, if there is one: the rest of the set is docked at it.
+/// Stations never move and content never places two together (the
+/// loader rejects it), so a set never holds two.
+pub fn sole_station<T>(stations: impl IntoIterator<Item = T>) -> Option<T> {
+    let mut stations = stations.into_iter();
+    let station = stations.next();
+    debug_assert!(
+        stations.next().is_none(),
+        "two stations together: content the loader rejects"
+    );
+    station
+}
+
 /// MUL-05: whether two symbols `distance` pixels apart are joined: below
 /// `join_px` they join, above `split_px` they part, and between the two
 /// they keep `was_joined`.

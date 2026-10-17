@@ -31,6 +31,7 @@ use super::system::{
     BodyBlueprint, GateBlueprint, NamedOrbitBlueprint, OrbitPlacement, SystemData,
     SystemDataResource,
 };
+use super::transfer::phase::{gap_rad, together};
 use super::transfer::places::{Band, band_radii, hill_radius_km};
 use super::tunables::SimTunables;
 
@@ -90,7 +91,7 @@ pub fn spawn_system(
         star_mass_kg,
         &context,
     );
-    let round_the_star = Placements::round(&planets, &star_bands);
+    let round_the_star = Placements::round(&planets, &star_bands, tunables.together_km);
     for (planet, placed) in planets.into_iter().zip(round_the_star) {
         spawn_body(&mut commands, planet, placed, None, star_mass_kg, &context);
     }
@@ -102,7 +103,7 @@ pub fn spawn_system(
             outer_radius_km: belt.outer_radius_km,
         },
     ));
-    let in_the_belt = Placements::round(&belt.salvage_sites, &[]);
+    let in_the_belt = Placements::round(&belt.salvage_sites, &[], tunables.together_km);
     for (site, placed) in belt.salvage_sites.into_iter().zip(in_the_belt) {
         spawn_body(&mut commands, site, placed, None, star_mass_kg, &context);
     }
@@ -220,19 +221,32 @@ struct Placements(Vec<Placed>);
 impl Placements {
     /// SCL-07: resolve each child's placement against the parent's named
     /// orbits: an own radius stands as it is; a named orbit gives its
-    /// radius. Content that names an orbit that isn't there, or gives a
-    /// station an orbit of its own, is a content error, reported where it
-    /// is first used.
-    fn round(children: &[BodyBlueprint], orbits: &[SpawnedOrbit]) -> Self {
-        Self(
-            children
-                .iter()
-                .map(|child| {
-                    resolve_placement(child.class, child.orbit, orbits)
-                        .unwrap_or_else(|error| panic!("{}: {error}", child.name))
+    /// radius. Content that names an orbit that isn't there, gives a
+    /// station an orbit of its own, or puts two stations together
+    /// (MUL-03), is a content error, reported where it is first used.
+    fn round(children: &[BodyBlueprint], orbits: &[SpawnedOrbit], together_km: f64) -> Self {
+        let placed: Vec<Placed> = children
+            .iter()
+            .map(|child| {
+                resolve_placement(child.class, child.orbit, orbits)
+                    .unwrap_or_else(|error| panic!("{}: {error}", child.name))
+            })
+            .collect();
+        let stations: Vec<StationSpot> = children
+            .iter()
+            .zip(&placed)
+            .filter(|(child, _)| child.class == BodyClass::Station)
+            .filter_map(|(child, placed)| {
+                Some(StationSpot {
+                    name: child.name,
+                    orbit: placed.named?,
+                    radius_km: placed.radius_km,
+                    phase_rad: child.phase0_rad,
                 })
-                .collect(),
-        )
+            })
+            .collect();
+        stations_apart(&stations, together_km).unwrap_or_else(|error| panic!("{error}"));
+        Self(placed)
     }
 }
 
@@ -269,6 +283,34 @@ pub fn resolve_placement(
             })
             .ok_or_else(|| format!("no named orbit {name:?} to sit in")),
     }
+}
+
+/// A station as placed by content, for checking that no two are together.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct StationSpot {
+    pub name: &'static str,
+    /// The named orbit it sits in.
+    pub orbit: Entity,
+    pub radius_km: f64,
+    pub phase_rad: f64,
+}
+
+/// MUL-03 / PHAS-02: stations are never together: two stations in one
+/// named orbit closer than `together_km` are a content error naming both,
+/// so no station is ever docked at another.
+pub fn stations_apart(stations: &[StationSpot], together_km: f64) -> Result<(), String> {
+    for (i, a) in stations.iter().enumerate() {
+        for b in stations[i + 1..].iter().filter(|b| b.orbit == a.orbit) {
+            let gap = gap_rad(a.phase_rad, b.phase_rad).min(gap_rad(b.phase_rad, a.phase_rad));
+            if together(a.radius_km, gap, together_km) {
+                return Err(format!(
+                    "{} and {}: two stations together at one point of a named orbit",
+                    a.name, b.name
+                ));
+            }
+        }
+    }
+    Ok(())
 }
 
 /// SCL-07: a body's named orbits as entities, each with its period from
@@ -344,7 +386,7 @@ fn spawn_body(
         // (SCL-07, BAND-02): it offers no orbit of its own.
         BodyClass::Station | BodyClass::Ship => {}
     }
-    let placements = Placements::round(&children, &spawned);
+    let placements = Placements::round(&children, &spawned, context.tunables.together_km);
     for (child, placed) in children.into_iter().zip(placements) {
         spawn_body(commands, child, placed, Some(entity), mass_kg, context);
     }
@@ -459,5 +501,40 @@ mod tests {
             radius_km: 45_000.0,
         };
         assert!(resolve_placement(station, own, &orbits).is_err());
+    }
+
+    /// MUL-03 / PHAS-02: two stations at one orbit and phase are a content
+    /// error naming both; at phases further apart than `together_km`, or
+    /// in different orbits, they are fine.
+    #[test]
+    fn two_stations_together_are_a_content_error_naming_both() {
+        let mut world = World::new();
+        let (high, low) = (world.spawn_empty().id(), world.spawn_empty().id());
+        let station = |name, orbit, phase_rad| StationSpot {
+            name,
+            orbit,
+            radius_km: 40_000.0,
+            phase_rad,
+        };
+        let together_km = SimTunables::default().together_km;
+        let error = stations_apart(
+            &[
+                station("Iver Yard", high, 0.9),
+                station("Iver Dock", high, 0.9),
+            ],
+            together_km,
+        )
+        .unwrap_err();
+        assert!(
+            error.contains("Iver Yard") && error.contains("Iver Dock"),
+            "{error}"
+        );
+        // 50 km apart round a 40,000 km orbit.
+        let apart = [
+            station("Iver Yard", high, 0.9),
+            station("Iver Dock", high, 0.9 + 50.0 / 40_000.0),
+            station("Iver Low", low, 0.9),
+        ];
+        assert_eq!(stations_apart(&apart, together_km), Ok(()));
     }
 }

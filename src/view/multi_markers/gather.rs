@@ -18,7 +18,7 @@ use std::collections::{HashMap, HashSet};
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
-use super::link::{OrbitSlot, OverlapLatch, Spot, overlap_clusters, together_sets};
+use super::link::{OrbitSlot, OverlapLatch, Spot, overlap_clusters, sole_station, together_sets};
 use super::look::MultiLook;
 use super::pop::{ObjectGeometry, ObjectPops, object_geometry};
 use crate::sim::body::{Affiliation, BodyClass};
@@ -250,7 +250,7 @@ fn units(
         if members.iter().any(|s| s.folded || s.in_flight) {
             return;
         }
-        let station = members.iter().find(|s| s.station).map(|s| s.thing);
+        let station = sole_station(members.iter().filter(|s| s.station).map(|s| s.thing));
         let lead = station.unwrap_or(members[0].thing);
         // Off screen or behind the camera, things together still hold
         // each other; they just aren't drawn.
@@ -367,11 +367,11 @@ fn fold_markers(inputs: &GatherInputs, sets: &[Vec<Entity>]) -> Vec<MultiMarker>
     // Each thing together with a station, by that station's set.
     let mut station_of: HashMap<Entity, (Entity, &Vec<Entity>)> = HashMap::new();
     for set in sets {
-        let station = set.iter().copied().find(|&t| {
+        let station = sole_station(set.iter().copied().filter(|&t| {
             inputs
                 .class_and_affiliation(t)
                 .is_some_and(|(class, _)| class == BodyClass::Station)
-        });
+        }));
         if let Some(station) = station {
             station_of.extend(set.iter().map(|&t| (t, (station, set))));
         }

@@ -44,7 +44,7 @@ use crate::view::markers::{
 use crate::view::motion_mode::MotionModeState;
 use crate::view::multi::{BackFrame, back_offset, frames_rect};
 use crate::view::multi_markers::draw::{spawn_back_frame, spawn_count, spawn_multi_parts};
-use crate::view::multi_markers::link::{OrbitSlot, together_sets};
+use crate::view::multi_markers::link::{OrbitSlot, sole_station, together_sets};
 use crate::view::multi_markers::look::MultiLook;
 use crate::view::readout::format_duration;
 use crate::view::screen::{MapView, in_viewport, screen_angle, snap_to_pixel};
@@ -166,7 +166,7 @@ pub fn ring_things(ring: &Ring, together_km: f64) -> (Vec<Entity>, Vec<(Entity, 
     };
     let mut docked: Vec<(Entity, Vec<Entity>)> = Vec::new();
     for set in together_sets(&slots, together_km) {
-        if let Some(station) = set.iter().copied().find(|&b| is_station(b)) {
+        if let Some(station) = sole_station(set.iter().copied().filter(|&b| is_station(b))) {
             docked.push((station, set.into_iter().filter(|&b| b != station).collect()));
         }
     }
