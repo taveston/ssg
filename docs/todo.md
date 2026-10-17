@@ -13,11 +13,7 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **Tidal locking and geological activity facts** · SGEN-44, SGEN-45, SGEN-59 (changed: the moved planet's facts include the new ones; ✓ cleared), SYSG-22, SYSG-33 (changed: two new facts, moons take their planet as parent; ✓ cleared), INS-08 (changed: Rotation and Activity lines; ✓ cleared)
-  - Add `locked: bool` and `activity: Option<Activity>` to `PlanetFacts`, worked out by plain rule functions beside the existing fact rules, with the tunables of the sector-generator table. Belt bodies use the star as parent and the planet tunable values.
-  - Tests: the Sol checks the requirements state (Moon, Callisto, Iapetus locked, Earth free; Earth active, Mars and Moon dead, Io extreme, Europa active) as unit tests of the rule functions with the real figures; every generated moon of a giant is locked over the invariant seeds; a body with an envelope has no activity.
-
-- [ ] **Planet facts for Corvane and Sol** · SURF-60 to SURF-63 · needs "Tidal locking and geological activity facts"
+- [ ] **Planet facts for Corvane and Sol** · SURF-60 to SURF-63
   - Author the facts of tables 1 and 2 in `content/` (`planet_facts` is `None` on every hand-made body today), the stars' type, luminosity and age, a surface seed per body, and Earth's look override. Gravity and Teq come from the SGEN-38 and SGEN-39 rule functions.
   - Tests: every natural body has facts; Earth's override is set and no other body's; Corvane's star luminosity follows SGEN-22.
 
