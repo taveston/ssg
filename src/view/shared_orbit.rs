@@ -96,6 +96,14 @@ pub struct Member {
     pub hidden: bool,
     /// MUL-05: joined into a multi-marker, so it draws no tail of its own.
     pub joined: bool,
+    /// MUL-05: the first tray row of the together or overlap marker it is
+    /// joined into, so in dot mode it lays that marker's one tail.
+    pub lead: bool,
+    /// Where its tail starts on the ring, in radians: at the body, or for
+    /// a lead, at the point of the ring nearest where its symbol is drawn
+    /// as it slides into its marker, so the marker's tail runs behind the
+    /// marker's centre.
+    pub tail_head: f32,
     pub mode: MotionModeState,
 }
 
@@ -133,20 +141,21 @@ impl Ring {
         self.members.iter().filter(|m| !m.hidden)
     }
 
-    /// MOT-01 / MUL-05: the members whose tails are drawn: drawn, and not
-    /// joined into a multi-marker.
+    /// MOT-01 / MUL-05: the members whose tails are drawn: drawn, and
+    /// either not joined into a multi-marker or laying the tail of the
+    /// together or overlap marker they lead.
     pub fn tails(&self) -> impl Iterator<Item = &Member> {
-        self.drawn().filter(|m| !m.joined)
+        self.drawn().filter(|m| !m.joined || m.lead)
     }
 
-    /// MOT-01 / MOT-02: the angles the ring's brightness is laid from:
-    /// each tail's head in dot mode; in ring mode the exposure ring is
-    /// the ring itself, so every drawn member's, joined or not.
+    /// MOT-01 / MOT-02 / MUL-05: the angles the ring's brightness is laid
+    /// from: each tail's head in dot mode; in ring mode the exposure ring
+    /// is the ring itself, so every drawn member's, joined or not.
     pub fn tail_angles(&self) -> Vec<f32> {
         if self.mode().ring_mode {
             self.drawn().map(|m| m.angle).collect()
         } else {
-            self.tails().map(|m| m.angle).collect()
+            self.tails().map(|m| m.tail_head).collect()
         }
     }
 
@@ -210,6 +219,7 @@ pub struct OrbitRings<'w, 's> {
     named: Query<'w, 's, (Entity, &'static NamedOrbit)>,
     bodies: RingBodies<'w, 's>,
     names: Query<'w, 's, &'static crate::sim::body::DisplayName>,
+    view: ViewNow<'w, 's>,
 }
 
 impl OrbitRings<'_, '_> {
@@ -252,17 +262,48 @@ impl OrbitRings<'_, '_> {
     fn member(&self, body: Entity) -> Option<Member> {
         let (_, orbit, local, class, affiliation, _, _, fold, mode, slide) =
             self.bodies.get(body).ok()?;
+        let angle = local.0.z.atan2(local.0.x) as f32;
         Some(Member {
             body,
             class: *class,
             affiliation: *affiliation,
-            angle: local.0.z.atan2(local.0.x) as f32,
+            angle,
             phase0: orbit.phase0_rad,
             period_days: orbit.period_days,
             hidden: fold.is_some_and(|f| f.effective_hidden),
             joined: slide.is_some_and(|s| s.held),
+            lead: slide.is_some_and(|s| s.held && s.lead),
+            tail_head: angle,
             mode: mode.copied().unwrap_or_default(),
         })
+    }
+
+    /// MUL-05: move each lead's tail head to the point of its ring nearest
+    /// where its symbol is drawn this frame, part way into its marker as
+    /// it slides there, so the marker's tail runs behind the marker's
+    /// centre. Things together share a point, so theirs stays put.
+    fn place_lead_heads(&self, mut ring: Ring) -> Ring {
+        for i in 0..ring.members.len() {
+            let member = ring.members[i];
+            if !member.lead {
+                continue;
+            }
+            let Some((.., Some(slide))) = self.bodies.get(member.body).ok() else {
+                continue;
+            };
+            // Under half a pixel off its own place: the head stays put.
+            let shift = slide.offset * slide.t;
+            if shift.length_squared() < 0.25 {
+                continue;
+            }
+            let point = |angle| ring_screen_point(&ring, angle, &self.view);
+            let Some(own) = point(member.angle) else {
+                continue;
+            };
+            let head = nearest_ring_angle(member.angle, own + shift, point);
+            ring.members[i].tail_head = head;
+        }
+        ring
     }
 
     /// The ring `owner` stands for, gathered this frame; `None` if it has
@@ -287,27 +328,27 @@ impl OrbitRings<'_, '_> {
             } else {
                 self.name_of(members[0].body)
             };
-            return Some(Ring {
+            return Some(self.place_lead_heads(Ring {
                 owner,
                 centre: Some(named.parent),
                 radius_km: named.radius_km,
                 name,
                 shared,
                 members,
-            });
+            }));
         }
         let (_, orbit, _, class, _, child_of, in_orbit, ..) = self.bodies.get(owner).ok()?;
         if in_orbit.is_some() || !has_orbit_line(*class) {
             return None;
         }
-        Some(Ring {
+        Some(self.place_lead_heads(Ring {
             owner,
             centre: child_of.map(ChildOf::parent),
             radius_km: orbit.radius_km,
             name: self.name_of(owner),
             shared: false,
             members: vec![self.member(owner)?],
-        })
+        }))
     }
 
     fn name_of(&self, body: Entity) -> String {
@@ -316,6 +357,39 @@ impl OrbitRings<'_, '_> {
             .map(|n| n.0.clone())
             .unwrap_or_default()
     }
+}
+
+/// Newton steps taken towards the nearest point, and the most one step
+/// may turn, in radians, so a far target can't send the search round the
+/// ring.
+const NEAREST_STEPS: usize = 4;
+const NEAREST_MAX_STEP: f32 = 0.25;
+/// The angle the slope on screen is measured over, in radians.
+const NEAREST_PROBE: f32 = 1e-3;
+
+/// MUL-05: the angle on a ring whose point on screen (`point`) is nearest
+/// `target`, searched from `angle` along the ring's on-screen slope. Where
+/// the ring has no slope on screen, or doesn't project, it stays put.
+pub fn nearest_ring_angle(angle: f32, target: Vec2, point: impl Fn(f32) -> Option<Vec2>) -> f32 {
+    let mut at = angle;
+    for _ in 0..NEAREST_STEPS {
+        let (Some(here), Some(ahead), Some(behind)) = (
+            point(at),
+            point(at + NEAREST_PROBE),
+            point(at - NEAREST_PROBE),
+        ) else {
+            break;
+        };
+        let slope = (ahead - behind) / (2.0 * NEAREST_PROBE);
+        let slope_sq = slope.length_squared();
+        if slope_sq < 1e-6 {
+            break;
+        }
+        let step =
+            ((target - here).dot(slope) / slope_sq).clamp(-NEAREST_MAX_STEP, NEAREST_MAX_STEP);
+        at += step;
+    }
+    at
 }
 
 /// Where the point at `angle` on a ring lands on screen this frame.
@@ -343,6 +417,8 @@ mod tests {
             period_days: 1.0,
             hidden: false,
             joined: false,
+            lead: false,
+            tail_head: 0.0,
             mode: MotionModeState::default(),
         }
     }
@@ -409,6 +485,51 @@ mod tests {
         assert_eq!(ring.drawn().count(), 2);
         let tails: Vec<Entity> = ring.tails().map(|m| m.body).collect();
         assert_eq!(tails, [a.body]);
+    }
+
+    /// MUL-05: in dot mode the things together on a ring draw one tail,
+    /// the lead's, from where its symbol is drawn; in ring mode the whole
+    /// ring is the exposure ring and no extra tail is laid.
+    #[test]
+    fn a_joined_lead_lays_the_markers_one_tail_in_dot_mode() {
+        let mut world = World::new();
+        let joined = |world: &mut World, lead| Member {
+            joined: true,
+            lead,
+            angle: 1.0,
+            tail_head: if lead { 1.1 } else { 1.0 },
+            ..member(world, BodyClass::Ship, Affiliation::Own)
+        };
+        let convoy = [false, true, false].map(|lead| joined(&mut world, lead));
+        let dots = ring(&mut world, convoy.to_vec());
+        let tails: Vec<Entity> = dots.tails().map(|m| m.body).collect();
+        assert_eq!(tails, [convoy[1].body], "one tail, the lead's");
+        assert_eq!(dots.tail_angles(), [1.1], "from the lead's head");
+        let ring_mode = MotionModeState {
+            ring_mode: true,
+            ..default()
+        };
+        let running = convoy.map(|m| Member {
+            mode: ring_mode,
+            ..m
+        });
+        let exposure = ring(&mut world, running.to_vec());
+        assert_eq!(exposure.tail_angles(), [1.0, 1.0, 1.0]);
+    }
+
+    /// MUL-05: the search for the ring point nearest a marker's centre
+    /// lands on the ring where the centre lies off it, both ahead and
+    /// behind; a ring with no slope on screen keeps its angle.
+    #[test]
+    fn the_lead_head_is_the_ring_point_nearest_the_marker() {
+        let circle = |angle: f32| Some(Vec2::new(angle.cos(), angle.sin()) * 100.0);
+        for want in [0.3_f32, -0.2] {
+            let target = Vec2::new(want.cos(), want.sin()) * 110.0;
+            let got = nearest_ring_angle(0.0, target, circle);
+            assert!((got - want).abs() < 1e-3, "{got} for {want}");
+        }
+        let flat = |_| Some(Vec2::ZERO);
+        assert_eq!(nearest_ring_angle(0.5, Vec2::ONE, flat), 0.5);
     }
 
     /// MOT-02 / MOT-14: a ring's period is its members', and its bodies

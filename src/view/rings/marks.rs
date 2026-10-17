@@ -760,6 +760,8 @@ mod tests {
             period_days: 1.0,
             hidden: false,
             joined: false,
+            lead: false,
+            tail_head: 0.0,
             mode: MotionModeState::default(),
         };
         let ring = |world: &mut World, members: Vec<Member>| Ring {
@@ -798,6 +800,8 @@ mod tests {
             period_days: 1.0,
             hidden: false,
             joined: false,
+            lead: false,
+            tail_head: 0.0,
             mode: MotionModeState::default(),
         };
         let station = at(&mut world, BodyClass::Station, 1.0);
@@ -834,6 +838,8 @@ mod tests {
             period_days: 1.0,
             hidden: false,
             joined: false,
+            lead: false,
+            tail_head: 0.0,
             mode: MotionModeState::default(),
         };
         // 10 km at 40,000 km is 2.5e-4 rad; this gap is 10.002 km.

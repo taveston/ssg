@@ -686,6 +686,7 @@ mod tests {
             t: 0.25,
             offset: Vec2::new(-8.0, 4.0),
             held: true,
+            lead: false,
         };
         assert_eq!(
             joined_place(own, Some(&slide)),

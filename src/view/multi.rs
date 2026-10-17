@@ -154,12 +154,16 @@ impl MultiMarkers {
 /// `t` 0 is at its own place and drawn, 1 is in the marker and not drawn.
 /// `offset` is from its own place to the marker's centre, kept while it
 /// slides out so it leaves from where the marker was. `held` is whether a
-/// marker holds it now; a held thing draws no tail (MUL-05).
+/// marker holds it now; a held thing draws no tail of its own (MUL-05).
+/// `lead` is whether it is the first tray row (MUL-09) of the together or
+/// overlap marker holding it: in dot mode that marker draws one tail, the
+/// one this thing would draw, so a lead keeps its tail while held.
 #[derive(Component, Debug, Clone, Copy, Default, PartialEq)]
 pub struct JoinSlide {
     pub t: f32,
     pub offset: Vec2,
     pub held: bool,
+    pub lead: bool,
 }
 
 /// On a marker node, or a multi-marker's node: where its back frame is

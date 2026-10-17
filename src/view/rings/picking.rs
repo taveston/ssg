@@ -16,7 +16,9 @@
 //! and clicking it selects the parent with that orbit's row revealed. Hits
 //! are reported below the markers' and the UI's order, so a marker,
 //! multi-marker, label or panel still wins. A thing joined into a
-//! multi-marker draws no tail, so it has none to hit (MUL-05).
+//! multi-marker draws no tail of its own, so it has none to hit, but the
+//! first tray row of a together or overlap marker lays the marker's tail,
+//! which is its own to hit (MUL-05).
 
 use std::collections::HashMap;
 
@@ -293,7 +295,7 @@ impl RingTrace<'_, '_> {
         if mode.ring_mode || faded_out(&ring, fade, &self.view) {
             return Vec::new();
         }
-        let arc = drawn_arc(RingExtent::Tail, member.angle, mode.tail_degrees);
+        let arc = drawn_arc(RingExtent::Tail, member.tail_head, mode.tail_degrees);
         trace_arcs(&ring, &Vec::from_iter(arc), &self.view)
     }
 }

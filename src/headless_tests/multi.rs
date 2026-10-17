@@ -371,6 +371,96 @@ fn things_together_are_one_multi_marker() {
     assert_eq!(count_under(&mut app, node), ["3"]);
 }
 
+/// Every drawn tail laid by one of `things` this frame, as (thing, where
+/// its head lands on screen, where the thing itself is on screen).
+fn tails_of(app: &mut App, things: Vec<Entity>) -> Vec<(Entity, Vec2, Vec2)> {
+    use crate::view::shared_orbit::{OrbitRings, ring_screen_point};
+    use crate::view::world::ViewNow;
+    use bevy::ecs::system::RunSystemOnce;
+    app.world_mut()
+        .run_system_once(move |rings: OrbitRings, view: ViewNow| {
+            let mut tails = Vec::new();
+            for ring in rings.owners().into_iter().filter_map(|o| rings.ring(o)) {
+                assert!(!ring.mode().ring_mode, "a paused clock is in dot mode");
+                let angles = ring.tail_angles();
+                for (member, head) in ring.tails().zip(angles) {
+                    if things.contains(&member.body) {
+                        let at = |angle| ring_screen_point(&ring, angle, &view).unwrap();
+                        tails.push((member.body, at(head), at(member.angle)));
+                    }
+                }
+            }
+            tails
+        })
+        .unwrap()
+}
+
+/// The thing a marker's first tray row lists (MUL-09).
+fn first_row(app: &mut App, key: MultiKey) -> Entity {
+    use crate::view::multi_markers::order::TrayOrder;
+    use bevy::ecs::system::RunSystemOnce;
+    app.world_mut()
+        .run_system_once(move |order: TrayOrder, multis: Res<MultiMarkers>| {
+            order.first(multis.get(key).unwrap()).unwrap()
+        })
+        .unwrap()
+}
+
+/// MUL-05 / MOT-01 / TEST-12: in dot mode the convoy's marker draws one
+/// tail, its first tray row's, from the marker's centre; the other two
+/// draw none of their own.
+#[test]
+fn a_together_marker_draws_one_tail_in_dot_mode() {
+    let mut app = symbols_app_with(|app| {
+        app.add_plugins(SharedOrbitPlugin);
+    });
+    let halden = body(&mut app, "Halden IV");
+    let trio = ["TF-2", "Varga Courser", "Varga Drifter"].map(|n| body(&mut app, n));
+    let key = MultiKey::Together(trio[0].min(trio[1]).min(trio[2]));
+    zoom_in_on_until(&mut app, halden, 12, |app| {
+        multi_marker(app, key).is_some_and(|m| m.drawn)
+    });
+    run(&mut app, SETTLE_FRAMES);
+    let centre = multi_marker(&app, key).unwrap().centre;
+    let lead = first_row(&mut app, key);
+    let tails = tails_of(&mut app, trio.to_vec());
+    assert_eq!(tails.len(), 1, "one tail for the convoy: {tails:?}");
+    let (thing, head, _) = tails[0];
+    assert_eq!(thing, lead, "the first tray row's tail");
+    assert!(head.distance(centre) <= 1.0, "from the marker's centre");
+}
+
+/// MUL-05: an overlap cluster's marker draws its lead's tail only, laid
+/// along the lead's orbit from the point of it nearest the marker's
+/// centre.
+#[test]
+fn an_overlap_marker_draws_its_leads_tail() {
+    let mut app = symbols_app_with(|app| {
+        app.add_plugins(SharedOrbitPlugin);
+    });
+    let halden = body(&mut app, "Halden IV");
+    let overlap = |app: &mut App| {
+        app.world()
+            .resource::<MultiMarkers>()
+            .markers
+            .iter()
+            .find(|m| matches!(m.key, MultiKey::Overlap(_)) && m.drawn)
+            .cloned()
+    };
+    zoom_in_on_until(&mut app, halden, 6, |app| overlap(app).is_some());
+    run(&mut app, SETTLE_FRAMES);
+    let marker = overlap(&mut app).expect("an overlap marker");
+    let lead = first_row(&mut app, marker.key);
+    let tails = tails_of(&mut app, marker.things.clone());
+    assert_eq!(tails.len(), 1, "one tail for the cluster: {tails:?}");
+    let (thing, head, own) = tails[0];
+    assert_eq!(thing, lead, "the lead's tail");
+    assert!(
+        head.distance(marker.centre) <= own.distance(marker.centre) + 0.5,
+        "the head is at least as near the marker's centre as the lead is"
+    );
+}
+
 /// Adds a second task force beside TF-1, at its phase in Halden IV's
 /// "High" band, before the system is spawned.
 fn add_a_second_group_beside_tf1(mut waiting: ResMut<SystemDataResource>) {

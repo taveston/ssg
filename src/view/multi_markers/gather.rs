@@ -20,6 +20,7 @@ use bevy::prelude::*;
 
 use super::link::{OrbitSlot, OverlapLatch, Spot, overlap_clusters, sole_station, together_sets};
 use super::look::MultiLook;
+use super::order::TrayOrder;
 use super::pop::{ObjectGeometry, ObjectPops, object_geometry};
 use crate::sim::body::{Affiliation, BodyClass};
 use crate::sim::named_orbit::{InNamedOrbit, NamedOrbit};
@@ -498,21 +499,24 @@ pub fn next_slide(
             t: advance_towards(slide.t, target, step),
             offset: offset.unwrap_or(slide.offset),
             held,
+            lead: false,
         },
         _ => JoinSlide {
             t: target,
             offset: offset.or(slide.map(|s| s.offset)).unwrap_or_default(),
             held,
+            lead: false,
         },
     }
 }
 
 /// MUL-05: slide each ship, group and station towards the marker that
-/// holds it, or back out, over `fold_unfold_anim_ms`.
+/// holds it, or back out, over `fold_unfold_anim_ms`. A held thing among
+/// `leads` lays its marker's tail.
 fn slide_things(
     commands: &mut Commands,
     symbols: &[Symbol],
-    multis: &MultiMarkers,
+    (multis, leads): (&MultiMarkers, &HashSet<Entity>),
     step: f32,
     slides: &mut Query<&mut JoinSlide>,
 ) {
@@ -523,25 +527,31 @@ fn slide_things(
             .and_then(|key| multis.get(*key));
         // A thing with no place on screen keeps its offset, but is held.
         let offset = holder.map(|m| symbol.pos.map_or(Vec2::ZERO, |pos| m.centre - pos));
+        let lead = offset.is_some() && leads.contains(&symbol.thing);
         match slides.get_mut(symbol.thing) {
             Ok(mut slide) => {
                 let next = next_slide(Some(*slide), offset, symbol.settled, step);
-                slide.set_if_neq(next);
+                slide.set_if_neq(JoinSlide { lead, ..next });
             }
             Err(_) => {
                 let next = next_slide(None, offset, symbol.settled, step);
-                commands.entity(symbol.thing).insert(next);
+                commands
+                    .entity(symbol.thing)
+                    .insert(JoinSlide { lead, ..next });
             }
         }
     }
 }
 
 /// MUL-03 to MUL-06 / GRP-05: gather this frame's multi-markers and slide
-/// each thing into or out of the marker that holds it.
+/// each thing into or out of the marker that holds it, marking the first
+/// tray row of each together or overlap marker as the one that lays its
+/// tail.
 pub fn gather_multi_markers(
     mut commands: Commands,
     time: Res<Time>,
     inputs: GatherInputs,
+    order: TrayOrder,
     mut latch: ResMut<ClusterLatch>,
     mut multis: ResMut<MultiMarkers>,
     mut slides: Query<&mut JoinSlide>,
@@ -553,9 +563,16 @@ pub fn gather_multi_markers(
     let mut markers = cluster_markers(&units, &clusters, &inputs);
     markers.extend(fold_markers(&inputs, &sets));
     let joined = joined_things(&markers);
+    let leads = order.tail_leads(&markers);
     multis.set(markers, joined);
     let step = step_per_frame(time.delta_secs(), inputs.tunables.fold_unfold_anim_ms);
-    slide_things(&mut commands, &symbols, &multis, step, &mut slides);
+    slide_things(
+        &mut commands,
+        &symbols,
+        (&multis, &leads),
+        step,
+        &mut slides,
+    );
 }
 
 #[cfg(test)]
@@ -635,7 +652,8 @@ mod tests {
             JoinSlide {
                 t: 0.25,
                 offset,
-                held: true
+                held: true,
+                lead: false
             }
         );
         let parting = next_slide(Some(joining), None, true, 0.25);
