@@ -1,11 +1,15 @@
 //! Drawing the sky (SKY-16 to SKY-20, SKY-22): two meshes with materials
 //! of their own, drawn by the map camera.
 //!
-//! - The stars are one mesh: a small square per star, every corner
-//!   carrying the star's direction. `stars.wesl` turns the direction by
-//!   the camera's rotation only (never its position), projects it at
-//!   infinity and spreads the square to the star's reach in screen pixels,
-//!   then shades a Gaussian in it.
+//! - The stars are one mesh and one storage buffer. The buffer holds one
+//!   record per star: its direction, softness, colour and opacity. The
+//!   mesh is a small square per star whose six vertices each carry only a
+//!   slot number: which record, and which corner of the square. That is a
+//!   fraction of the memory of writing the record into every corner.
+//!   `stars.wesl` reads the record, turns the direction by the camera's
+//!   rotation only (never its position), projects it at infinity and
+//!   spreads the square to the star's reach in screen pixels, then shades
+//!   a Gaussian in it.
 //! - The glow is one triangle over the whole viewport. `glow.wesl` finds
 //!   each pixel's direction through the camera and works out the glow and
 //!   its dither there.
@@ -24,13 +28,14 @@
 use bevy::asset::RenderAssetUsages;
 use bevy::camera::visibility::NoFrustumCulling;
 use bevy::light::NotShadowCaster;
-use bevy::mesh::{Indices, MeshVertexBufferLayoutRef, PrimitiveTopology};
+use bevy::mesh::{MeshVertexAttribute, MeshVertexBufferLayoutRef, PrimitiveTopology};
 use bevy::pbr::{MaterialPipeline, MaterialPipelineKey};
 use bevy::prelude::*;
 use bevy::render::render_resource::{
     AsBindGroup, BlendComponent, BlendFactor, BlendOperation, BlendState, RenderPipelineDescriptor,
-    ShaderType, SpecializedMeshPipelineError,
+    ShaderType, SpecializedMeshPipelineError, VertexFormat,
 };
+use bevy::render::storage::ShaderBuffer;
 use bevy::shader::ShaderRef;
 
 use super::generate::{Sky, make_sky};
@@ -52,8 +57,18 @@ pub struct SkyStars;
 #[derive(Component)]
 pub struct SkyGlow;
 
-/// The corners of a star's square, in units of its reach.
-const CORNERS: [[f32; 2]; 4] = [[-1.0, -1.0], [1.0, -1.0], [1.0, 1.0], [-1.0, 1.0]];
+/// A star vertex's only attribute: its slot, `4 * star + corner`. The
+/// star is the index of its record in the material's storage buffer; the
+/// corner's bit 0 is set on the right of the square and bit 1 at its top.
+/// The corner is carried here, not taken from the vertex index, because
+/// the mesh may start part-way into a shared vertex buffer.
+pub const ATTRIBUTE_STAR_SLOT: MeshVertexAttribute =
+    MeshVertexAttribute::new("Star_Slot", 0x5354_4152, VertexFormat::Uint32);
+/// The six vertices of a star's two triangles, as corners.
+const CORNER_ORDER: [u32; 6] = [0, 1, 3, 0, 3, 2];
+/// How many floats a star's record holds: its direction and softness,
+/// then its colour and opacity (`Star` in `stars.wesl`).
+pub const RECORD_FLOATS: usize = 8;
 /// One triangle that covers the whole viewport, in clip-space x and y.
 const COVER: [[f32; 3]; 3] = [[-1.0, -1.0, 0.0], [3.0, -1.0, 0.0], [-1.0, 3.0, 0.0]];
 
@@ -108,6 +123,9 @@ pub struct GlowUniform {
 pub struct SkyStarsMaterial {
     #[uniform(0)]
     pub stars: StarsUniform,
+    /// One record per star, `RECORD_FLOATS` floats each (`star_records`).
+    #[storage(1, read_only)]
+    pub records: Handle<ShaderBuffer>,
 }
 
 /// The material the glow is drawn with.
@@ -148,12 +166,9 @@ impl Material for SkyStarsMaterial {
         layout: &MeshVertexBufferLayoutRef,
         _key: MaterialPipelineKey<Self>,
     ) -> Result<(), SpecializedMeshPipelineError> {
-        let vertices = layout.0.get_layout(&[
-            Mesh::ATTRIBUTE_POSITION.at_shader_location(0),
-            Mesh::ATTRIBUTE_UV_0.at_shader_location(1),
-            Mesh::ATTRIBUTE_UV_1.at_shader_location(2),
-            Mesh::ATTRIBUTE_COLOR.at_shader_location(3),
-        ])?;
+        let vertices = layout
+            .0
+            .get_layout(&[ATTRIBUTE_STAR_SLOT.at_shader_location(0)])?;
         descriptor.vertex.buffers = vec![vertices];
         draw_beneath(descriptor);
         Ok(())
@@ -242,39 +257,51 @@ fn vec4_of(v: bevy::math::DVec3) -> Vec4 {
     v.as_vec3().extend(0.0)
 }
 
-/// The stars' mesh: four corners per star, each with the star's
-/// direction in render space, its corner, its softness and opacity
-/// (SKY-09, SKY-10) and its colour (SKY-12).
-pub fn stars_mesh(sky: &Sky, tunables: &Tunables) -> Mesh {
-    let count = sky.field.len() + sky.band_stars.len();
-    let mut positions = Vec::with_capacity(4 * count);
-    let mut corners = Vec::with_capacity(4 * count);
-    let mut looks = Vec::with_capacity(4 * count);
-    let mut colours = Vec::with_capacity(4 * count);
-    let mut indices = Vec::with_capacity(6 * count);
-    for (i, star) in sky.stars().enumerate() {
-        let direction = sky_to_render(star.direction).to_array();
-        let m = star.magnitude as f32;
-        let look = [star_sigma_px(m, tunables), star_opacity(m, tunables)];
-        let [r, g, b] = star.colour;
-        for corner in CORNERS {
-            positions.push(direction);
-            corners.push(corner);
-            looks.push(look);
-            colours.push([r, g, b, 1.0]);
-        }
-        let base = 4 * i as u32;
-        indices.extend([base, base + 1, base + 2, base, base + 2, base + 3]);
-    }
+/// One record per star, in the order of `Sky::stars`: its direction in
+/// render space and its softness in logical pixels, then its colour
+/// (SKY-12) and opacity (SKY-09, SKY-10). Laid out as `Star` in
+/// `stars.wesl`.
+pub fn star_records(sky: &Sky, tunables: &Tunables) -> Vec<[f32; RECORD_FLOATS]> {
+    sky.stars()
+        .map(|star| {
+            let [x, y, z] = sky_to_render(star.direction).to_array();
+            let m = star.magnitude as f32;
+            let [r, g, b] = star.colour;
+            [
+                x,
+                y,
+                z,
+                star_sigma_px(m, tunables),
+                r,
+                g,
+                b,
+                star_opacity(m, tunables),
+            ]
+        })
+        .collect()
+}
+
+/// The stars' mesh: two triangles per star, every vertex a slot naming
+/// its star's record and its corner (`ATTRIBUTE_STAR_SLOT`).
+pub fn stars_mesh(count: usize) -> Mesh {
+    let slots: Vec<u32> = (0..count as u32)
+        .flat_map(|star| CORNER_ORDER.map(|corner| 4 * star + corner))
+        .collect();
     Mesh::new(
         PrimitiveTopology::TriangleList,
         RenderAssetUsages::RENDER_WORLD,
     )
-    .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, positions)
-    .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, corners)
-    .with_inserted_attribute(Mesh::ATTRIBUTE_UV_1, looks)
-    .with_inserted_attribute(Mesh::ATTRIBUTE_COLOR, colours)
-    .with_inserted_indices(Indices::U32(indices))
+    .with_inserted_attribute(ATTRIBUTE_STAR_SLOT, slots)
+}
+
+/// The star and corner a vertex slot names; the corner is in units of
+/// the star's reach, each axis -1 or 1. The inverse of `stars_mesh`'s
+/// slots, as `stars.wesl` reads them.
+#[cfg(test)]
+pub fn decode_slot(slot: u32) -> (usize, [f32; 2]) {
+    let corner = slot & 3;
+    let side = |bit: u32| if corner & bit == 0 { -1.0 } else { 1.0 };
+    ((slot >> 2) as usize, [side(1), side(2)])
 }
 
 /// The glow's mesh: one triangle covering the viewport.
@@ -337,10 +364,14 @@ pub fn spawn_sky(
     mut commands: Commands,
     tunables: Res<Tunables>,
     mut meshes: ResMut<Assets<Mesh>>,
+    mut buffers: ResMut<Assets<ShaderBuffer>>,
     mut stars: ResMut<Assets<SkyStarsMaterial>>,
     mut glows: ResMut<Assets<SkyGlowMaterial>>,
 ) {
     let sky = make_sky(tunables.sky_default_seed, &tunables);
+    let records = star_records(&sky, &tunables);
+    let count = records.len();
+    let records = buffers.add(ShaderBuffer::new(records, RenderAssetUsages::RENDER_WORLD));
     let beneath = (
         Transform::default(),
         Visibility::Visible,
@@ -350,9 +381,10 @@ pub fn spawn_sky(
     );
     commands.spawn((
         SkyStars,
-        Mesh3d(meshes.add(stars_mesh(&sky, &tunables))),
+        Mesh3d(meshes.add(stars_mesh(count))),
         MeshMaterial3d(stars.add(SkyStarsMaterial {
             stars: stars_uniform(),
+            records,
         })),
         beneath.clone(),
     ));
@@ -449,6 +481,7 @@ mod tests {
         let sky = make_sky(1, &few_stars());
         let stars = SkyStarsMaterial {
             stars: stars_uniform(),
+            records: Handle::default(),
         };
         let glow = SkyGlowMaterial {
             glow: glow_uniform(&sky, &few_stars()),
@@ -465,31 +498,50 @@ mod tests {
         }
     }
 
-    /// SKY-09 / SKY-10 / SKY-12: every star's square carries its render
+    /// SKY-09 / SKY-10 / SKY-12: every star's record carries its render
     /// direction, its softness and opacity from its magnitude, and its
-    /// colour.
+    /// colour, and the mesh gives each star a square of two triangles
+    /// over that record, with only a slot per vertex.
     #[test]
-    fn the_star_mesh_carries_each_star_at_its_direction() {
+    fn each_star_has_one_record_and_a_square_of_slots_over_it() {
         let t = few_stars();
         let sky = make_sky(5, &t);
-        let mesh = stars_mesh(&sky, &t);
-        assert_eq!(mesh.count_vertices(), 4 * 120);
-        let Some(VertexAttributeValues::Float32x3(positions)) =
-            mesh.attribute(Mesh::ATTRIBUTE_POSITION)
-        else {
-            panic!("no positions");
-        };
-        let Some(VertexAttributeValues::Float32x2(looks)) = mesh.attribute(Mesh::ATTRIBUTE_UV_1)
-        else {
-            panic!("no looks");
-        };
-        for (i, star) in sky.stars().enumerate() {
+        let records = star_records(&sky, &t);
+        assert_eq!(records.len(), 120);
+        for (star, record) in sky.stars().zip(&records) {
             let m = star.magnitude as f32;
-            for corner in 0..4 {
-                let v = 4 * i + corner;
-                assert_eq!(positions[v], sky_to_render(star.direction).to_array());
-                assert_eq!(looks[v], [star_sigma_px(m, &t), star_opacity(m, &t)]);
-            }
+            let [x, y, z] = sky_to_render(star.direction).to_array();
+            let [r, g, b] = star.colour;
+            let look = [star_sigma_px(m, &t), star_opacity(m, &t)];
+            assert_eq!(*record, [x, y, z, look[0], r, g, b, look[1]]);
+        }
+        let mesh = stars_mesh(records.len());
+        assert_eq!(mesh.count_vertices(), 6 * 120);
+        assert_eq!(mesh.attributes().count(), 1, "a slot and nothing else");
+        let Some(VertexAttributeValues::Uint32(slots)) = mesh.attribute(ATTRIBUTE_STAR_SLOT) else {
+            panic!("no slots");
+        };
+        for (i, square) in slots.chunks(6).enumerate() {
+            let corners: Vec<[f32; 2]> = square
+                .iter()
+                .map(|&slot| {
+                    let (star, corner) = decode_slot(slot);
+                    assert_eq!(star, i, "every vertex of the square names its star");
+                    corner
+                })
+                .collect();
+            // Two triangles sharing the diagonal from bottom left to top right.
+            assert_eq!(
+                corners,
+                [
+                    [-1.0, -1.0],
+                    [1.0, -1.0],
+                    [1.0, 1.0],
+                    [-1.0, -1.0],
+                    [1.0, 1.0],
+                    [-1.0, 1.0]
+                ]
+            );
         }
     }
 

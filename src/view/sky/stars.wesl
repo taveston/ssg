@@ -1,11 +1,13 @@
 // Draws the sky's stars (SKY-09 to SKY-12, SKY-16, SKY-18, SKY-21). Each
-// star is a square whose four corners all carry its direction. The
-// direction is turned by the camera's rotation alone and projected at
-// infinity, so panning and zooming never move it; the square is then
-// spread to the star's reach in screen pixels and a Gaussian is shaded in
-// it, brightest at the centre. The light is added in the display's sRGB
-// levels over the ground, as an opacity would blend there. Mirrors
-// `projection.rs` and `look.rs`, and `StarsUniform` in `draw.rs`.
+// star is one record in a storage buffer and a square in the mesh whose
+// six vertices carry only a slot: which record, and which corner. The
+// record's direction is turned by the camera's rotation alone and
+// projected at infinity, so panning and zooming never move it; the square
+// is then spread to the star's reach in screen pixels and a Gaussian is
+// shaded in it, brightest at the centre. The light is added in the
+// display's sRGB levels over the ground, as an opacity would blend there.
+// Mirrors `projection.rs` and `look.rs`, and `StarsUniform` and
+// `star_records` in `draw.rs`.
 
 import bevy_pbr::render::mesh_view_bindings::view;
 
@@ -22,18 +24,29 @@ struct SkyStars {
     reach_extra_px: f32,
 }
 
+struct Star {
+    // The star's direction in render space, then its softness in logical
+    // pixels.
+    direction_sigma: vec4<f32>,
+    // The star's colour, sRGB, then its opacity.
+    colour_opacity: vec4<f32>,
+}
+
 @group(3) @binding(0)
 var<uniform> sky: SkyStars;
+@group(3) @binding(1)
+var<storage, read> stars: array<Star>;
 
 struct Vertex {
-    // The star's direction in render space.
-    @location(0) direction: vec3<f32>,
-    // Which corner of the square, each axis -1 or 1.
-    @location(1) corner: vec2<f32>,
-    // The star's softness in logical pixels and its opacity.
-    @location(2) look: vec2<f32>,
-    // The star's colour, sRGB.
-    @location(3) colour: vec4<f32>,
+    // 4 * star + corner: the star's record, and which corner of its
+    // square, bit 0 set on the right and bit 1 at the top.
+    @location(0) slot: u32,
+}
+
+// A corner's offset from the star's centre, each axis -1 or 1.
+fn corner_of(slot: u32) -> vec2<f32> {
+    let bits = vec2<u32>(slot & 1u, (slot >> 1u) & 1u);
+    return vec2<f32>(bits) * 2.0 - 1.0;
 }
 
 struct StarOut {
@@ -47,22 +60,24 @@ struct StarOut {
 
 @vertex
 fn vertex(in: Vertex) -> StarOut {
+    let star = stars[in.slot >> 2u];
+    let corner = corner_of(in.slot);
     // Turned by the camera's rotation only: w = 0 drops its position.
-    let towards = (view.view_from_world * vec4<f32>(in.direction, 0.0)).xyz;
+    let towards = (view.view_from_world * vec4<f32>(star.direction_sigma.xyz, 0.0)).xyz;
     // At infinity: depth 0, the far end of the reversed depth range. A
     // direction behind the camera gets w < 0 and is clipped away.
     var clip = view.clip_from_view * vec4<f32>(towards, 0.0);
-    let sigma = in.look.x * sky.px_scale;
+    let sigma = star.direction_sigma.w * sky.px_scale;
     let reach = sky.reach_sigmas * sigma + sky.reach_extra_px;
-    let offset = in.corner * reach;
+    let offset = corner * reach;
     clip.x += offset.x * 2.0 / view.viewport.z * clip.w;
     clip.y -= offset.y * 2.0 / view.viewport.w * clip.w;
     var out: StarOut;
     out.position = clip;
     out.offset = offset;
     out.sigma = sigma;
-    out.opacity = in.look.y;
-    out.colour = in.colour.rgb;
+    out.opacity = star.colour_opacity.w;
+    out.colour = star.colour_opacity.rgb;
     return out;
 }
 

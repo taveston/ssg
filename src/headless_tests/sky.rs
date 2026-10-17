@@ -3,19 +3,22 @@
 //! assets, no renderer. What the GPU draws follows the materials'
 //! uniforms and the meshes checked here.
 
-use bevy::mesh::VertexAttributeValues;
+use bevy::render::storage::ShaderBuffer;
 
 use super::double_click::{click_app_with, click_at, selected, side_of_ring, step};
 use super::*;
 use crate::view::screen::MapArea;
 use crate::view::sky::SkyPlugin;
 use crate::view::sky::draw::{
-    GlowUniform, SkyGlow, SkyGlowMaterial, SkyStars, SkyStarsMaterial, StarsUniform, clip_rect,
+    GlowUniform, RECORD_FLOATS, SkyGlow, SkyGlowMaterial, SkyStars, SkyStarsMaterial, StarsUniform,
+    clip_rect,
 };
 
-/// The sky's plugin and the asset stores its meshes and materials go in.
+/// The sky's plugin and the asset stores its meshes, star records and
+/// materials go in.
 fn with_sky(app: &mut App) {
     app.init_resource::<Assets<Mesh>>()
+        .init_resource::<Assets<ShaderBuffer>>()
         .init_resource::<Assets<SkyStarsMaterial>>()
         .init_resource::<Assets<SkyGlowMaterial>>()
         .add_plugins(SkyPlugin);
@@ -48,15 +51,26 @@ fn uniforms(app: &mut App) -> (StarsUniform, GlowUniform) {
     (stars, glow)
 }
 
-/// Every star's direction, as the mesh holds it.
-fn star_directions(app: &mut App) -> Vec<[f32; 3]> {
-    let mut query = app.world_mut().query_filtered::<&Mesh3d, With<SkyStars>>();
+/// Every star's record, as the material's storage buffer holds it.
+fn star_records(app: &mut App) -> Vec<[f32; RECORD_FLOATS]> {
+    let mut query = app
+        .world_mut()
+        .query_filtered::<&MeshMaterial3d<SkyStarsMaterial>, With<SkyStars>>();
     let handle = query.single(app.world()).unwrap().0.clone();
-    let mesh = app.world().resource::<Assets<Mesh>>().get(&handle).unwrap();
-    match mesh.attribute(Mesh::ATTRIBUTE_POSITION) {
-        Some(VertexAttributeValues::Float32x3(positions)) => positions.clone(),
-        _ => panic!("the stars have no directions"),
-    }
+    let material = app
+        .world()
+        .resource::<Assets<SkyStarsMaterial>>()
+        .get(&handle)
+        .unwrap();
+    let buffer = app
+        .world()
+        .resource::<Assets<ShaderBuffer>>()
+        .get(&material.records)
+        .unwrap();
+    buffer
+        .cast_slice::<[f32; RECORD_FLOATS]>()
+        .expect("the stars have no records")
+        .to_vec()
 }
 
 /// The sky's entities' transforms and visibilities.
@@ -74,7 +88,7 @@ fn the_sky_does_not_change_with_the_clock() {
     let mut app = camera_app_with(with_sky);
     let before = (
         uniforms(&mut app),
-        star_directions(&mut app),
+        star_records(&mut app),
         placement(&mut app),
     );
     assert!(!before.1.is_empty());
@@ -89,7 +103,7 @@ fn the_sky_does_not_change_with_the_clock() {
     run(&mut app, 5);
     let after = (
         uniforms(&mut app),
-        star_directions(&mut app),
+        star_records(&mut app),
         placement(&mut app),
     );
     assert!(after == before, "the sky changed with the clock");
