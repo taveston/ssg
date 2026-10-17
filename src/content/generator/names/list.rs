@@ -6,7 +6,10 @@
 use std::sync::OnceLock;
 
 /// The bundled name file.
-const NAMES_FILE: &str = include_str!("../../../../assets/names/names.txt");
+const NAMES_FILE: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/assets/names/names.txt"
+));
 
 /// The parts names are made of (SGEN-80).
 #[derive(Debug, Clone, PartialEq)]

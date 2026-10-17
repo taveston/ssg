@@ -184,6 +184,15 @@ fn every_quota_takes_the_best_systems_for_its_reason() {
             .map(|g| g.id)
             .collect();
         let field = super::gates::scores::scores;
+        let counts = Reason::ALL.map(|reason| {
+            sector
+                .gated
+                .iter()
+                .filter(|g| g.pick == Pick::Quota(reason))
+                .count()
+        });
+        assert!(counts.iter().all(|&c| c == counts[0]), "{}", which(sector));
+        assert!(counts[0] > 0, "{}", which(sector));
         for reason in Reason::ALL {
             let picks: Vec<_> = sector
                 .gated

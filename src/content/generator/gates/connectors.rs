@@ -7,7 +7,7 @@
 use bevy::math::DVec3;
 
 use super::Field;
-use crate::content::generator::graph::Groups;
+use crate::content::generator::graph::groups_within;
 use crate::content::generator::network::Pick;
 use crate::content::generator::tunables::GeneratorTunables;
 
@@ -46,15 +46,8 @@ pub fn connect(
 
 /// Each member's group within range, as the lowest index of its group.
 fn group_labels(members: &[usize], positions: &[DVec3], range_km: f64) -> Vec<usize> {
-    let mut groups = Groups::new(members.len());
-    for a in 0..members.len() {
-        for b in a + 1..members.len() {
-            if positions[members[a]].distance(positions[members[b]]) <= range_km {
-                groups.join(a, b);
-            }
-        }
-    }
-    groups.labels()
+    let points: Vec<DVec3> = members.iter().map(|&id| positions[id]).collect();
+    groups_within(&points, range_km).labels()
 }
 
 /// The distinct values of `labels`, in ascending order.

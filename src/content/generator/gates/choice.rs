@@ -2,9 +2,11 @@
 //! with a quota for each reason; connectors that join it (`connectors`);
 //! and rounds of dropping and adding until exactly N systems are gated.
 
+use bevy::math::DVec3;
+
 use super::Field;
 use super::connectors::connect;
-use crate::content::generator::graph::Groups;
+use crate::content::generator::graph::groups_within;
 use crate::content::generator::network::{Pick, Reason};
 use crate::content::generator::tunables::GeneratorTunables;
 
@@ -32,7 +34,9 @@ pub fn choose(
         // count cannot be met without dropping a quota pick: lower every
         // quota by one and start again (SGEN-57). With no quota every
         // attempt succeeds.
-        quota -= 1;
+        quota = quota
+            .checked_sub(1)
+            .expect("an attempt with no quota always succeeds");
     }
 }
 
@@ -155,15 +159,8 @@ fn best_unchosen(
 /// Whether `ids` form one group within range: every one joined to another
 /// by a chain of hops no longer than `range_km`.
 fn joined(ids: &[usize], field: &Field, range_km: f64) -> bool {
-    let mut groups = Groups::new(ids.len());
-    for a in 0..ids.len() {
-        for b in a + 1..ids.len() {
-            if field.distance(ids[a], ids[b]) <= range_km {
-                groups.join(a, b);
-            }
-        }
-    }
-    groups.count() <= 1
+    let points: Vec<DVec3> = ids.iter().map(|&id| field.positions[id]).collect();
+    groups_within(&points, range_km).count() <= 1
 }
 
 /// The fallback once the rounds run out (SGEN-57): remove the
