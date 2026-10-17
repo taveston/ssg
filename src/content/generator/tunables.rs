@@ -302,6 +302,13 @@ pub struct Densities {
 
 impl Densities {
     /// The density for an icy body or a rocky one, in g/cm³.
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "only entering a system calls the system generator (SECT-31)"
+        )
+    )]
     pub fn get(&self, icy: bool) -> f64 {
         if icy {
             self.icy_g_cm3

@@ -19,7 +19,9 @@
 //! their drawing and shader), `edge/` (edge arrows and tabs),
 //! `inset/` (the inspection sidebar's contents), `topbar/`, `frame_cue/`,
 //! `planner/` (the transfer planner), `paths/` (transfers drawn on the
-//! map) and `sky/` (the stars and the Milky Way behind the map).
+//! map), `sky/` (the stars and the Milky Way behind the map) and
+//! `sector/` (the sector view, the map's top layer). Which layer is shown
+//! is `map_layer`.
 
 use bevy::prelude::*;
 
@@ -46,6 +48,7 @@ pub mod hovered;
 pub mod inset;
 pub mod layers;
 pub mod list_rows;
+pub mod map_layer;
 pub mod markers;
 pub mod motion;
 pub mod motion_mode;
@@ -60,6 +63,7 @@ pub mod readout;
 pub mod rings;
 pub mod scale;
 pub mod screen;
+pub mod sector;
 pub mod selection;
 pub mod shared_orbit;
 pub mod ship_groups;
@@ -110,6 +114,8 @@ impl Plugin for ViewPlugin {
                 rings::marks::RingMarksPlugin,
                 rings::near_arcs::NearArcsPlugin,
                 text_size::TextSizePlugin,
+                map_layer::MapLayerPlugin,
+                sector::SectorPlugin,
             ))
             .add_plugins((
                 grouping::GroupingPlugin,

@@ -36,6 +36,13 @@ pub mod stages;
 pub mod stars;
 pub mod stellar;
 pub mod summaries;
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "only entering a system calls the system generator (SECT-31)"
+    )
+)]
 pub mod system;
 pub mod tunables;
 pub mod volume;

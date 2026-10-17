@@ -46,7 +46,7 @@ pub enum GateState {
         not(test),
         expect(
             dead_code,
-            reason = "only the system generator makes dormant gates, which the sector view will call (SECT-01)"
+            reason = "only the system generator makes dormant gates, which entering a system calls (SECT-31)"
         )
     )]
     Dormant {

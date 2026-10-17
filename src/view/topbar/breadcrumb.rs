@@ -1,8 +1,10 @@
 //! The breadcrumb in the top bar (CLK-02, CAM-25): the path to the
-//! reference frame, "Cluster / *system* / ancestors… / frame body". The
+//! reference frame, "Sector / *system* / ancestors… / frame body". The
 //! system entry stands for the star's frame. Clicking an ancestor's entry
 //! makes it the frame; clicking the frame body's own entry re-centres it.
-//! Both go to the camera through `camera/requests.rs`.
+//! Both go to the camera through `camera/requests.rs`. In the sector view
+//! the breadcrumb reads "Sector" alone, as the entry for the view shown
+//! (SECT-34).
 //!
 //! The entries are worked out by a plain function from the frame body's
 //! path, so what the breadcrumb says can be tested apart from its nodes.
@@ -14,18 +16,23 @@ use crate::view::camera::requests::{FrameRequest, RecentreRequest};
 use crate::view::colors;
 use crate::view::fonts::{Face, Fonts};
 use crate::view::frame::{Frame, ancestors};
+use crate::view::map_layer::MapLayer;
 use crate::view::text_size::TextSize;
 use crate::view::tunables::Tunables;
 
-/// The cluster entry's text. It does nothing until the cluster view exists.
-const CLUSTER: &str = "Cluster";
+/// The sector entry's text. In the system view it does nothing yet
+/// (SECT-32, SECT-33).
+const SECTOR: &str = "Sector";
 const SEPARATOR: &str = " / ";
 
 /// What clicking a breadcrumb entry does.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CrumbAction {
-    /// The cluster entry: nothing yet.
+    /// The sector entry in the system view: nothing yet.
     None,
+    /// The sector entry in the sector view, the view shown: nothing to do
+    /// (SECT-34).
+    Here,
     /// An ancestor of the frame body (or the star): make it the frame.
     Frame(Entity),
     /// The frame body's own entry: re-centre it.
@@ -53,11 +60,20 @@ pub fn crumbs(path: &[(Entity, String)]) -> Vec<Crumb> {
         },
     });
     std::iter::once(Crumb {
-        label: CLUSTER.to_string(),
+        label: SECTOR.to_string(),
         action: CrumbAction::None,
     })
     .chain(entries)
     .collect()
+}
+
+/// SECT-34: in the sector view the breadcrumb is the sector entry alone,
+/// standing for the view shown.
+pub fn sector_crumbs() -> Vec<Crumb> {
+    vec![Crumb {
+        label: SECTOR.to_string(),
+        action: CrumbAction::Here,
+    }]
 }
 
 /// The node in the top bar the entries are spawned into.
@@ -72,7 +88,8 @@ pub struct BreadcrumbPlugin;
 
 impl Plugin for BreadcrumbPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, rebuild_breadcrumb);
+        app.init_resource::<MapLayer>()
+            .add_systems(Update, rebuild_breadcrumb);
     }
 }
 
@@ -104,25 +121,31 @@ fn frame_path(
     path.into_iter().map(|body| (body, name(body))).collect()
 }
 
-/// CAM-25: rebuild the entries whenever the frame body changes.
+/// CAM-25 / SECT-34: rebuild the entries whenever the frame body or the
+/// layer shown changes.
 fn rebuild_breadcrumb(
     mut commands: Commands,
-    frame: Res<Frame>,
+    (frame, layer): (Res<Frame>, Res<MapLayer>),
     (fonts, tunables): (Res<Fonts>, Res<Tunables>),
     parents: Query<&ChildOf>,
     names: Query<&DisplayName>,
     roots: Query<Entity, With<BreadcrumbRoot>>,
-    mut built_for: Local<Option<Entity>>,
+    mut built_for: Local<Option<(Entity, MapLayer)>>,
 ) {
     let Ok(root) = roots.single() else {
         return;
     };
     // The star's name is only known once the system is spawned.
-    if *built_for == Some(frame.body) && names.contains(frame.star) {
+    let built = *built_for == Some((frame.body, *layer));
+    if built && (layer.is_sector() || names.contains(frame.star)) {
         return;
     }
-    *built_for = Some(frame.body);
-    let entries = crumbs(&frame_path(&frame, &parents, &names));
+    *built_for = Some((frame.body, *layer));
+    let entries = if layer.is_sector() {
+        sector_crumbs()
+    } else {
+        crumbs(&frame_path(&frame, &parents, &names))
+    };
     commands
         .entity(root)
         .despawn_related::<Children>()
@@ -148,19 +171,20 @@ fn crumb_text(text: &str, (fonts, tunables): (&Fonts, &Tunables), color: Color) 
     )
 }
 
-/// CAM-25: an entry's colour: the cluster's in the secondary colour; the
-/// entry that stands for the current frame (the frame body's own, or the
-/// system's in the star's frame) in the frame violet, as the frame cue is;
-/// the ancestors in the neutral colour.
+/// CAM-25 / SECT-34: an entry's colour: the sector's in the secondary
+/// colour; the entry that stands for the current frame (the frame body's
+/// own, the system's in the star's frame, or the sector's in the sector
+/// view) in the frame violet, as the frame cue is; the ancestors in the
+/// neutral colour.
 pub fn crumb_color(action: CrumbAction) -> Color {
     match action {
         CrumbAction::None => colors::PANEL_BORDER,
-        CrumbAction::Recentre => colors::REFERENCE,
+        CrumbAction::Recentre | CrumbAction::Here => colors::REFERENCE,
         CrumbAction::Frame(_) => colors::NEUTRAL,
     }
 }
 
-/// One entry: the cluster in the secondary colour, the rest clickable.
+/// One entry: the sector in the secondary colour, the rest clickable.
 fn spawn_crumb(row: &mut ChildSpawnerCommands, draw: (&Fonts, &Tunables), crumb: Crumb) {
     let color = crumb_color(crumb.action);
     row.spawn((
@@ -201,7 +225,7 @@ mod tests {
             .join(SEPARATOR)
     }
 
-    /// CAM-25: in a station's frame the path reads from the cluster down
+    /// CAM-25: in a station's frame the path reads from the sector down
     /// to the station; ancestors reframe and the station re-centres.
     #[test]
     fn the_breadcrumb_reads_the_path_to_the_frame_body() {
@@ -215,7 +239,7 @@ mod tests {
         let entries = crumbs(&path);
         assert_eq!(
             breadcrumb_text(&entries),
-            "Cluster / Corvane / Halden IV / Arden Highport"
+            "Sector / Corvane / Halden IV / Arden Highport"
         );
         let actions: Vec<CrumbAction> = entries.iter().map(|c| c.action).collect();
         assert_eq!(
@@ -236,7 +260,17 @@ mod tests {
         let mut world = World::new();
         let star = world.spawn_empty().id();
         let entries = crumbs(&[(star, "Corvane".to_string())]);
-        assert_eq!(breadcrumb_text(&entries), "Cluster / Corvane");
+        assert_eq!(breadcrumb_text(&entries), "Sector / Corvane");
         assert_eq!(entries[1].action, CrumbAction::Recentre);
+    }
+
+    /// SECT-34: in the sector view the breadcrumb reads "Sector" alone, in
+    /// the frame colour, as the entry for the view shown.
+    #[test]
+    fn in_the_sector_view_the_breadcrumb_is_the_sector_alone() {
+        let entries = sector_crumbs();
+        assert_eq!(breadcrumb_text(&entries), "Sector");
+        assert_eq!(crumb_color(entries[0].action), colors::REFERENCE);
+        assert_eq!(crumb_color(CrumbAction::None), colors::PANEL_BORDER);
     }
 }

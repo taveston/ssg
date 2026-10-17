@@ -53,11 +53,11 @@ pub fn release_ring_mode_frame(
         return;
     }
     let parent_of = |entity: Entity| parents.get(entity).ok().map(ChildOf::parent);
-    let tilt = view.rig.tilt;
+    let (heading, tilt) = (view.rig.heading, view.rig.tilt);
     view.settle(&positions);
     let (body, distance) = match nearest_unringed_ancestor(body, parent_of, ringed) {
-        Some(ancestor) => (ancestor, fits.jump_distance(ancestor, tilt)),
-        None => (view.frame.star, fits.system_fit(tilt)),
+        Some(ancestor) => (ancestor, fits.jump_distance(ancestor, heading, tilt)),
+        None => (view.frame.star, fits.system_fit(heading, tilt)),
     };
     let pivot = PivotTarget {
         body,

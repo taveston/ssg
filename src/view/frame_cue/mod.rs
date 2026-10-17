@@ -32,6 +32,7 @@ pub struct FrameCuePlugin;
 impl Plugin for FrameCuePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ScaleBarKm>()
+            .init_resource::<crate::view::map_layer::MapLayer>()
             .add_systems(Startup, draw::spawn_frame_cue.in_set(Boot::Overlay))
             .add_systems(
                 Update,

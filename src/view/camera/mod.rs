@@ -2,7 +2,9 @@
 //! ZOOM-02, ZOOM-05, ZOOM-10 to ZOOM-17, CAM-01 to CAM-25). It looks at a
 //! pivot on the orbital plane from a heading, a tilt and a distance, and
 //! sits in the reference frame of one body (`view/frame.rs`), tracking it;
-//! selection never moves it.
+//! selection never moves it. The sector view uses the same camera, in the
+//! star's frame with the sector's centre for the star, its fits and limits
+//! the sector's (SECT-10 to SECT-12).
 //!
 //! - `state.rs`: the rig, the move in flight, bookmarks.
 //! - `rules.rs`, `zoom.rs`, `stops.rs`: the geometry and rules, as plain
@@ -52,6 +54,8 @@ impl Plugin for CameraPlugin {
             .init_resource::<keys::KeyPan>()
             // CAM-14: the camera reads whether a tray has the arrow keys.
             .init_resource::<crate::view::multi::OpenTray>()
+            // SECT-10: the fits and the pan bound follow the layer shown.
+            .init_resource::<crate::view::map_layer::MapLayer>()
             .add_systems(
                 Startup,
                 (rig::spawn_camera, rig::start_at_system_fit)

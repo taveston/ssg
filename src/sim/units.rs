@@ -5,29 +5,18 @@
 pub const KM_PER_AU: f64 = 149_597_870.7;
 /// One parsec, in km: the distance at which one AU subtends one second of
 /// arc, 648,000 ÷ π AU. Star positions in a sector are measured in it.
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "read by the sector generator, which the sector view will call (SECT-01)"
-    )
-)]
 pub const KM_PER_PARSEC: f64 = KM_PER_AU * 648_000.0 / std::f64::consts::PI;
+/// One light year, in km: the unit distances between stars are shown in
+/// (UNIT-05).
+pub const KM_PER_LIGHT_YEAR: f64 = 9.4607e12;
 /// Earth's mean radius, in km, the unit generated planets' radii are in.
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "read by the sector generator, which the sector view will call (SECT-01)"
-    )
-)]
 pub const EARTH_RADIUS_KM: f64 = 6_371.0;
 /// The Sun's mean radius, in km, the unit generated stars' radii are in.
 #[cfg_attr(
     not(test),
     expect(
         dead_code,
-        reason = "read by the system generator, which the sector view will call (SECT-01)"
+        reason = "read by the system generator, which entering a system calls (SECT-31)"
     )
 )]
 pub const SOLAR_RADIUS_KM: f64 = 695_700.0;

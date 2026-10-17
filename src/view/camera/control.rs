@@ -11,26 +11,30 @@ use bevy::prelude::*;
 use super::rig::{settle_frame, start_move};
 use super::rules::clamp_tilt;
 use super::state::{ActiveMove, CameraRig, MoveTarget, PivotTarget};
-use super::stops::ZoomStops;
+use super::stops::{SectorFit, ZoomStops, outer_radius};
 use crate::view::bindings::Bindings;
 use crate::view::frame::{Frame, body_position, clamp_offset_to_pan_bound, frame_pivot};
+use crate::view::map_layer::MapLayer;
 use crate::view::tunables::Tunables;
 use crate::view::world::{RenderOrigin, WorldPositions};
 
 /// What camera input reads besides the input itself: the keys, their
-/// bindings (CAM-18), the tunables and the zoom stops.
+/// bindings (CAM-18), the tunables, the zoom stops and the layer shown.
 #[derive(SystemParam)]
 pub struct CameraSettings<'w> {
     pub keys: Res<'w, ButtonInput<KeyCode>>,
     pub bindings: Res<'w, Bindings>,
     pub tunables: Res<'w, Tunables>,
     pub stops: Res<'w, ZoomStops>,
+    pub layer: Res<'w, MapLayer>,
+    pub sector: Res<'w, SectorFit>,
 }
 
 impl CameraSettings<'_> {
-    /// CAM-19: how far from the star the pivot may be panned.
+    /// CAM-19 / SECT-10: how far from the star, or the sector's centre,
+    /// the pivot may be panned.
     pub fn pan_bound(&self) -> f32 {
-        self.tunables.pan_bound_factor * self.stops.system_radius
+        self.tunables.pan_bound_factor * outer_radius(*self.layer, &self.stops, &self.sector)
     }
 }
 

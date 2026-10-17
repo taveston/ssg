@@ -1,9 +1,9 @@
 //! Shared formatting for distances, durations and speeds in every readout
-//! (UNIT-01 to UNIT-04). Panels call these rather than formatting figures
+//! (UNIT-01 to UNIT-05). Panels call these rather than formatting figures
 //! themselves, so a distance, a time or a delta-v reads the same
 //! everywhere.
 
-use crate::sim::units::KM_PER_AU;
+use crate::sim::units::{KM_PER_AU, KM_PER_LIGHT_YEAR};
 
 /// Decimal places a distance in AU is shown to (UNIT-01).
 const AU_DECIMALS: usize = 2;
@@ -53,6 +53,16 @@ pub fn format_speed_figure(kms: f64) -> String {
 /// "0.29 km/s" (UNIT-04).
 pub fn format_speed(kms: f64) -> String {
     format!("{} km/s", format_speed_figure(kms))
+}
+
+/// A distance between stars, in km, as a readout in light years to one
+/// decimal place with thousands separators ("10.4 ly", "1,204.0 ly")
+/// (UNIT-05).
+pub fn format_light_years(km: f64) -> String {
+    let tenths = (km / KM_PER_LIGHT_YEAR * 10.0).round();
+    let text = format!("{:.1}", tenths / 10.0);
+    let (int_part, frac_part) = text.split_once('.').unwrap_or((&text, "0"));
+    format!("{}.{frac_part} ly", group_thousands(int_part))
 }
 
 /// `value` rounded to `places` decimals, trailing zeros (and a bare
@@ -133,6 +143,20 @@ mod tests {
         assert_eq!(format_speed(0.999), "1.0 km/s");
         assert_eq!(format_speed_figure(0.0), "0.00");
         assert_eq!(format_speed_figure(24.0), "24.0");
+    }
+
+    /// UNIT-05: distances between stars read in light years to one
+    /// decimal place, with thousands separators.
+    #[test]
+    fn star_distances_read_in_light_years_to_one_decimal() {
+        let ly = KM_PER_LIGHT_YEAR;
+        assert_eq!(format_light_years(10.4 * ly), "10.4 ly");
+        assert_eq!(format_light_years(1204.0 * ly), "1,204.0 ly");
+        assert_eq!(format_light_years(3.0 * ly), "3.0 ly");
+        assert_eq!(format_light_years(0.04 * ly), "0.0 ly");
+        assert_eq!(format_light_years(9.96 * ly), "10.0 ly");
+        assert_eq!(format_light_years(0.05 * ly), "0.1 ly");
+        assert_eq!(format_light_years(1_000_000.0 * ly), "1,000,000.0 ly");
     }
 
     /// UNIT-02: each duration reads in the largest unit it reaches.

@@ -817,7 +817,7 @@ fn re_centring_keeps_the_scale_and_clears_the_offset() {
 }
 
 /// CAM-25 / CLK-02: in Arden Highport's frame the breadcrumb reads
-/// "Cluster / Corvane / Halden IV / Arden Highport", in the label font
+/// "Sector / Corvane / Halden IV / Arden Highport", in the label font
 /// (MRK-02); clicking the Halden IV entry makes Halden IV the frame.
 #[test]
 fn the_breadcrumb_shows_the_frame_path_and_reframes_on_click() {
@@ -832,7 +832,7 @@ fn the_breadcrumb_shows_the_frame_path_and_reframes_on_click() {
         .into_iter()
         .map(|(_, t)| t)
         .collect();
-    assert_eq!(names, ["Cluster", "Corvane"]);
+    assert_eq!(names, ["Sector", "Corvane"]);
 
     let highport = body(&mut app, "Arden Highport");
     let halden = body(&mut app, "Halden IV");
@@ -840,7 +840,7 @@ fn the_breadcrumb_shows_the_frame_path_and_reframes_on_click() {
     run(&mut app, 2);
     let entries = breadcrumb_entries(&mut app);
     let names: Vec<&str> = entries.iter().map(|(_, t)| t.as_str()).collect();
-    assert_eq!(names, ["Cluster", "Corvane", "Halden IV", "Arden Highport"]);
+    assert_eq!(names, ["Sector", "Corvane", "Halden IV", "Arden Highport"]);
     let font = app.world().get::<TextFont>(entries[2].0).unwrap();
     assert_eq!(font.font, fonts.label(1.0).font, "MRK-02");
 

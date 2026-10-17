@@ -4,7 +4,8 @@
 //! fits, the pan clamp, the edge tabs and the plot marks. The panel
 //! itself is `inset/inspect.rs`.
 //!
-//! The sidebar opens with a selection and closes with none; the slide
+//! The sidebar opens with a selection in the shown layer (`map_layer.rs`)
+//! and closes with none; the slide
 //! runs over `sidebar_slide_ms`, and while it runs the map area follows
 //! it frame by frame, so the view narrows with the panel rather than
 //! jumping.
@@ -12,6 +13,7 @@
 use bevy::prelude::*;
 
 use super::anim::{advance_towards, step_per_frame};
+use super::map_layer::{MapLayer, SectorSelection, layer_has_selection};
 use super::selection::Selection;
 use super::tunables::Tunables;
 use crate::Stage;
@@ -52,22 +54,25 @@ pub struct SidebarPlugin;
 impl Plugin for SidebarPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SidebarState>()
+            .init_resource::<MapLayer>()
+            .init_resource::<SectorSelection>()
             .add_systems(Update, slide_sidebar.in_set(Stage::Projection));
     }
 }
 
-/// INS-07: the sidebar slides in while something is selected and out
-/// once nothing is, ahead of the camera, so this frame's map area is
-/// already the narrower one.
+/// INS-07 / SECT-20: the sidebar slides in while something is selected
+/// in the shown layer and out once nothing is, ahead of the camera, so
+/// this frame's map area is already the narrower one.
 fn slide_sidebar(
     time: Res<Time>,
     tunables: Res<Tunables>,
-    selection: Res<Selection>,
+    (selection, layer, sector): (Res<Selection>, Res<MapLayer>, Res<SectorSelection>),
     mut sidebar: ResMut<SidebarState>,
 ) {
+    let open = layer_has_selection(*layer, selection.selected.is_some(), &sector);
     let next = next_slide(
         sidebar.slide,
-        selection.selected.is_some(),
+        open,
         time.delta_secs(),
         tunables.sidebar_slide_ms,
     );

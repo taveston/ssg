@@ -14,6 +14,7 @@ use super::rules::camera_rotation;
 use crate::Boot;
 use crate::sim::body::BodyClass;
 use crate::sim::orbit::Orbit;
+use crate::view::map_layer::MapLayer;
 use crate::view::scale::km_to_render;
 use crate::view::screen::MapArea;
 
@@ -55,16 +56,56 @@ const FIT_SAMPLES: usize = 180;
 /// the perspective, not just the circle's height, keeps the near and far
 /// sides of a wide, shallow view on screen.
 pub fn distance_for_radius(radius: f32, fov_y: f32, tilt: f32, margin: f32, viewport: Vec2) -> f32 {
+    let circle: Vec<Vec3> = (0..FIT_SAMPLES)
+        .map(|i| {
+            let angle = std::f32::consts::TAU * i as f32 / FIT_SAMPLES as f32;
+            Vec3::new(radius * angle.cos(), 0.0, radius * angle.sin())
+        })
+        .collect();
+    let view = FitView {
+        heading: 0.0,
+        tilt,
+        fov_y,
+        margin,
+        viewport,
+    };
+    distance_for_points(&circle, view)
+}
+
+/// How a fit is seen: the camera's heading and tilt, its vertical field of
+/// view, the share of the map area the fit may fill, and the viewport.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct FitView {
+    pub heading: f32,
+    pub tilt: f32,
+    pub fov_y: f32,
+    pub margin: f32,
+    pub viewport: Vec2,
+}
+
+/// The camera distance at which every point, placed round a pivot at the
+/// origin, projects inside the map area of the viewport, filling at most
+/// `margin` of it on each axis. With the pivot on the camera's axis each
+/// point's limit is linear in the distance, so the answer is the largest
+/// of them; using both axes and the perspective keeps the near and far
+/// sides of a wide, shallow view on screen.
+pub fn distance_for_points(points: &[Vec3], view: FitView) -> f32 {
+    let FitView {
+        heading,
+        tilt,
+        fov_y,
+        margin,
+        viewport,
+    } = view;
     let half_tan = (fov_y * 0.5).tan();
     let aspect = viewport.x / viewport.y.max(1.0);
     // Normalised screen limits: the bottom and sides at `margin`, the top
     // pulled down by the top bar.
     let up_limit = margin * MapArea::of(viewport).size.y / viewport.y.max(1.0);
-    let into_camera = camera_rotation(0.0, tilt).inverse();
+    let into_camera = camera_rotation(heading, tilt).inverse();
     let mut distance = f32::EPSILON;
-    for i in 0..FIT_SAMPLES {
-        let angle = std::f32::consts::TAU * i as f32 / FIT_SAMPLES as f32;
-        let local = into_camera * Vec3::new(radius * angle.cos(), 0.0, radius * angle.sin());
+    for &point in points {
+        let local = into_camera * point;
         let y_limit = if local.y > 0.0 { up_limit } else { margin };
         let needed = [
             local.x.abs() / (margin * half_tan * aspect),
@@ -75,6 +116,38 @@ pub fn distance_for_radius(radius: f32, fov_y: f32, tilt: f32, margin: f32, view
         }
     }
     distance
+}
+
+/// SECT-10 / SECT-11: what the sector fit takes in, in the sector view's
+/// render units: every node's position round the sector's centre, and
+/// the farthest any lies from the centre in the plane, which the pan
+/// bound is a multiple of. The sector view sets it (`view/sector/`); it
+/// is empty while no sector is loaded.
+#[derive(Resource, Debug, Default, Clone, PartialEq)]
+pub struct SectorFit {
+    pub radius: f32,
+    pub points: Vec<Vec3>,
+}
+
+impl SectorFit {
+    /// The fit for these node positions.
+    pub fn of(points: Vec<Vec3>) -> Self {
+        let radius = points
+            .iter()
+            .map(|p| Vec2::new(p.x, p.z).length())
+            .fold(0.0, f32::max);
+        Self { radius, points }
+    }
+}
+
+/// CAM-19 / SECT-10: the radius of the outer fit for the layer shown: the
+/// system fit's, or the sector fit's in the sector view. The pan bound is
+/// a multiple of it.
+pub fn outer_radius(layer: MapLayer, stops: &ZoomStops, sector: &SectorFit) -> f32 {
+    match layer {
+        MapLayer::System => stops.system_radius,
+        MapLayer::Sector => sector.radius,
+    }
 }
 
 /// ZOOM-15: the system fit takes in every planetary orbit, from the system's
@@ -91,6 +164,7 @@ pub struct StopsPlugin;
 impl Plugin for StopsPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ZoomStops>()
+            .init_resource::<SectorFit>()
             .add_systems(Startup, compute_stops.in_set(Boot::Derive));
     }
 }
@@ -127,6 +201,22 @@ mod tests {
     use crate::content::corvane::hand_made_system;
     use crate::sim::units::KM_PER_AU;
     use crate::view::camera::rules::project_plane_point;
+
+    /// CAM-19 / SECT-10: the pan bound's radius is the system fit's in the
+    /// system view and the sector fit's in the sector view.
+    #[test]
+    fn the_pan_bound_follows_the_shown_layers_fit() {
+        let stops = ZoomStops {
+            system_radius: 387.0,
+            ..default()
+        };
+        let sector = SectorFit {
+            radius: 640.0,
+            points: vec![],
+        };
+        assert_eq!(outer_radius(MapLayer::System, &stops, &sector), 387.0);
+        assert_eq!(outer_radius(MapLayer::Sector, &stops, &sector), 640.0);
+    }
 
     /// The planetary orbit radii of the real test system, in render units.
     fn corvane_planet_radii() -> Vec<f32> {
@@ -188,6 +278,63 @@ mod tests {
     fn degenerate_systems_still_give_a_fit() {
         assert_eq!(system_fit_radius(&[]), 1.0);
         assert_eq!(system_fit_radius(&[7.0]), 7.0);
+    }
+
+    /// SECT-10: the sector fit's radius is the farthest node from the
+    /// centre in the plane, whatever its height.
+    #[test]
+    fn the_sector_radius_is_the_farthest_node_in_the_plane() {
+        let fit = SectorFit::of(vec![
+            Vec3::new(3.0, 9.0, 4.0),
+            Vec3::new(-1.0, -2.5, 0.0),
+            Vec3::new(0.0, 0.5, -4.5),
+        ]);
+        assert!((fit.radius - 5.0).abs() < 1e-5);
+        assert_eq!(SectorFit::of(vec![]).radius, 0.0);
+    }
+
+    /// SECT-11: at the points' fit every point, above or below the plane,
+    /// projects inside the map area, at any tilt and heading, and one of
+    /// them reaches the margin.
+    #[test]
+    fn a_point_fit_keeps_every_point_in_the_map_area() {
+        let viewport = Vec2::new(1280.0, 720.0);
+        let points = [
+            Vec3::new(600.0, 40.0, 100.0),
+            Vec3::new(-350.0, -120.0, 300.0),
+            Vec3::new(50.0, 100.0, -480.0),
+            Vec3::new(-200.0, 0.0, -100.0),
+        ];
+        let area = MapArea::of(viewport).rect();
+        for tilt in [0.0_f32, 0.6, 1.2, 1.45] {
+            for heading in [0.0_f32, 0.9, 2.3] {
+                let view = FitView {
+                    heading,
+                    tilt,
+                    fov_y: std::f32::consts::FRAC_PI_4,
+                    margin: 0.8,
+                    viewport,
+                };
+                let distance = distance_for_points(&points, view);
+                let pose = (Vec3::ZERO, heading, tilt, distance);
+                let screens: Vec<Vec2> = points
+                    .iter()
+                    .map(|&p| project_plane_point(p, pose, view.fov_y, viewport).unwrap())
+                    .collect();
+                for screen in &screens {
+                    assert!(area.contains(*screen), "{screen} at {tilt}, {heading}");
+                }
+                let centre = viewport / 2.0;
+                let reach = screens
+                    .iter()
+                    .map(|s| {
+                        ((s.x - centre.x).abs() / (0.8 * centre.x))
+                            .max((s.y - centre.y).abs() / (0.8 * centre.y))
+                    })
+                    .fold(0.0, f32::max);
+                assert!(reach > 0.6, "the fit is loose: {reach}");
+            }
+        }
     }
 
     /// A stop fits exactly what it says: at the computed distance every

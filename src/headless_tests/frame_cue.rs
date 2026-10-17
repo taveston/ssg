@@ -391,7 +391,7 @@ fn the_cue_layers_round_the_bodies_and_is_never_picked() {
 
 /// CAM-25 / MRK-01: the breadcrumb entry for the current frame is in the
 /// frame violet, the system's in the star's frame and the frame body's
-/// otherwise; the ancestors are neutral and the cluster secondary.
+/// otherwise; the ancestors are neutral and the sector secondary.
 #[test]
 fn the_current_frame_entry_of_the_breadcrumb_is_violet() {
     let mut app = camera_app_with(|app| {
@@ -409,7 +409,7 @@ fn the_current_frame_entry_of_the_breadcrumb_is_violet() {
     assert_eq!(
         colours(&mut app),
         [colors::PANEL_BORDER, colors::REFERENCE],
-        "Cluster / Corvane"
+        "Sector / Corvane"
     );
     let highport = body(&mut app, "Arden Highport");
     set_frame(&mut app, highport, Vec3::ZERO);

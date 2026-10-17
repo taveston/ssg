@@ -329,7 +329,7 @@ fn link_ends_become_gates_or_wrecks_on_the_ring() {
 #[test]
 fn the_hand_made_systems_stay_as_they_are() {
     for name in ["corvane", "sol"] {
-        let system = crate::content::chosen_system(&["--system", name]).unwrap()();
+        let system = crate::content::start::chosen_system(&["--system", name]).unwrap()();
         let records = every_record(&system);
         assert!(records.iter().all(|b| b.planet_facts.is_none()));
         assert!(system.gates.iter().all(|g| g.state == GateState::Working));

@@ -77,6 +77,7 @@ impl Slab {
     }
 
     /// Whether a point, in parsecs from the centre, lies inside the slab.
+    #[cfg(test)]
     pub fn contains_pc(&self, point: DVec3) -> bool {
         let (a, b) = (self.semi_axis_x_pc(), self.semi_axis_y_pc());
         (point.x / a).powi(2) + (point.y / b).powi(2) <= 1.0

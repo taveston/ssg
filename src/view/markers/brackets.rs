@@ -13,7 +13,8 @@
 //!
 //! Each frame the wanted marks are gathered as boxes with an alpha, then
 //! drawn by a small pool of bracket nodes in the labels layer, above every
-//! marker (MRK-12). The frame body has no mark of its own.
+//! marker (MRK-12). The frame body has no mark of its own. The sector
+//! view's marks are drawn by the same pool (`LayerMarks`, SECT-07).
 
 use bevy::prelude::*;
 
@@ -134,6 +135,12 @@ pub fn merge_marks(marks: Vec<Mark>) -> Vec<Mark> {
     merged
 }
 
+/// Marks another layer of the map asks for this frame, drawn by the same
+/// pool in the same look: the sector view's hover and selection marks
+/// (SECT-07). Its owner rewrites it each frame before the marks are drawn.
+#[derive(Resource, Default, Debug)]
+pub struct LayerMarks(pub Vec<Mark>);
+
 /// One set of four brackets, from the pool.
 #[derive(Component)]
 pub struct Bracket;
@@ -150,7 +157,8 @@ pub struct BracketsPlugin;
 
 impl Plugin for BracketsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_pool.in_set(Boot::Overlay))
+        app.init_resource::<LayerMarks>()
+            .add_systems(Startup, spawn_pool.in_set(Boot::Overlay))
             .add_systems(
                 Update,
                 draw_marks.in_set(Stage::Overlay).after(MarkersPlaced),
@@ -468,11 +476,12 @@ impl MarkSources<'_, '_> {
 fn draw_marks(
     mut commands: Commands,
     tunables: Res<Tunables>,
-    sources: MarkSources,
+    (sources, layer_marks): (MarkSources, Res<LayerMarks>),
     mut brackets: Query<(Entity, &mut Node, &Children), With<Bracket>>,
     mut corners: Query<(&BracketCorner, &mut Node, &mut BorderColor), Without<Bracket>>,
 ) {
-    let marks = sources.marks(&tunables);
+    let mut marks = sources.marks(&tunables);
+    marks.extend(layer_marks.0.iter().copied());
     let mut pool: Vec<_> = brackets.iter_mut().collect();
     pool.sort_by_key(|(entity, ..)| entity.index_u32());
     for _ in pool.len()..marks.len() {

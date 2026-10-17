@@ -502,6 +502,36 @@ pub struct Tunables {
     /// The most the glow's dither moves a pixel, either way, in display
     /// levels (of 255) (SKY-15).
     pub sky_dither_levels: f32,
+
+    // --- The sector view (docs/spec/sector-view.md) ---
+    /// A gated system's node: a star marker this many pixels across
+    /// (SECT-03).
+    pub sector_node_px: f32,
+    /// An ungated system's node: a plain circle outline this many pixels
+    /// across (SECT-03).
+    pub sector_dot_px: f32,
+    /// How strongly an ungated system's node is drawn (SECT-03).
+    pub sector_dot_alpha: f32,
+    /// How strongly a brown dwarf's node is drawn: the same circle as an
+    /// ungated system's, fainter (SECT-03).
+    pub sector_faint_alpha: f32,
+    /// A working link's line width (SECT-04).
+    pub link_working_px: f32,
+    /// How strongly a working link is drawn (SECT-04).
+    pub link_working_alpha: f32,
+    /// How strongly a dormant link's dashes are drawn (SECT-04).
+    pub link_dormant_alpha: f32,
+    /// The length of a dormant link's dashes, on screen (SECT-04).
+    pub link_dash_px: f32,
+    /// The gap between a dormant link's dashes, on screen (SECT-04).
+    pub link_gap_px: f32,
+    /// A collapsed link's line width (SECT-04).
+    pub link_collapsed_px: f32,
+    /// How strongly a collapsed link is drawn (SECT-04).
+    pub link_collapsed_alpha: f32,
+    /// The sector view's inner zoom limit: the view radius, in light
+    /// years, closer than which the camera doesn't zoom (SECT-11).
+    pub sector_min_view_radius_ly: f32,
 }
 
 impl Default for Tunables {
@@ -689,6 +719,19 @@ impl Default for Tunables {
             sky_lane_depth: 0.6,
             sky_glow_mottle: 0.25,
             sky_dither_levels: 1.0,
+
+            sector_node_px: 14.0,
+            sector_dot_px: 5.0,
+            sector_dot_alpha: 0.5,
+            sector_faint_alpha: 0.3,
+            link_working_px: 1.5,
+            link_working_alpha: 0.9,
+            link_dormant_alpha: 0.7,
+            link_dash_px: 6.0,
+            link_gap_px: 4.0,
+            link_collapsed_px: 1.0,
+            link_collapsed_alpha: 0.2,
+            sector_min_view_radius_ly: 3.0,
         }
     }
 }

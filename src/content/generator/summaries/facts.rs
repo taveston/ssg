@@ -156,6 +156,13 @@ pub fn planet_summary(
 /// planet (SGEN-38 to SGEN-41): gravity, equilibrium temperature,
 /// atmosphere and water.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "only entering a system calls the system generator (SECT-31)"
+    )
+)]
 pub struct SolidFacts {
     pub gravity_g: f64,
     pub equilibrium_temperature_k: f64,
@@ -166,6 +173,13 @@ pub struct SolidFacts {
 /// Where a solid body sits for its facts: its distance from the star, and
 /// whether that is at or beyond the snow line.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "only entering a system calls the system generator (SECT-31)"
+    )
+)]
 pub struct Sunlight {
     pub luminosity_lsun: f64,
     pub distance_au: f64,
@@ -177,6 +191,13 @@ pub struct Sunlight {
 /// equilibrium temperature at `light`'s distance, an atmosphere from a
 /// freshly drawn volatile endowment, and water drawn as a rocky planet's
 /// is. It draws the endowment, then the water.
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "only entering a system calls the system generator (SECT-31)"
+    )
+)]
 pub fn solid_body_facts(
     mass_earth: f64,
     radius_earth: f64,

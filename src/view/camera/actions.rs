@@ -17,6 +17,7 @@ use super::requests::{FrameRequest, NorthUpRequest, RecentreRequest};
 use super::rules::nearest_heading;
 use super::state::{BOOKMARK_SLOTS, Bookmark, Bookmarks, CameraRig, MoveTarget, PivotTarget};
 use crate::view::bindings::{Bindings, held, pressed};
+use crate::view::map_layer::MapLayer;
 use crate::view::motion_mode::MotionModeState;
 use crate::view::selection::Selection;
 use crate::view::tunables::Tunables;
@@ -27,7 +28,8 @@ const NORTH: f32 = 0.0;
 
 /// ZOOM-10 / CAM-04: Home returns to the system fit over the star in the
 /// standard orientation (CAM-02), in one move, and sets the star's frame
-/// (CAM-08).
+/// (CAM-08). In the sector view it returns to the sector fit over the
+/// sector's centre (SECT-12).
 pub fn handle_home(
     keys: Res<ButtonInput<KeyCode>>,
     bindings: Res<Bindings>,
@@ -41,11 +43,12 @@ pub fn handle_home(
     }
     let tilt = tunables.standard_tilt_deg.to_radians();
     view.settle(&positions);
+    let heading = nearest_heading(view.rig.heading, NORTH);
     let target = MoveTarget {
         pivot: view.star_pivot(Vec3::ZERO),
-        heading: nearest_heading(view.rig.heading, NORTH),
+        heading,
         tilt,
-        distance: fits.system_fit(tilt),
+        distance: fits.system_fit(heading, tilt),
     };
     view.start(target, tunables.focus_jump_ms);
 }
@@ -99,11 +102,11 @@ pub fn handle_frame_requests(
         return;
     };
     let body = frameable.frame_for(body, view.frame.star);
-    let tilt = view.rig.tilt;
+    let (heading, tilt) = (view.rig.heading, view.rig.tilt);
     let distance = if body == view.frame.star {
-        fits.system_fit(tilt)
+        fits.system_fit(heading, tilt)
     } else {
-        fits.jump_distance(body, tilt)
+        fits.jump_distance(body, heading, tilt)
     };
     view.settle(&positions);
     let pivot = PivotTarget {
@@ -161,15 +164,18 @@ pub fn handle_recentre_request(
 
 /// ZOOM-11 / CAM-06: Ctrl+1..4 save the view; 1..4 recall it - scale,
 /// heading, tilt, and the frame with its offset. Recalling a bookmark saved
-/// in the star's frame returns the frame to the star (CAM-08).
+/// in the star's frame returns the frame to the star (CAM-08). In the
+/// sector view the keys do nothing (SECT-12).
 pub fn handle_bookmarks(
-    keys: Res<ButtonInput<KeyCode>>,
-    bindings: Res<Bindings>,
+    (keys, bindings, layer): (Res<ButtonInput<KeyCode>>, Res<Bindings>, Res<MapLayer>),
     tunables: Res<Tunables>,
     positions: Res<WorldPositions>,
     mut bookmarks: ResMut<Bookmarks>,
     mut view: CameraControl,
 ) {
+    if layer.is_sector() {
+        return;
+    }
     let saving = held(&keys, &bindings.bookmark_save);
     let slots = bindings
         .bookmark_slots

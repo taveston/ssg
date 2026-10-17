@@ -39,6 +39,7 @@ use crate::view::buttons::{ButtonStyle, ConsoleButton, spawn_button};
 use crate::view::camera::requests::FrameRequest;
 use crate::view::colors;
 use crate::view::fonts::Fonts;
+use crate::view::map_layer::MapLayer;
 use crate::view::motion_mode::MotionModeState;
 use crate::view::multi::OpenTray;
 use crate::view::planner::state::PlannerState;
@@ -96,7 +97,7 @@ const PANEL_EDGE_PX: f32 = 1.0;
 const SCROLL_LINE_PX: f32 = 24.0;
 const IMAGE_HEIGHT_PX: f32 = 64.0;
 /// The fonts and tunables the panel is built from.
-type PanelAssets<'a> = (&'a Fonts, &'a Tunables);
+pub type PanelAssets<'a> = (&'a Fonts, &'a Tunables);
 
 /// The orange corner brackets that frame a telescope image (INS-04).
 const BRACKET_PX: f32 = 10.0;
@@ -139,6 +140,7 @@ impl Plugin for InspectPlugin {
     fn build(&self, app: &mut App) {
         // INS-03: Esc reads whether a tray is open, to close it first.
         app.init_resource::<OpenTray>()
+            .init_resource::<MapLayer>()
             .add_systems(Startup, spawn_sidebar.in_set(Boot::Overlay))
             .add_systems(
                 Update,
@@ -163,29 +165,7 @@ impl Plugin for InspectPlugin {
 /// details and the outline sit in one scrolling column.
 fn spawn_sidebar(mut commands: Commands, tunables: Res<Tunables>, fonts: Res<Fonts>) {
     commands
-        .spawn((
-            InsetPanel,
-            GlobalZIndex(layers::PANELS),
-            // CAM-10: a press on the sidebar doesn't start a map drag.
-            MapInputBlocker,
-            Node {
-                position_type: PositionType::Absolute,
-                top: px(TOP_BAR_HEIGHT_PX),
-                right: px(-tunables.inset_width_px),
-                bottom: px(0),
-                width: px(tunables.inset_width_px),
-                padding: UiRect::all(px(PANEL_PADDING_PX)),
-                flex_direction: FlexDirection::Column,
-                row_gap: px(PANEL_ROW_GAP_PX),
-                border: UiRect::left(px(PANEL_EDGE_PX)),
-                overflow: Overflow::scroll_y(),
-                display: Display::None,
-                ..default()
-            },
-            ScrollPosition::default(),
-            BackgroundColor(colors::PANEL),
-            BorderColor::all(colors::PANEL_BORDER),
-        ))
+        .spawn((InsetPanel, sidebar_panel(&tunables)))
         .with_children(|panel| {
             panel.spawn((
                 InsetDetails,
@@ -206,6 +186,45 @@ fn spawn_sidebar(mut commands: Commands, tunables: Res<Tunables>, fonts: Res<Fon
                 },
             ));
         });
+}
+
+/// INS-07: the sidebar's panel, as both views' insets draw it:
+/// `inset_width_px` wide, from the top bar to the bottom of the window,
+/// off the right edge and hidden until it slides in, and scrolling what
+/// it holds.
+pub fn sidebar_panel(tunables: &Tunables) -> impl Bundle {
+    (
+        GlobalZIndex(layers::PANELS),
+        // CAM-10: a press on the sidebar doesn't start a map drag.
+        MapInputBlocker,
+        Node {
+            position_type: PositionType::Absolute,
+            top: px(TOP_BAR_HEIGHT_PX),
+            right: px(-tunables.inset_width_px),
+            bottom: px(0),
+            width: px(tunables.inset_width_px),
+            padding: UiRect::all(px(PANEL_PADDING_PX)),
+            flex_direction: FlexDirection::Column,
+            row_gap: px(PANEL_ROW_GAP_PX),
+            border: UiRect::left(px(PANEL_EDGE_PX)),
+            overflow: Overflow::scroll_y(),
+            display: Display::None,
+            ..default()
+        },
+        ScrollPosition::default(),
+        BackgroundColor(colors::PANEL),
+        BorderColor::all(colors::PANEL_BORDER),
+    )
+}
+
+/// INS-02: a column of the panel's parts, spaced as the panel spaces
+/// them.
+pub fn panel_column() -> Node {
+    Node {
+        flex_direction: FlexDirection::Column,
+        row_gap: px(PANEL_ROW_GAP_PX),
+        ..default()
+    }
 }
 
 /// INS-09: text as small spaced capitals: upper case, one piece per
@@ -257,7 +276,7 @@ pub fn spawn_spaced_capitals(
 
 /// INS-09: a section below the key facts: a hairline, then its heading in
 /// small spaced capitals.
-fn spawn_section_heading(panel: &mut ChildSpawnerCommands, assets: PanelAssets, title: &str) {
+pub fn spawn_section_heading(panel: &mut ChildSpawnerCommands, assets: PanelAssets, title: &str) {
     panel.spawn((
         Hairline,
         Node {
@@ -274,7 +293,11 @@ fn spawn_section_heading(panel: &mut ChildSpawnerCommands, assets: PanelAssets, 
 /// INS-09: the key facts as label-over-value pairs in wrapping rows: the
 /// label in small spaced capitals in the secondary colour, the value in
 /// the data face in the neutral colour.
-fn spawn_facts(panel: &mut ChildSpawnerCommands, assets: PanelAssets, facts: &[(String, String)]) {
+pub fn spawn_facts(
+    panel: &mut ChildSpawnerCommands,
+    assets: PanelAssets,
+    facts: &[(String, String)],
+) {
     let (fonts, tunables) = assets;
     panel
         .spawn(Node {
@@ -312,15 +335,16 @@ pub fn sidebar_right_px(slide: f32, width_px: f32) -> f32 {
 }
 
 /// INS-07: the panel follows the slide, and is not drawn at all while
-/// fully hidden.
+/// fully hidden, or while the sector view, which has an inset of its
+/// own, is shown (SECT-01).
 fn slide_panel(
-    sidebar: Res<SidebarState>,
+    (sidebar, layer): (Res<SidebarState>, Res<MapLayer>),
     tunables: Res<Tunables>,
     mut panels: Query<&mut Node, With<InsetPanel>>,
 ) {
     for mut node in &mut panels {
         let right = px(sidebar_right_px(sidebar.slide, tunables.inset_width_px));
-        let display = if sidebar.visible() {
+        let display = if sidebar.visible() && !layer.is_sector() {
             Display::Flex
         } else {
             Display::None
@@ -551,7 +575,7 @@ fn update_position_notes(
     }
 }
 
-fn spawn_text(parent: &mut ChildSpawnerCommands, text: &str, font: TextFont, color: Color) {
+pub fn spawn_text(parent: &mut ChildSpawnerCommands, text: &str, font: TextFont, color: Color) {
     parent.spawn((Text::new(text), font, TextColor(color)));
 }
 
@@ -734,6 +758,7 @@ mod tests {
         let mut world = World::new();
         world.init_resource::<Tunables>();
         world.init_resource::<SidebarState>();
+        world.init_resource::<MapLayer>();
         world.insert_resource(Fonts {
             label: Handle::default(),
             label_semibold: Handle::default(),

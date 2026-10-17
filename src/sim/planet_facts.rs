@@ -11,7 +11,7 @@ use bevy::prelude::*;
     not(test),
     expect(
         dead_code,
-        reason = "only the system generator makes them, which the sector view will call (SECT-01)"
+        reason = "only the system generator makes them, which entering a system calls (SECT-31)"
     )
 )]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -26,13 +26,6 @@ pub enum WorldKind {
 
 /// A world's atmosphere class: none, thin, dense, or the deep hydrogen
 /// and helium envelope of a sub-Neptune or a giant.
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "only the system generator makes them, which the sector view will call (SECT-01)"
-    )
-)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Atmosphere {
     Airless,
@@ -46,7 +39,7 @@ pub enum Atmosphere {
     not(test),
     expect(
         dead_code,
-        reason = "only the system generator makes them, which the sector view will call (SECT-01)"
+        reason = "only the system generator makes them, which entering a system calls (SECT-31)"
     )
 )]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

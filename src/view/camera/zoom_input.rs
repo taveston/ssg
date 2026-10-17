@@ -2,7 +2,9 @@
 //! CAM-16, CAM-23): wheel notches and the + / - keys, each one animated
 //! step, anchored and limited by the frame. Zooming never changes the
 //! frame (CAM-06), except that a zoom out to the system fit returns it to
-//! the star and eases the view back to the standard tilt (CAM-23).
+//! the star and eases the view back to the standard tilt (CAM-23). In the
+//! sector view the same steps run between the sector fit and its inner
+//! limit (SECT-11), and never change the layer.
 //!
 //! The rules are plain functions in `zoom.rs` (the step, the anchor) and
 //! `fits.rs` (the distances); this module gathers their inputs and starts
@@ -22,6 +24,7 @@ use super::zoom::{
 };
 use crate::view::bindings::{Bindings, pressed};
 use crate::view::frame::{body_position, clamp_to_pan_bound};
+use crate::view::map_layer::MapLayer;
 use crate::view::targets::PointerTargets;
 use crate::view::tunables::Tunables;
 use crate::view::world::WorldPositions;
@@ -55,7 +58,7 @@ pub struct ZoomContext<'w, 's> {
     camera: ZoomCamera<'w, 's>,
     positions: Res<'w, WorldPositions>,
     fits: Fits<'w, 's>,
-    stops: Res<'w, super::stops::ZoomStops>,
+    layer: Res<'w, MapLayer>,
     targets: PointerTargets<'w, 's>,
 }
 
@@ -91,16 +94,16 @@ impl ZoomContext<'_, '_> {
 
     /// ZOOM-14 / ZOOM-15: the system and satellite fits and the inner
     /// limit for this step, by the frame body (`None` for the star).
-    fn step_fits(&self, frame_body: Option<Entity>, tilt: f32) -> StepFits {
+    fn step_fits(&self, frame_body: Option<Entity>, (heading, tilt): (f32, f32)) -> StepFits {
         StepFits {
-            system: self.fits.system_fit(tilt),
+            system: self.fits.system_fit(heading, tilt),
             satellite: frame_body.and_then(|body| self.fits.satellite_fit(body, tilt)),
             inner: self.fits.inner_limit(frame_body, tilt),
         }
     }
 
     fn pan_bound(&self) -> f32 {
-        self.tunables.pan_bound_factor * self.stops.system_radius
+        self.tunables.pan_bound_factor * self.fits.outer_radius()
     }
 }
 
@@ -141,18 +144,21 @@ pub fn handle_zoom_input(context: ZoomContext, mut view: CameraControl) {
     let body_at = frame_body.map(|body| body_position(body, &context.positions));
     let anchor = zoom_anchor(body_at, cursor_point, rig.pivot);
 
-    let fits = context.step_fits(frame_body, rig.tilt);
+    let fits = context.step_fits(frame_body, (rig.heading, rig.tilt));
     let step = plan_step(rig.distance, request.notches, &fits, &context.tunables);
 
     // CAM-23 / CAM-08: a step out to the system fit sets the star's frame
     // and eases the pivot to the star and the tilt to the standard one.
-    if request.notches < 0.0 && reaches_system_fit(step.target, fits.system) {
+    // The sector view has no such rule: its fit is only the outer limit
+    // (SECT-11).
+    let outermost = reaches_system_fit(step.target, fits.system);
+    if request.notches < 0.0 && outermost && !context.layer.is_sector() {
         let tilt = context.tunables.standard_tilt_deg.to_radians();
         let target = MoveTarget {
             pivot: view.star_pivot(Vec3::ZERO),
             heading: rig.heading,
             tilt,
-            distance: context.fits.system_fit(tilt),
+            distance: context.fits.system_fit(rig.heading, tilt),
         };
         view.start(target, step.duration_ms);
         return;

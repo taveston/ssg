@@ -114,6 +114,7 @@ impl BeltSummary {
     }
 
     /// Whether two belts share any radius.
+    #[cfg(test)]
     pub fn overlaps(&self, other: &BeltSummary) -> bool {
         self.inner_au <= other.outer_au && other.inner_au <= self.outer_au
     }

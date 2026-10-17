@@ -33,15 +33,22 @@
 //!   order as Schedule would (PLNR-50), then moves the clock on to this
 //!   many days after the ship leaves its orbit (PLNR-21), so the shot
 //!   shows the ship in flight. Negative days stop short of the leave day.
+//! - `sector`: starts the shot in the sector view with a new sector of
+//!   this size, as `--sector` takes it: a preset or a number of gated
+//!   systems (SECT-44). `select` and `hover` then name a gated system or
+//!   an entry's designation, and `distance` is from the sector's centre.
+//! - `seed`: the sector's seed, as `--seed` takes it; only with `sector`.
 //!
-//! Names are the bodies' display names. The app starts, waits a moment for
+//! Names are the bodies' display names, or in the sector view the
+//! systems' names and the entries' designations. The app starts, waits a moment for
 //! the world to load, applies the selection, the rate and the frame, waits
 //! for the frame move to end, sets distance, tilt and heading, waits
 //! `wait` seconds, saves the screenshot and exits.
 //!
-//! These exit at once with an error log instead of waiting for the
-//! timeout:
-//! - a name that matches no body;
+//! A bad `sector` or `seed`, or `seed` without `sector`, stops the app as
+//! an unknown key does. These exit at once with an error log instead of
+//! waiting for the timeout:
+//! - a name that matches no body (or, in the sector view, no entry);
 //! - `planner` with no `select`, or selecting a body that can't open the
 //!   planner: anything but a ship the faction commands, parked in a named
 //!   orbit with no order (PLNR-01);
@@ -65,16 +72,21 @@ use super::camera::rules::clamp_tilt;
 use super::camera::state::{ActiveMove, CameraRig, MAX_DISTANCE, MIN_DISTANCE};
 use super::inset::content::is_commanded_ship;
 use super::inset::inspect::{OrderableShip, may_take_order};
+use super::map_layer::{MapLayer, SectorSelection};
 use super::multi::{MultiKey, MultiMarkers, OpenTray, TrayFor, TrayRequest};
 use super::planner::input::{order_to_schedule, schedule_order};
 use super::planner::model::blocking_reason;
 use super::planner::state::{PickTarget, PlannerState};
 use super::planner::words::reason;
-use super::scale::km_to_render;
+use super::scale::{km_to_render, sector_km_to_render};
+use super::sector::ForEntry;
+use super::sector::input::NodeTarget;
 use super::selection::Selection;
 use super::targets::{Hovered, MarkerFor};
 use super::tunables::Tunables;
 use crate::Stage;
+use crate::content::generator::tunables::GeneratorTunables;
+use crate::content::start::{LoadedSector, SectorRequest, Start, load_start, sector_size};
 use crate::sim::body::{BodyClass, DisplayName};
 use crate::sim::clock::GameClock;
 use crate::sim::track::ShipRecord;
@@ -114,6 +126,10 @@ pub struct ShotPlan {
     pub fly_days: Option<f64>,
     /// The body whose multi-marker's tray to open.
     pub tray: Option<String>,
+    /// A new sector to start in, its size as `--sector` takes it.
+    pub sector: Option<String>,
+    /// The sector's seed, as `--seed` takes it.
+    pub seed: Option<String>,
 }
 
 /// The `planner` value that opens the planner without picking.
@@ -138,6 +154,8 @@ impl ShotPlan {
             planner: None,
             fly_days: None,
             tray: None,
+            sector: None,
+            seed: None,
         };
         let pairs = spec.split(';').map(str::trim).filter(|p| !p.is_empty());
         for pair in pairs {
@@ -159,13 +177,34 @@ impl ShotPlan {
                 "planner" => plan.planner = Some(value.to_string()),
                 "fly" => plan.fly_days = Some(number(key, value)?),
                 "tray" => plan.tray = Some(value.to_string()),
+                "sector" => plan.sector = Some(value.to_string()),
+                "seed" => plan.seed = Some(value.to_string()),
                 _ => return Err(format!("unknown key `{key}`")),
             }
         }
         if plan.out.as_os_str().is_empty() {
             return Err("`out` (the image path) is required".to_string());
         }
+        plan.sector_request()?;
         Ok(plan)
+    }
+
+    /// SECT-44: the sector `sector` and `seed` ask for, if any; a bad
+    /// size or seed, or a seed with no sector, is an error.
+    pub fn sector_request(&self) -> Result<Option<SectorRequest>, String> {
+        let Some(size) = self.sector.as_deref() else {
+            return match self.seed {
+                Some(_) => Err("`seed` seeds a sector: give `sector` too".to_string()),
+                None => Ok(None),
+            };
+        };
+        let gated_count = sector_size(size, &GeneratorTunables::default())?;
+        let seed = self
+            .seed
+            .as_deref()
+            .map(|text| number::<u64>("seed", text))
+            .transpose()?;
+        Ok(Some(SectorRequest { gated_count, seed }))
     }
 }
 
@@ -236,6 +275,11 @@ impl Plugin for DebugShotPlugin {
     fn build(&self, app: &mut App) {
         if let Ok(spec) = std::env::var(SHOT_ENV) {
             let plan = ShotPlan::parse(&spec).unwrap_or_else(|e| panic!("{SHOT_ENV}: {e}"));
+            // SECT-44: a shot of a sector starts the game in it, whatever
+            // the arguments asked for.
+            if let Ok(Some(request)) = plan.sector_request() {
+                load_start(app, Start::Sector(request));
+            }
             app.insert_resource(Shot::new(plan));
         }
         app.add_systems(
@@ -269,6 +313,58 @@ struct ShotScene<'w, 's> {
     planner: ResMut<'w, PlannerState>,
     clock: ResMut<'w, GameClock>,
     frame_request: ResMut<'w, FrameRequest>,
+    sector: ShotSector<'w, 's>,
+}
+
+/// What a shot of the sector view reads and sets: the layer, the sector,
+/// its selection and its nodes' hit targets (SECT-44).
+#[derive(SystemParam)]
+struct ShotSector<'w, 's> {
+    layer: Res<'w, MapLayer>,
+    loaded: Option<Res<'w, LoadedSector>>,
+    selection: ResMut<'w, SectorSelection>,
+    targets: Query<'w, 's, (Entity, &'static ForEntry), With<NodeTarget>>,
+}
+
+impl ShotSector<'_, '_> {
+    /// SECT-44: the entry a name stands for: a gated system's name, or an
+    /// entry's designation.
+    fn find(&self, name: &str) -> Option<usize> {
+        let sector = &self.loaded.as_ref()?.sector;
+        let gated = sector.gated.iter().find(|g| g.names.system == name);
+        gated.map(|g| g.id).or_else(|| {
+            let entries = sector.entries.iter();
+            entries
+                .map(|e| (e.id, &e.designation))
+                .find(|(_, d)| *d == name)
+                .map(|(id, _)| id)
+        })
+    }
+
+    /// SECT-44: select and hover the entries the plan names; a name that
+    /// is no entry's is an error.
+    fn start(&mut self, plan: &ShotPlan, commands: &mut Commands) -> Result<(), String> {
+        let wanted = [&plan.frame, &plan.select, &plan.hover, &plan.tray];
+        if let Some(missing) = wanted
+            .into_iter()
+            .flatten()
+            .find(|n| self.find(n).is_none())
+        {
+            return Err(format!(
+                "no system or entry in the sector is named `{missing}`"
+            ));
+        }
+        if plan.frame.is_some() || plan.tray.is_some() || plan.planner.is_some() {
+            return Err("in the sector view only `select` and `hover` name things".to_string());
+        }
+        self.selection.0 = plan.select.as_deref().and_then(|n| self.find(n));
+        if let Some(id) = plan.hover.as_deref().and_then(|n| self.find(n)) {
+            for (target, _) in self.targets.iter().filter(|(_, e)| e.0 == id) {
+                commands.entity(target).insert(Hovered);
+            }
+        }
+        Ok(())
+    }
 }
 
 impl ShotScene<'_, '_> {
@@ -306,6 +402,11 @@ impl ShotScene<'_, '_> {
     /// says which phase comes next; or says why the shot can't be taken:
     /// a body that doesn't exist, or a planner that can't open.
     fn start(&mut self, plan: &ShotPlan) -> Result<ShotPhase, String> {
+        if self.sector.layer.is_sector() {
+            self.sector.start(plan, &mut self.commands)?;
+            self.set_rate(plan.rate_days_per_sec);
+            return Ok(ShotPhase::Framing);
+        }
         let destination = plan.planner.as_ref().filter(|p| *p != PLANNER_OPEN);
         let wanted = [&plan.frame, &plan.select, &plan.hover, &plan.tray]
             .into_iter()
@@ -385,7 +486,7 @@ fn run_shot(
             Err(why) => shot.fail(&why, &mut exit),
         },
         ShotPhase::Framing if scene.frame_request.0.is_none() && active.0.is_none() => {
-            set_pose(&shot.plan, &mut rig, &tunables);
+            set_pose(&shot.plan, &mut rig, (&tunables, *scene.sector.layer));
             shot.phase = ShotPhase::Settling { since: now };
         }
         ShotPhase::Settling { since } if now - since >= shot.plan.wait_secs => {
@@ -589,10 +690,15 @@ fn refuse_unplannable(
 }
 
 /// Distance, tilt and heading as the plan gives them, each left as it is
-/// when not given. Distance and tilt keep the camera's limits.
-fn set_pose(plan: &ShotPlan, rig: &mut CameraRig, tunables: &Tunables) {
+/// when not given. Distance and tilt keep the camera's limits; in the
+/// sector view the distance is at the sector's scale.
+fn set_pose(plan: &ShotPlan, rig: &mut CameraRig, (tunables, layer): (&Tunables, MapLayer)) {
     if let Some(km) = plan.distance_km {
-        rig.distance = km_to_render(km).clamp(MIN_DISTANCE, MAX_DISTANCE);
+        let render = match layer {
+            MapLayer::System => km_to_render(km),
+            MapLayer::Sector => sector_km_to_render(km),
+        };
+        rig.distance = render.clamp(MIN_DISTANCE, MAX_DISTANCE);
     }
     if let Some(deg) = plan.tilt_deg {
         rig.tilt = clamp_tilt(deg.to_radians(), tunables.max_pitch_deg);
@@ -649,6 +755,29 @@ mod tests {
         assert!(ShotPlan::parse("frame=Morrow").is_err());
     }
 
+    /// SECT-44: `sector` takes a preset or a count, and `seed` a decimal
+    /// seed; a bad size or seed, or a seed alone, is an error.
+    #[test]
+    fn the_sector_and_seed_keys_start_a_sector() {
+        let plan = ShotPlan::parse("out=a.png;sector=small;seed=42;select=OW-0003").unwrap();
+        let request = plan.sector_request().unwrap().unwrap();
+        let small = GeneratorTunables::default().preset_small;
+        assert_eq!((request.gated_count, request.seed), (small, Some(42)));
+        let counted = ShotPlan::parse("out=a.png;sector=40").unwrap();
+        assert_eq!(counted.sector_request().unwrap().unwrap().gated_count, 40);
+        assert_eq!(counted.sector_request().unwrap().unwrap().seed, None);
+        assert_eq!(
+            ShotPlan::parse("out=a.png").unwrap().sector_request(),
+            Ok(None)
+        );
+        for bad in ["sector=huge", "sector=small;seed=x", "seed=4", "sector=1"] {
+            assert!(
+                ShotPlan::parse(&format!("out=a.png;{bad}")).is_err(),
+                "{bad}"
+            );
+        }
+    }
+
     #[test]
     fn typos_and_bad_numbers_are_errors() {
         assert!(ShotPlan::parse("out=a.png;tlit=40").is_err());
@@ -666,7 +795,7 @@ mod tests {
             heading_deg: Some(90.0),
             ..ShotPlan::parse("out=a.png").unwrap()
         };
-        set_pose(&plan, &mut rig, &tunables);
+        set_pose(&plan, &mut rig, (&tunables, MapLayer::System));
         assert_eq!(rig.tilt, tunables.max_pitch_deg.to_radians());
         assert_eq!(rig.distance, MAX_DISTANCE);
         assert!((rig.heading - std::f32::consts::FRAC_PI_2).abs() < 1e-6);

@@ -21,6 +21,7 @@ use crate::view::fonts::{Face, Fonts};
 use crate::view::frame::Frame;
 use crate::view::halo::TextHalo;
 use crate::view::layers;
+use crate::view::map_layer::MapLayer;
 use crate::view::markers::{MarkerDrawn, MarkerHalfSize, MarkerShape, box_half};
 use crate::view::plot_marks::ScaleBarKm;
 use crate::view::scale::km_to_render;
@@ -383,7 +384,7 @@ pub struct CueNodes<'w, 's> {
 /// bar (for the ticks' distance).
 pub fn draw_frame_cue(
     view: ViewNow,
-    frame: Res<Frame>,
+    (frame, layer): (Res<Frame>, Res<MapLayer>),
     map_view: MapView,
     scale_km: Res<ScaleBarKm>,
     tunables: Res<Tunables>,
@@ -391,7 +392,9 @@ pub fn draw_frame_cue(
     mut nodes: CueNodes,
 ) {
     let CueNodes { strokes, labels } = &mut nodes;
-    let layout = match (view.camera(), view.position(frame.body), map_view.area()) {
+    // SECT-09: the sector view has no frame body, and draws no cue.
+    let body = view.position(frame.body).filter(|_| !layer.is_sector());
+    let layout = match (view.camera(), body, map_view.area()) {
         (Some((_, transform)), Some(body), Some(area)) => {
             let camera = CueCamera {
                 eye: transform.translation(),

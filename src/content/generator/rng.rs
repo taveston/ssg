@@ -49,6 +49,13 @@ pub fn derive_seed(seed: u64, name: &str) -> u64 {
 /// A seed derived from `seed`, a `name` and an `index`, such as a
 /// system's id: one stream per item, so items drawn in any order get the
 /// same numbers (the system generator's seed per system, SYSG-02).
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "only entering a system calls the system generator (SECT-31)"
+    )
+)]
 pub fn derive_indexed_seed(seed: u64, name: &str, index: u64) -> u64 {
     let mut state = derive_seed(seed, name) ^ index.wrapping_mul(GOLDEN_GAMMA);
     splitmix64(&mut state)

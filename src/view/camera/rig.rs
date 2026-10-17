@@ -6,13 +6,12 @@ use bevy::camera::Viewport;
 use bevy::camera::visibility::RenderLayers;
 use bevy::prelude::*;
 
-use super::fits::FALLBACK_VIEWPORT;
+use super::fits::Fits;
 use super::rules::camera_transform;
 use super::state::{
     ActiveMove, CameraMove, CameraRig, MAX_DISTANCE, MIN_DISTANCE, MoveTarget, OrbitCamera,
-    blend_rig, camera_fov,
+    blend_rig,
 };
-use super::stops::{ZoomStops, distance_for_radius};
 use crate::view::anim::ease_out_cubic;
 use crate::view::frame::{Frame, body_position, frame_pivot};
 use crate::view::screen::MapView;
@@ -61,27 +60,20 @@ pub fn spawn_camera(mut commands: Commands) {
     ));
 }
 
-/// CAM-02: the camera starts at the system fit in the standard
-/// orientation: north up, tilted by `standard_tilt_deg`.
+/// CAM-02 / SECT-12: the camera starts at the system fit, or in the
+/// sector view the sector fit, in the standard orientation: north up,
+/// tilted by `standard_tilt_deg`.
 pub fn start_at_system_fit(
-    stops: Res<ZoomStops>,
     tunables: Res<Tunables>,
+    fits: Fits,
     mut rig: ResMut<CameraRig>,
-    camera: Query<&Projection, With<OrbitCamera>>,
-    map: MapView,
+    camera: Query<(), With<OrbitCamera>>,
 ) {
-    let Ok(projection) = camera.single() else {
+    if camera.single().is_err() {
         return;
-    };
-    let viewport = map.viewport().unwrap_or(FALLBACK_VIEWPORT);
+    }
     rig.tilt = tunables.standard_tilt_deg.to_radians();
-    rig.distance = distance_for_radius(
-        stops.system_radius,
-        camera_fov(projection),
-        rig.tilt,
-        tunables.zoom_fit_margin,
-        viewport,
-    );
+    rig.distance = fits.system_fit(rig.heading, rig.tilt);
 }
 
 /// SCL-06: render space moved with the frame body since last frame, so the
@@ -221,6 +213,7 @@ mod tests {
     use super::*;
     use crate::content::sol::sol_system;
     use crate::sim::system::OrbitPlacement;
+    use crate::view::camera::stops::distance_for_radius;
     use crate::view::scale::km_to_render;
 
     /// ZOOM-15 / CAM-19: Sol, the widest system, fits the view inside the

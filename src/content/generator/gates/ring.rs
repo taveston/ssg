@@ -62,6 +62,7 @@ fn blocked_ring_radii(
 }
 
 /// Whether a ring of `radius_au` clears every planet's orbit (SGEN-58).
+#[cfg(test)]
 pub fn ring_is_clear(
     radius_au: f64,
     planets: &[PlanetSummary],

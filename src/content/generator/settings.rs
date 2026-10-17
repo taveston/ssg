@@ -17,6 +17,7 @@ pub enum Preset {
 
 impl Preset {
     /// Every preset, smallest first.
+    #[cfg(test)]
     pub const ALL: [Preset; 3] = [Preset::Small, Preset::Medium, Preset::Large];
 
     /// The number of gated systems this preset asks for.
@@ -40,6 +41,7 @@ pub struct Settings {
 
 impl Settings {
     /// Settings for a preset and a seed.
+    #[cfg(test)]
     pub fn preset(preset: Preset, seed: u64, tunables: &GeneratorTunables) -> Self {
         Self {
             gated_count: preset.gated_count(tunables),

@@ -1,5 +1,6 @@
 //! The map's plot furniture (MRK-16, MRK-17): a scale bar at the bottom
-//! left of the map area and a north dial at its top right. Both are read
+//! left of the map area and a north dial at its top right. In the sector
+//! view the bar measures light years (SECT-09). Both are read
 //! off this frame's camera at the pivot, so they always agree with the
 //! map, and both are placed in the map area (`MapArea`), so they move with
 //! anything that narrows it.
@@ -13,15 +14,16 @@ use super::camera::state::CameraRig;
 use super::colors;
 use super::fonts::{Face, Fonts};
 use super::layers;
-use super::readout::format_distance;
-use super::scale::{km_to_render, render_to_km};
+use super::map_layer::MapLayer;
+use super::readout::{format_distance, format_light_years};
+use super::scale::{km_to_render, ly_to_render, render_to_km, render_to_ly};
 use super::screen::{MapArea, MapView, screen_angle};
 use super::symbols::shape::{SymbolMask, SymbolPart};
 use super::targets::MapInputBlocker;
 use super::text_size::TextSize;
 use super::tunables::Tunables;
 use super::world::ViewNow;
-use crate::sim::units::KM_PER_AU;
+use crate::sim::units::{KM_PER_AU, KM_PER_LIGHT_YEAR};
 use crate::{Boot, Stage};
 
 /// The scale bar's root, its line and its length label.
@@ -87,11 +89,45 @@ pub fn scale_bar_km(max_km: f64, au_threshold_au: f64) -> f64 {
     km
 }
 
+/// What the scale bar shows this frame: its length on screen, the
+/// distance it stands for in km, and its label.
+#[derive(Debug, Clone, PartialEq)]
+pub struct BarLength {
+    pub px: f32,
+    pub km: f64,
+    pub text: String,
+}
+
+/// MRK-16: the system view's bar at `px_per_render` pixels per render
+/// unit: round in km or AU (UNIT-01).
+pub fn system_bar(px_per_render: f32, tunables: &Tunables) -> BarLength {
+    let max_km = render_to_km(tunables.scale_bar_max_px / px_per_render);
+    let km = scale_bar_km(max_km, tunables.distance_au_threshold_au);
+    BarLength {
+        px: (km_to_render(km) * px_per_render).round(),
+        km,
+        text: format_distance(km, tunables.distance_au_threshold_au),
+    }
+}
+
+/// SECT-09: the sector view's bar: the longest round number of light
+/// years (1, 2 or 5 times a power of ten) that fits, read as UNIT-05.
+pub fn sector_bar(px_per_render: f32, tunables: &Tunables) -> BarLength {
+    let ly = round_floor(render_to_ly(tunables.scale_bar_max_px / px_per_render));
+    let km = ly * KM_PER_LIGHT_YEAR;
+    BarLength {
+        px: (ly_to_render(ly) * px_per_render).round(),
+        km,
+        text: format_light_years(km),
+    }
+}
+
 pub struct PlotMarksPlugin;
 
 impl Plugin for PlotMarksPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ScaleBarKm>()
+            .init_resource::<MapLayer>()
             .add_systems(
                 Startup,
                 (spawn_scale_bar, spawn_north_dial).in_set(Boot::Overlay),
@@ -193,10 +229,11 @@ struct ScaleBarNodes<'w, 's> {
 
 /// MRK-16: the bar's length on the plane at the pivot, measured along the
 /// screen's horizontal, kept to the longest round distance that fits; the
-/// distance is shared for the frame cue's ticks (REF-05).
+/// distance is shared for the frame cue's ticks (REF-05). In the sector
+/// view it is in light years (SECT-09).
 fn update_scale_bar(
     view: ViewNow,
-    rig: Res<CameraRig>,
+    (rig, layer): (Res<CameraRig>, Res<MapLayer>),
     tunables: Res<Tunables>,
     map_view: MapView,
     mut scale_km: ResMut<ScaleBarKm>,
@@ -218,10 +255,12 @@ fn update_scale_bar(
     if px_per_render <= 0.0 {
         return;
     }
-    let max_km = render_to_km(tunables.scale_bar_max_px / px_per_render);
-    let km = scale_bar_km(max_km, tunables.distance_au_threshold_au);
-    let length_px = (km_to_render(km) * px_per_render).round();
-    scale_km.0 = km;
+    let bar = if layer.is_sector() {
+        sector_bar(px_per_render, &tunables)
+    } else {
+        system_bar(px_per_render, &tunables)
+    };
+    scale_km.0 = bar.km;
 
     for mut node in &mut nodes.bars {
         node.display = Display::Flex;
@@ -229,12 +268,11 @@ fn update_scale_bar(
         node.bottom = px(viewport.y - (map.offset.y + map.size.y) + tunables.plot_margin_px);
     }
     for mut node in &mut nodes.lines {
-        node.width = px(length_px);
+        node.width = px(bar.px);
     }
-    let text = format_distance(km, tunables.distance_au_threshold_au);
     for mut label in &mut nodes.lengths {
-        if label.0 != text {
-            label.0 = text.clone();
+        if label.0 != bar.text {
+            label.0 = bar.text.clone();
         }
     }
 }
@@ -416,6 +454,24 @@ mod tests {
         assert_eq!(km, 10_000_000.0);
         assert_eq!(format_distance(km, threshold), "10,000,000 km");
         assert_eq!(format_distance(2.0 * KM_PER_AU, threshold), "2 AU");
+    }
+
+    /// SECT-09: in the sector view the bar is a round number of light
+    /// years, the longest that fits `scale_bar_max_px`, read to one
+    /// decimal place.
+    #[test]
+    fn the_sector_bar_is_round_in_light_years() {
+        let t = Tunables::default();
+        // 160 px at 1.2 px per render unit is 13.3 ly: the bar is 10.
+        let bar = sector_bar(1.2, &t);
+        assert_eq!(bar.text, "10.0 ly");
+        assert_eq!(bar.km, 10.0 * KM_PER_LIGHT_YEAR);
+        assert_eq!(bar.px, (ly_to_render(10.0) * 1.2).round());
+        assert!(bar.px <= t.scale_bar_max_px);
+        assert_eq!(sector_bar(0.5, &t).text, "20.0 ly");
+        let system = system_bar(1.0, &t);
+        let au = t.distance_au_threshold_au;
+        assert_eq!(system.text, format_distance(system.km, au));
     }
 
     /// MRK-17: the "N" sits beyond the tip, outside the circle, at every
