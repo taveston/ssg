@@ -16,14 +16,18 @@ use crate::sim::planet_facts::WorldKind;
 use crate::sim::system::BodyBlueprint;
 use crate::sim::units::{EARTH_MASS_KG, EARTH_RADIUS_KM, KM_PER_AU};
 
+/// Moons are lettered a to z (SYSG-34), so no planet can have more than
+/// this many whatever `moon_max_count` says.
+const LETTERS: u32 = 26;
+
 /// SYSG-30: how many moons a planet of `kind` draws, by its kind's range
-/// or weights, and never more than `moon_max_count`.
+/// or weights, and never more than `moon_max_count` or the alphabet.
 pub fn moon_count(kind: PlanetKind, rng: &mut Rng, t: &GeneratorTunables) -> u32 {
     let count = match t.moon_counts.get(kind) {
         MoonCount::Range(span) => rng.int_between(span.min, span.max),
         MoonCount::Weights(weights) => rng.weighted(weights),
     };
-    count.min(t.moon_max_count)
+    count.min(t.moon_max_count).min(LETTERS)
 }
 
 /// SYSG-31: the outer limit of a planet's moons, in planet radii: the
@@ -128,6 +132,7 @@ pub fn moons(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::content::generator::tunables::CountSpan;
 
     /// SYSG-30: each kind's moon counts stay in its range, a rocky planet
     /// has none 80% of the time, and none passes `moon_max_count`.
@@ -160,6 +165,13 @@ mod tests {
             ..t.clone()
         };
         assert!((0..200).all(|_| moon_count(PlanetKind::GasGiant, &mut rng, &capped) <= 4));
+        // Past the alphabet the letters run out, so the count stops at 26.
+        let mut many = GeneratorTunables {
+            moon_max_count: 40,
+            ..t.clone()
+        };
+        many.moon_counts.gas_giant = MoonCount::Range(CountSpan::new(30, 40));
+        assert!((0..200).all(|_| moon_count(PlanetKind::GasGiant, &mut rng, &many) == 26));
     }
 
     /// SYSG-31: orbits start in the first range, grow by the ratio, and
