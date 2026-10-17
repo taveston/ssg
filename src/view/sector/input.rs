@@ -140,14 +140,6 @@ pub fn handle_escape(
     }
 }
 
-/// The entries the pointer is over this frame, through a node's target or
-/// its label.
-pub fn hovered_entries<'a>(
-    hovered: impl Iterator<Item = &'a ForEntry>,
-) -> impl Iterator<Item = usize> {
-    hovered.map(|entry| entry.0)
-}
-
 /// SECT-07 / HOV-06 / HOV-07: the marks round the hovered and selected
 /// nodes: brackets round each node's box, its drawn square plus
 /// `bracket_margin_px` on every side, fully for the selection and at
@@ -186,7 +178,7 @@ pub fn mark_nodes(
     if !layer.is_sector() {
         return;
     }
-    let hovered: Vec<usize> = hovered_entries(hovered.iter()).collect();
+    let hovered: Vec<usize> = hovered.iter().map(|entry| entry.0).collect();
     marks.0 = node_marks(&screens, selection.0, &hovered, &tunables);
 }
 
