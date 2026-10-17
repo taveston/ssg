@@ -5,7 +5,7 @@
 
 use bevy::prelude::*;
 
-use super::body::{Affiliation, BodyClass, Knowledge};
+use super::body::{Affiliation, BeltComposition, BodyClass, Knowledge};
 use super::ship::Propulsion;
 use super::track::ShipRecord;
 
@@ -79,9 +79,15 @@ pub struct MemberBlueprint {
     pub record: ShipRecord,
 }
 
+/// One belt (SCL-08): an annulus round the star, by name, with its mass
+/// and composition where they are known, and the salvage sites that orbit
+/// within it.
 pub struct BeltBlueprint {
+    pub name: String,
     pub inner_radius_km: f64,
     pub outer_radius_km: f64,
+    pub mass_kg: Option<f64>,
+    pub composition: Option<BeltComposition>,
     pub salvage_sites: Vec<BodyBlueprint>,
 }
 
@@ -105,7 +111,8 @@ pub struct SystemData {
     pub star_radius_km: f64,
     pub star_knowledge: Knowledge,
     pub planets: Vec<BodyBlueprint>,
-    pub belt: BeltBlueprint,
+    /// Any number of belts, none included (SCL-08).
+    pub belts: Vec<BeltBlueprint>,
     pub gates: Vec<GateBlueprint>,
 }
 

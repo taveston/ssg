@@ -1,14 +1,15 @@
-//! The belt (MRK-18): a soft translucent band round the star with a fixed
-//! scatter of faint points across it, the one piece of real 3D geometry in
-//! the system view. Sized from the simulation's `Belt` record through
-//! `scale.rs`.
+//! The belts (MRK-18): each a soft translucent band round the star with a
+//! fixed scatter of faint points across it, the one piece of real 3D
+//! geometry in the system view. Each is sized from its simulation `Belt`
+//! record through `scale.rs`; a system with no belt draws none.
 //!
 //! The band is a flat ring mesh split into narrow concentric strips, its
 //! alpha set per vertex: full along the centre line, falling as 1 − u² to
 //! nothing at both edges, so it has no hard edge. The grain is one
 //! point-list mesh: each point is drawn by the GPU as a single pixel. The
-//! points are scattered once from a fixed seed with the same falloff, so
-//! they look the same every run and every frame. Both meshes lie in the
+//! points are scattered once with the same falloff from a fixed seed of
+//! the belt's own, so they look the same every run and every frame and no
+//! two belts share a pattern. Both meshes lie in the
 //! orbital plane (XZ) and only move with the star; they don't orbit, and
 //! nothing in them is an entity of its own or a hover or click target.
 
@@ -32,9 +33,24 @@ const BAND_SEGMENTS: u32 = 256;
 /// this many steps follow the 1 − u² curve closely enough that no step
 /// shows.
 const BAND_STRIPS: u32 = 16;
-/// The seed of the grain's scatter, fixed so the points never move
+/// The base of every belt's grain seed, fixed so the points never move
 /// between runs.
 const SPECK_SEED: u64 = 0x0B5E_7A11_D05E_ED01;
+
+/// A belt's own grain seed (MRK-18): the base seed mixed (FNV-1a) with the
+/// belt's name and edges, so it is the same every run and differs between
+/// the belts of a system, whose edges never coincide.
+pub fn belt_speck_seed(belt: &Belt) -> u64 {
+    const PRIME: u64 = 0x0000_0100_0000_01B3;
+    let edges = [belt.inner_radius_km, belt.outer_radius_km];
+    let bytes = belt
+        .name
+        .bytes()
+        .chain(edges.iter().flat_map(|km| km.to_bits().to_le_bytes()));
+    bytes.fold(SPECK_SEED, |hash, byte| {
+        (hash ^ u64::from(byte)).wrapping_mul(PRIME)
+    })
+}
 
 /// The point-list mesh that draws the belt's grain.
 #[derive(Component)]
@@ -161,7 +177,7 @@ fn vertex_color_material() -> StandardMaterial {
     }
 }
 
-/// The belt circles the star, which sits wherever the floating origin
+/// The belts circle the star, which sits wherever the floating origin
 /// puts it this frame (SCL-06).
 fn centre_belt_on_star(origin: Res<RenderOrigin>, mut belts: Query<&mut Transform, With<Belt>>) {
     for mut transform in &mut belts {
@@ -169,6 +185,7 @@ fn centre_belt_on_star(origin: Res<RenderOrigin>, mut belts: Query<&mut Transfor
     }
 }
 
+/// Gives each belt its band mesh and, as a child, its grain (MRK-18).
 fn add_belt_mesh(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -180,7 +197,8 @@ fn add_belt_mesh(
         let inner = km_to_render(belt.inner_radius_km);
         let outer = km_to_render(belt.outer_radius_km);
         let band = band_mesh(inner, outer, tunables.belt_band_alpha, colors::ORBIT_LINE);
-        let points = speck_positions(inner, outer, tunables.belt_speck_count, SPECK_SEED);
+        let seed = belt_speck_seed(belt);
+        let points = speck_positions(inner, outer, tunables.belt_speck_count, seed);
         let specks = speck_mesh(&points, colors::ORBIT_LINE, tunables.belt_speck_alpha);
         let material = materials.add(vertex_color_material());
         commands
@@ -290,24 +308,45 @@ mod tests {
         assert!((240..360).contains(&quadrant), "{quadrant}");
     }
 
+    /// A belt record with no mass or composition.
+    fn belt(name: &str, inner_radius_km: f64, outer_radius_km: f64) -> Belt {
+        Belt {
+            name: name.to_string(),
+            inner_radius_km,
+            outer_radius_km,
+            mass_kg: None,
+            composition: None,
+        }
+    }
+
+    /// An app that gives belts their meshes, with nothing in it yet.
+    fn belt_app() -> App {
+        let mut app = App::new();
+        app.init_resource::<Assets<Mesh>>()
+            .init_resource::<Assets<StandardMaterial>>()
+            .init_resource::<Tunables>()
+            .add_systems(Update, add_belt_mesh);
+        app
+    }
+
+    /// The points of a grain mesh, in render units.
+    fn mesh_points(mesh: &Mesh) -> Vec<Vec3> {
+        let Some(VertexAttributeValues::Float32x3(positions)) =
+            mesh.attribute(Mesh::ATTRIBUTE_POSITION)
+        else {
+            panic!("positions");
+        };
+        positions.iter().map(|p| Vec3::from_array(*p)).collect()
+    }
+
     /// MRK-18: the belt is one band mesh with its grain as one point-list
     /// child of `belt_speck_count` points in the orbit colour at
     /// `belt_speck_alpha`; neither is a pick target and the points are not
     /// entities of their own.
     #[test]
     fn belt_spawns_one_band_and_one_point_mesh_of_faint_specks() {
-        let mut app = App::new();
-        app.init_resource::<Assets<Mesh>>()
-            .init_resource::<Assets<StandardMaterial>>()
-            .init_resource::<Tunables>()
-            .add_systems(Update, add_belt_mesh);
-        let belt = app
-            .world_mut()
-            .spawn(Belt {
-                inner_radius_km: 3.0e8,
-                outer_radius_km: 4.5e8,
-            })
-            .id();
+        let mut app = belt_app();
+        let belt = app.world_mut().spawn(belt("Belt", 3.0e8, 4.5e8)).id();
         app.update();
         let world = app.world_mut();
         let tunables = world.resource::<Tunables>().clone();
@@ -328,5 +367,70 @@ mod tests {
             .with_alpha(tunables.belt_speck_alpha)
             .to_f32_array();
         assert!(colors.iter().all(|c| *c == expected));
+    }
+
+    /// MRK-18: two belts draw two bands, each with its grain scattered
+    /// across its own annulus from a seed of its own.
+    #[test]
+    fn two_belts_draw_two_bands_each_with_its_own_grain() {
+        let mut app = belt_app();
+        let inner = app.world_mut().spawn(belt("Inner belt", 1.5e8, 2.0e8)).id();
+        let outer = app.world_mut().spawn(belt("Outer belt", 6.0e8, 7.5e8)).id();
+        app.update();
+        let count = app.world().resource::<Tunables>().belt_speck_count;
+        let world = app.world_mut();
+        let mut bands = world.query_filtered::<Entity, (With<Belt>, With<Mesh3d>)>();
+        assert_eq!(bands.iter(world).count(), 2);
+        let mut specks = world.query_filtered::<(&Mesh3d, &ChildOf), With<BeltSpecks>>();
+        let specks: Vec<(Handle<Mesh>, Entity)> = specks
+            .iter(world)
+            .map(|(mesh, parent)| (mesh.0.clone(), parent.parent()))
+            .collect();
+        assert_eq!(specks.len(), 2);
+        let mut seeds = Vec::new();
+        for entity in [inner, outer] {
+            let record = world.get::<Belt>(entity).unwrap().clone();
+            let seed = belt_speck_seed(&record);
+            seeds.push(seed);
+            let (mesh, _) = specks.iter().find(|(_, p)| *p == entity).unwrap();
+            let mesh = world.resource::<Assets<Mesh>>().get(mesh).unwrap();
+            let expected = speck_positions(
+                km_to_render(record.inner_radius_km),
+                km_to_render(record.outer_radius_km),
+                count,
+                seed,
+            );
+            assert_eq!(mesh_points(mesh), expected, "{}", record.name);
+        }
+        assert_ne!(seeds[0], seeds[1]);
+        assert!(seeds.iter().all(|s| *s != SPECK_SEED));
+    }
+
+    /// MRK-18: a belt's grain seed is fixed by its record, so it is the
+    /// same every run, and belts with different names or edges get
+    /// different seeds.
+    #[test]
+    fn each_belt_has_a_fixed_seed_of_its_own() {
+        let a = belt("Main belt", 3.0e8, 4.5e8);
+        assert_eq!(belt_speck_seed(&a), belt_speck_seed(&a.clone()));
+        assert_ne!(
+            belt_speck_seed(&a),
+            belt_speck_seed(&belt("Kuiper belt", 3.0e8, 4.5e8))
+        );
+        assert_ne!(
+            belt_speck_seed(&a),
+            belt_speck_seed(&belt("Main belt", 3.1e8, 4.5e8))
+        );
+    }
+
+    /// MRK-18: a system with no belt draws no band and no grain.
+    #[test]
+    fn a_system_with_no_belt_draws_none() {
+        let mut app = belt_app();
+        app.update();
+        let world = app.world_mut();
+        let mut meshes = world.query::<&Mesh3d>();
+        assert_eq!(meshes.iter(world).count(), 0);
+        assert!(world.resource::<Assets<Mesh>>().is_empty());
     }
 }

@@ -93,9 +93,12 @@ pub fn hand_made_system() -> SystemData {
         star_radius_km: 508_000.0, // 0.73 solar radii
         star_knowledge: surveyed_today(),
         planets: vec![pell(), iver(), halden_iv(), morrow()],
-        belt: BeltBlueprint {
+        belts: vec![BeltBlueprint {
+            name: "Corvane belt".to_string(),
             inner_radius_km: 1.15 * KM_PER_AU,
             outer_radius_km: 1.45 * KM_PER_AU,
+            mass_kg: None,
+            composition: None,
             salvage_sites: vec![
                 BodyBlueprint {
                     name: "Wreck Field",
@@ -132,7 +135,7 @@ pub fn hand_made_system() -> SystemData {
                     children: vec![],
                 },
             ],
-        },
+        }],
         gates: vec![
             GateBlueprint {
                 name: "Gate Ostra",
@@ -1131,7 +1134,8 @@ mod tests {
         }
     }
 
-    /// TEST-01 / TEST-03: the bodies the other checks lean on are present.
+    /// TEST-01 / TEST-03: the bodies the other checks lean on are present,
+    /// with one belt, the "Corvane belt", holding the salvage sites.
     #[test]
     fn corvane_contains_the_required_bodies() {
         let system = hand_made_system();
@@ -1140,7 +1144,11 @@ mod tests {
             assert!(planet_names.contains(&name), "{name} missing");
         }
 
-        let site_names: Vec<&str> = system.belt.salvage_sites.iter().map(|s| s.name).collect();
+        let [belt] = system.belts.as_slice() else {
+            panic!("Corvane has {} belts, not one", system.belts.len());
+        };
+        assert_eq!(belt.name, "Corvane belt");
+        let site_names: Vec<&str> = belt.salvage_sites.iter().map(|s| s.name).collect();
         assert!(site_names.contains(&"Wreck Field"));
         assert!(site_names.contains(&"Lantern"));
         assert!(!system.gates.is_empty());

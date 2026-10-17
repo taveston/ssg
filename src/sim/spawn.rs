@@ -1,6 +1,6 @@
 //! Spawns a `SystemData` as simulation entities (SCL-03): the star, a tree
 //! of planets, moons, stations and parked ships, each body's named orbits
-//! (SCL-07), the belt and its salvage sites, and the gates.
+//! (SCL-07), the belts and their salvage sites, and the gates.
 //!
 //! Every star, planet and moon gets its two bands as named orbits
 //! (BAND-01, PLAN-30), and every gate and salvage site a docking orbit of
@@ -14,8 +14,8 @@
 //! `ChildOf` naming what it orbits; nothing else marks it out, so the view
 //! can find satellites structurally. A ship or station in a named orbit
 //! also carries `InNamedOrbit`, and its `Orbit` radius and period are the
-//! named orbit's. Everything visible - transforms, markers, the belt's
-//! mesh, fold state - is added by the view.
+//! named orbit's. Everything visible - transforms, markers, the belts'
+//! meshes, fold state - is added by the view.
 
 use bevy::prelude::*;
 
@@ -28,7 +28,7 @@ use super::named_orbit::{DockingOrbitOf, InNamedOrbit, NamedOrbit};
 use super::orbit::{Orbit, OrbitPositionKm, kepler_period_days, orbit_position_km};
 use super::ship::{DeltaV, Propulsion};
 use super::system::{
-    BodyBlueprint, GateBlueprint, NamedOrbitBlueprint, OrbitPlacement, SystemData,
+    BeltBlueprint, BodyBlueprint, GateBlueprint, NamedOrbitBlueprint, OrbitPlacement, SystemData,
     SystemDataResource,
 };
 use super::transfer::phase::{gap_rad, together};
@@ -58,7 +58,7 @@ pub fn spawn_system(
         star_radius_km,
         star_knowledge,
         planets,
-        belt,
+        belts,
         gates,
     } = system_data;
 
@@ -96,20 +96,39 @@ pub fn spawn_system(
         spawn_body(&mut commands, planet, placed, None, star_mass_kg, &context);
     }
 
-    commands.spawn((
-        Name::new("Belt"),
-        Belt {
-            inner_radius_km: belt.inner_radius_km,
-            outer_radius_km: belt.outer_radius_km,
-        },
-    ));
-    let in_the_belt = Placements::round(&belt.salvage_sites, &[], tunables.together_km);
-    for (site, placed) in belt.salvage_sites.into_iter().zip(in_the_belt) {
-        spawn_body(&mut commands, site, placed, None, star_mass_kg, &context);
+    for belt in belts {
+        spawn_belt(&mut commands, belt, star_mass_kg, &context);
     }
 
     for gate in gates {
         spawn_gate(&mut commands, gate, star_mass_kg, &context);
+    }
+}
+
+/// One belt as an entity of its own (SCL-08), and its salvage sites round
+/// the star.
+fn spawn_belt(commands: &mut Commands, belt: BeltBlueprint, star_mass_kg: f64, context: &Context) {
+    let BeltBlueprint {
+        name,
+        inner_radius_km,
+        outer_radius_km,
+        mass_kg,
+        composition,
+        salvage_sites,
+    } = belt;
+    commands.spawn((
+        Name::new(name.clone()),
+        Belt {
+            name,
+            inner_radius_km,
+            outer_radius_km,
+            mass_kg,
+            composition,
+        },
+    ));
+    let in_the_belt = Placements::round(&salvage_sites, &[], context.tunables.together_km);
+    for (site, placed) in salvage_sites.into_iter().zip(in_the_belt) {
+        spawn_body(commands, site, placed, None, star_mass_kg, context);
     }
 }
 

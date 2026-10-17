@@ -4,6 +4,7 @@
 //! code, and Sol.
 
 use super::*;
+use crate::sim::body::{Belt, BeltComposition};
 use crate::sim::system::{BeltBlueprint, GateBlueprint, SystemData};
 use crate::sim::units::{EARTH_MASS_KG, SOLAR_MASS_KG};
 
@@ -84,11 +85,18 @@ fn generated_system() -> SystemData {
             planet,
             blueprint("Courier", BodyClass::Ship, 0.9 * KM_PER_AU),
         ],
-        belt: BeltBlueprint {
+        belts: vec![BeltBlueprint {
+            name: "Vey belt".to_string(),
             inner_radius_km: 0.5 * KM_PER_AU,
             outer_radius_km: 0.6 * KM_PER_AU,
+            mass_kg: Some(2.0e21),
+            composition: Some(BeltComposition {
+                rocky: 0.7,
+                metallic: 0.2,
+                icy: 0.1,
+            }),
             salvage_sites: vec![],
-        },
+        }],
         gates: vec![GateBlueprint {
             name: "Gate Vey",
             destination: "Ostra",
@@ -141,6 +149,79 @@ fn another_system_runs_through_the_same_code() {
     body(&mut app, "Gate Vey");
 }
 
+/// The belt records a spawned system holds, by name, innermost first.
+fn spawned_belts(app: &mut App) -> Vec<Belt> {
+    let mut belts = app.world_mut().query::<&Belt>();
+    let mut belts: Vec<Belt> = belts.iter(app.world()).cloned().collect();
+    belts.sort_by(|a, b| a.inner_radius_km.total_cmp(&b.inner_radius_km));
+    belts
+}
+
+/// SCL-08: a system holds any number of belts. Two spawn as two belt
+/// records, each with its name, edges, mass and composition and the
+/// salvage sites placed round the star; with none, none spawn.
+#[test]
+fn a_system_spawns_each_of_its_belts_or_none() {
+    let mut system = generated_system();
+    let site = blueprint("Drift", BodyClass::SalvageSite, 2.5 * KM_PER_AU);
+    system.belts.push(BeltBlueprint {
+        name: "Vey outer belt".to_string(),
+        inner_radius_km: 2.2 * KM_PER_AU,
+        outer_radius_km: 2.9 * KM_PER_AU,
+        mass_kg: None,
+        composition: None,
+        salvage_sites: vec![site],
+    });
+    let mut app = headless_app(FRAME);
+    app.insert_resource(SystemDataResource(Some(system)))
+        .add_plugins(SimPlugin);
+    run(&mut app, 1);
+    let belts = spawned_belts(&mut app);
+    let names: Vec<&str> = belts.iter().map(|b| b.name.as_str()).collect();
+    assert_eq!(names, ["Vey belt", "Vey outer belt"]);
+    assert_eq!(belts[0].mass_kg, Some(2.0e21));
+    assert_eq!(belts[0].composition.map(|c| c.rocky), Some(0.7));
+    assert_eq!(belts[1].inner_radius_km, 2.2 * KM_PER_AU);
+    assert_eq!(belts[1].composition, None);
+    let drift = body(&mut app, "Drift");
+    let orbit = app.world().get::<Orbit>(drift).unwrap();
+    assert_eq!(orbit.radius_km, 2.5 * KM_PER_AU);
+    assert!(
+        app.world().get::<ChildOf>(drift).is_none(),
+        "round the star"
+    );
+
+    let mut system = generated_system();
+    system.belts.clear();
+    let mut app = headless_app(FRAME);
+    app.insert_resource(SystemDataResource(Some(system)))
+        .add_plugins(SimPlugin);
+    run(&mut app, 1);
+    assert!(spawned_belts(&mut app).is_empty());
+}
+
+/// TEST-01 / SOL-07: Corvane spawns one belt, the "Corvane belt", and Sol
+/// one, the "Main belt".
+#[test]
+fn corvane_and_sol_spawn_their_named_belts() {
+    let mut app = headless_app(FRAME);
+    app.add_plugins((ContentPlugin, SimPlugin));
+    run(&mut app, 1);
+    let names: Vec<String> = spawned_belts(&mut app)
+        .into_iter()
+        .map(|b| b.name)
+        .collect();
+    assert_eq!(names, ["Corvane belt"]);
+
+    let mut app = sol_app();
+    run(&mut app, 1);
+    let names: Vec<String> = spawned_belts(&mut app)
+        .into_iter()
+        .map(|b| b.name)
+        .collect();
+    assert_eq!(names, ["Main belt"]);
+}
+
 /// A headless app with Sol waiting to spawn, as `--system sol` gives.
 fn sol_app() -> App {
     let mut app = headless_app(FRAME);
@@ -175,8 +256,7 @@ fn sol_spawns_its_bodies_stations_ships_and_belt() {
         let orbit = app.world().get::<NamedOrbit>(member.unwrap().0);
         assert!(orbit.is_some(), "{name}'s named orbit does not resolve");
     }
-    let mut belts = app.world_mut().query::<&crate::sim::body::Belt>();
-    assert_eq!(belts.iter(app.world()).count(), 1);
+    assert_eq!(spawned_belts(&mut app).len(), 1);
 
     let mut named = app.world_mut().query::<&NamedOrbit>();
     let parents: Vec<Entity> = named.iter(app.world()).map(|orbit| orbit.parent).collect();

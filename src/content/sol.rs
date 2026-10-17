@@ -400,11 +400,14 @@ pub fn sol_system() -> SystemData {
         star_radius_km: 695_700.0,
         star_knowledge: Knowledge::Surveyed,
         planets: PLANETS.iter().map(planet).collect(),
-        belt: BeltBlueprint {
+        belts: vec![BeltBlueprint {
+            name: "Main belt".to_string(),
             inner_radius_km: BELT_INNER_AU * KM_PER_AU,
             outer_radius_km: BELT_OUTER_AU * KM_PER_AU,
+            mass_kg: None,
+            composition: None,
             salvage_sites: vec![],
-        },
+        }],
         gates: vec![],
     }
 }
@@ -643,15 +646,19 @@ mod tests {
         assert_eq!(planet_named("Earth").children[0].phase0_rad, 0.0);
     }
 
-    /// SOL-07 / SOL-08: one empty belt from 2.2 to 3.2 AU, no gates, every
-    /// natural body neutral and surveyed, and the stations and ships own
+    /// SOL-07 / SOL-08: one empty belt, the "Main belt", from 2.2 to
+    /// 3.2 AU, no gates, every natural body neutral and surveyed, and the stations and ships own
     /// and surveyed.
     #[test]
     fn sol_holds_neutral_bodies_own_craft_and_an_empty_belt() {
         let system = sol_system();
-        assert_eq!(system.belt.inner_radius_km, 2.2 * KM_PER_AU);
-        assert_eq!(system.belt.outer_radius_km, 3.2 * KM_PER_AU);
-        assert!(system.belt.salvage_sites.is_empty());
+        let [belt] = system.belts.as_slice() else {
+            panic!("Sol has {} belts, not one", system.belts.len());
+        };
+        assert_eq!(belt.name, "Main belt");
+        assert_eq!(belt.inner_radius_km, 2.2 * KM_PER_AU);
+        assert_eq!(belt.outer_radius_km, 3.2 * KM_PER_AU);
+        assert!(belt.salvage_sites.is_empty());
         assert!(system.gates.is_empty());
         for (body, _) in every_orbiting_body(&system) {
             assert!(

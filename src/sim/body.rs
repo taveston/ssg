@@ -67,10 +67,25 @@ pub struct Mass(pub f64);
 #[derive(Component, Clone, Copy, Debug, PartialEq)]
 pub struct StellarMass(pub f64);
 
-/// The system's asteroid belt, an annulus in the orbital plane round the
-/// star (MRK-05).
-#[derive(Component, Clone, Copy, Debug)]
+/// One of the system's belts, an annulus in the orbital plane round the
+/// star (SCL-08). A system holds any number of them, one entity each. The
+/// mass and composition are data only: nothing reads them yet.
+#[derive(Component, Clone, Debug, PartialEq)]
 pub struct Belt {
+    pub name: String,
     pub inner_radius_km: f64,
     pub outer_radius_km: f64,
+    /// The belt's total mass in kg, where it is known.
+    pub mass_kg: Option<f64>,
+    /// What the belt is made of, where it is known.
+    pub composition: Option<BeltComposition>,
+}
+
+/// A belt's make-up as rocky, metallic and icy fractions of its mass,
+/// which sum to 1 (SCL-08).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct BeltComposition {
+    pub rocky: f64,
+    pub metallic: f64,
+    pub icy: f64,
 }
