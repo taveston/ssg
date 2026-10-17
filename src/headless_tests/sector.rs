@@ -234,10 +234,11 @@ fn settle_node_labels(app: &mut App, size: Vec2) {
 fn shown_labels(app: &mut App, size: Vec2) -> Vec<(usize, Rect, String)> {
     let mut labels = app
         .world_mut()
-        .query_filtered::<(&ForEntry, &Node, &Text), With<NodeLabel>>();
+        .query_filtered::<(&ForEntry, &Node, &Text, &Visibility), With<NodeLabel>>();
     labels
         .iter(app.world())
-        .filter_map(|(entry, node, text)| {
+        .filter(|(.., visibility)| **visibility != Visibility::Hidden)
+        .filter_map(|(entry, node, text, _)| {
             let min = crate::view::node_box::node_min(node)?;
             Some((entry.0, Rect::from_corners(min, min + size), text.0.clone()))
         })

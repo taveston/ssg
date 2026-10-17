@@ -74,11 +74,13 @@ pub fn spawn_labels(
                 TextColor(colors::NEUTRAL.with_alpha(0.0)),
                 TextHalo::ground(),
                 GlobalZIndex(layers::LABELS),
+                // Hidden, not taken out of the layout, so its size is
+                // known before it is first placed.
                 Node {
                     position_type: PositionType::Absolute,
-                    display: Display::None,
                     ..default()
                 },
+                Visibility::Hidden,
             ))
             .observe(on_marker_over)
             .observe(on_marker_out)
@@ -95,8 +97,11 @@ type LabelNodes<'w, 's> = Query<
         &'static ForEntry,
         &'static ComputedNode,
         &'static mut LabelState,
-        &'static mut Node,
-        &'static mut TextColor,
+        (
+            &'static mut Node,
+            &'static mut TextColor,
+            &'static mut Visibility,
+        ),
     ),
     With<NodeLabel>,
 >;
@@ -142,7 +147,7 @@ pub fn place_node_labels(
         .map(|(candidate, placement)| (candidate.body, placement))
         .collect();
     let step = step_per_frame(time.delta_secs(), tunables.label_fade_ms);
-    for (label, entry, computed, mut state, mut node, mut color) in &mut labels {
+    for (label, entry, computed, mut state, (mut node, mut color, mut visibility)) in &mut labels {
         let want = wanted.get(&label).copied().flatten();
         let (alpha, now) = advance_fade(state.alpha, state.shown, want, step);
         *state = LabelState { shown: now, alpha };
@@ -152,7 +157,7 @@ pub fn place_node_labels(
             let gap = tunables.label_gap_px;
             label_rect(node_box(screen, margin), size, placement.slot, gap).min
         });
-        write_label(&mut node, &mut color, place, alpha);
+        write_label((&mut node, &mut color, &mut visibility), place, alpha);
     }
 }
 
@@ -163,15 +168,18 @@ fn node_box(screen: &NodeScreen, margin: f32) -> Rect {
 }
 
 /// A label's node and colour from its place and fade: hidden with no
-/// place or once faded out.
-fn write_label(node: &mut Node, color: &mut TextColor, place: Option<Vec2>, alpha: f32) {
+/// place or once faded out. A hidden label keeps its layout, so its size
+/// stays known and placing it never flickers.
+fn write_label(
+    (node, color, visibility): (&mut Node, &mut TextColor, &mut Mut<Visibility>),
+    place: Option<Vec2>,
+    alpha: f32,
+) {
     let Some(corner) = place.filter(|_| alpha > 0.0) else {
-        if node.display != Display::None {
-            node.display = Display::None;
-        }
+        visibility.set_if_neq(Visibility::Hidden);
         return;
     };
-    node.display = Display::Flex;
+    visibility.set_if_neq(Visibility::Inherited);
     node.left = px(corner.x);
     node.top = px(corner.y);
     let faded = colors::NEUTRAL.with_alpha(alpha);
