@@ -22,6 +22,9 @@ struct SkyStars {
     // many pixels.
     reach_sigmas: f32,
     reach_extra_px: f32,
+    // What every star's opacity is multiplied by in the layer shown: 1 in
+    // the system view, `sector_sky_factor` in the sector view.
+    factor: f32,
 }
 
 struct Star {
@@ -76,7 +79,7 @@ fn vertex(in: Vertex) -> StarOut {
     out.position = clip;
     out.offset = offset;
     out.sigma = sigma;
-    out.opacity = star.colour_opacity.w;
+    out.opacity = star.colour_opacity.w * sky.factor;
     out.colour = star.colour_opacity.rgb;
     return out;
 }

@@ -15,9 +15,11 @@
 //!   its dither there.
 //!
 //! Both are drawn in the camera's opaque pass, which runs before the
-//! see-through pass that holds the belt, the orbit rings and every other
-//! map layer; they write no depth and add their light to what is there,
-//! so they lie beneath everything (SKY-20). Light is added in the
+//! see-through pass that holds the belt, the orbit rings, the sector's
+//! links (gizmo lines) and every other map layer; they write no depth and
+//! add their light to what is there, so they lie beneath everything
+//! (SKY-20, SECT-05). Each material carries the layer's factor on its
+//! opacities (SKY-23), kept by `follow.rs`. Light is added in the
 //! display's own (sRGB) levels over the ground, as an opacity would blend
 //! there, so the faint values keep the weight they have in mock-up 28.
 //! Both clip to the map area: never under the top bar or the sidebar
@@ -45,6 +47,8 @@ use super::glow::{
 };
 use super::look::{REACH_EXTRA_PX, REACH_SIGMAS, star_opacity, star_sigma_px};
 use super::projection::sky_to_render;
+use super::seed::sky_seed;
+use crate::content::start::LoadedSector;
 use crate::view::colors;
 use crate::view::screen::{MapArea, MapView};
 use crate::view::tunables::Tunables;
@@ -83,6 +87,9 @@ pub struct StarsUniform {
     pub px_scale: f32,
     pub reach_sigmas: f32,
     pub reach_extra_px: f32,
+    /// What every star's opacity is multiplied by in the layer shown
+    /// (`layer_factor`, SKY-23).
+    pub factor: f32,
 }
 
 /// What `glow.wesl` reads; field order matches `SkyGlow` there. Angles
@@ -113,6 +120,9 @@ pub struct GlowUniform {
     pub lane_cutoff: f32,
     pub mottle_scale: f32,
     pub dither_levels: f32,
+    /// What the glow's opacity is multiplied by in the layer shown
+    /// (`layer_factor`, SKY-23).
+    pub factor: f32,
     pub lane_octaves: u32,
     pub mottle_octaves: u32,
     pub dither_seed: u32,
@@ -313,7 +323,14 @@ fn cover_mesh() -> Mesh {
     .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, COVER.to_vec())
 }
 
-/// The stars' uniform before the map area is known.
+/// The seed the sky on screen was made from (SKY-02), so a change of the
+/// loaded sector can be seen and the sky remade (`follow.rs`).
+#[derive(Resource, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SkySource {
+    pub seed: u64,
+}
+
+/// The stars' uniform before the map area and the layer are known.
 fn stars_uniform() -> StarsUniform {
     StarsUniform {
         ground: srgb4(colors::GROUND),
@@ -321,11 +338,12 @@ fn stars_uniform() -> StarsUniform {
         px_scale: 1.0,
         reach_sigmas: REACH_SIGMAS,
         reach_extra_px: REACH_EXTRA_PX,
+        factor: 1.0,
     }
 }
 
 /// The glow's uniform for a sky (SKY-13 to SKY-15), before the map area
-/// is known.
+/// and the layer are known.
 pub fn glow_uniform(sky: &Sky, tunables: &Tunables) -> GlowUniform {
     let radians = |deg: f32| deg.to_radians();
     let band = &sky.band;
@@ -352,24 +370,53 @@ pub fn glow_uniform(sky: &Sky, tunables: &Tunables) -> GlowUniform {
         lane_cutoff: radians(LANE_CUTOFF_SIGMAS * LANE_SIGMA_DEG),
         mottle_scale: MOTTLE_SCALE,
         dither_levels: tunables.sky_dither_levels,
+        factor: 1.0,
         lane_octaves: LANE_OCTAVES,
         mottle_octaves: MOTTLE_OCTAVES,
         dither_seed: sky.noise.dither,
     }
 }
 
-/// SKY-01 / SKY-22: make the sky from the default seed when the game
-/// starts and put it beneath the map, always on.
+/// The asset stores the sky's meshes, star records and materials go in.
+#[derive(bevy::ecs::system::SystemParam)]
+pub struct SkyAssets<'w> {
+    pub meshes: ResMut<'w, Assets<Mesh>>,
+    pub buffers: ResMut<'w, Assets<ShaderBuffer>>,
+    pub stars: ResMut<'w, Assets<SkyStarsMaterial>>,
+    pub glows: ResMut<'w, Assets<SkyGlowMaterial>>,
+}
+
+/// SKY-01 / SKY-02 / SKY-22: make the sky when the game starts, from the
+/// loaded sector's seed or the default, and put it beneath the map,
+/// always on.
 pub fn spawn_sky(
     mut commands: Commands,
     tunables: Res<Tunables>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut buffers: ResMut<Assets<ShaderBuffer>>,
-    mut stars: ResMut<Assets<SkyStarsMaterial>>,
-    mut glows: ResMut<Assets<SkyGlowMaterial>>,
+    sector: Option<Res<LoadedSector>>,
+    mut assets: SkyAssets,
 ) {
-    let sky = make_sky(tunables.sky_default_seed, &tunables);
-    let records = star_records(&sky, &tunables);
+    let seed = sky_seed(sector.as_deref().map(|loaded| &loaded.sector), &tunables);
+    spawn_sky_from(&mut commands, seed, &tunables, &mut assets);
+}
+
+/// Makes the sky from `seed` and spawns its two meshes, recording the
+/// seed in `SkySource`. The clip and the layer's factor are set by the
+/// next frame's `clip_sky_to_map` and `dim_for_layer`.
+pub fn spawn_sky_from(
+    commands: &mut Commands,
+    seed: u64,
+    tunables: &Tunables,
+    assets: &mut SkyAssets,
+) {
+    let SkyAssets {
+        meshes,
+        buffers,
+        stars,
+        glows,
+    } = assets;
+    commands.insert_resource(SkySource { seed });
+    let sky = make_sky(seed, tunables);
+    let records = star_records(&sky, tunables);
     let count = records.len();
     let records = buffers.add(ShaderBuffer::new(records, RenderAssetUsages::RENDER_WORLD));
     let beneath = (
@@ -392,7 +439,7 @@ pub fn spawn_sky(
         SkyGlow,
         Mesh3d(meshes.add(cover_mesh())),
         MeshMaterial3d(glows.add(SkyGlowMaterial {
-            glow: glow_uniform(&sky, &tunables),
+            glow: glow_uniform(&sky, tunables),
         })),
         beneath,
     ));

@@ -31,6 +31,9 @@ struct SkyGlow {
     lane_cutoff: f32,
     mottle_scale: f32,
     dither_levels: f32,
+    // What the glow's opacity is multiplied by in the layer shown: 1 in
+    // the system view, `sector_sky_factor` in the sector view.
+    factor: f32,
     lane_octaves: u32,
     mottle_octaves: u32,
     dither_seed: u32,
@@ -122,7 +125,7 @@ fn glow_opacity(d: vec3<f32>) -> f32 {
     }
     let mottle = fractal_noise(d * glow.mottle_scale + glow.mottle_offset.xyz, glow.mottle_octaves);
     let factor = (1.0 - glow.lane_depth * lane) * (1.0 + glow.mottle * (2.0 * mottle - 1.0));
-    return glow.alpha * across * along * factor;
+    return glow.alpha * glow.factor * across * along * factor;
 }
 
 // A triangular dither between -levels and levels, as `dither`.

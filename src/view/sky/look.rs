@@ -11,6 +11,7 @@
 
 use bevy::color::Srgba;
 
+use crate::view::map_layer::MapLayer;
 use crate::view::tunables::Tunables;
 
 /// A star is shaded out to this many standard deviations of its
@@ -30,6 +31,26 @@ pub type Rgb = [f32; 3];
 pub fn star_opacity(m: f32, tunables: &Tunables) -> f32 {
     let falling = tunables.sky_peak * 10_f32.powf(-0.4 * tunables.sky_gamma * m);
     falling.min(tunables.sky_peak).max(tunables.sky_faint_floor)
+}
+
+/// SKY-23: what every opacity in the sky (each star's and the glow's) is
+/// multiplied by in the layer shown: `sector_sky_factor` in the sector
+/// view, so the sky stays quieter than the sector's own stars, and 1 in
+/// the system view. Nothing else about the sky changes with the layer.
+pub fn layer_factor(layer: MapLayer, tunables: &Tunables) -> f32 {
+    match layer {
+        MapLayer::System => 1.0,
+        MapLayer::Sector => tunables.sector_sky_factor,
+    }
+}
+
+/// SKY-24: the brightest the sky gets in the sector view: `sky_peak`
+/// dimmed by `sector_sky_factor`. It must not exceed `sector_faint_alpha`,
+/// the faintest sector node, so no sky star outshines a node. The test
+/// holds the default tunables to it; the game draws by `layer_factor`.
+#[cfg(test)]
+pub fn brightest_sector_sky(tunables: &Tunables) -> f32 {
+    tunables.sky_peak * tunables.sector_sky_factor
 }
 
 /// SKY-10: a star's softness: the standard deviation of its Gaussian in
@@ -160,6 +181,32 @@ mod tests {
             ..Tunables::default()
         };
         assert_eq!(star_opacity(faintest, &steep), steep.sky_faint_floor);
+    }
+
+    /// SKY-23: the sector view dims every opacity by `sector_sky_factor`;
+    /// the system view dims nothing.
+    #[test]
+    fn the_sector_view_dims_the_sky_by_its_factor() {
+        let t = Tunables {
+            sector_sky_factor: 0.35,
+            ..Tunables::default()
+        };
+        assert_eq!(layer_factor(MapLayer::Sector, &t), 0.35);
+        assert_eq!(layer_factor(MapLayer::System, &t), 1.0);
+    }
+
+    /// SKY-24: with the default tunables the brightest star in the
+    /// sector view is no brighter than the faintest sector node.
+    #[test]
+    fn the_brightest_sector_sky_star_is_no_brighter_than_the_faintest_node() {
+        let t = Tunables::default();
+        assert!(brightest_sector_sky(&t) <= t.sector_faint_alpha);
+        assert!((brightest_sector_sky(&t) - t.sky_peak * t.sector_sky_factor).abs() < 1e-6);
+        let too_bright = Tunables {
+            sector_sky_factor: 1.0,
+            ..Tunables::default()
+        };
+        assert!(brightest_sector_sky(&too_bright) > too_bright.sector_faint_alpha);
     }
 
     /// SKY-10: brighter stars are larger, faint ones share the smallest

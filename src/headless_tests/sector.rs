@@ -38,7 +38,7 @@ fn sector_app() -> App {
 }
 
 /// `sector_app` with more set up before start-up runs.
-fn sector_app_with(extra: impl FnOnce(&mut App)) -> App {
+pub(super) fn sector_app_with(extra: impl FnOnce(&mut App)) -> App {
     let mut app = headless_app(FRAME);
     let small = GeneratorTunables::default().preset_small;
     let request = SectorRequest {

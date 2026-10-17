@@ -502,6 +502,11 @@ pub struct Tunables {
     /// The most the glow's dither moves a pixel, either way, in display
     /// levels (of 255) (SKY-15).
     pub sky_dither_levels: f32,
+    /// In the sector view every star's and the glow's opacity is
+    /// multiplied by this, so the sky stays quieter than the sector's own
+    /// stars: `sky_peak` times it is at most `sector_faint_alpha`
+    /// (SKY-23, SKY-24).
+    pub sector_sky_factor: f32,
 
     // --- The sector view (docs/spec/sector-view.md) ---
     /// A gated system's node: a star marker this many pixels across
@@ -719,6 +724,7 @@ impl Default for Tunables {
             sky_lane_depth: 0.6,
             sky_glow_mottle: 0.25,
             sky_dither_levels: 1.0,
+            sector_sky_factor: 0.5,
 
             sector_node_px: 14.0,
             sector_dot_px: 5.0,

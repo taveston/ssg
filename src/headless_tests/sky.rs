@@ -1,18 +1,28 @@
-//! Headless tests of the sky behind the map (SKY-17, SKY-18, SKY-19,
-//! SKY-22): the real sky plugin with its meshes and materials kept as
-//! assets, no renderer. What the GPU draws follows the materials'
+//! Headless tests of the sky behind the map (SKY-02, SKY-17, SKY-18,
+//! SKY-19, SKY-22, SKY-23, SECT-05): the real sky plugin with its meshes
+//! and materials kept as assets, no renderer, over a hand-made system and
+//! over a generated sector. What the GPU draws follows the materials'
 //! uniforms and the meshes checked here.
 
 use bevy::render::storage::ShaderBuffer;
 
 use super::double_click::{click_app_with, click_at, selected, side_of_ring, step};
+use super::sector::sector_app_with;
 use super::*;
+use crate::content::generator::generate_sector;
+use crate::content::generator::rng::derive_seed;
+use crate::content::generator::settings::Settings;
+use crate::content::generator::tunables::GeneratorTunables;
+use crate::content::start::LoadedSector;
+use crate::view::map_layer::MapLayer;
 use crate::view::screen::MapArea;
+use crate::view::sector::links::LinkPieces;
 use crate::view::sky::SkyPlugin;
 use crate::view::sky::draw::{
-    GlowUniform, RECORD_FLOATS, SkyGlow, SkyGlowMaterial, SkyStars, SkyStarsMaterial, StarsUniform,
-    clip_rect,
+    GlowUniform, RECORD_FLOATS, SkyGlow, SkyGlowMaterial, SkySource, SkyStars, SkyStarsMaterial,
+    StarsUniform, clip_rect,
 };
+use crate::view::sky::generate::make_sky;
 
 /// The sky's plugin and the asset stores its meshes, star records and
 /// materials go in.
@@ -185,4 +195,156 @@ fn the_sky_is_always_on() {
     set_frame(&mut app, halden, Vec3::ZERO);
     run(&mut app, SETTLE_FRAMES);
     assert!(visible(&mut app));
+}
+
+/// The seed the sky on screen was made from.
+fn sky_seed_used(app: &App) -> u64 {
+    app.world().resource::<SkySource>().seed
+}
+
+/// The map camera's turn: its heading and tilt as a rotation.
+fn camera_rotation(app: &mut App) -> Quat {
+    let mut query = app
+        .world_mut()
+        .query_filtered::<&Transform, With<OrbitCamera>>();
+    query.single(app.world()).unwrap().rotation
+}
+
+/// The records the sky of `seed` has with these tunables.
+fn records_of(seed: u64, t: &Tunables) -> Vec<[f32; RECORD_FLOATS]> {
+    crate::view::sky::draw::star_records(&make_sky(seed, t), t)
+}
+
+/// SKY-02: a hand-made system loaded without a sector (Corvane here, Sol
+/// the same way) gets the sky of `sky_default_seed`, drawn whole.
+#[test]
+fn a_system_without_a_sector_uses_the_default_sky_seed() {
+    let mut app = camera_app_with(with_sky);
+    let t = app.world().resource::<Tunables>().clone();
+    assert!(app.world().get_resource::<LoadedSector>().is_none());
+    assert_eq!(sky_seed_used(&app), t.sky_default_seed);
+    let (stars, glow) = uniforms(&mut app);
+    assert_eq!((stars.factor, glow.factor), (1.0, 1.0));
+    assert_eq!(star_records(&mut app), records_of(t.sky_default_seed, &t));
+}
+
+/// SKY-02 / SKY-23: a game started with a sector draws the sky of the
+/// seed derived from the sector's, and the sector view draws the very sky
+/// the system view does, through the same camera turn, with every
+/// opacity multiplied by `sector_sky_factor` and nothing else changed.
+#[test]
+fn the_sector_view_draws_the_system_views_sky_dimmed() {
+    let mut app = sector_app_with(with_sky);
+    let t = app.world().resource::<Tunables>().clone();
+    let sector_seed = app.world().resource::<LoadedSector>().sector.settings.seed;
+    let seed = derive_seed(sector_seed, "sky");
+    assert_eq!(sky_seed_used(&app), seed);
+    assert_ne!(seed, t.sky_default_seed);
+
+    assert!(app.world().resource::<MapLayer>().is_sector());
+    let in_sector = (
+        uniforms(&mut app),
+        star_records(&mut app),
+        placement(&mut app),
+        camera_rotation(&mut app),
+    );
+    assert_eq!(
+        in_sector.1,
+        records_of(seed, &t),
+        "the same sky as the system view's"
+    );
+    assert_eq!(in_sector.0.0.factor, t.sector_sky_factor);
+    assert_eq!(in_sector.0.1.factor, t.sector_sky_factor);
+
+    *app.world_mut().resource_mut::<MapLayer>() = MapLayer::System;
+    run(&mut app, 2);
+    let (mut stars, mut glow) = uniforms(&mut app);
+    assert_eq!(
+        (stars.factor, glow.factor),
+        (1.0, 1.0),
+        "whole in the system view"
+    );
+    stars.factor = t.sector_sky_factor;
+    glow.factor = t.sector_sky_factor;
+    assert_eq!((stars, glow), in_sector.0, "only the factor differs");
+    assert_eq!(star_records(&mut app), in_sector.1);
+    assert_eq!(placement(&mut app), in_sector.2);
+    assert_eq!(
+        camera_rotation(&mut app),
+        in_sector.3,
+        "the same heading and tilt"
+    );
+
+    *app.world_mut().resource_mut::<MapLayer>() = MapLayer::Sector;
+    run(&mut app, 2);
+    assert_eq!(uniforms(&mut app), in_sector.0, "dimmed again on return");
+}
+
+/// SKY-02: the sky follows the loaded sector at run time, not only at
+/// start-up: when another sector is loaded the sky is remade from its
+/// seed, still two meshes, and nothing happens while the sector stays.
+#[test]
+fn the_sky_is_remade_when_another_sector_is_loaded() {
+    let mut app = sector_app_with(with_sky);
+    let t = app.world().resource::<Tunables>().clone();
+    let before = (sky_seed_used(&app), star_records(&mut app));
+    run(&mut app, 3);
+    assert_eq!((sky_seed_used(&app), star_records(&mut app)), before);
+
+    let tunables = GeneratorTunables::default();
+    let settings = Settings {
+        gated_count: tunables.preset_small,
+        seed: 12,
+    };
+    let sector = generate_sector(settings, &tunables).unwrap();
+    app.insert_resource(LoadedSector { sector, tunables });
+    run(&mut app, 2);
+    assert_eq!(sky_seed_used(&app), derive_seed(12, "sky"));
+    assert_ne!(star_records(&mut app), before.1);
+    assert_eq!(
+        star_records(&mut app),
+        records_of(derive_seed(12, "sky"), &t)
+    );
+    assert_eq!(placement(&mut app).len(), 2, "the old sky is gone");
+    let (stars, glow) = uniforms(&mut app);
+    assert_eq!(
+        (stars.factor, glow.factor),
+        (t.sector_sky_factor, t.sector_sky_factor)
+    );
+    assert_eq!(stars.clip, glow.clip);
+    assert_ne!(stars.clip, Vec4::ZERO, "clipped to the map area again");
+}
+
+/// SECT-05 / SKY-20: in the sector view the sky lies below the links.
+/// Both of its materials draw in the opaque pass, which runs before the
+/// see-through pass the links' gizmo lines are drawn in, and write no
+/// depth; the links are laid out over it, and the sky is no target.
+#[test]
+fn the_sky_lies_below_the_links_in_the_sector_view() {
+    let mut app = sector_app_with(with_sky);
+    assert!(
+        !app.world().resource::<LinkPieces>().0.is_empty(),
+        "links are drawn"
+    );
+    let mut materials = app
+        .world_mut()
+        .query_filtered::<(&MeshMaterial3d<SkyStarsMaterial>, &Pickable), With<SkyStars>>();
+    let (handle, pickable) = materials.single(app.world()).unwrap();
+    let stars = app
+        .world()
+        .resource::<Assets<SkyStarsMaterial>>()
+        .get(&handle.0)
+        .unwrap();
+    assert_eq!(stars.alpha_mode(), AlphaMode::Opaque);
+    assert!(!pickable.is_hoverable && !pickable.should_block_lower);
+    let mut glows = app
+        .world_mut()
+        .query_filtered::<&MeshMaterial3d<SkyGlowMaterial>, With<SkyGlow>>();
+    let handle = glows.single(app.world()).unwrap();
+    let glow = app
+        .world()
+        .resource::<Assets<SkyGlowMaterial>>()
+        .get(&handle.0)
+        .unwrap();
+    assert_eq!(glow.alpha_mode(), AlphaMode::Opaque);
 }
