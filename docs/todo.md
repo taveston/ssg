@@ -30,8 +30,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Other
 
-- [ ] **Sky: draw the stars instanced**
-  - Found in review of the sky item. The stars mesh carries four full vertices per star (about 30 MB with the index buffer). One instance record per star over a 4-vertex corner mesh would cut that about fourfold, as the sky spec's open point suggests. It costs VRAM, not frame time, so it is low priority.
 - [ ] **Bring older docs up to the writing style**
   - The rules are in `docs/README.md` (Writing). Do it one doc at a time, with no change of meaning.
   - The longest are the likeliest to need it: `ideas/mechanics/requirements-and-bids.md`, `ideas/mechanics/component-stats.md` and `ideas/mechanics/transfers.md`.
