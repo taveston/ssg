@@ -12,8 +12,6 @@
 
 use bevy::prelude::*;
 
-use super::text_size::apply_text_sizes;
-
 #[derive(Resource, Debug, Clone)]
 pub struct Tunables {
     // --- Satellite grouping ---
@@ -568,8 +566,6 @@ pub struct TunablesPlugin;
 
 impl Plugin for TunablesPlugin {
     fn build(&self, app: &mut App) {
-        // A changed text size reaches texts already drawn (MRK-19).
-        app.init_resource::<Tunables>()
-            .add_systems(Update, apply_text_sizes);
+        app.init_resource::<Tunables>();
     }
 }

@@ -4,7 +4,9 @@
 //! takes its size from the tunable its role names.
 
 use super::*;
+use crate::view::edge::EdgeTabFor;
 use crate::view::edge::parent_tab::ParentTabPlugin;
+use crate::view::edge::tab::TabBox;
 use crate::view::frame_cue::FrameCuePlugin;
 use crate::view::frame_cue::draw::CueNorthLabel;
 use crate::view::markers::moon_ring::MoonCountLine;
@@ -14,7 +16,7 @@ use crate::view::paths::marks::PathLabelText;
 use crate::view::planner::PlannerPlugin;
 use crate::view::plot_marks::NorthLabel;
 use crate::view::rings::marks::{PeriodLine, RingLabelFor, RingMarksPlugin};
-use crate::view::text_size::TextSize;
+use crate::view::text_size::{TextSize, TextSizePlugin};
 
 /// Corvane in Halden IV's frame with every kind of map text drawn: marker
 /// names and second lines, exposure ring names and periods, a path's
@@ -30,6 +32,7 @@ fn text_app() -> App {
             FrameCuePlugin,
             ParentTabPlugin,
             BreadcrumbPlugin,
+            TextSizePlugin,
         ))
         .init_resource::<crate::view::camera::requests::PlanetaryViewRequest>();
     });
@@ -80,8 +83,18 @@ fn marker_names(app: &mut App, second_lines: &[Entity]) -> Vec<Entity> {
         .collect()
 }
 
+/// The gate edge tabs' names: the texts in a gate tab's box, not its
+/// chevron.
+fn gate_tab_names(app: &mut App) -> Vec<Entity> {
+    let in_boxes = texts_under::<TabBox>(app);
+    texts_under::<EdgeTabFor>(app)
+        .into_iter()
+        .filter(|e| in_boxes.contains(e))
+        .collect()
+}
+
 /// The map's texts by role: names (a marker's, an exposure ring's, a
-/// path's label) and second lines (a marker's, a ring's period, the "N"
+/// gate's edge tab, a path's label) and second lines (a marker's, a ring's period, the "N"
 /// of the north dial and the frame cue), and the breadcrumb's entries.
 fn texts_by_role(app: &mut App) -> [(TextSize, Vec<Entity>); 3] {
     let second_lines = texts_under::<SecondLineFor>(app);
@@ -89,6 +102,7 @@ fn texts_by_role(app: &mut App) -> [(TextSize, Vec<Entity>); 3] {
     let ring_names = texts_under::<RingLabelFor>(app);
     let periods = texts_under::<PeriodLine>(app);
     let path_labels = texts_under::<PathLabelText>(app);
+    let tab_names = gate_tab_names(app);
     let north_labels = texts_under::<NorthLabel>(app);
     let cue_labels = texts_under::<CueNorthLabel>(app);
     let crumbs: Vec<Entity> = texts_under::<BreadcrumbRoot>(app);
@@ -98,13 +112,14 @@ fn texts_by_role(app: &mut App) -> [(TextSize, Vec<Entity>); 3] {
         ("exposure ring names", &ring_names),
         ("exposure ring periods", &periods),
         ("path labels", &path_labels),
+        ("gate tab names", &tab_names),
         ("the north dial's N", &north_labels),
         ("the frame cue's N", &cue_labels),
         ("breadcrumb entries", &crumbs),
     ] {
         assert!(!found.is_empty(), "no {what} drawn");
     }
-    let names = [marker_names, ring_names, path_labels].concat();
+    let names = [marker_names, ring_names, path_labels, tab_names].concat();
     let small = [second_lines, periods, north_labels, cue_labels].concat();
     [
         (TextSize::MapLabel, names),

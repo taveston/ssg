@@ -42,6 +42,15 @@ impl TextSize {
     }
 }
 
+/// Keeps every text with a role at its role's size (MRK-19).
+pub struct TextSizePlugin;
+
+impl Plugin for TextSizePlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(Update, apply_text_sizes);
+    }
+}
+
 /// Resizes every text with a role when the tunables change, so a size
 /// tuned while the game runs reaches what is already drawn.
 pub fn apply_text_sizes(tunables: Res<Tunables>, mut texts: Query<(&TextSize, &mut TextFont)>) {

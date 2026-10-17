@@ -108,6 +108,7 @@ impl Plugin for ViewPlugin {
                 shared_orbit::SharedOrbitPlugin,
                 rings::marks::RingMarksPlugin,
                 rings::near_arcs::NearArcsPlugin,
+                text_size::TextSizePlugin,
             ))
             .add_plugins((
                 grouping::GroupingPlugin,
