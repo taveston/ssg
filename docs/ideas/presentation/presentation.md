@@ -45,7 +45,7 @@ The first three are spatial layers, nested from sector down to planet. Faction a
     - **Knowledge is one value.** Fewer noise octaves and no small craters give a body seen from far away, and blur and grain on top give the telescope frame. The same large forms stay put as the faction learns more, so the unsurveyed and surveyed images are plainly the same planet. The planetary view's globe uses the same shader and adds octaves as the view closes.
     - **Light (decided 2026-10-17, from review of mock-up 29):** a sharp day-night terminator and almost no ambient light, for a photographic look. Atmospheres glow at the limb on the lit side only.
     - **Why:** the generator already produces the figures, art for every kind of body would be a large cost, and a procedural surface can show knowledge as a continuous value instead of a set of pictures.
-    - **Still open:** the look needs tuning per kind (the icy and ice-giant kinds are the weakest), and nothing is specced.
+    - **Still open:** the look needs tuning per kind (the ice giant is the plainest, and the molten kind's cracked crust is a guess), and nothing is specced.
 - **Information model (decided):** the player has a semi-omniscient view. Signal delay isn't modelled: what the faction knows, the player sees at once, in every system.
 - **Abstract uncertainty (candidate):** limits on knowledge are modelled abstractly rather than through physics.
   - Undetected contacts aren't shown. Thermal detection (see *Component Catalogue*, sensors) decides what appears.
