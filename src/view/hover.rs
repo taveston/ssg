@@ -116,7 +116,8 @@ impl ClickCheck<'_, '_> {
 ///
 /// A click counts as a double-click when Bevy counts it so (a second click
 /// on the same node), or when it follows a click on a map target soon
-/// enough (`double_click.rs`): then it acts on that first click's target.
+/// enough and in the same place (`double_click.rs`): then it acts on that
+/// first click's target. The click after a double-click is a single click.
 #[derive(SystemParam)]
 pub struct BodyClick<'w> {
     frame: Res<'w, Frame>,
@@ -128,38 +129,50 @@ pub struct BodyClick<'w> {
     clicks: ResMut<'w, MapClicks>,
     time: Res<'w, Time<Real>>,
     picking: Option<Res<'w, PickingSettings>>,
+    tunables: Res<'w, Tunables>,
 }
 
 impl BodyClick<'_> {
-    /// ZOOM-16: if this click is the second click of a double-click, whose
-    /// first click hit this target or another one that has since moved,
-    /// complete the double-click on what the first click hit and say so.
-    /// This click's own target then does nothing more: the first click
-    /// already selected what it hit and opened its tray. A click Bevy
-    /// already counts as a double (`count` 2 or more) landed on the same
-    /// target, so it takes that target's own double-click path, which
-    /// also keeps its tray open (MUL-07).
-    pub fn completes_double(&mut self, count: u8) -> bool {
+    /// ZOOM-16: start handling a click on the map, as Bevy counted it.
+    /// If it is the second click of a double-click whose first click hit
+    /// another map target, or the same one, that has since moved under a
+    /// still pointer, complete the double-click on what the first click
+    /// hit, ask again for the tray that click opened (MUL-07), and return
+    /// `None`: this click's own target does nothing more. Otherwise return
+    /// the click count to act on: 1 for the click right after a
+    /// double-click, whatever Bevy counts, so a triple-click frames one
+    /// thing only. A click Bevy counts as a double landed on the same
+    /// target, so it takes that target's own double-click path.
+    pub fn begin_click(&mut self, count: u8) -> Option<u8> {
+        if self.clicks.begin() {
+            return Some(1);
+        }
         if count >= 2 {
-            return false;
+            return Some(count);
         }
         let interval = double_click_interval(self.picking.as_deref());
-        let Some(body) = self.clicks.take_double(interval) else {
-            return false;
+        let Some(double) = self
+            .clicks
+            .take_double(interval, self.tunables.drag_threshold_px)
+        else {
+            return Some(count);
         };
         double_click(
             &self.frame,
-            body,
+            double.body,
             &mut self.frame_request,
             &mut self.planetary,
         );
-        true
+        if let Some(tray) = double.tray {
+            self.tray.0 = Some(tray);
+        }
+        None
     }
 
     /// INS-03 / PLNR-03: a click on empty map space clears the selection,
     /// unless the planner is open or the click completes a double-click.
     fn empty_click(&mut self) {
-        if self.completes_double(1) {
+        if self.begin_click(1).is_none() {
             return;
         }
         self.clicks.forget();
@@ -172,7 +185,7 @@ impl BodyClick<'_> {
     /// may start a double-click on it; a double-click ends one.
     fn note(&mut self, body: Entity, count: u8) {
         if count >= 2 {
-            self.clicks.forget();
+            self.clicks.doubled();
         } else {
             self.clicks.remember(body, self.time.elapsed());
         }
@@ -181,6 +194,7 @@ impl BodyClick<'_> {
     /// MUL-07: ask for a multi-marker's tray, in place of any open one.
     pub fn open_tray(&mut self, tray: TrayFor) {
         self.tray.0 = Some(tray);
+        self.clicks.asked_for_tray(tray);
     }
 
     pub fn click(&mut self, body: Entity, count: u8) {
@@ -264,9 +278,12 @@ pub fn on_marker_click(
     check: ClickCheck,
     mut body_click: BodyClick,
 ) {
-    if !check.selects(&click) || body_click.completes_double(click.count) {
+    if !check.selects(&click) {
         return;
     }
+    let Some(count) = body_click.begin_click(click.count) else {
+        return;
+    };
     let Ok(marker_for) = markers.get(click.entity) else {
         return;
     };
@@ -274,9 +291,9 @@ pub fn on_marker_click(
     let station = MultiKey::Station(body);
     if multis.get(station).is_some() {
         body_click.open_tray(TrayFor::Marker(station));
-        body_click.select_only(body, click.count);
+        body_click.select_only(body, count);
     } else {
-        body_click.click(body, click.count);
+        body_click.click(body, count);
     }
 }
 
@@ -291,14 +308,17 @@ pub fn on_orbit_click(
     check: ClickCheck,
     mut body_click: BodyClick,
 ) {
-    if !check.selects(&click) || body_click.completes_double(click.count) {
+    if !check.selects(&click) {
         return;
     }
+    let Some(count) = body_click.begin_click(click.count) else {
+        return;
+    };
     if let Ok(orbit_for) = orbits.get(click.entity)
         && let Ok(orbit) = named.get(orbit_for.0)
     {
-        body_click.click_orbit(orbit_for.0, orbit.parent, click.count);
         body_click.open_tray(TrayFor::Orbit(orbit_for.0));
+        body_click.click_orbit(orbit_for.0, orbit.parent, count);
     }
 }
 
@@ -427,13 +447,78 @@ mod tests {
         world.resource_mut::<TrayRequest>().0 = None;
         world
             .resource_mut::<MapClicks>()
-            .pressed(Duration::from_millis(100));
+            .pressed(Duration::from_millis(100), Vec2::ZERO);
         click(&mut world, target, 2);
         assert_eq!(outcome(&world), (Some(parent), Some(parent), None));
         assert_eq!(
             world.resource::<TrayRequest>().0,
             Some(TrayFor::Orbit(orbit))
         );
+    }
+
+    /// A press `at` on screen, after the real clock moved on by `after_ms`,
+    /// as the press system notes it.
+    fn press(world: &mut World, after_ms: u64, at: Vec2) {
+        let mut time = world.resource_mut::<Time<Real>>();
+        time.update_with_duration(Duration::from_millis(after_ms));
+        let now = time.elapsed();
+        world.resource_mut::<MapClicks>().pressed(now, at);
+    }
+
+    /// MUL-07 / HOV-05 / ZOOM-16: a double-click whose first click hit a
+    /// shared ring and whose second, in the same place, lands on another
+    /// marker (the ring having moved) frames the ring's parent and asks
+    /// again for the ring's tray, so the tray stays open; the other marker
+    /// is left alone. A third quick click is a single click, whatever
+    /// Bevy counts.
+    #[test]
+    fn a_double_click_ending_elsewhere_keeps_the_first_clicks_tray() {
+        let (mut world, other, marker) = click_world();
+        let parent = world.spawn_empty().id();
+        let orbit = world
+            .spawn(NamedOrbit {
+                parent,
+                name: "High".to_string(),
+                radius_km: 1.0,
+                period_days: 1.0,
+            })
+            .id();
+        let ring = world.spawn(OrbitFor(orbit)).observe(on_orbit_click).id();
+        let here = Vec2::new(300.0, 200.0);
+        press(&mut world, 1000, here);
+        click(&mut world, ring, 1);
+        world.resource_mut::<TrayRequest>().0 = None;
+
+        press(&mut world, 200, here + Vec2::new(1.0, 1.0));
+        click(&mut world, marker, 1);
+        assert_eq!(outcome(&world), (Some(parent), Some(parent), None));
+        assert_eq!(
+            world.resource::<TrayRequest>().0,
+            Some(TrayFor::Orbit(orbit))
+        );
+
+        world.resource_mut::<FrameRequest>().0 = None;
+        press(&mut world, 200, here);
+        click(&mut world, marker, 2);
+        assert_eq!(
+            outcome(&world),
+            (Some(other), None, None),
+            "no second frame"
+        );
+    }
+
+    /// ZOOM-16: two quick clicks far apart are two single clicks, the
+    /// second selecting its own object.
+    #[test]
+    fn two_quick_clicks_far_apart_select_the_second() {
+        let (mut world, other, marker) = click_world();
+        let first = world.spawn_empty().id();
+        let first_marker = world.spawn(MarkerFor(first)).observe(on_marker_click).id();
+        press(&mut world, 1000, Vec2::new(300.0, 200.0));
+        click(&mut world, first_marker, 1);
+        press(&mut world, 200, Vec2::new(500.0, 200.0));
+        click(&mut world, marker, 1);
+        assert_eq!(outcome(&world), (Some(other), None, None));
     }
 
     /// PLNR-03 / INS-01: while the planner is open, a click on a marker

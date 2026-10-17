@@ -23,9 +23,12 @@ pub fn on_multi_click(
     check: ClickCheck,
     mut body_click: BodyClick,
 ) {
-    if !check.selects(&click) || body_click.completes_double(click.count) {
+    if !check.selects(&click) {
         return;
     }
+    let Some(count) = body_click.begin_click(click.count) else {
+        return;
+    };
     let Some(marker) = targets
         .get(click.entity)
         .ok()
@@ -36,10 +39,10 @@ pub fn on_multi_click(
     };
     body_click.open_tray(TrayFor::Marker(marker.key));
     match marker.key {
-        MultiKey::Fold(parent) => body_click.click(parent, click.count),
+        MultiKey::Fold(parent) => body_click.click(parent, count),
         _ => {
             if let Some(first) = order.first(marker) {
-                body_click.select_only(first, click.count);
+                body_click.select_only(first, count);
             }
         }
     }

@@ -1,6 +1,7 @@
 //! Headless tests of a double-click on the map whose target moves between
 //! the clicks (ZOOM-16, HOV-02, INS-07): Bevy's own picking runs, with the
-//! rings as the targets, so the clicks land where the rings are drawn.
+//! rings, and in one test the markers, as the targets, so the clicks land
+//! where they are drawn.
 
 use bevy::input::ButtonState;
 use bevy::input::mouse::MouseButtonInput;
@@ -11,6 +12,11 @@ use crate::view::rings::picking::{RingPaths, RingPickingPlugin, distance_to_segm
 /// Corvane with markers, ring hit targets, the map's click handling and
 /// Bevy's picking driven by the cursor.
 fn click_app() -> App {
+    click_app_with(|_| {})
+}
+
+/// `click_app` with more plugins added before startup runs.
+fn click_app_with(extra: impl FnOnce(&mut App)) -> App {
     use crate::view::rings::marks::RingMarksPlugin;
     use bevy::picking::{InteractionPlugin, PickingPlugin, PickingSystems};
     let mut app = symbols_app_with(|app| {
@@ -27,6 +33,7 @@ fn click_app() -> App {
                 PreUpdate,
                 super::camera::follow_cursor_with_pointer.before(PickingSystems::ProcessInput),
             );
+        extra(app);
     });
     let window = the_window(&mut app);
     app.world_mut()
@@ -168,4 +175,95 @@ fn a_click_after_an_empty_click_only_selects() {
     step(&mut app, SETTLE_FRAMES);
     assert_eq!(selected(&app), Some(halden));
     assert!(in_star_frame(&app), "no frame jump");
+}
+
+/// ZOOM-16: two quick clicks on two planets' rings, far apart, are two
+/// single clicks: the second selects its own planet, with no frame jump,
+/// though it comes well within a double-click's interval.
+#[test]
+fn two_quick_clicks_far_apart_select_the_second_planet() {
+    let mut app = click_app();
+    let halden = body(&mut app, "Halden IV");
+    let iver = body(&mut app, "Iver");
+    let point = side_of_ring(&app, halden);
+    click_at(&mut app, point);
+    assert_eq!(selected(&app), Some(halden));
+    step(&mut app, 12);
+    let point = side_of_ring(&app, iver);
+    click_at(&mut app, point);
+    step(&mut app, SETTLE_FRAMES);
+    assert_eq!(selected(&app), Some(iver));
+    assert!(in_star_frame(&app), "no frame jump");
+}
+
+/// ZOOM-16 / PLNR-03: with the transfer planner open, two quick clicks on
+/// two planets' rings, far apart, pick the second planet as the
+/// destination, with no frame jump.
+#[test]
+fn two_quick_clicks_far_apart_pick_the_second_planet_in_the_planner() {
+    use crate::view::planner::state::PickTarget;
+    let mut app = click_app();
+    let halden = body(&mut app, "Halden IV");
+    let iver = body(&mut app, "Iver");
+    let ship = body(&mut app, "Orison");
+    app.world_mut().resource_mut::<Selection>().select(ship);
+    app.world_mut().resource_mut::<PlannerState>().open(ship);
+    step(&mut app, SETTLE_FRAMES);
+
+    let point = side_of_ring(&app, halden);
+    click_at(&mut app, point);
+    assert_eq!(
+        app.world().resource::<PlannerState>().clicked,
+        Some(PickTarget::Body(halden))
+    );
+    let point = side_of_ring(&app, iver);
+    click_at(&mut app, point);
+    step(&mut app, SETTLE_FRAMES);
+    assert_eq!(
+        app.world().resource::<PlannerState>().clicked,
+        Some(PickTarget::Body(iver))
+    );
+    assert_eq!(selected(&app), Some(ship));
+    assert!(in_star_frame(&app), "no frame jump");
+}
+
+/// ZOOM-16 / MRK-08: with the clock running fast, a planet's marker moves
+/// out from under a still pointer between the two clicks of a
+/// double-click. The double-click still frames the planet.
+#[test]
+fn a_double_click_frames_a_moving_planet() {
+    use crate::view::markers::picking::MarkerPickingPlugin;
+    let mut app = click_app_with(|app| {
+        app.add_plugins(MarkerPickingPlugin);
+    });
+    let halden = body(&mut app, "Halden IV");
+    let iver = body(&mut app, "Iver");
+    // The inset is open already, so only the clock moves the planet.
+    app.world_mut().resource_mut::<Selection>().select(halden);
+    step(&mut app, SETTLE_FRAMES);
+    let mut clock = app.world_mut().resource_mut::<GameClock>();
+    clock.toggle_pause();
+    clock.run_at(20.0);
+    step(&mut app, 2);
+    let at = |app: &App| app.world().resource::<ScreenPositions>().get(iver).unwrap();
+    let point = at(&app);
+
+    click_at(&mut app, point);
+    assert_eq!(
+        selected(&app),
+        Some(iver),
+        "the first click hits the marker"
+    );
+    step(&mut app, 40);
+    let reach = Tunables::default().min_hit_radius_px;
+    assert!(
+        at(&app).distance(point) > 2.0 * reach,
+        "the marker has moved out from under the pointer: {} px",
+        at(&app).distance(point)
+    );
+
+    click_at(&mut app, point);
+    step(&mut app, SETTLE_FRAMES);
+    assert_eq!(selected(&app), Some(iver));
+    assert_eq!(frame_body(&app), iver, "the planet is the frame");
 }
