@@ -26,13 +26,14 @@ use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_resource::binding_types::{texture_storage_2d, uniform_buffer};
 use bevy::render::render_resource::{
     BindGroup, BindGroupEntries, BindGroupLayoutDescriptor, BindGroupLayoutEntries,
-    CachedComputePipelineId, ComputePassDescriptor, ComputePipelineDescriptor, Extent3d,
-    PipelineCache, ShaderStages, ShaderType, StorageTextureAccess, TextureDimension, TextureFormat,
-    TextureUsages, UniformBuffer,
+    CachedComputePipelineId, CachedPipelineState, ComputePassDescriptor, ComputePipelineDescriptor,
+    Extent3d, PipelineCache, ShaderStages, ShaderType, StorageTextureAccess, TextureDimension,
+    TextureFormat, TextureUsages, UniformBuffer,
 };
 use bevy::render::renderer::{RenderContext, RenderDevice, RenderGraph, RenderQueue};
 use bevy::render::texture::GpuImage;
 use bevy::render::{Render, RenderApp, RenderStartup, RenderSystems};
+use bevy::shader::ShaderCacheError;
 
 use super::chooser::{
     Look, choose_look, crater_density, crater_scales_on, glow_strength, has_polar_caps,
@@ -310,7 +311,10 @@ pub fn strip_image(face_px: u32, rows: u32) -> Image {
 impl SurfaceBakes {
     /// SURF-30 / SURF-33: asks for a body's bake, starting it if there is
     /// none or its inputs changed, and marks it as drawn this frame.
-    /// Returns the entry; `ready` says whether the strip can be drawn.
+    /// Starting one drops the body's other bakes (another knowledge
+    /// state's, or stale inputs'), so a body holds one bake and no face
+    /// is spent on a picture nothing shows. Returns the entry; `ready`
+    /// says whether the strip can be drawn.
     pub fn request(
         &mut self,
         key: BakeKey,
@@ -318,12 +322,12 @@ impl SurfaceBakes {
         images: &mut Assets<Image>,
     ) -> &BakeEntry {
         let frame = self.frame;
-        let stale = self
+        let kept = self
             .entries
             .get(&key)
-            .is_some_and(|entry| entry.params != *params);
-        if stale {
-            self.entries.remove(&key);
+            .is_some_and(|entry| entry.params == *params);
+        if !kept {
+            self.entries.retain(|other, _| other.body != key.body);
         }
         let entry = self.entries.entry(key).or_insert_with(|| BakeEntry {
             params: *params,
@@ -472,6 +476,11 @@ fn init_bake_pipeline(
 #[derive(Resource, Default)]
 struct BakeBindGroups(Vec<(AssetId<Image>, BakeParams, BindGroup)>);
 
+/// Set once the bake pipeline's failure to compile has been logged, so
+/// the error is said once, not every frame a face waits.
+#[derive(Resource, Default)]
+struct BakePipelineFailed(bool);
+
 /// Binds each job's parameters and strip; a job whose strip the GPU
 /// doesn't hold yet is left for the next frame.
 fn prepare_bake_bind_groups(
@@ -509,11 +518,23 @@ fn run_bakes(
     pipeline: Res<BakePipeline>,
     bound: Res<BakeBindGroups>,
     baked: Res<BakedFaces>,
+    mut failed: ResMut<BakePipelineFailed>,
 ) {
     if bound.0.is_empty() {
         return;
     }
     let Some(compute) = pipeline_cache.get_compute_pipeline(pipeline.pipeline) else {
+        // A pipeline that failed to compile never bakes: the faces would
+        // be issued again every few frames with nothing to show, so say
+        // why, once. A shader still loading is not a failure.
+        if let CachedPipelineState::Err(error) =
+            pipeline_cache.get_compute_pipeline_state(pipeline.pipeline)
+            && !matches!(error, ShaderCacheError::ShaderNotLoaded(_))
+            && !failed.0
+        {
+            failed.0 = true;
+            error!("the surface bake shader failed to compile; no globe will draw: {error}");
+        }
         return;
     };
     let mut pass = render_context
@@ -551,6 +572,7 @@ impl Plugin for BakeRenderPlugin {
         render_app
             .insert_resource(baked)
             .init_resource::<BakeBindGroups>()
+            .init_resource::<BakePipelineFailed>()
             .add_systems(RenderStartup, init_bake_pipeline)
             .add_systems(
                 Render,
@@ -740,6 +762,47 @@ mod tests {
         assert!(bakes.entries.contains_key(&key(1)));
         assert!(bakes.entries.contains_key(&key(5)));
         assert!(!bakes.entries.contains_key(&key(2)));
+    }
+
+    /// SURF-33: a body's bake in a new knowledge state replaces its old
+    /// one: the old entry is dropped, so no face is spent on it and the
+    /// cache counts the body once; asking for the new state again keeps
+    /// the new bake.
+    #[test]
+    fn a_knowledge_change_drops_the_bodys_old_bake() {
+        let mut images = Assets::<Image>::default();
+        let mut bakes = SurfaceBakes::default();
+        let body = Entity::from_raw_u32(1).unwrap();
+        let key = |knowledge| BakeKey { body, knowledge };
+        let p = params(64);
+        bakes.frame = 1;
+        let old = bakes
+            .request(key(Knowledge::Unsurveyed), &p, &mut images)
+            .strip
+            .clone();
+        bakes.frame = 2;
+        bakes.request(key(Knowledge::Surveyed), &params(128), &mut images);
+        assert_eq!(bakes.len(), 1);
+        assert!(bakes.entry(key(Knowledge::Unsurveyed)).is_none());
+        let jobs = bakes.issue(6);
+        assert!(jobs.iter().all(|job| job.strip.id() != old.id()));
+        assert_eq!(jobs.len(), 6);
+        bakes.frame = 3;
+        let new = bakes
+            .request(key(Knowledge::Surveyed), &params(128), &mut images)
+            .strip
+            .clone();
+        assert_eq!(bakes.len(), 1);
+        assert_eq!(new.id(), jobs[0].strip.id(), "the same bake goes on");
+        // Another body's bake is untouched.
+        let other = BakeKey {
+            body: Entity::from_raw_u32(2).unwrap(),
+            knowledge: Knowledge::Surveyed,
+        };
+        bakes.request(other, &p, &mut images);
+        bakes.request(key(Knowledge::Unsurveyed), &p, &mut images);
+        assert_eq!(bakes.len(), 2);
+        assert!(bakes.entry(other).is_some());
     }
 
     /// SURF-30 / SURF-35: a strip is six faces wide, one row per set of
