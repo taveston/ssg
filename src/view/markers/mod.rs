@@ -33,7 +33,7 @@ use super::edge::GateEdgeTargets;
 use super::fold::SatelliteFoldState;
 use super::layers;
 use super::motion_mode::MotionModeState;
-use super::multi::{JoinSlide, MultiMarkers};
+use super::multi::{BackFrame, JoinSlide, MultiMarkers};
 use super::multi_markers::MultiGathered;
 use super::screen::ScreenPositions;
 use super::ship_groups::GroupFaces;
@@ -458,6 +458,7 @@ struct MarkerPaint<'w, 's> {
         (
             &'static moon_ring::MoonRing,
             &'static moon_ring::MoonRingParts,
+            &'static BackFrame,
         ),
     >,
     ring_nodes: RingNodes<'w, 's>,
@@ -467,8 +468,9 @@ struct MarkerPaint<'w, 's> {
 impl MarkerPaint<'_, '_> {
     /// Fades a marker's parts to `alpha`. A disc (`true_size` is `Some`)
     /// grown past its marker is first filled and loses its class detail
-    /// (MRK-07, MRK-11, MRK-13); its moon ring takes the same fill and
-    /// fades in and out on top of the marker's fade (GRP-10).
+    /// (MRK-07, MRK-11, MRK-13); its moon ring takes the same fill, fades
+    /// in and out on top of the marker's fade and sits at the marker's
+    /// back frame (GRP-10).
     fn paint(&mut self, marker: Entity, true_size: Option<bool>, alpha: f32) {
         let Some(true_size) = true_size else {
             fade_parts(marker, alpha, &self.children, &mut self.parts);
@@ -483,8 +485,8 @@ impl MarkerPaint<'_, '_> {
             .rings
             .get(marker)
             .ok()
-            .map(|(ring, parts)| (*ring, *parts));
-        if let Some((_, parts)) = ring {
+            .map(|(ring, parts, back)| (*ring, *parts, back.0.unwrap_or_default()));
+        if let Some((_, parts, _)) = ring {
             for child in [parts.ring, parts.cover] {
                 if let Ok((mut tint, ..)) = self.parts.get_mut(child) {
                     tint.color = fill;
@@ -492,7 +494,7 @@ impl MarkerPaint<'_, '_> {
             }
         }
         fade_parts(marker, alpha, &self.children, &mut self.parts);
-        let Some((ring, parts)) = ring else {
+        let Some((ring, parts, offset)) = ring else {
             return;
         };
         if let Ok(mut node) = self.ring_nodes.get_mut(parts.ring) {
@@ -503,6 +505,14 @@ impl MarkerPaint<'_, '_> {
             };
             if node.display != display {
                 node.display = display;
+            }
+            // The ring slides out from behind the marker as it fades in,
+            // drawn where the marker's back frame says it is, so the box,
+            // hit area and label round it always match (HOV-07).
+            let (left, top) = (px(offset.x), px(offset.y));
+            if node.left != left || node.top != top {
+                node.left = left;
+                node.top = top;
             }
         }
         fade_parts(parts.ring, alpha * ring.t, &self.children, &mut self.parts);

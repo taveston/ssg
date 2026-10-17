@@ -7,9 +7,10 @@
 //!
 //! The ring is part of the parent's marker: a child of its node, drawn
 //! under the marker's fill by a cover of the same fill above it, faded
-//! with the marker and in and out as it comes and goes. Its offset is the
-//! marker's `BackFrame`, so the marker's box, hit area and label take it
-//! in (HOV-07, MRK-08, LBL-01).
+//! with the marker and in and out as it comes and goes, sliding out from
+//! behind the marker as it fades in. Its offset is the marker's
+//! `BackFrame`, which the ring is drawn at, so the marker's box, hit area
+//! and label take in just what is drawn (HOV-07, MRK-08, LBL-01).
 
 use bevy::prelude::*;
 
@@ -80,20 +81,20 @@ pub fn count_text(count: usize) -> String {
 }
 
 /// GRP-10: the ring and its cover under a body marker, spawned before the
-/// marker's class detail and rim so they draw under them: the ring offset
-/// `moon_ring_offset_px` right and up, hidden until something folds in,
-/// and over it the marker's fill with its ground-coloured gap (MRK-11).
+/// marker's class detail and rim so they draw under them: the ring behind
+/// the marker, hidden until something folds in (the marker's painting
+/// slides it out to its back frame as it fades in), and over it the
+/// marker's fill with its ground-coloured gap (MRK-11).
 pub fn spawn_moon_ring(
     parent: &mut ChildSpawnerCommands,
     fill: Color,
     gap: Outline,
     tunables: &Tunables,
 ) -> MoonRingParts {
-    let offset = tunables.moon_ring_offset_px;
-    let full = |left: f32, top: f32| Node {
+    let full = || Node {
         position_type: PositionType::Absolute,
-        left: px(left),
-        top: px(top),
+        left: px(0),
+        top: px(0),
         width: percent(100),
         height: percent(100),
         border_radius: BorderRadius::MAX,
@@ -104,7 +105,7 @@ pub fn spawn_moon_ring(
             MoonRingNode,
             Node {
                 display: Display::None,
-                ..full(offset, -offset)
+                ..full()
             },
             BackgroundColor(fill),
             Tint::new(fill, TintSlot::Background),
@@ -114,7 +115,7 @@ pub fn spawn_moon_ring(
             ring.spawn((
                 Node {
                     border: UiRect::all(px(tunables.body_rim_px)),
-                    ..full(0.0, 0.0)
+                    ..full()
                 },
                 BackgroundColor(Color::NONE),
                 BorderColor::all(colors::NEUTRAL),
@@ -126,7 +127,7 @@ pub fn spawn_moon_ring(
     let cover = parent
         .spawn((
             MoonRingCover,
-            full(0.0, 0.0),
+            full(),
             BackgroundColor(fill),
             Tint::new(fill, TintSlot::Background),
             gap,

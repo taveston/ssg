@@ -325,3 +325,93 @@ fn a_last_things_mark_leaves_its_multi_marker_with_it() {
     let first_out = first_out.expect("never caught the yard unfolding");
     assert!(first_out < 0.5, "it starts from its parent: {first_out}");
 }
+
+/// INS-06 / HOV-06 / GRP-10: framed on Morrow, the innermost moon still
+/// folded is selected: its mark is on Morrow's marker and moon ring. Zoomed
+/// in, it is the last to unfold: the ring fades out as it goes, and the
+/// mark goes with the moon's own marker, which starts out from Morrow and
+/// slides to its place, so the mark never jumps.
+#[test]
+fn a_last_moons_mark_leaves_the_fading_moon_ring_with_it() {
+    use crate::view::fold::SatelliteFoldState;
+    use crate::view::markers::moon_ring::MoonRing;
+    use crate::view::multi::BackFrame;
+    let mut app = brackets_app();
+    run(&mut app, SETTLE_FRAMES);
+    let morrow = body(&mut app, "Morrow");
+    app.world_mut().resource_mut::<FrameRequest>().0 = Some(morrow);
+    run(&mut app, 60 + move_frames());
+    let moons: Vec<Entity> = app
+        .world()
+        .get::<Children>(morrow)
+        .unwrap()
+        .iter()
+        .collect();
+    let folded = |app: &App, moon: Entity| {
+        app.world()
+            .get::<SatelliteFoldState>(moon)
+            .unwrap()
+            .effective_hidden
+    };
+    let radius = |app: &App, moon: Entity| app.world().get::<Orbit>(moon).unwrap().radius_km;
+    let moon = moons
+        .iter()
+        .copied()
+        .filter(|&m| folded(&app, m))
+        .min_by(|&a, &b| radius(&app, a).total_cmp(&radius(&app, b)))
+        .expect("a moon still folded");
+    app.world_mut().resource_mut::<Selection>().select(moon);
+    run(&mut app, SETTLE_FRAMES);
+    let parent_marker = marker_of(&mut app, morrow);
+    let back = app.world().get::<BackFrame>(parent_marker).unwrap().0;
+    let back = back.expect("Morrow's moon ring");
+    let (centre, _) = marker_drawn(&mut app, morrow).unwrap();
+    let marks = shown_brackets(&mut app);
+    assert_eq!(marks.len(), 1);
+    assert!(close(marks[0].centre(), centre + back / 2.0), "on the ring");
+
+    let window = the_window(&mut app);
+    let ring = |app: &App| *app.world().get::<MoonRing>(parent_marker).unwrap();
+    let (mut first_out, mut ring_fading) = (None, false);
+    for _ in 0..12 {
+        if !folded(&app, moon) && first_out.is_some() {
+            break;
+        }
+        app.world_mut().write_message(MouseWheel {
+            unit: MouseScrollUnit::Line,
+            x: 0.0,
+            y: 1.0,
+            window,
+            phase: TouchPhase::Moved,
+        });
+        for _ in 0..SETTLE_FRAMES {
+            run(&mut app, 1);
+            let t = app.world().get::<SatelliteFoldState>(moon).unwrap().anim_t;
+            let Some((at, _)) = marker_drawn(&mut app, moon) else {
+                continue;
+            };
+            if t <= 0.0 || t >= 1.0 {
+                continue;
+            }
+            // The box slides from Morrow's, ring and all, to the moon's.
+            let (parent_at, _) = marker_drawn(&mut app, morrow).unwrap();
+            let back = app.world().get::<BackFrame>(parent_marker).unwrap().0;
+            let held = parent_at + back.unwrap_or_default() / 2.0;
+            let marks = shown_brackets(&mut app);
+            assert_eq!(marks.len(), 1);
+            let centre = marks[0].centre();
+            let wanted = held.lerp(at, t);
+            assert!(close(centre, wanted), "{centre} is not on {wanted}");
+            let ring = ring(&app);
+            assert_eq!(ring.count, 0, "it was the last folded moon");
+            ring_fading |= ring.t > 0.0 && ring.t < 1.0;
+            let positions = app.world().resource::<ScreenPositions>();
+            let (parent, own) = (positions.get(morrow).unwrap(), positions.get(moon).unwrap());
+            first_out.get_or_insert(at.distance(parent) / own.distance(parent));
+        }
+    }
+    let first_out = first_out.expect("never caught the moon unfolding");
+    assert!(first_out < 0.5, "it starts from its parent: {first_out}");
+    assert!(ring_fading, "the ring fades out as the moon leaves");
+    assert_eq!(ring(&app).t, 0.0, "and is gone");
+}
