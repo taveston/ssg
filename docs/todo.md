@@ -17,13 +17,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - In dot mode a together or overlap marker draws the tail of its first tray row's thing, behind its centre, so a convoy or cluster no longer looks still on a running clock. Joined things still draw no tail of their own, and a fold marker has none. Ring mode is unchanged.
   - Tests: the TEST-12 convoy shows one tail in dot mode; an overlap cluster shows its lead's tail; the tail follows the lead when the tray order changes; no tail in ring mode beyond the exposure ring.
 
-- [ ] **Shared orbit click in dot mode, and the identity mark's tray header** · F-238 · HOV-05, MUL-08
-  - A click on a shared ring selects the parent and expands that orbit's row in the outline in both modes, and opens the identity mark's tray only in exposure-ring mode; in dot mode it opens no tray. The identity mark's tray header reads "HIGH ORBIT · N THINGS", with the orbit's name.
-  - Tests: dot mode, a click on a shared ring opens no tray and closes an open one; ring mode, a click on the mark opens it with the orbit's header.
-
-- [ ] **The tray's fill is opaque** · F-240 · MUL-08
-  - Draw the tray's fill at full alpha, so labels and the belt don't show through it. The inset keeps the panel fill as it is. Test: the tray's background colour has alpha 1.
-
 - [ ] **Belts become a list** · SCL-08, MRK-05, MRK-18, SOL-07, TEST-01
   - A system holds any number of named belts. Replace the single `Belt` component (`src/sim/body.rs`) with one belt record per belt: a name, inner and outer radius, and optionally a mass and a rocky, metallic and icy split. `BeltBlueprint` becomes a list in the system blueprint. Corvane's belt is named "Corvane belt" and Sol's "Main belt".
   - MRK-05, MRK-18, SOL-07 and TEST-01 changed meaning (more than one belt, belt names), so their ✓ is cleared. SOL-11's count of one belt still holds.
