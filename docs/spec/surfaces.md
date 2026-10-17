@@ -59,7 +59,7 @@ The first row that matches wins, in the order the rows are listed here (SURF-10,
 | SURF-31 | The bake is spread over at most `bake_frames` frames, one or more faces per frame, so no frame stalls. Until it is complete the body draws its disc marker (inset: an empty image frame). | ✓ |
 | SURF-32 | The face size is `bake_face_px` for the surveyed state and `bake_face_unsurveyed_px` for the unsurveyed state, as a plain function of the knowledge state. | ✓ |
 | SURF-33 | Bakes are cached by body and knowledge state, up to `bake_cache_count` bodies; the least recently drawn is dropped first. A change of a body's knowledge state (or its facts, or the override of SURF-61) drops its bake and bakes again when next needed. | ✓ |
-| SURF-34 | Close in, when the globe's projected radius exceeds `bake_face_px` × `rebake_zoom_factor`, the visible face is baked again at `bake_face_px` × `rebake_scale` with the finer crater scales on, and that face is drawn in place of the cached one while it is in view. The cached cubemap is kept. | |
+| SURF-34 | Close in, when the globe's projected radius exceeds `bake_face_px` × `rebake_zoom_factor`, the visible face is baked again at `bake_face_px` × `rebake_scale` with the finer crater scales on, and that face is drawn in place of the cached one while it is in view. The cached cubemap is kept. | ✓ |
 | SURF-35 | The bake is a cubemap, not an equirectangular map: no pole pinching. Faces are sampled with seamless edges: a point on a face edge samples the same value from either face. | ✓ |
 
 ## 4. Drawing the globe
@@ -81,9 +81,9 @@ The first row that matches wins, in the order the rows are listed here (SURF-10,
 
 | ID | Requirement | Built |
 |---|---|---|
-| SURF-50 | When a natural body's projected radius (MRK-07) exceeds `globe_min_px`, its true-size disc (MRK-11) is drawn as the globe (SURF-40) instead of the filled disc: the fill and rim of MRK-11 are replaced by the picture, and the gap outside stays. The body marker (MRK-13), label and selection mark draw on top as before. Below `globe_min_px` the disc is MRK-11's. The disc returns only when the projected radius falls below `globe_release_px`, which is less than `globe_min_px`, so the picture doesn't flicker at the edge. | |
-| SURF-51 | The globe on the map is lit by the same light as the inset (SURF-23), so the map and the inset agree on phase. | |
-| SURF-52 | A body whose bake is not ready (SURF-31) draws MRK-11's disc until it is. | |
+| SURF-50 | When a natural body's projected radius (MRK-07) exceeds `globe_min_px`, its true-size disc (MRK-11) is drawn as the globe (SURF-40) instead of the filled disc: the fill and rim of MRK-11 are replaced by the picture, and the gap outside stays. The body marker (MRK-13), label and selection mark draw on top as before. Below `globe_min_px` the disc is MRK-11's. The disc returns only when the projected radius falls below `globe_release_px`, which is less than `globe_min_px`, so the picture doesn't flicker at the edge. | ✓ |
+| SURF-51 | The globe on the map is lit by the same light as the inset (SURF-23), so the map and the inset agree on phase. | ✓ |
+| SURF-52 | A body whose bake is not ready (SURF-31) draws MRK-11's disc until it is. | ✓ |
 
 ## 7. Facts for the hand-made systems
 
@@ -136,7 +136,7 @@ Mercury and the Moon have water none: their polar ice is too little for the fact
 | SURF-70 | The chooser is tested on every row with a fact set that selects it and one that just misses it, and on the Sol bodies of table 2: Io volcanic, Titan and Triton hazy, Venus dense, Mars cold terrestrial with caps, the Moon airless, Europa icy, Jupiter gas giant, Neptune ice giant, Earth with its override lava. A generated compact-system innermost rocky planet at Teq 1,500 K, locked, is lava; the same not locked, at 1,000 K with water none, is airless with glow; a Teq of 1,500 K with a dense atmosphere is dense. | ✓ |
 | SURF-71 | Determinism (SURF-01) is tested by baking one small face twice for the same inputs and comparing pixels, and once with a different seed and finding a difference. | ✓ |
 | SURF-72 | SURF-26 is tested on a baked body at both knowledge values. | ✓ |
-| SURF-73 | The map globe (SURF-50) is tested headlessly through what drives it: the projected radius against `globe_min_px` with hysteresis decides globe or disc. | |
+| SURF-73 | The map globe (SURF-50) is tested headlessly through what drives it: the projected radius against `globe_min_px` with hysteresis decides globe or disc. | ✓ |
 
 ## Tunables
 

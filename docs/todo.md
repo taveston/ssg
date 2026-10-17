@@ -13,12 +13,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **The globe in the system view** · SURF-34, SURF-50 to SURF-52, SURF-73, MRK-11 (changed: the picture replaces the fill once large enough; ✓ cleared)
-  - Replace MRK-11's fill and rim with the globe above `globe_min_px` with hysteresis `globe_release_px`; the gap, marker, label and selection mark stay on top. Same light as the inset.
-  - Tests: globe-or-disc from the projected radius with hysteresis, headless.
-  - SURF-34: the rule (`needs_rebake`, `rebake_face_px`) and the fine-scale bake (`describe_surface(.., fine_scales = true)`) exist in `view/surfaces/`; the trigger from the projected radius and drawing the re-baked face remain.
-  - From review: `SurfaceBakes::evict` (`view/surfaces/bake.rs`) ties on `last_used`, so if more than `bake_cache_count` globes are drawn in one frame the evicted ones restart every frame and never finish. Never evict an entry used this frame, or let the cache grow to the number drawn.
-
 ## Fixes
 
 ## Other

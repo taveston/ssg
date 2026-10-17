@@ -2,7 +2,7 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-311.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-317.
 
 ---
 
@@ -62,6 +62,36 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** SURF-63 raises Earth's Teq to `earth_override_t_k` for its override. The build applies the raise to any lava override on a body whose own facts would not melt it (today only Earth), so content needs no name check and a hotter authored override keeps its own figures.
 - **Affects:** SURF-63 · **Type:** spec gap
 - **Disposition:** open. Copy into SURF-61 or SURF-63 if agreed.
+
+### F-311 · The close-in re-bake never triggers for the frame body
+- **Observation:** SURF-34 re-bakes once the projected radius passes `bake_face_px` × `rebake_zoom_factor` = 512 px. ZOOM-14's inner limit caps the frame body's diameter at `body_max_screen_fraction` (0.25) of the map's height, so its radius is about 105 px at most. The finer face only shows for a body that isn't the frame, seen large from a close neighbour's frame (a giant from an inner moon), or through `OW_SHOT`'s `distance`. In practice it never shows.
+- **Affects:** SURF-34, ZOOM-14 · **Type:** spec wrong
+- **Disposition:** open. Lower `rebake_zoom_factor` (about 0.08 gives about 80 px), or park SURF-34 for the planetary view.
+
+### F-312 · The close face has no hysteresis
+- **Observation:** The close face's threshold is a hard 512 px (`needs_rebake`), and the face in view switches with no margin. A body whose radius hovers near the threshold, or a view centre dragged across a cube-face edge, drops the close face and starts it again each time: a new 4096² strip (128 MB, 256 MB for a glowing body) and all 16 bands from the start. The finer face may never land. Found in review; not fixed, since SURF-34 says nothing about either.
+- **Affects:** SURF-34, F-311 · **Type:** spec gap
+- **Disposition:** open. Add a release threshold like `globe_release_px` (a new tunable), an angular margin before switching faces, or keep the old close face until the new one is ready.
+
+### F-313 · The limb glow on the map shows only inside the gap
+- **Observation:** On the map, the globe's node covers the disc and its `body_gap_px` gap. The gap is painted ground colour plus the atmosphere's limb glow (SURF-24), and the node is transparent beyond it, so the glow is cut off at the gap's outer edge, 2 px out. On a large gas giant that reads as a crisp 2 px bright rim on the sunward side. The build keeps it: the gap stays ground-coloured where there is no glow, so overlapping discs stay distinct.
+- **Affects:** MRK-11, SURF-24, SURF-50 · **Type:** spec gap
+- **Disposition:** open. Keep it, drop the glow on the map (ground-only gap), or let the glow fade out over the sky past the gap.
+
+### F-314 · Close-face rules the spec leaves open
+- **Observation:** For SURF-34 the build chose: the face in view is the one under the middle of the disc as seen; a body holds one close face, dropped the first frame it isn't drawn (4096 px Rgba16Float takes 128 MiB per row, 256 MiB for a glowing body, see F-307); it is baked in `rebake_scale`² row bands, so a frame bakes no more than one ordinary face; bodies in the telescope frame get no close face, since the finest craters would show detail the knowledge state hides.
+- **Affects:** SURF-34, SURF-25, SURF-31 · **Type:** spec gap
+- **Disposition:** open. Copy into SURF-34 if fine.
+
+### F-315 · A fading body draws its disc, not its globe
+- **Observation:** The globe pass has no fade. A body marker drawn at less than full strength (folding, joining a multi-marker, or fading into its exposure ring) draws MRK-11's disc, which fades with it, rather than the globe. Rare at globe sizes, but the picture swaps to the disc as the fade starts.
+- **Affects:** SURF-50, GRP-03, MOT-11 · **Type:** spec gap
+- **Disposition:** open. Keep it, or add an alpha to the globe uniform so the picture fades.
+
+### F-316 · The hazy cloud deck has straight-edged steps close in
+- **Observation:** Close in on Halden IV (radius about 480 px, cube bake only), the hazy cloud pattern shows short straight-edged steps in many places, and the same with the close face. They look like a property of the deck's noise rather than face seams, but they read as artefacts at map scale. Pell's airless look shows nothing similar.
+- **Affects:** SURF-16, SURF-17 · **Type:** bug
+- **Disposition:** open. Check the dense and hazy deck's warp in `bake.wesl`.
 
 ### F-162 · Which band Iver Yard sits in
 - **Observation:** SCL-07 now puts every station in a band, so the build drops a station's own orbit. TEST-02 and TEST-09 name the band for Arden Highport and Tern Relay, but nothing names one for Iver Yard, which had its own 45,000 km orbit. The build puts it in Iver's High band (197,200 km at 34 radii, period about 10.6 d). That band was nearest its old orbit when High was 10 radii; now the Low band (6,300 km) is nearer. This moves Iver's satellite frame out to 197,200 km.
