@@ -31,7 +31,7 @@ You plan, dispatch, merge and talk. Agents build. Each to-do item ends as a gree
 
 ## 3. Merge each finished item
 
-0. Review first: start a review agent in the item's worktree (medium effort, high for large or orbital items). It reviews `git diff master...HEAD`, commits simple behaviour-preserving fixes, and reports larger issues. Put larger issues that need no design decision straight onto `docs/todo.md` (bugs under Fixes, clean-up under Other) without asking the user. Only spec questions go to the user, as findings.
+0. Review first: start a review agent in the item's worktree (medium effort, high for large or orbital items). Start it without `isolation`: it works in the builder's worktree, and its own would be an empty extra one. It reviews `git diff master...HEAD`, commits simple behaviour-preserving fixes, and reports larger issues. Put larger issues that need no design decision straight onto `docs/todo.md` (bugs under Fixes, clean-up under Other) without asking the user. Only spec questions go to the user, as findings.
 1. In the agent's worktree: `git rebase master`. Conflicts should now be in code only. Resolve them with small Python scripts. Chain every step of a merge with `&&`: `set -e` is not reliable in the Bash tool (a failed `git merge --ff-only` once went on to delete the branch). Never chain `git add`/commit after a script that might have failed.
 2. Run `touch crates/orbits/src/*.rs`, then `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test --workspace`.
 3. From the repo root: `git merge --ff-only <branch>`. Then `git worktree remove --force <path>`, `git worktree prune` and `git branch -D <branch>`.
@@ -70,6 +70,7 @@ When the user asks, run a high-level code review agent once the scheduled work i
 
 ## Pitfalls
 
+- Deleting a to-do item in a bookkeeping script: end the cut at the next item **or** the next `## ` heading, whichever comes first. Cutting to the next item alone takes the following section headings with it when the item is last in its section.
 - Worktrees share `CARGO_TARGET_DIR=<repo>/target`, because a full target is about 26 GB.
   - Every worktree's `orbits` crate has the same name in it, so a stale copy gives "unresolved imports" or doctest failures. Touch its sources and rerun.
   - `target/debug/orphan_worlds.exe` may be another worktree's build.
