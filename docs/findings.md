@@ -2,7 +2,7 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-300.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-303.
 
 ---
 
@@ -12,6 +12,16 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** Halden IV orbits at 2.0 AU round Corvane's 0.78 M☉ K2V star. SGEN-22 gives that star about 0.37 L☉ and SGEN-39 gives Halden IV a Teq of about 140 K, against its description's −41 °C (232 K). With procedural surfaces (SURF-62) that Teq with thin air and ice gives the hazy look (SURF-17): a capital drawn as a Titan, surface hidden.
 - **Affects:** TEST-01, SURF-62 · **Type:** conflict
 - **Disposition:** open. Move Halden IV in to about 0.75 AU (its moons' periods are unaffected), or accept a colder capital and change the description.
+
+### F-301 · Halden IV's authored surface fact disagrees with its computed facts
+- **Observation:** Halden IV's authored key fact "Surface" reads "0.82 g, thin N2, -41 C". The inset now also lists the rule-derived Gravity 1.00 g and Equilibrium temperature 141 K, so one panel shows two gravities and two temperatures. The gravity comes from its authored mass and 6,700 km radius.
+- **Affects:** SURF-62, TEST-01 · **Type:** spec gap
+- **Disposition:** open. The build leaves the authored key fact and mass as they are. Either change the mass or radius to give 0.82 g and drop the "Surface" line, or accept both. The temperature half is F-300.
+
+### F-302 · Hand-made stars' key facts list only the class
+- **Observation:** SURF-60 gives each star its spectral type, luminosity and age "(SYSG-10)". SYSG-10 gives a generated star the key facts Class, Age, Luminosity and Metallicity. The build stores the three values as data on every star, but Corvane's and Sol's key facts still show Class only, so their insets show no age or luminosity. SOL-02 names only the class.
+- **Affects:** SURF-60, SYSG-10, SOL-02 · **Type:** spec gap
+- **Disposition:** open. Decide whether hand-made stars also list Age and Luminosity; they have no metallicity to show.
 
 ### F-162 · Which band Iver Yard sits in
 - **Observation:** SCL-07 now puts every station in a band, so the build drops a station's own orbit. TEST-02 and TEST-09 name the band for Arden Highport and Tern Relay, but nothing names one for Iver Yard, which had its own 45,000 km orbit. The build puts it in Iver's High band (197,200 km at 34 radii, period about 10.6 d). That band was nearest its old orbit when High was 10 radii; now the Low band (6,300 km) is nearer. This moves Iver's satellite frame out to 197,200 km.

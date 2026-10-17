@@ -91,10 +91,10 @@ Corvane and Sol are not generated, so their facts are authored. Gravity and equi
 
 | ID | Requirement | Built |
 |---|---|---|
-| SURF-60 | Every natural body of Corvane and Sol carries planet facts (SYSG-22) and a surface seed, authored in `content/`. Each star carries its spectral type, luminosity and age (SYSG-10). Corvane's star: K2V, luminosity by SGEN-22, age 5.1 Gyr. Sol: G2V, 1.0 L☉, 4.6 Gyr. | |
-| SURF-61 | Content may author a **look override** on a body: a look of SURF-10 to SURF-19 drawn instead of the chooser's, with the body's own facts for everything else (SURF-20 to SURF-26). The generator never sets one. Only Earth has one (SURF-63). | |
-| SURF-62 | Corvane's bodies have the facts of table 1. | |
-| SURF-63 | Sol's bodies have the facts of table 2. Earth's facts are real (dense atmosphere, surface water, active) and it carries the override **lava**, so it is drawn as the world the collapse left (`docs/ideas/world/setting.md`), with its equilibrium temperature raised to `earth_override_t_k` for the override's surface temperature only; the inset still reads the real facts. | |
+| SURF-60 | Every natural body of Corvane and Sol carries planet facts (SYSG-22) and a surface seed, authored in `content/`. Each star carries its spectral type, luminosity and age (SYSG-10). Corvane's star: K2V, luminosity by SGEN-22, age 5.1 Gyr. Sol: G2V, 1.0 L☉, 4.6 Gyr. | ✓ |
+| SURF-61 | Content may author a **look override** on a body: a look of SURF-10 to SURF-19 drawn instead of the chooser's, with the body's own facts for everything else (SURF-20 to SURF-26). The generator never sets one. Only Earth has one (SURF-63). | ✓ |
+| SURF-62 | Corvane's bodies have the facts of table 1. | ✓ |
+| SURF-63 | Sol's bodies have the facts of table 2. Earth's facts are real (dense atmosphere, surface water, active) and it carries the override **lava**, so it is drawn as the world the collapse left (`docs/ideas/world/setting.md`), with its equilibrium temperature raised to `earth_override_t_k` for the override's surface temperature only; the inset still reads the real facts. | ✓ |
 
 **Table 1: Corvane facts.** Kinds, atmosphere, water, locking and activity. Teq and gravity from the rules.
 

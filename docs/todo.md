@@ -13,11 +13,7 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **Planet facts for Corvane and Sol** · SURF-60 to SURF-63
-  - Author the facts of tables 1 and 2 in `content/` (`planet_facts` is `None` on every hand-made body today), the stars' type, luminosity and age, a surface seed per body, and Earth's look override. Gravity and Teq come from the SGEN-38 and SGEN-39 rule functions.
-  - Tests: every natural body has facts; Earth's override is set and no other body's; Corvane's star luminosity follows SGEN-22.
-
-- [ ] **Procedural planet surfaces in the inset** · SURF-01 to SURF-05, SURF-10 to SURF-26, SURF-30 to SURF-35, SURF-40 to SURF-42, SURF-45, SURF-46, SURF-70 to SURF-72, INS-04 (changed: the image is the globe; ✓ cleared) · needs "Planet facts for Corvane and Sol"
+- [ ] **Procedural planet surfaces in the inset** · SURF-01 to SURF-05, SURF-10 to SURF-26, SURF-30 to SURF-35, SURF-40 to SURF-42, SURF-45, SURF-46, SURF-70 to SURF-72, INS-04 (changed: the image is the globe; ✓ cleared)
   - Port the shader of mock-ups 29 and 30 to WGSL under `src/view/surfaces/`, as a bake pass into a cubemap and a per-frame globe pass. Keep the look chooser, the surface temperature rule and the resolution rule as plain functions with unit tests.
   - Start with the inset only. The bake spreads over frames; the inset shows an empty frame until it lands.
   - Tests: the chooser on every row and the Sol bodies (SURF-70); determinism and seed difference by baking a 64 px face headlessly (SURF-71); large forms persist (SURF-72). Mark SURF-13, SURF-15 to SURF-19 *Manual* only if a pixel read-back of a small face can't check their distinguishing features (a glow where hot, rays only when dead, no craters when molten).
