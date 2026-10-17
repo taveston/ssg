@@ -422,7 +422,9 @@ fn the_tray_keys_step_open_and_close_rows_without_panning() {
     assert_eq!(selected(&app), Some(highport), "stops at the top");
     assert!(contents(&app).lines[0].selected);
 
-    // MUL-08: the rows scroll, as if only four fit.
+    // MUL-08: the rows scroll, as if only two fit. TF-1's place among
+    // things in the same phase follows entity order, so it is only known
+    // to be past the second row.
     let row_px = Tunables::default().tray_row_px;
     let list = {
         let mut lists = app
@@ -430,7 +432,7 @@ fn the_tray_keys_step_open_and_close_rows_without_panning() {
             .query_filtered::<Entity, With<crate::view::tray::draw::TrayList>>();
         lists.single(app.world()).unwrap()
     };
-    app.world_mut().get_mut::<ComputedNode>(list).unwrap().size = Vec2::new(240.0, 4.0 * row_px);
+    app.world_mut().get_mut::<ComputedNode>(list).unwrap().size = Vec2::new(240.0, 2.0 * row_px);
     for _ in 0..40 {
         if selected(&app) == Some(tf1) {
             break;
@@ -444,10 +446,11 @@ fn the_tray_keys_step_open_and_close_rows_without_panning() {
         .iter()
         .position(|l| l.row.entity == tf1)
         .unwrap();
+    assert!(at >= 2, "TF-1 lies below the rows that fit");
     let scrolled = app.world().get::<ScrollPosition>(list).unwrap().y;
     assert_eq!(
         scrolled,
-        (at as f32 - 3.0) * row_px,
+        (at as f32 - 1.0) * row_px,
         "the selected row is in view"
     );
     press_key(&mut app, KeyCode::ArrowRight);
