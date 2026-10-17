@@ -85,6 +85,7 @@ use super::selection::Selection;
 use super::targets::{Hovered, MarkerFor};
 use super::tunables::Tunables;
 use crate::Stage;
+use crate::content::generator::Sector;
 use crate::content::generator::tunables::GeneratorTunables;
 use crate::content::start::{LoadedSector, SectorRequest, Start, load_start, sector_size};
 use crate::sim::body::{BodyClass, DisplayName};
@@ -327,18 +328,9 @@ struct ShotSector<'w, 's> {
 }
 
 impl ShotSector<'_, '_> {
-    /// SECT-44: the entry a name stands for: a gated system's name, or an
-    /// entry's designation.
+    /// SECT-44: the entry a name stands for in the loaded sector.
     fn find(&self, name: &str) -> Option<usize> {
-        let sector = &self.loaded.as_ref()?.sector;
-        let gated = sector.gated.iter().find(|g| g.names.system == name);
-        gated.map(|g| g.id).or_else(|| {
-            let entries = sector.entries.iter();
-            entries
-                .map(|e| (e.id, &e.designation))
-                .find(|(_, d)| *d == name)
-                .map(|(id, _)| id)
-        })
+        sector_entry_named(&self.loaded.as_ref()?.sector, name)
     }
 
     /// SECT-44: select and hover the entries the plan names; a name that
@@ -459,6 +451,16 @@ impl ShotScene<'_, '_> {
             None => {}
         }
     }
+}
+
+/// SECT-44: the entry a name stands for: a gated system's name, or an
+/// entry's designation.
+pub fn sector_entry_named(sector: &Sector, name: &str) -> Option<usize> {
+    let gated = sector.gated.iter().find(|g| g.names.system == name);
+    gated.map(|g| g.id).or_else(|| {
+        let mut entries = sector.entries.iter();
+        entries.find(|e| e.designation == name).map(|e| e.id)
+    })
 }
 
 /// Steps the shot through its phases, one per frame at most.

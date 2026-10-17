@@ -30,7 +30,7 @@ pub mod readout;
 
 /// What a node stands for: a gated system, an ungated star system (a giant
 /// among them) or a brown dwarf (SECT-03).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum NodeKind {
     Gated,
     Ungated,
@@ -67,6 +67,10 @@ impl Plugin for SectorPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<nodes::NodeScreens>()
             .init_resource::<EnterRequest>()
+            // The nodes' picking backend reports hits even where Bevy's
+            // picking isn't running, as in a headless test.
+            .add_message::<bevy::picking::backend::PointerHits>()
+            .init_resource::<crate::view::markers::brackets::LayerMarks>()
             .init_resource::<input::NodeSpots>()
             .init_resource::<links::LinkPieces>()
             .add_systems(Startup, nodes::fit_the_sector.in_set(Boot::Derive))

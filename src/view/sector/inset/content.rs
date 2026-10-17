@@ -328,6 +328,7 @@ mod tests {
     /// SECT-22: an entry with a star lists its stars, mass, luminosity,
     /// age, metallicity, distance from the centre and companions, in
     /// that order and in their units; a gated system adds its reason.
+    /// SECT-13: the distance, stored in km, is shown in light years.
     #[test]
     fn key_facts_follow_the_spec_order_and_units() {
         let sector = sector(30, 11);

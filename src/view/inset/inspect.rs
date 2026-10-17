@@ -787,6 +787,24 @@ mod tests {
         assert_eq!(sidebar_right_px(2.0, 320.0), 0.0);
     }
 
+    /// SECT-01 / SECT-20: while the sector view is shown the system view's
+    /// inset stays hidden, even with the sidebar open; the sector view
+    /// has an inset of its own.
+    #[test]
+    fn the_system_inset_hides_in_the_sector_view() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut world = World::new();
+        world.init_resource::<Tunables>();
+        world.insert_resource(SidebarState { slide: 1.0 });
+        world.insert_resource(MapLayer::Sector);
+        let panel = world.spawn((InsetPanel, Node::default())).id();
+        world.run_system_once(slide_panel).unwrap();
+        assert_eq!(world.get::<Node>(panel).unwrap().display, Display::None);
+        world.insert_resource(MapLayer::System);
+        world.run_system_once(slide_panel).unwrap();
+        assert_eq!(world.get::<Node>(panel).unwrap().display, Display::Flex);
+    }
+
     /// INS-07: scrolling stops at the top and at the end of the content,
     /// and content that fits doesn't scroll at all.
     #[test]

@@ -283,7 +283,7 @@ pub(super) fn move_cursor(app: &mut App, to: Vec2) {
         .set_cursor_position(Some(to));
 }
 
-fn mouse(app: &mut App, button: MouseButton, state: ButtonState) {
+pub(super) fn mouse(app: &mut App, button: MouseButton, state: ButtonState) {
     let window = the_window(app);
     app.world_mut().write_message(MouseButtonInput {
         button,
@@ -431,14 +431,14 @@ fn frame_north_and_home_move_the_real_camera() {
     assert!(in_star_frame(&app), "ZOOM-10: Home sets the star's frame");
 }
 
-fn press_key(app: &mut App, key: KeyCode) {
+pub(super) fn press_key(app: &mut App, key: KeyCode) {
     for state in [ButtonState::Pressed, ButtonState::Released] {
         key_event(app, key, state);
         run(app, 1);
     }
 }
 
-fn key_event(app: &mut App, key: KeyCode, state: ButtonState) {
+pub(super) fn key_event(app: &mut App, key: KeyCode, state: ButtonState) {
     let window = the_window(app);
     app.world_mut().write_message(KeyboardInput {
         key_code: key,
@@ -868,7 +868,7 @@ fn the_breadcrumb_shows_the_frame_path_and_reframes_on_click() {
 }
 
 /// A press and release of the left button at `at`, without moving.
-fn click_at(app: &mut App, at: Vec2) {
+pub(super) fn click_at(app: &mut App, at: Vec2) {
     move_cursor(app, at);
     run(app, 1);
     mouse(app, MouseButton::Left, ButtonState::Pressed);
