@@ -162,6 +162,15 @@ impl Child<'_> {
             Child::Orbit { radius_km, .. } => *radius_km,
         }
     }
+
+    /// What orders children at the same radius: the name, then the body
+    /// or orbit entity.
+    fn tie_key(&self) -> (&str, Entity) {
+        match self {
+            Child::Entry(node) => (&node.name, node.body),
+            Child::Orbit { orbit, name, .. } => (name, *orbit),
+        }
+    }
 }
 
 /// INS-05 / HOV-04: `parent`'s satellites inside out, with the members of
@@ -190,7 +199,18 @@ fn children_of<'a>(nodes: &'a [OutlineNode], parent: Entity) -> Vec<Child<'a>> {
             }),
         }
     }
-    children.sort_by(|a, b| a.radius_km().total_cmp(&b.radius_km()));
+    // Ties in radius, and the members of one orbit, go by name and then
+    // by entity, so the order never hangs on when a body was spawned.
+    for child in &mut children {
+        if let Child::Orbit { members, .. } = child {
+            members.sort_by(|a, b| (&a.name, a.body).cmp(&(&b.name, b.body)));
+        }
+    }
+    children.sort_by(|a, b| {
+        a.radius_km()
+            .total_cmp(&b.radius_km())
+            .then_with(|| a.tie_key().cmp(&b.tie_key()))
+    });
     children
 }
 
@@ -768,9 +788,50 @@ mod tests {
         assert_eq!(
             order,
             [
-                "Vey", "Pell", "Halden", "Highport", "Orison", "Ardent", "IVa", "IVd"
+                "Vey", "Pell", "Halden", "Highport", "Ardent", "Orison", "IVa", "IVd"
             ]
         );
+    }
+
+    /// MUL-09 / INS-05: things at one radius, in a named orbit or not, go
+    /// by name, so their order is the same whatever order the bodies come
+    /// in.
+    #[test]
+    fn things_at_one_radius_are_ordered_by_name() {
+        let mut world = World::new();
+        let star = node(&mut world, "Vey", None, 0.0, None);
+        let high = world.spawn_empty().id();
+        let at =
+            |world: &mut World, name: &str, orbit| node(world, name, Some(star.body), 5.0e7, orbit);
+        let nodes = vec![
+            star.clone(),
+            at(&mut world, "Tolland", Some((high, "High"))),
+            at(&mut world, "Brask", Some((high, "High"))),
+            at(&mut world, "Kell", None),
+            at(&mut world, "Cassel", Some((high, "High"))),
+            at(&mut world, "Delve", None),
+        ];
+        let names_in_order = |nodes: &[OutlineNode]| {
+            let places = outline_positions(nodes);
+            let mut by_place: Vec<(usize, String)> = nodes
+                .iter()
+                .map(|n| (places[&n.body], n.name.clone()))
+                .collect();
+            by_place.sort();
+            by_place
+                .into_iter()
+                .map(|(_, name)| name)
+                .collect::<Vec<_>>()
+        };
+        let order = names_in_order(&nodes);
+        // The High orbit's row sorts as "High", between Delve and Kell.
+        assert_eq!(
+            order,
+            ["Vey", "Delve", "Brask", "Cassel", "Tolland", "Kell"]
+        );
+        let mut reversed = nodes.clone();
+        reversed.reverse();
+        assert_eq!(names_in_order(&reversed), order);
     }
 
     fn names(rows: &[Row], nodes: &[OutlineNode]) -> Vec<(String, usize)> {
@@ -845,9 +906,9 @@ mod tests {
         reveal_selection(&mut expanded, &nodes, by_name("Ardent"));
         let rows = outline_rows(&nodes, &expanded, Some(by_name("Ardent")));
         let listed = names(&rows, &nodes);
-        assert_eq!(listed[5], ("Orison".to_string(), 3));
-        assert_eq!(listed[6], ("Ardent".to_string(), 3));
-        assert!(matches!(rows[6], Row::Entry { selected: true, .. }));
+        assert_eq!(listed[5], ("Ardent".to_string(), 3));
+        assert_eq!(listed[6], ("Orison".to_string(), 3));
+        assert!(matches!(rows[5], Row::Entry { selected: true, .. }));
 
         // Collapsing Pell's sibling by hand is kept across a reselection.
         toggle(&mut expanded.orbits, high);
