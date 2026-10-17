@@ -117,7 +117,7 @@ pub fn spawn_tray(mut commands: Commands, fonts: Res<Fonts>, tunables: Res<Tunab
                     border: UiRect::all(px(HAIRLINE_PX)),
                     ..default()
                 },
-                BackgroundColor(colors::PANEL),
+                BackgroundColor(colors::TRAY_FILL),
                 BorderColor::all(colors::PANEL_BORDER),
             ))
             .with_children(|panel| spawn_panel_parts(panel, &fonts, &tunables));
@@ -136,7 +136,7 @@ fn spawn_notch(root: &mut ChildSpawnerCommands) {
             ..default()
         },
         UiTransform::from_rotation(Rot2::degrees(45.0)),
-        BackgroundColor(colors::PANEL),
+        BackgroundColor(colors::TRAY_FILL),
         BorderColor::all(colors::PANEL_BORDER),
     ));
 }
@@ -152,7 +152,7 @@ fn bar(height: f32, rule: UiRect) -> (Node, BorderColor) {
         border: rule,
         ..default()
     };
-    let divider = colors::mix(colors::PANEL, colors::PANEL_BORDER, DIVIDER_MIX);
+    let divider = colors::mix(colors::TRAY_FILL, colors::PANEL_BORDER, DIVIDER_MIX);
     (node, BorderColor::all(divider))
 }
 

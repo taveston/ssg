@@ -81,14 +81,16 @@ pub enum TrayKind<'a> {
     /// A parent's fold marker, holding its ships, groups and stations
     /// (GRP-12, MUL-04).
     Fold { parent: &'a str, count: usize },
-    /// Any other: an overlap across orbits, or a shared orbit's identity
-    /// mark.
+    /// A shared orbit's identity mark on its exposure ring (MOT-14),
+    /// holding the orbit's things.
+    SharedOrbit { orbit: &'a str, count: usize },
+    /// Any other: an overlap across orbits.
     Objects { count: usize },
 }
 
 /// MUL-08: the header, in capitals: "NAME · N DOCKED", "HIGH ORBIT · N
-/// THINGS AT ONE POINT", "HIGH ORBIT · N OF M", "PARENT · N IN ORBIT" or
-/// "N OBJECTS".
+/// THINGS AT ONE POINT", "HIGH ORBIT · N OF M", "PARENT · N IN ORBIT",
+/// "HIGH ORBIT · N THINGS" or "N OBJECTS".
 pub fn tray_header(kind: TrayKind) -> String {
     let text = match kind {
         TrayKind::Station { name, docked } => format!("{name} · {docked} docked"),
@@ -97,6 +99,7 @@ pub fn tray_header(kind: TrayKind) -> String {
         }
         TrayKind::OverlapInOrbit { orbit, count, of } => format!("{orbit} orbit · {count} of {of}"),
         TrayKind::Fold { parent, count } => format!("{parent} · {count} in orbit"),
+        TrayKind::SharedOrbit { orbit, count } => format!("{orbit} orbit · {count} things"),
         TrayKind::Objects { count } => format!("{count} objects"),
     };
     text.to_uppercase()
@@ -292,6 +295,13 @@ mod tests {
                     count: 7,
                 },
                 "HALDEN IV · 7 IN ORBIT",
+            ),
+            (
+                TrayKind::SharedOrbit {
+                    orbit: "High",
+                    count: 6,
+                },
+                "HIGH ORBIT · 6 THINGS",
             ),
             (TrayKind::Objects { count: 5 }, "5 OBJECTS"),
         ];

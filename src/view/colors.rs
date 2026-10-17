@@ -10,6 +10,9 @@ pub const GROUND: Color = Color::srgb(
     0x0E as f32 / 255.0,
 );
 pub const PANEL: Color = Color::srgba(12.0 / 255.0, 17.0 / 255.0, 23.0 / 255.0, 0.97);
+/// MUL-08: the tray's fill: the panel colour fully opaque, so labels and
+/// belts on the map never show through a tray drawn over them.
+pub const TRAY_FILL: Color = Color::srgb(12.0 / 255.0, 17.0 / 255.0, 23.0 / 255.0);
 pub const PANEL_BORDER: Color = Color::srgb(
     0x9F as f32 / 255.0,
     0xB6 as f32 / 255.0,

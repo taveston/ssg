@@ -835,7 +835,8 @@ fn with_the_planner_open_rows_pick_as_their_symbols_would() {
 
 /// HOV-05 / MUL-07: at 4 d/s in Halden IV's frame the High band is an
 /// exposure ring; a click on its identity mark selects Halden IV with the
-/// band revealed, and opens the mark's tray, listing the band's things.
+/// band revealed, and opens the mark's tray, listing the band's things
+/// under the orbit's name (MUL-08).
 #[test]
 fn clicking_a_shared_orbits_mark_opens_its_tray() {
     use crate::view::rings::marks::{RingMarkFor, ring_things};
@@ -876,7 +877,85 @@ fn clicking_a_shared_orbits_mark_opens_its_tray() {
         )
         .unwrap();
     let tray = contents(&app);
-    assert_eq!(tray.header, format!("{things} OBJECTS"));
+    assert_eq!(tray.header, format!("HIGH ORBIT · {things} THINGS"));
     assert_eq!(tray.lines.len(), things);
     assert!(tray.anchor.is_some());
+}
+
+/// HOV-05 / MUL-07 / MUL-10: paused in Halden IV's frame, the High band
+/// is drawn in dot mode, with no identity mark. A click on its ring
+/// selects Halden IV with the band revealed, opens no tray, and closes the
+/// one that was open.
+#[test]
+fn clicking_a_shared_ring_in_dot_mode_opens_no_tray_and_closes_an_open_one() {
+    use crate::view::multi::{MultiMarkers, TrayRequest};
+    use crate::view::rings::picking::{RingPaths, RingPickingPlugin, RingTarget};
+    use crate::view::targets::OrbitFor;
+    let mut app = tray_app_with(|app| {
+        app.add_message::<bevy::picking::backend::PointerHits>()
+            .add_plugins(RingPickingPlugin);
+    });
+    let halden = body(&mut app, "Halden IV");
+    let orison = body(&mut app, "Orison");
+    let high = app.world().get::<InNamedOrbit>(orison).unwrap().0;
+    app.world_mut().resource_mut::<FrameRequest>().0 = Some(halden);
+    run(&mut app, 60 + eased_frames());
+
+    let some_marker = app
+        .world()
+        .resource::<MultiMarkers>()
+        .markers
+        .iter()
+        .filter(|marker| marker.drawn)
+        .map(|marker| marker.key)
+        .next()
+        .expect("a multi-marker in Halden IV's frame");
+    app.world_mut().resource_mut::<TrayRequest>().0 = Some(TrayFor::Marker(some_marker));
+    run(&mut app, 2);
+    assert_eq!(open_tray(&app), Some(TrayFor::Marker(some_marker)));
+
+    let ring = {
+        let mut rings = app
+            .world_mut()
+            .query::<(Entity, &RingTarget, Option<&OrbitFor>)>();
+        rings
+            .iter(app.world())
+            .find(|(_, ring, orbit_for)| ring.0 == high && orbit_for.is_some())
+            .map(|(e, ..)| e)
+            .expect("the High band's ring target")
+    };
+    let on_ring = app.world().resource::<RingPaths>().0[&ring][0].0;
+    move_cursor(&mut app, on_ring);
+    run(&mut app, 1);
+    mouse(&mut app, ButtonState::Pressed);
+    click_node(&mut app, ring, 1);
+    assert_eq!(
+        app.world().resource::<TrayRequest>().0,
+        None,
+        "the click asks for no tray"
+    );
+    mouse(&mut app, ButtonState::Released);
+    run(&mut app, 1);
+    assert_eq!(selected(&app), Some(halden));
+    assert_eq!(
+        app.world().resource::<Selection>().revealed_orbit,
+        Some(high)
+    );
+    assert_eq!(open_tray(&app), None, "the open tray closed");
+}
+
+/// MUL-08: the tray's panel and notch are filled fully opaque, so nothing
+/// on the map shows through them.
+#[test]
+fn the_trays_fill_is_opaque() {
+    use crate::view::tray::draw::{TrayNotch, TrayPanel};
+    let mut app = tray_app();
+    run(&mut app, SETTLE_FRAMES);
+    let halden = body(&mut app, "Halden IV");
+    click_fold_marker(&mut app, halden);
+    let mut fills = app
+        .world_mut()
+        .query_filtered::<&BackgroundColor, Or<(With<TrayPanel>, With<TrayNotch>)>>();
+    let alphas: Vec<f32> = fills.iter(app.world()).map(|fill| fill.0.alpha()).collect();
+    assert_eq!(alphas, [1.0, 1.0]);
 }

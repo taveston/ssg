@@ -3,8 +3,9 @@
 //! ring mark) is observed by; `markers/brackets.rs` draws the hover mark.
 //! Nothing has a tooltip: a marker's name and type are on the map
 //! already. A shared orbit's ring or identity mark selects the orbit's
-//! parent with that orbit's row revealed in the inset, and asks for the
-//! identity mark's tray. A click on a multi-marker is
+//! parent with that orbit's row revealed in the inset, and, while the
+//! ring is an exposure ring showing its identity mark, asks for that
+//! mark's tray; in dot mode there is no mark and so no tray. A click on a multi-marker is
 //! `multi_markers/click.rs`, through `BodyClick`; a station's marker with
 //! things docked is a multi-marker, so a click on it asks for its tray
 //! and selects the station without picking it (MUL-07, MUL-12).
@@ -27,6 +28,7 @@ use super::frame::Frame;
 use super::gesture::{PressStart, was_click};
 use super::multi::{MultiKey, MultiMarkers, TrayFor, TrayRequest};
 use super::planner::state::{PickTarget, PlannerState};
+use super::rings::marks::RingMarkFor;
 use super::selection::Selection;
 use super::targets::{Hovered, MarkerFor, OrbitFor, PointerTargets};
 use super::tunables::Tunables;
@@ -298,13 +300,14 @@ pub fn on_marker_click(
 }
 
 /// HOV-05: clicking a shared orbit's ring or identity mark selects the
-/// orbit's parent with the orbit's row revealed, and opens the identity
-/// mark's tray (MUL-07). While the planner is open it picks the orbit's
-/// band, as the ring does (PLNR-11).
+/// orbit's parent with the orbit's row revealed. While the ring is an
+/// exposure ring with its identity mark on screen, the click also opens
+/// the mark's tray (MUL-07); in dot mode there is no mark, so it asks for
+/// no tray, and an open one closes as on any other click. While the
+/// planner is open it picks the orbit's band, as the ring does (PLNR-11).
 pub fn on_orbit_click(
     click: On<PointerClick>,
-    orbits: Query<&OrbitFor>,
-    named: Query<&NamedOrbit>,
+    (orbits, named, marks): (Query<&OrbitFor>, Query<&NamedOrbit>, Query<&RingMarkFor>),
     check: ClickCheck,
     mut body_click: BodyClick,
 ) {
@@ -317,7 +320,12 @@ pub fn on_orbit_click(
     if let Ok(orbit_for) = orbits.get(click.entity)
         && let Ok(orbit) = named.get(orbit_for.0)
     {
-        body_click.open_tray(TrayFor::Orbit(orbit_for.0));
+        let mark_shown = marks
+            .iter()
+            .any(|mark| mark.owner == orbit_for.0 && mark.mark.is_some());
+        if mark_shown {
+            body_click.open_tray(TrayFor::Orbit(orbit_for.0));
+        }
         body_click.click_orbit(orbit_for.0, orbit.parent, count);
     }
 }
@@ -428,6 +436,45 @@ mod tests {
         assert_eq!(outcome(&world), (Some(parent), Some(parent), None));
     }
 
+    /// An identity mark on screen for `orbit`'s exposure ring (MOT-14).
+    fn shown_mark(world: &mut World, orbit: Entity) {
+        world.spawn(RingMarkFor {
+            owner: orbit,
+            half: 11.0,
+            shown: 1.0,
+            mark: Some(Rect::from_center_half_size(Vec2::ZERO, Vec2::splat(11.0))),
+            chevron: None,
+        });
+    }
+
+    /// HOV-05 / MUL-07: a click on a shared ring asks for the identity
+    /// mark's tray only while the mark is on screen (exposure-ring mode);
+    /// in dot mode, with no mark, it asks for none, so an open tray
+    /// closes.
+    #[test]
+    fn a_shared_ring_asks_for_its_tray_only_while_its_mark_shows() {
+        let (mut world, parent, ..) = click_world();
+        let orbit = world
+            .spawn(NamedOrbit {
+                parent,
+                name: "High".to_string(),
+                radius_km: 1.0,
+                period_days: 1.0,
+            })
+            .id();
+        let ring = world.spawn(OrbitFor(orbit)).observe(on_orbit_click).id();
+        click(&mut world, ring, 1);
+        assert_eq!(world.resource::<Selection>().selected, Some(parent));
+        assert_eq!(world.resource::<TrayRequest>().0, None);
+        shown_mark(&mut world, orbit);
+        press(&mut world, 1000, Vec2::ZERO);
+        click(&mut world, ring, 1);
+        assert_eq!(
+            world.resource::<TrayRequest>().0,
+            Some(TrayFor::Orbit(orbit))
+        );
+    }
+
     /// MUL-07 / HOV-05: a double-click on the same shared ring, soon after
     /// its first click, asks for the parent's frame and asks for the tray
     /// again, so the tray the first click opened stays open.
@@ -442,6 +489,7 @@ mod tests {
                 period_days: 1.0,
             })
             .id();
+        shown_mark(&mut world, orbit);
         let target = world.spawn(OrbitFor(orbit)).observe(on_orbit_click).id();
         click(&mut world, target, 1);
         world.resource_mut::<TrayRequest>().0 = None;
@@ -483,6 +531,7 @@ mod tests {
                 period_days: 1.0,
             })
             .id();
+        shown_mark(&mut world, orbit);
         let ring = world.spawn(OrbitFor(orbit)).observe(on_orbit_click).id();
         let here = Vec2::new(300.0, 200.0);
         press(&mut world, 1000, here);

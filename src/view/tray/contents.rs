@@ -290,7 +290,8 @@ impl TrayInputs<'_, '_> {
                 let (things, docked) = self.orbit_things(orbit)?;
                 Some(Held {
                     top: self.order.sorted(&things),
-                    header: tray_header(TrayKind::Objects {
+                    header: tray_header(TrayKind::SharedOrbit {
+                        orbit: &self.orbit_name(orbit),
                         count: things.len(),
                     }),
                     docked,
