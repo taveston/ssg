@@ -157,12 +157,14 @@ fn a_generated_moons_period_follows_its_planets_mass() {
 }
 
 /// INS-08 / SYSG-55: a generated planet's inset lists its Type,
-/// Gravity, Equilibrium temperature, Atmosphere and Water after its
-/// radius; a gate's lists its State.
+/// Gravity, Equilibrium temperature, Atmosphere, Water, Rotation and,
+/// unless it has an envelope, Activity after its radius; a gate's lists
+/// its State.
 #[test]
 fn a_generated_systems_inset_lists_planet_facts_and_gate_state() {
     let system = rich_system();
     let planet = system.planets[0].name.clone();
+    let has_activity = system.planets[0].planet_facts.unwrap().activity.is_some();
     let gates: Vec<(String, GateState)> = system
         .gates
         .iter()
@@ -181,19 +183,21 @@ fn a_generated_systems_inset_lists_planet_facts_and_gate_state() {
         let content = gather_content(entity, &bodies, &tunables).unwrap();
         content.facts.into_iter().map(|(label, _)| label).collect()
     };
-    assert_eq!(
-        labels(planet),
-        [
-            "Orbit",
-            "Period",
-            "Mean radius",
-            "Type",
-            "Gravity",
-            "Equilibrium temperature",
-            "Atmosphere",
-            "Water"
-        ]
-    );
+    let mut expected = vec![
+        "Orbit",
+        "Period",
+        "Mean radius",
+        "Type",
+        "Gravity",
+        "Equilibrium temperature",
+        "Atmosphere",
+        "Water",
+        "Rotation",
+    ];
+    if has_activity {
+        expected.push("Activity");
+    }
+    assert_eq!(labels(planet), expected);
     for (gate, gate_state) in gates {
         let content = gather_content(gate, &bodies, &tunables).unwrap();
         let state_row = content.facts.last().unwrap();

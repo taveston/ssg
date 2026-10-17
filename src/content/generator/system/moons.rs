@@ -9,7 +9,7 @@ use crate::content::generator::bodies::{PlanetKind, PlanetSummary};
 use crate::content::generator::gates::ring::hill_radius_au;
 use crate::content::generator::rng::{Rng, derive_indexed_seed, derive_seed};
 use crate::content::generator::summaries::planets::star_mass_earth;
-use crate::content::generator::summaries::{Sunlight, solid_body_facts};
+use crate::content::generator::summaries::{Sunlight, TidalSetting, TideClass, solid_body_facts};
 use crate::content::generator::tunables::{GeneratorTunables, MoonCount};
 use crate::sim::body::BodyClass;
 use crate::sim::planet_facts::WorldKind;
@@ -83,8 +83,8 @@ pub fn moon_name(planet_name: &str, index: usize) -> String {
 /// first. Each has its orbit radius, a mass from its planet's, a radius
 /// from an icy density (the planet at or beyond the snow line) or a rocky
 /// one, facts by the rules for a rocky planet at its planet's distance
-/// from the star, a name from its planet's and a starting phase of its
-/// own. Their periods follow from the planet's mass at spawn (SYSG-35).
+/// from the star, locking and tidal heat with the planet as their parent
+/// (SYSG-33), a name from its planet's and a starting phase of its own. Their periods follow from the planet's mass at spawn (SYSG-35).
 /// The draws come from the planet's own seed: the count, the orbits, then
 /// each moon's mass and facts.
 pub fn moons(
@@ -112,14 +112,21 @@ pub fn moons(
             let mass_kg = moon_mass_kg(planet, &mut rng, t);
             let radius_km = radius_km_for_density(mass_kg, t.moon_density.get(beyond_snow_line));
             let mass_earth = mass_kg / EARTH_MASS_KG;
-            let facts =
-                solid_body_facts(mass_earth, radius_km / EARTH_RADIUS_KM, light, &mut rng, t);
+            let orbit_km = out_radii * planet_radius_km;
+            let tide = TidalSetting {
+                parent_mass_kg: planet.mass_earth * EARTH_MASS_KG,
+                orbit_km,
+                class: TideClass::Moon,
+                age_gyr: detail.age_gyr,
+            };
+            let radius_earth = radius_km / EARTH_RADIUS_KM;
+            let facts = solid_body_facts(mass_earth, radius_earth, light, &tide, &mut rng, t);
             let phase = starting_phase(derive_indexed_seed(planet_seed, "moon", index as u64));
             let mut moon = natural_body(
                 moon_name(planet_name, index),
                 BodyClass::Moon,
                 solid_facts(WorldKind::Moon, facts),
-                out_radii * planet_radius_km,
+                orbit_km,
                 phase,
             );
             moon.radius_km = radius_km;

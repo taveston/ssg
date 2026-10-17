@@ -5,6 +5,8 @@
 //! re-rolling it. Composition is a class only: no resource amounts
 //! (SGEN-43).
 
+pub use crate::sim::planet_facts::Activity;
+
 /// A system's architecture (SGEN-31).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Template {
@@ -80,6 +82,12 @@ pub struct PlanetSummary {
     pub equilibrium_temperature_k: f64,
     pub atmosphere: Atmosphere,
     pub water: Water,
+    /// Whether tides have locked its spin to its orbit round the star
+    /// (SGEN-44).
+    pub locked: bool,
+    /// Its geological activity (SGEN-45); `None` for a planet with an
+    /// envelope.
+    pub activity: Option<Activity>,
     /// A rocky planet's volatile endowment, the factor its retention
     /// index is scaled by (SGEN-40); `None` for a planet with an
     /// envelope. Kept so that a planet moved later has its atmosphere

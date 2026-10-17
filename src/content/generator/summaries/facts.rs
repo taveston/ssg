@@ -1,14 +1,18 @@
 //! A planet's facts, worked out from its kind, mass and orbit: radius,
-//! surface gravity, equilibrium temperature, atmosphere and water
-//! (SGEN-36, SGEN-38 to SGEN-41).
+//! surface gravity, equilibrium temperature, atmosphere, water, tidal
+//! locking and geological activity (SGEN-36, SGEN-38 to SGEN-41, SGEN-44,
+//! SGEN-45).
 
 use super::Context;
 use super::planets::Placed;
-use crate::content::generator::bodies::{Atmosphere, PlanetKind, PlanetSummary, Water};
+use super::tides::{TidalSetting, TideClass, Tides, activity, is_locked, tides};
+use crate::content::generator::bodies::{Activity, Atmosphere, PlanetKind, PlanetSummary, Water};
+use crate::content::generator::catalogue::Star;
 use crate::content::generator::rng::Rng;
 use crate::content::generator::tunables::{GeneratorTunables, MassRadiusCurves};
 use crate::sim::units::{
-    EARTH_MASS_KG, EARTH_RADIUS_KM, GRAVITATIONAL_CONSTANT, M_PER_KM, STANDARD_GRAVITY_M_PER_S2,
+    EARTH_MASS_KG, EARTH_RADIUS_KM, GRAVITATIONAL_CONSTANT, KM_PER_AU, M_PER_KM, SOLAR_MASS_KG,
+    STANDARD_GRAVITY_M_PER_S2,
 };
 
 /// The equilibrium temperature of a black body 1 AU from the Sun with no
@@ -112,9 +116,36 @@ pub fn draw_water(
     }
 }
 
+/// The tidal class of a planet of `kind` (SGEN-44): rocky planets and
+/// super-Earths take the rocky values, the rest the envelope ones.
+fn planet_tide_class(kind: PlanetKind) -> TideClass {
+    if kind.is_rocky() {
+        TideClass::RockyPlanet
+    } else {
+        TideClass::EnvelopePlanet
+    }
+}
+
+/// A planet's tides round its star (SGEN-44, SGEN-45): its mass, radius
+/// and orbit against the star's mass and the system's age.
+fn planet_tides(planet: &PlanetSummary, star: &Star, age_gyr: f64, t: &GeneratorTunables) -> Tides {
+    let setting = TidalSetting {
+        parent_mass_kg: star.mass_msun * SOLAR_MASS_KG,
+        orbit_km: planet.orbit_au * KM_PER_AU,
+        class: planet_tide_class(planet.kind),
+        age_gyr,
+    };
+    tides(
+        planet.mass_earth * EARTH_MASS_KG,
+        planet.radius_earth * EARTH_RADIUS_KM,
+        &setting,
+        t,
+    )
+}
+
 /// A planet's summary, with every fact worked out (SGEN-36, SGEN-38 to
-/// SGEN-41). Only rocky planets and super-Earths draw a volatile
-/// endowment and water; the other kinds have an envelope.
+/// SGEN-41, SGEN-44, SGEN-45). Only rocky planets and super-Earths draw a
+/// volatile endowment and water; the other kinds have an envelope.
 pub fn planet_summary(
     planet: &Placed,
     ctx: &Context,
@@ -139,7 +170,7 @@ pub fn planet_summary(
         t,
     );
     let beyond = planet.orbit_au >= ctx.snow_line_au;
-    PlanetSummary {
+    let mut summary = PlanetSummary {
         kind: planet.kind,
         mass_earth: planet.mass_earth,
         radius_earth: radius,
@@ -148,19 +179,27 @@ pub fn planet_summary(
         equilibrium_temperature_k: temperature,
         atmosphere,
         water: draw_water(atmosphere, temperature, beyond, rng, t),
+        locked: false,
+        activity: None,
         volatile_endowment,
-    }
+    };
+    let tides = planet_tides(&summary, ctx.star, ctx.age_gyr, t);
+    summary.locked = tides.locked;
+    summary.activity = tides.activity;
+    summary
 }
 
 /// The facts of a small solid body, worked out by the rules for a rocky
-/// planet (SGEN-38 to SGEN-41): gravity, equilibrium temperature,
-/// atmosphere and water.
+/// planet (SGEN-38 to SGEN-45): gravity, equilibrium temperature,
+/// atmosphere, water, tidal locking and geological activity.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SolidFacts {
     pub gravity_g: f64,
     pub equilibrium_temperature_k: f64,
     pub atmosphere: Atmosphere,
     pub water: Water,
+    pub locked: bool,
+    pub activity: Activity,
 }
 
 /// Where a solid body sits for its facts: its distance from the star, and
@@ -173,14 +212,16 @@ pub struct Sunlight {
 }
 
 /// A moon's or belt body's facts by the rules for a rocky planet
-/// (SGEN-38 to SGEN-41): gravity from its own mass and radius, an
-/// equilibrium temperature at `light`'s distance, an atmosphere from a
-/// freshly drawn volatile endowment, and water drawn as a rocky planet's
-/// is. It draws the endowment, then the water.
+/// (SGEN-38 to SGEN-45, SYSG-33): gravity from its own mass and radius,
+/// an equilibrium temperature at `light`'s distance, an atmosphere from a
+/// freshly drawn volatile endowment, water drawn as a rocky planet's is,
+/// and locking and activity against `tide`'s parent. It draws the
+/// endowment, then the water; the tides draw nothing.
 pub fn solid_body_facts(
     mass_earth: f64,
     radius_earth: f64,
     light: Sunlight,
+    tide: &TidalSetting,
     rng: &mut Rng,
     t: &GeneratorTunables,
 ) -> SolidFacts {
@@ -192,11 +233,15 @@ pub fn solid_body_facts(
     let range = t.volatile_endowment_range;
     let endowment = rng.log_uniform(range.min, range.max);
     let atmosphere = atmosphere_of(mass_earth, radius_earth, temperature, Some(endowment), t);
+    let mass_kg = mass_earth * EARTH_MASS_KG;
+    let radius_km = radius_earth * EARTH_RADIUS_KM;
     SolidFacts {
         gravity_g: gravity_g(mass_earth, radius_earth),
         equilibrium_temperature_k: temperature,
         atmosphere,
         water: draw_water(atmosphere, temperature, light.beyond_snow_line, rng, t),
+        locked: is_locked(mass_kg, radius_km, tide, t),
+        activity: activity(mass_kg, radius_km, tide, t),
     }
 }
 
@@ -246,15 +291,17 @@ pub fn water_kept(
 
 /// Works out again the facts of a planet that has moved to a new orbit
 /// (SGEN-59): its equilibrium temperature, its atmosphere from the
-/// endowment it was given, and its water as `water_kept` allows. Its
-/// mass, radius and gravity do not depend on the orbit.
+/// endowment it was given, its water as `water_kept` allows, and its
+/// locking and activity at the new distance from `star`, in a system
+/// `age_gyr` old. Its mass, radius and gravity do not depend on the orbit.
 pub fn rework_moved_planet(
     planet: &mut PlanetSummary,
-    luminosity_lsun: f64,
+    star: &Star,
+    age_gyr: f64,
     t: &GeneratorTunables,
 ) {
     let temperature =
-        equilibrium_temperature_k(luminosity_lsun, planet.orbit_au, t.equilibrium_albedo);
+        equilibrium_temperature_k(star.luminosity_lsun, planet.orbit_au, t.equilibrium_albedo);
     let atmosphere = atmosphere_of(
         planet.mass_earth,
         planet.radius_earth,
@@ -265,12 +312,15 @@ pub fn rework_moved_planet(
     planet.equilibrium_temperature_k = temperature;
     planet.atmosphere = atmosphere;
     planet.water = water_kept(planet.water, atmosphere, temperature, t);
+    let tides = planet_tides(planet, star, age_gyr, t);
+    planet.locked = tides.locked;
+    planet.activity = tides.activity;
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::content::generator::testing::all_summaries;
+    use crate::content::generator::testing::{all_summaries, sample_star};
 
     fn within(value: f64, target: f64, share: f64) -> bool {
         (value - target).abs() <= share * target
@@ -453,9 +503,9 @@ mod tests {
         assert_eq!(kept(Water::None, Atmosphere::Dense, 250.0), Water::None);
     }
 
-    /// SGEN-59: a moved planet's temperature, atmosphere and water are
-    /// worked out again from its stored endowment; mass, radius and
-    /// gravity stay.
+    /// SGEN-59: a moved planet's temperature, atmosphere, water, locking
+    /// and activity are worked out again, the atmosphere from its stored
+    /// endowment; mass, radius and gravity stay.
     #[test]
     fn a_moved_planet_has_its_facts_worked_out_again() {
         let t = GeneratorTunables::default();
@@ -469,16 +519,23 @@ mod tests {
             equilibrium_temperature_k: equilibrium_temperature_k(1.0, 1.0, 0.3),
             atmosphere: Atmosphere::Dense,
             water: Water::Surface,
+            locked: true,
+            activity: Some(Activity::Extreme),
             volatile_endowment: Some(1.0),
         };
         let before = planet.clone();
         planet.orbit_au = 4.0;
-        rework_moved_planet(&mut planet, 1.0, &t);
+        let star = sample_star();
+        rework_moved_planet(&mut planet, &star, 4.5, &t);
         let colder = equilibrium_temperature_k(1.0, 4.0, 0.3);
         assert_eq!(planet.equilibrium_temperature_k, colder);
         assert_eq!(planet.atmosphere, Atmosphere::Dense);
         // About 127 K: too cold for surface water, so it freezes.
         assert_eq!(planet.water, Water::Ice);
+        // Locking and activity follow the new orbit: an Earth at 4 AU is
+        // free and, at the reference age, active from its own heat.
+        assert!(!planet.locked);
+        assert_eq!(planet.activity, Some(Activity::Active));
         assert_eq!(
             (planet.mass_earth, planet.radius_earth, planet.gravity_g),
             (before.mass_earth, before.radius_earth, before.gravity_g)

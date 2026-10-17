@@ -7,12 +7,12 @@ use super::worlds::{natural_body, radius_km_for_density, solid_facts};
 use super::{Detail, starting_phase};
 use crate::content::generator::bodies::BeltSummary;
 use crate::content::generator::rng::{Rng, derive_indexed_seed, derive_seed};
-use crate::content::generator::summaries::{Sunlight, solid_body_facts};
+use crate::content::generator::summaries::{Sunlight, TidalSetting, TideClass, solid_body_facts};
 use crate::content::generator::tunables::GeneratorTunables;
 use crate::sim::body::{BeltComposition, BodyClass};
 use crate::sim::planet_facts::WorldKind;
 use crate::sim::system::{BeltBlueprint, BodyBlueprint};
-use crate::sim::units::{EARTH_MASS_KG, EARTH_RADIUS_KM, KM_PER_AU};
+use crate::sim::units::{EARTH_MASS_KG, EARTH_RADIUS_KM, KM_PER_AU, SOLAR_MASS_KG};
 
 /// Belt bodies' orbits are at least this ratio apart: 2% (SYSG-41).
 const MIN_ORBIT_RATIO: f64 = 1.02;
@@ -128,7 +128,8 @@ pub fn draw_bodies(
 /// belt and inside out, each named from the sector's spare names for its
 /// belt in that order. A body's radius follows from an icy density in a
 /// mostly icy belt and a rocky one otherwise; its facts follow the rules
-/// for a rocky planet; its starting phase comes from a seed of its own.
+/// for a rocky planet, with the star as its tidal parent and the planet
+/// values of the tidal tunables (SYSG-33); its starting phase comes from a seed of its own.
 pub fn bodies(detail: &Detail, t: &GeneratorTunables) -> Vec<BodyBlueprint> {
     let mut records = Vec::new();
     for (index, belt) in detail.summary.belts.iter().enumerate() {
@@ -146,7 +147,13 @@ pub fn bodies(detail: &Detail, t: &GeneratorTunables) -> Vec<BodyBlueprint> {
                 beyond_snow_line: body.orbit_au >= detail.summary.snow_line_au,
             };
             let radius_earth = radius_km / EARTH_RADIUS_KM;
-            let facts = solid_body_facts(body.mass_earth, radius_earth, light, &mut rng, t);
+            let tide = TidalSetting {
+                parent_mass_kg: detail.star.mass_msun * SOLAR_MASS_KG,
+                orbit_km: body.orbit_au * KM_PER_AU,
+                class: TideClass::RockyPlanet,
+                age_gyr: detail.age_gyr,
+            };
+            let facts = solid_body_facts(body.mass_earth, radius_earth, light, &tide, &mut rng, t);
             let phase = starting_phase(derive_indexed_seed(belt_seed, "body", k as u64));
             let mut record = natural_body(
                 name.clone(),

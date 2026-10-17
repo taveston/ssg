@@ -9,8 +9,10 @@
 mod belts;
 mod facts;
 pub mod planets;
+pub mod tides;
 
 pub use facts::{SolidFacts, Sunlight, rework_moved_planet, solid_body_facts};
+pub use tides::{TidalSetting, TideClass};
 
 use super::bodies::Summary;
 use super::catalogue::{Entry, Star, StarClass};
@@ -24,6 +26,9 @@ pub struct Context<'a> {
     pub star: &'a Star,
     /// The system's [Fe/H].
     pub metallicity: f64,
+    /// The system's age in Gyr (SGEN-23), which tides and inner heat
+    /// depend on (SGEN-44, SGEN-45).
+    pub age_gyr: f64,
     pub template: Template,
     /// The snow line, in AU (SGEN-42).
     pub snow_line_au: f64,
@@ -68,6 +73,7 @@ fn summarise(entry: &Entry, rng: &mut Rng, t: &GeneratorTunables) -> Summary {
     let ctx = Context {
         star,
         metallicity: entry.metallicity,
+        age_gyr: entry.age_gyr,
         template,
         snow_line_au: snow_line_au(star, t),
         limit_au: system

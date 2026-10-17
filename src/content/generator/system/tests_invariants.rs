@@ -12,8 +12,11 @@ use crate::content::generator::bodies::PlanetSummary;
 use crate::content::generator::gates::ring::hill_radius_au;
 use crate::content::generator::names::list::NameList;
 use crate::content::generator::summaries::planets::star_mass_earth;
+use crate::content::generator::summaries::tides::tides;
+use crate::content::generator::summaries::{TidalSetting, TideClass};
 use crate::content::generator::testing::{about, sweep};
 use crate::sim::body::BodyClass;
+use crate::sim::planet_facts::Atmosphere;
 use crate::sim::system::{BodyBlueprint, OrbitPlacement};
 use crate::sim::units::{EARTH_MASS_KG, EARTH_RADIUS_KM, KM_PER_AU};
 
@@ -351,4 +354,80 @@ fn names_are_unique_across_the_sector_and_never_reserved() {
             assert!(seen[*index].insert(key), "{name} twice in sector {index}");
         }
     }
+}
+
+/// SGEN-44, SYSG-33: every generated moon of a giant is tidally locked to
+/// its planet.
+#[test]
+fn every_moon_of_a_giant_is_locked() {
+    let mut moons_seen = 0;
+    for case in cases() {
+        for (planet, record) in case.summary.planets.iter().zip(planets(&case)) {
+            if !planet.kind.is_giant() {
+                continue;
+            }
+            for moon in &record.children {
+                moons_seen += 1;
+                assert!(moon.planet_facts.unwrap().locked, "{} is free", moon.name);
+            }
+        }
+    }
+    assert!(moons_seen > 0);
+}
+
+/// SGEN-45, SYSG-22: a body with an envelope has no activity; every
+/// other planet, moon and belt body has one.
+#[test]
+fn only_bodies_without_an_envelope_have_an_activity() {
+    let mut envelopes = 0;
+    for case in cases() {
+        let bodies = case
+            .system
+            .planets
+            .iter()
+            .filter(|b| b.class == BodyClass::Planet)
+            .flat_map(|b| std::iter::once(b).chain(&b.children));
+        for body in bodies {
+            let facts = body.planet_facts.unwrap();
+            let envelope = facts.atmosphere == Atmosphere::Envelope;
+            envelopes += usize::from(envelope);
+            assert_eq!(facts.activity.is_none(), envelope, "{}", body.name);
+        }
+    }
+    assert!(envelopes > 0);
+}
+
+/// SYSG-33: a moon's locking and activity take its planet as the parent,
+/// with the moon tunables; a belt body's take the star, with the rocky
+/// planet ones.
+#[test]
+fn moons_take_their_planet_and_belt_bodies_the_star_as_tidal_parent() {
+    let t = GeneratorTunables::default();
+    let mut checked = (0, 0);
+    for case in cases() {
+        let age_gyr = case.sector.entries[case.gated.id].age_gyr;
+        let check = |body: &BodyBlueprint, parent_mass_kg: f64, class: TideClass| {
+            let setting = TidalSetting {
+                parent_mass_kg,
+                orbit_km: own_radius(body),
+                class,
+                age_gyr,
+            };
+            let expected = tides(body.mass_kg, body.radius_km, &setting, &t);
+            let facts = body.planet_facts.unwrap();
+            assert_eq!(facts.locked, expected.locked, "{}", body.name);
+            assert_eq!(facts.activity, expected.activity, "{}", body.name);
+        };
+        for planet in planets(&case) {
+            for moon in &planet.children {
+                check(moon, planet.mass_kg, TideClass::Moon);
+                checked.0 += 1;
+            }
+        }
+        for body in belt_bodies(&case) {
+            check(body, case.system.star_mass_kg, TideClass::RockyPlanet);
+            checked.1 += 1;
+        }
+    }
+    assert!(checked.0 > 0 && checked.1 > 0, "{checked:?}");
 }

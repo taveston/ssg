@@ -67,6 +67,9 @@ pub struct Detail<'a> {
     pub star: &'a Star,
     pub summary: &'a Summary,
     pub gated: &'a GatedSystem,
+    /// The system's age in Gyr (SGEN-23), for its bodies' tides
+    /// (SGEN-44, SGEN-45).
+    pub age_gyr: f64,
     /// The system's seed (SYSG-02), from which every body's own seed is
     /// derived.
     pub seed: u64,
@@ -113,6 +116,7 @@ pub fn generate_system(
         star,
         summary,
         gated,
+        age_gyr: entry.age_gyr,
         seed: system_seed(sector.settings.seed, id),
     };
     let mut records = worlds::planets(&detail, t);

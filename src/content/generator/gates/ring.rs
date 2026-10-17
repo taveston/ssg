@@ -112,8 +112,14 @@ pub fn slide_ring(summary: &Summary, star: &Star, t: &GeneratorTunables) -> Opti
 
 /// The ring and the system's planets (SGEN-58, SGEN-59). If the ring
 /// cannot slide clear, it stays at its starting radius and the planets in
-/// its way move instead.
-pub fn place_ring(summary: &Summary, star: &Star, t: &GeneratorTunables) -> RingOutcome {
+/// its way move instead, and have their facts worked out again for the
+/// system's age `age_gyr`.
+pub fn place_ring(
+    summary: &Summary,
+    star: &Star,
+    age_gyr: f64,
+    t: &GeneratorTunables,
+) -> RingOutcome {
     match slide_ring(summary, star, t) {
         Some(radius_au) => RingOutcome {
             radius_au,
@@ -122,7 +128,7 @@ pub fn place_ring(summary: &Summary, star: &Star, t: &GeneratorTunables) -> Ring
         },
         None => {
             let radius_au = t.ring_snow_line_factor * summary.snow_line_au;
-            let (planets, moved) = Settling::new(radius_au, summary, star, t).settle();
+            let (planets, moved) = Settling::new(radius_au, summary, star, t).settle(age_gyr);
             RingOutcome {
                 radius_au,
                 planets,
@@ -181,8 +187,8 @@ impl<'a> Settling<'a> {
     /// least amount that restores the spacing, and past any belt it lands
     /// in, and so on until nothing moves. Returns the planets, innermost
     /// first, and the indices of those that moved, whose facts are worked
-    /// out again (SGEN-59).
-    fn settle(mut self) -> (Vec<PlanetSummary>, Vec<usize>) {
+    /// out again for a system `age_gyr` old (SGEN-59).
+    fn settle(mut self, age_gyr: f64) -> (Vec<PlanetSummary>, Vec<usize>) {
         for _ in 0..MAX_SETTLE_PASSES {
             self.sort();
             let moved = self.clear_of_ring() | self.push_crowded() | self.push_off_belts();
@@ -196,7 +202,7 @@ impl<'a> Settling<'a> {
         let mut settled = Vec::with_capacity(self.planets.len());
         for (index, mut mover) in self.planets.into_iter().enumerate() {
             if mover.moved.is_some() {
-                rework_moved_planet(&mut mover.planet, self.star.luminosity_lsun, self.t);
+                rework_moved_planet(&mut mover.planet, self.star, age_gyr, self.t);
                 moved.push(index);
             }
             settled.push(mover.planet);
@@ -384,6 +390,8 @@ mod tests {
                 Atmosphere::Envelope
             },
             water: Water::None,
+            locked: false,
+            activity: None,
             volatile_endowment: rocky.then_some(1.0),
         }
     }
@@ -434,7 +442,7 @@ mod tests {
         let t = GeneratorTunables::default();
         let star = sample_star();
         let near_star = system(vec![planet(PlanetKind::Rocky, 1.0, 1.0)], vec![]);
-        let outcome = place_ring(&near_star, &star, &t);
+        let outcome = place_ring(&near_star, &star, 4.5, &t);
         assert!((outcome.radius_au - START_AU).abs() < 1e-12);
         assert!(outcome.moved.is_empty());
     }
@@ -482,7 +490,7 @@ mod tests {
         let star = sample_star();
         let packed = packed_system();
         assert_eq!(slide_ring(&packed, &star, &t), None);
-        let outcome = place_ring(&packed, &star, &t);
+        let outcome = place_ring(&packed, &star, 4.5, &t);
         assert!((outcome.radius_au - START_AU).abs() < 1e-12);
         assert!(!outcome.moved.is_empty());
         assert_eq!(outcome.planets.len(), packed.planets.len());
@@ -526,7 +534,7 @@ mod tests {
                 .iter()
                 .all(|p| !packed.belts[0].contains(p.orbit_au))
         );
-        let outcome = place_ring(&packed, &star, &t);
+        let outcome = place_ring(&packed, &star, 4.5, &t);
         assert!(!outcome.moved.is_empty());
         for planet in &outcome.planets {
             assert!(!packed.belts[0].contains(planet.orbit_au));

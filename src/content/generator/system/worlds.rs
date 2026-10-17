@@ -81,6 +81,8 @@ pub fn planet_facts(planet: &PlanetSummary) -> PlanetFacts {
         equilibrium_temperature_k: planet.equilibrium_temperature_k,
         atmosphere: atmosphere(planet.atmosphere),
         water: water(planet.water),
+        locked: planet.locked,
+        activity: planet.activity,
     }
 }
 
@@ -93,6 +95,8 @@ pub fn solid_facts(kind: WorldKind, facts: SolidFacts) -> PlanetFacts {
         equilibrium_temperature_k: facts.equilibrium_temperature_k,
         atmosphere: atmosphere(facts.atmosphere),
         water: water(facts.water),
+        locked: facts.locked,
+        activity: Some(facts.activity),
     }
 }
 
@@ -171,6 +175,8 @@ mod tests {
             equilibrium_temperature_k: 250.0,
             atmosphere,
             water,
+            locked: false,
+            activity: None,
         }
     }
 

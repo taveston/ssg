@@ -12,6 +12,7 @@
 
 use super::bodies::{PlanetKind, Template};
 use super::catalogue::StarClass;
+use super::summaries::tides::TideClass;
 
 /// A range of values, from `min` to `max`.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -311,6 +312,50 @@ impl Densities {
     }
 }
 
+/// Q ÷ k₂, how weakly a body's interior answers its parent's tides, by
+/// its tidal class (SGEN-44, SYSG-33). The larger it is, the longer the
+/// body takes to lock.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LockQOverK2 {
+    /// A rocky planet or super-Earth, and a belt body.
+    pub rocky: f64,
+    /// A sub-Neptune or a giant.
+    pub envelope: f64,
+    pub moon: f64,
+}
+
+impl LockQOverK2 {
+    /// The value for a body of `class`.
+    pub fn get(&self, class: TideClass) -> f64 {
+        match class {
+            TideClass::RockyPlanet => self.rocky,
+            TideClass::EnvelopePlanet => self.envelope,
+            TideClass::Moon => self.moon,
+        }
+    }
+}
+
+/// The orbital eccentricity tides heat a body by, by its place: round a
+/// star or round a planet (SGEN-45, SYSG-33). Orbits stay circular; this
+/// stands in for the resonances that keep real orbits from circularising.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ForcedEccentricity {
+    /// A planet or belt body round its star.
+    pub planet: f64,
+    /// A moon round its planet.
+    pub moon: f64,
+}
+
+impl ForcedEccentricity {
+    /// The value for a body of `class`.
+    pub fn get(&self, class: TideClass) -> f64 {
+        match class {
+            TideClass::RockyPlanet | TideClass::EnvelopePlanet => self.planet,
+            TideClass::Moon => self.moon,
+        }
+    }
+}
+
 /// Every tunable of the sector and system generators (SGEN-05).
 #[derive(Debug, Clone, PartialEq)]
 pub struct GeneratorTunables {
@@ -466,6 +511,32 @@ pub struct GeneratorTunables {
     pub hz_outer_au: f64,
     /// The snow line for a star like the Sun, in AU (SGEN-42).
     pub snow_line_au: f64,
+    /// The length of a body's day before tides slow it, in hours: the
+    /// spin its locking time is worked out from (SGEN-44, SYSG-33).
+    pub lock_initial_day_h: f64,
+    /// Q ÷ k₂ by tidal class, for the locking time (SGEN-44, SYSG-33).
+    pub lock_q_over_k2: LockQOverK2,
+    /// The radiogenic heat flux of an Earth-mass world at the reference
+    /// age, in W/m² (SGEN-45).
+    pub radiogenic_flux_w_m2: f64,
+    /// Radiogenic heat flux grows as the world's mass in Earth masses to
+    /// this power (SGEN-45).
+    pub radiogenic_mass_exponent: f64,
+    /// The age, in Gyr, at which `radiogenic_flux_w_m2` holds (SGEN-45).
+    pub radiogenic_reference_age_gyr: f64,
+    /// Radiogenic heat falls by a factor e every this many Gyr (SGEN-45).
+    pub radiogenic_decay_gyr: f64,
+    /// k₂ ÷ Q, how strongly a body turns tidal flexing into heat,
+    /// calibrated to Io (SGEN-45).
+    pub tidal_response: f64,
+    /// The eccentricity tidal heat is worked out with, by place (SGEN-45).
+    pub forced_eccentricity: ForcedEccentricity,
+    /// A world with an interior heat flux below this, in W/m², is dead
+    /// (SGEN-45).
+    pub activity_active_w_m2: f64,
+    /// A world with an interior heat flux above this, in W/m², is extreme
+    /// (SGEN-45).
+    pub activity_extreme_w_m2: f64,
 
     // --- Stage 4: gate choice ---
     /// The gravity fit for settlement, in g (SGEN-50).
@@ -825,6 +896,23 @@ impl Default for GeneratorTunables {
             hz_inner_au: 0.99,
             hz_outer_au: 1.70,
             snow_line_au: 2.7,
+            lock_initial_day_h: 12.0,
+            lock_q_over_k2: LockQOverK2 {
+                rocky: 330.0,
+                envelope: 20_000.0,
+                moon: 6_700.0,
+            },
+            radiogenic_flux_w_m2: 0.09,
+            radiogenic_mass_exponent: 0.42,
+            radiogenic_reference_age_gyr: 4.5,
+            radiogenic_decay_gyr: 3.0,
+            tidal_response: 0.0165,
+            forced_eccentricity: ForcedEccentricity {
+                planet: 0.001,
+                moon: 0.004,
+            },
+            activity_active_w_m2: 0.05,
+            activity_extreme_w_m2: 0.5,
 
             settle_gravity_g: [0.2, 0.4, 1.2, 1.6],
             settle_t_eq_k: [150.0, 220.0, 300.0, 380.0],
@@ -1078,6 +1166,25 @@ mod tests {
         assert_eq!(
             (t.hz_inner_au, t.hz_outer_au, t.snow_line_au),
             (0.99, 1.70, 2.7)
+        );
+        assert_eq!(t.lock_initial_day_h, 12.0);
+        let q = t.lock_q_over_k2;
+        assert_eq!((q.rocky, q.envelope, q.moon), (330.0, 20_000.0, 6_700.0));
+        assert_eq!(
+            (
+                t.radiogenic_flux_w_m2,
+                t.radiogenic_mass_exponent,
+                t.radiogenic_reference_age_gyr,
+                t.radiogenic_decay_gyr
+            ),
+            (0.09, 0.42, 4.5, 3.0)
+        );
+        assert_eq!(t.tidal_response, 0.0165);
+        let e = t.forced_eccentricity;
+        assert_eq!((e.planet, e.moon), (0.001, 0.004));
+        assert_eq!(
+            (t.activity_active_w_m2, t.activity_extreme_w_m2),
+            (0.05, 0.5)
         );
 
         assert_eq!(t.settle_gravity_g, [0.2, 0.4, 1.2, 1.6]);

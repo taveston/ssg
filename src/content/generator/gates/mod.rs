@@ -147,7 +147,7 @@ pub fn run(
                 .as_mut()
                 .expect("eligible systems have summaries");
             let star = entries[id].primary().expect("eligible systems have a star");
-            let ring = ring::place_ring(summary, star, t);
+            let ring = ring::place_ring(summary, star, entries[id].age_gyr, t);
             summary.planets = ring.planets;
             GateRecord {
                 id,

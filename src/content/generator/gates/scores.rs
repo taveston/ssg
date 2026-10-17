@@ -212,7 +212,7 @@ pub fn scores(entry: &Entry, summary: &Summary, t: &GeneratorTunables) -> Scores
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::content::generator::bodies::{BeltComposition, PlanetKind};
+    use crate::content::generator::bodies::{Activity, BeltComposition, PlanetKind};
     use crate::content::generator::network::Reason;
     use crate::content::generator::testing::summaries_for;
 
@@ -226,6 +226,8 @@ mod tests {
             equilibrium_temperature_k: 255.0,
             atmosphere: Atmosphere::Dense,
             water: Water::Surface,
+            locked: false,
+            activity: Some(Activity::Active),
             volatile_endowment: Some(1.0),
         }
     }

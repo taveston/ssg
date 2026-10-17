@@ -1,5 +1,6 @@
 //! The physical facts of a planet, moon or belt body: its kind, surface
-//! gravity, equilibrium temperature, atmosphere and water (SYSG-22). They
+//! gravity, equilibrium temperature, atmosphere, water, tidal locking and
+//! geological activity (SYSG-22). They
 //! are data a rule or a view can read; the inset lists them (INS-08).
 //! Hand-made bodies carry none; generated ones always do.
 
@@ -35,6 +36,15 @@ pub enum Water {
     Surface,
 }
 
+/// How geologically active a solid world is, from its interior heat flux
+/// (SGEN-45): dead, active, or extreme (a world like Io).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Activity {
+    Dead,
+    Active,
+    Extreme,
+}
+
 /// A planet's, moon's or belt body's physical facts (SYSG-22).
 #[derive(Component, Clone, Copy, Debug, PartialEq)]
 pub struct PlanetFacts {
@@ -47,4 +57,11 @@ pub struct PlanetFacts {
     pub equilibrium_temperature_k: f64,
     pub atmosphere: Atmosphere,
     pub water: Water,
+    /// Whether tides have locked the world's spin to its orbit, so it
+    /// keeps one face to its parent: the star for a planet or belt body,
+    /// the planet for a moon (SGEN-44).
+    pub locked: bool,
+    /// Its geological activity; `None` for a world with an envelope,
+    /// which has no solid surface to show it (SGEN-45).
+    pub activity: Option<Activity>,
 }

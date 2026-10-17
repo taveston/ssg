@@ -3,7 +3,7 @@
 //! their insets don't change.
 
 use crate::sim::body::GateState;
-use crate::sim::planet_facts::{Atmosphere, PlanetFacts, Water, WorldKind};
+use crate::sim::planet_facts::{Activity, Atmosphere, PlanetFacts, Water, WorldKind};
 
 /// A world's kind, as the inset's Type row reads it.
 pub fn kind_words(kind: WorldKind) -> &'static str {
@@ -36,11 +36,25 @@ pub fn water_words(water: Water) -> &'static str {
     }
 }
 
+/// A world's spin: tidally locked to its parent, or free.
+pub fn rotation_words(locked: bool) -> &'static str {
+    if locked { "Tidally locked" } else { "Free" }
+}
+
+/// A world's geological activity in a word.
+pub fn activity_words(activity: Activity) -> &'static str {
+    match activity {
+        Activity::Dead => "Dead",
+        Activity::Active => "Active",
+        Activity::Extreme => "Extreme",
+    }
+}
+
 /// INS-08: a world's physical facts as inset rows, in this order: Type,
 /// Gravity (in g to 2 decimals), Equilibrium temperature (whole kelvin),
-/// Atmosphere and Water.
+/// Atmosphere, Water, Rotation and, for a world that has one, Activity.
 pub fn planet_fact_rows(facts: &PlanetFacts) -> Vec<(String, String)> {
-    vec![
+    let mut rows = vec![
         ("Type".to_string(), kind_words(facts.kind).to_string()),
         ("Gravity".to_string(), format!("{:.2} g", facts.gravity_g)),
         (
@@ -52,7 +66,15 @@ pub fn planet_fact_rows(facts: &PlanetFacts) -> Vec<(String, String)> {
             atmosphere_words(facts.atmosphere).to_string(),
         ),
         ("Water".to_string(), water_words(facts.water).to_string()),
-    ]
+        (
+            "Rotation".to_string(),
+            rotation_words(facts.locked).to_string(),
+        ),
+    ];
+    if let Some(activity) = facts.activity {
+        rows.push(("Activity".to_string(), activity_words(activity).to_string()));
+    }
+    rows
 }
 
 /// INS-08 / SYSG-55: a gate's State row: working, dormant, or dormant
@@ -73,7 +95,8 @@ mod tests {
     use super::*;
 
     /// INS-08: a world's facts read as Type, Gravity, Equilibrium
-    /// temperature, Atmosphere and Water, in words and rounded figures.
+    /// temperature, Atmosphere, Water, Rotation and Activity, in words and
+    /// rounded figures; a world without an activity has no Activity row.
     #[test]
     fn planet_facts_read_as_words_and_rounded_figures() {
         let facts = PlanetFacts {
@@ -82,6 +105,8 @@ mod tests {
             equilibrium_temperature_k: 254.6,
             atmosphere: Atmosphere::Thin,
             water: Water::Ice,
+            locked: true,
+            activity: Some(Activity::Extreme),
         };
         let rows = planet_fact_rows(&facts);
         let rows: Vec<(&str, &str)> = rows.iter().map(|(k, v)| (&k[..], &v[..])).collect();
@@ -93,8 +118,22 @@ mod tests {
                 ("Equilibrium temperature", "255 K"),
                 ("Atmosphere", "Thin"),
                 ("Water", "Ice"),
+                ("Rotation", "Tidally locked"),
+                ("Activity", "Extreme"),
             ]
         );
+        let giant = PlanetFacts {
+            kind: WorldKind::GasGiant,
+            atmosphere: Atmosphere::Envelope,
+            locked: false,
+            activity: None,
+            ..facts
+        };
+        let rows = planet_fact_rows(&giant);
+        assert_eq!(rows.last().unwrap(), &("Rotation".into(), "Free".into()));
+        assert!(rows.iter().all(|(label, _)| label != "Activity"));
+        assert_eq!(activity_words(Activity::Dead), "Dead");
+        assert_eq!(activity_words(Activity::Active), "Active");
         assert_eq!(kind_words(WorldKind::Moon), "Moon");
         assert_eq!(kind_words(WorldKind::GasGiant), "Gas giant");
         assert_eq!(atmosphere_words(Atmosphere::Envelope), "Envelope");

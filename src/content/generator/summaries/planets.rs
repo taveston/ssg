@@ -280,6 +280,7 @@ mod tests {
         Context {
             star,
             metallicity,
+            age_gyr: 4.5,
             template: Template::SolarLike,
             snow_line_au: 2.7,
             limit_au: f64::INFINITY,
