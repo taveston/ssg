@@ -2,7 +2,7 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-266.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-273.
 
 ---
 
@@ -254,10 +254,10 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** SGEN-36, SGEN-38 · **Type:** spec wrong
 - **Disposition:** open. Use another exponent, or accept it.
 
-### F-261 · A moved planet's facts need draws that aren't stored
-- **Observation:** SGEN-59 says a moved planet has its facts "worked out again". But the atmosphere depends on a random volatile endowment (SGEN-40) and water on two random draws (SGEN-41), and none of these is kept on the planet's summary, so the facts can't be worked out again consistently. Found in review of part 1; part 2 builds SGEN-59.
-- **Affects:** SGEN-59, SGEN-40, SGEN-41, SYSG-03 · **Type:** spec gap
-- **Disposition:** open. Suggested: store the endowment on the planet and keep the water class unless the new temperature rules it out, as SYSG-03 (detail never re-rolls) points to. Part 2 builds that, and you can change it.
+### F-261 · A moved planet's facts are worked out from a stored endowment
+- **Observation:** Built: the volatile endowment is stored on the planet (`volatile_endowment`, none for envelopes), and a moved planet's atmosphere is worked out again from it (SGEN-59). Water keeps its class unless the new conditions rule it out: surface water that can't stay liquid freezes to ice if the planet is at most `ice_t_eq_max_k`, and is lost otherwise; ice on a planet now too warm is lost; no planet gains water.
+- **Affects:** SGEN-40, SGEN-41, SGEN-59, SYSG-03 · **Type:** spec gap
+- **Disposition:** open. Copy into SGEN-59, or choose otherwise.
 
 ### F-262 · Should a fold marker's tray follow its things when they unfold?
 - **Observation:** MUL-10's rule (the tray follows the marker holding most of its rows' things) lets a fold marker's tray leave it. When framing Iver unfolds Iver Yard, the yard and its two docked ships make up the station's own marker, so the tray moves there: it jumps from below the fold marker to beside the station, its header changes from "IVER · 1 IN ORBIT" to "IVER YARD · 2 DOCKED", and Iver stays selected with no row highlighted. Part-way through an unfold, a together group that has unfolded can outnumber what is still folded, and the tray jumps away from a fold marker that is still there. MUL-10's "because they have parted or unfolded, the tray closes" suggests unfolding was meant to close it. The build follows, as the rule says.
@@ -278,6 +278,41 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** A joining lead's tail start follows its symbol as it slides into the marker. When things part, every tail jumps straight back to its own body while the symbols are still sliding out over `fold_unfold_anim_ms`, and the other members get their tails back the same way. MUL-05 doesn't say whether tails follow the slide.
 - **Affects:** MUL-05 · **Type:** spec gap
 - **Disposition:** open. Keep it, or have tails follow the symbols out too.
+
+### F-266 · Score details the spec leaves open
+- **Observation:** The habitability factors in SGEN-50 (water 1, 0.8, 0.2; atmosphere 1, 0.5, 0) aren't in the tunables table, so they are named constants in `gates/scores.rs`. For industry (SGEN-52) the build chose: a belt is an icy water source when its icy fraction is at least 0.5 (the belts beyond the snow line); every belt counts as a metal source, since all have rock; a belt orbits at its centre, the geometric mean of its edges; a source never pairs with itself, so one icy belt alone gives no industry; a belt's index is its SGEN-51 term before the metallicity factor.
+- **Affects:** SGEN-50, SGEN-52 · **Type:** spec gap
+- **Disposition:** open. Copy into the spec, make the factors tunables, or choose otherwise.
+
+### F-267 · Gate choice details, and `core_share` barely matters
+- **Observation:** The build chose: the quota is ceil(`reason_quota` × N), and each reason ranks all eligible systems, zeros included; a junction's "nearest" is nearest to its nearest chosen system; the "shortest chain" is fewest relays, then least length; of equal scores the higher id is dropped first; range growth from connectors carries into stage 5; if no system can be dropped, every quota drops by one and the stage restarts; with fewer eligible systems than N, all are gated. Gates and links draw no random numbers, so their stage seeds go unused. The rounds refill by overall score, so `core_share` 0.6 gave the same gated set as 0.8.
+- **Affects:** SGEN-55, SGEN-56, SGEN-57 · **Type:** spec gap
+- **Disposition:** open. Copy the choices into the spec, and say whether `core_share` should matter (for example, fill past the core with connectors' neighbours rather than by score).
+
+### F-268 · How planets move clear of the ring
+- **Observation:** SGEN-59 leaves several cases open. The build moves a blocking planet outward to the edge of its blocked range, and inward only when no outer orbit clears the giant (`ring_giant_clearance_hill` × Hill factor ≥ 1); pushes crowded neighbours on the same way; moves a planet that lands in a belt on past it (SGEN-37); removes the pushed planet when a pair is too heavy for any spacing; and keeps the summaries after the moves, with the moved planets' indices on the gated system. In the sweep it happened in 73 of 15,900 gated systems, mostly giants round M dwarfs: five Hill radii of a Jupiter round a 0.3 M☉ star block 0.49 to 1.51 times its orbit, just past the 50% slide limit, so the giant moves out to about twice the ring's radius.
+- **Affects:** SGEN-34, SGEN-37, SGEN-59, SGEN-90, SYSG-70 · **Type:** spec gap
+- **Disposition:** open. Copy into SGEN-59, or let the ring slide farther for giants.
+
+### F-269 · Step 3 can cross a step-2 link
+- **Observation:** SGEN-61 step 3 avoids a crossing "if one can be avoided", but SGEN-63 says no step-2 link crosses another link. The build's step 3 tries a partner that crosses nothing, then one that crosses only spanning or step-3 links, then the nearest. In the sweep 229 of 34,568 links (0.7%) crossed a step-2 link; the test checks step-2 links against steps 1 and 2 only. Also open: the spanning tree is degree-capped at `links_max`, and the range grows until it covers the tree's longest link; step 3 gives up on a system only when every system is in range and none has room (never seen).
+- **Affects:** SGEN-60, SGEN-61, SGEN-63 · **Type:** conflict
+- **Disposition:** open. Reword SGEN-63 to "crosses no link of steps 1 and 2", or have step 3 grow the range before crossing a step-2 link.
+
+### F-270 · Failure, strategic and name details
+- **Observation:** The build chose: the repair order reaches the group whose dormant link to the held region is shortest; when no group has one, the lightest collapsed link from the held region is made dormant and repaired; a non-repair dormant link is faulted at one end, the other or both, a third of the time each; the main region's ties go to the lowest group id; valuable systems for SGEN-64 number round(`strategic_top_share` × N); the name file is built into the program (`include_str!`), so editing it needs a rebuild; the reserved list also holds the hand-made systems' names; three-part names are redrawn until new.
+- **Affects:** SGEN-64, SGEN-72, SGEN-74, SGEN-80, SGEN-81 · **Type:** spec gap
+- **Disposition:** open. Copy into the spec, or choose otherwise.
+
+### F-271 · `max_gate_rounds` runs out before the top-up at Large
+- **Observation:** The core is round(0.8 N) and each round adds one system. At N = 200 the top-up needs about 40 rounds against the 20 allowed, so a Large sector always ends in the SGEN-57 fallback. Found in review. May overlap F-267.
+- **Affects:** SGEN-55, SGEN-57 · **Type:** spec gap
+- **Disposition:** open. Let a round add all the missing systems at once, or scale `max_gate_rounds` with N.
+
+### F-272 · Connectors almost never happen at the default range
+- **Observation:** Over the 200-sector sweep there were 6 junctions and no relays: at two mean spacings the top scorers are already joined, so SGEN-56 is barely exercised and the gated set is in effect the top N by score. Found in review.
+- **Affects:** SGEN-56, SGEN-60 · **Type:** spec gap
+- **Disposition:** open. Say whether that is intended, or tune the range.
 
 ## Parked
 
