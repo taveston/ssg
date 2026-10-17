@@ -20,6 +20,8 @@ use bevy::color::Mix;
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
+use crate::sim::load::SystemLoadApp;
+
 use crate::sim::body::BodyClass;
 use crate::view::camera::state::camera_fov;
 use crate::view::colors;
@@ -89,7 +91,7 @@ pub struct RingsPlugin;
 impl Plugin for RingsPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<DrawnRings>()
-            .add_systems(Startup, sync_ring_strokes.in_set(Boot::Overlay))
+            .add_load_systems(Boot::Overlay, sync_ring_strokes)
             // Drawn with the rest of the overlay, once grouping and motion
             // have decided what shows, and after the multi-markers are
             // gathered, so a marker's tail (MUL-05) starts where the marker

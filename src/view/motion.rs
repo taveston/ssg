@@ -11,6 +11,8 @@
 
 use bevy::prelude::*;
 
+use crate::sim::load::SystemLoadApp;
+
 use super::motion_mode::{MotionModeState, TailEase, TailSettings, motion_state, state_for_tail};
 use crate::sim::body::BodyClass;
 use crate::sim::clock::GameClock;
@@ -22,7 +24,7 @@ pub struct MotionPlugin;
 
 impl Plugin for MotionPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, attach_motion_state.in_set(Boot::Derive))
+        app.add_load_systems(Boot::Derive, attach_motion_state)
             .add_systems(
                 Update,
                 (

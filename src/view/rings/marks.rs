@@ -27,6 +27,8 @@
 
 use bevy::prelude::*;
 
+use crate::sim::load::SystemLoadApp;
+
 use super::chevron::{ChevronFit, ChevronSpot, chevron_box, chevron_spot};
 use crate::sim::body::{Affiliation, BodyClass};
 use crate::sim::track::ShipRecord;
@@ -105,7 +107,7 @@ pub struct RingMarksPlugin;
 
 impl Plugin for RingMarksPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, sync_ring_marks.in_set(Boot::Overlay))
+        app.add_load_systems(Boot::Overlay, sync_ring_marks)
             .add_systems(
                 Update,
                 (

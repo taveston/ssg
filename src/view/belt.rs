@@ -20,6 +20,8 @@ use bevy::light::NotShadowCaster;
 use bevy::mesh::{Indices, PrimitiveTopology};
 use bevy::prelude::*;
 
+use crate::sim::load::SystemLoadApp;
+
 use super::colors;
 use super::scale::km_to_render;
 use super::tunables::Tunables;
@@ -60,7 +62,7 @@ pub struct BeltPlugin;
 
 impl Plugin for BeltPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, add_belt_mesh.in_set(Boot::Derive))
+        app.add_load_systems(Boot::Derive, add_belt_mesh)
             .add_systems(Update, centre_belt_on_star.in_set(Stage::Camera));
     }
 }

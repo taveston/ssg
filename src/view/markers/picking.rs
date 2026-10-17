@@ -17,6 +17,8 @@ use bevy::picking::backend::{HitData, PointerHits};
 use bevy::picking::pointer::{PointerId, PointerLocation};
 use bevy::prelude::*;
 
+use crate::sim::load::SystemLoadApp;
+
 use super::MarkerHalfSize;
 use crate::sim::body::BodyClass;
 use crate::view::hover;
@@ -85,7 +87,7 @@ pub struct MarkerPickingPlugin;
 impl Plugin for MarkerPickingPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<MarkerSpots>()
-            .add_systems(Startup, spawn_marker_targets.in_set(Boot::Overlay))
+            .add_load_systems(Boot::Overlay, spawn_marker_targets)
             .add_systems(Update, find_marker_spots.in_set(Stage::Overlay))
             .add_systems(PreUpdate, pick_markers.in_set(PickingSystems::Backend));
     }

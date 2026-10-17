@@ -240,12 +240,7 @@ fn add_a_station_beside_iver_yard(mut waiting: ResMut<SystemDataResource>) {
 #[test]
 fn two_overlapping_stations_are_a_marker_of_two_with_neither_docked() {
     let mut app = symbols_app_with(|app| {
-        app.add_systems(
-            Startup,
-            add_a_station_beside_iver_yard
-                .in_set(Boot::World)
-                .before(crate::sim::spawn::spawn_system),
-        );
+        app.add_systems(Startup, add_a_station_beside_iver_yard.in_set(Boot::World));
     });
     let iver = body(&mut app, "Iver");
     let [yard, dock, tender, corvid, pellam] = [
@@ -308,12 +303,7 @@ fn load_sol(mut waiting: ResMut<SystemDataResource>) {
 #[test]
 fn marlin_docked_at_perigee_station_gives_a_count_of_one() {
     let mut app = symbols_app_with(|app| {
-        app.add_systems(
-            Startup,
-            load_sol
-                .in_set(Boot::World)
-                .before(crate::sim::spawn::spawn_system),
-        );
+        app.add_systems(Startup, load_sol.in_set(Boot::World));
     });
     let earth = body(&mut app, "Earth");
     let perigee = body(&mut app, "Perigee Station");
@@ -507,12 +497,7 @@ fn add_a_second_group_beside_tf1(mut waiting: ResMut<SystemDataResource>) {
 fn two_groups_in_one_place_are_one_multi_marker_of_two() {
     use crate::sim::group::ShipGroup;
     let mut app = symbols_app_with(|app| {
-        app.add_systems(
-            Startup,
-            add_a_second_group_beside_tf1
-                .in_set(Boot::World)
-                .before(crate::sim::spawn::spawn_system),
-        );
+        app.add_systems(Startup, add_a_second_group_beside_tf1.in_set(Boot::World));
     });
     let halden = body(&mut app, "Halden IV");
     let tf1 = body(&mut app, "TF-1");

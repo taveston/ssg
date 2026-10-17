@@ -10,6 +10,8 @@
 
 use bevy::prelude::*;
 
+use crate::sim::load::SystemLoadApp;
+
 use super::world::WorldPositions;
 use crate::Boot;
 use crate::sim::body::BodyClass;
@@ -121,7 +123,7 @@ pub struct FramePlugin;
 impl Plugin for FramePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<Frame>()
-            .add_systems(Startup, start_in_the_star_frame.in_set(Boot::Derive));
+            .add_load_systems(Boot::Derive, start_in_the_star_frame);
     }
 }
 

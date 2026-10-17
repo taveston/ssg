@@ -13,6 +13,8 @@ use std::collections::HashMap;
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
+use crate::sim::load::SystemLoadApp;
+
 use super::fold::SatelliteFoldState;
 use super::hovered::HoveredBodies;
 use super::motion_mode::MotionModeState;
@@ -39,7 +41,7 @@ pub struct SharedOrbitPlugin;
 impl Plugin for SharedOrbitPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<OrbitMembers>()
-            .add_systems(Startup, index_members.in_set(Boot::Derive))
+            .add_load_systems(Boot::Derive, index_members)
             // Once the simulation has moved ships between orbits, before
             // anything on screen reads who is where.
             .add_systems(Update, index_members.in_set(Stage::Projection));

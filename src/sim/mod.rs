@@ -9,11 +9,14 @@
 
 use bevy::prelude::*;
 
+use load::SystemLoadApp;
+
 use crate::{Boot, Stage};
 
 pub mod body;
 pub mod clock;
 pub mod group;
+pub mod load;
 pub mod named_orbit;
 pub mod orbit;
 pub mod planet_facts;
@@ -34,7 +37,7 @@ impl Plugin for SimPlugin {
             .init_resource::<tunables::SimTunables>()
             .add_message::<transfer::plan::ShipOrder>()
             .add_message::<transfer::plan::OrderOutcome>()
-            .add_systems(Startup, spawn::spawn_system.in_set(Boot::World))
+            .add_load_systems(Boot::World, spawn::spawn_system)
             .add_systems(
                 Update,
                 (

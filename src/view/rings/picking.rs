@@ -28,6 +28,8 @@ use bevy::picking::backend::{HitData, PointerHits};
 use bevy::picking::pointer::{PointerId, PointerLocation};
 use bevy::prelude::*;
 
+use crate::sim::load::SystemLoadApp;
+
 use super::{FadeView, RingExtent, ring_extent};
 use crate::view::frame::Frame;
 use crate::view::hover;
@@ -96,7 +98,7 @@ pub struct RingPickingPlugin;
 impl Plugin for RingPickingPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<RingPaths>()
-            .add_systems(Startup, sync_ring_targets.in_set(Boot::Overlay))
+            .add_load_systems(Boot::Overlay, sync_ring_targets)
             .add_systems(
                 Update,
                 (sync_ring_targets.run_if(rings_changed), trace_rings)

@@ -688,9 +688,7 @@ fn the_tray_stays_when_a_thing_joins_ahead_of_the_first() {
     let mut app = tray_app_with(|app| {
         app.add_systems(
             Startup,
-            add_an_outrider_opposite_the_convoy
-                .in_set(Boot::World)
-                .before(crate::sim::spawn::spawn_system),
+            add_an_outrider_opposite_the_convoy.in_set(Boot::World),
         );
     });
     let rows = open_the_convoys_tray(&mut app);

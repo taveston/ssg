@@ -30,25 +30,20 @@ fn load_sol(mut waiting: ResMut<SystemDataResource>) {
 /// the rings' hit targets under Bevy's own picking, paused.
 fn sol_app() -> App {
     let mut app = symbols_app_with(|app| {
-        app.add_systems(
-            Startup,
-            load_sol
-                .in_set(Boot::World)
-                .before(crate::sim::spawn::spawn_system),
-        )
-        .add_plugins((
-            PlannerPlugin,
-            OutlinePlugin,
-            SharedOrbitPlugin,
-            RingPickingPlugin,
-            PickingPlugin,
-            InteractionPlugin,
-        ))
-        .add_systems(
-            PreUpdate,
-            follow_cursor_with_pointer.before(PickingSystems::ProcessInput),
-        )
-        .init_resource::<crate::view::camera::requests::PlanetaryViewRequest>();
+        app.add_systems(Startup, load_sol.in_set(Boot::World))
+            .add_plugins((
+                PlannerPlugin,
+                OutlinePlugin,
+                SharedOrbitPlugin,
+                RingPickingPlugin,
+                PickingPlugin,
+                InteractionPlugin,
+            ))
+            .add_systems(
+                PreUpdate,
+                follow_cursor_with_pointer.before(PickingSystems::ProcessInput),
+            )
+            .init_resource::<crate::view::camera::requests::PlanetaryViewRequest>();
     });
     let window = the_window(&mut app);
     app.world_mut()

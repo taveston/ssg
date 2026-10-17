@@ -20,6 +20,8 @@
 
 use bevy::prelude::*;
 
+use crate::sim::load::SystemLoadApp;
+
 use crate::{Boot, Stage};
 
 pub mod actions;
@@ -56,12 +58,8 @@ impl Plugin for CameraPlugin {
             .init_resource::<crate::view::multi::OpenTray>()
             // SECT-10: the fits and the pan bound follow the layer shown.
             .init_resource::<crate::view::map_layer::MapLayer>()
-            .add_systems(
-                Startup,
-                (rig::spawn_camera, rig::start_at_system_fit)
-                    .chain()
-                    .in_set(Boot::Overlay),
-            )
+            .add_systems(Startup, rig::spawn_camera.in_set(Boot::Overlay))
+            .add_load_systems(Boot::Overlay, rig::start_at_system_fit)
             .add_systems(
                 Update,
                 (

@@ -27,6 +27,8 @@ use bevy::color::Mix;
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
+use crate::sim::load::SystemLoadApp;
+
 use super::colors;
 use super::countdown::Countdowns;
 use super::edge::GateEdgeTargets;
@@ -226,7 +228,7 @@ impl Plugin for MarkersPlugin {
         // MUL-13: a station's second line reads its docked count. A moon
         // ring reads `FoldSummary`, which `GroupingPlugin` owns (GRP-10).
         app.init_resource::<MultiMarkers>()
-            .add_systems(Startup, spawn_markers.in_set(Boot::Overlay))
+            .add_load_systems(Boot::Overlay, spawn_markers)
             .add_systems(
                 Update,
                 (

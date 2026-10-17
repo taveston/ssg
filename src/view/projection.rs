@@ -11,6 +11,8 @@
 
 use bevy::prelude::*;
 
+use crate::sim::load::SystemLoadApp;
+
 use std::collections::HashMap;
 
 use bevy::math::DVec3;
@@ -29,7 +31,7 @@ impl Plugin for ProjectionPlugin {
         app.init_resource::<WorldPositions>()
             .init_resource::<RenderOrigin>()
             .init_resource::<Frame>()
-            .add_systems(Startup, attach_transforms.in_set(Boot::Derive))
+            .add_load_systems(Boot::Derive, attach_transforms)
             .add_systems(
                 Update,
                 (update_world_positions, project_orbit_positions)

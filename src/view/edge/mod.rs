@@ -9,6 +9,8 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
+use crate::sim::load::SystemLoadApp;
+
 use super::fonts::Fonts;
 use super::screen::{MapArea, ScreenPositions, screen_angle};
 use super::tunables::Tunables;
@@ -116,7 +118,7 @@ pub struct EdgePlugin;
 impl Plugin for EdgePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<GateEdgeTargets>()
-            .add_systems(Startup, spawn_edge_tabs.in_set(Boot::Overlay))
+            .add_load_systems(Boot::Overlay, spawn_edge_tabs)
             .add_systems(Update, update_edge_targets.in_set(Stage::Layout))
             .add_systems(Update, place_edge_tabs.in_set(Stage::Overlay));
     }

@@ -10,6 +10,8 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
+use crate::sim::load::SystemLoadApp;
+
 use super::rules::camera_rotation;
 use crate::Boot;
 use crate::sim::body::BodyClass;
@@ -165,7 +167,7 @@ impl Plugin for StopsPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ZoomStops>()
             .init_resource::<SectorFit>()
-            .add_systems(Startup, compute_stops.in_set(Boot::Derive));
+            .add_load_systems(Boot::Derive, compute_stops);
     }
 }
 

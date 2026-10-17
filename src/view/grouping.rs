@@ -16,6 +16,8 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
+use crate::sim::load::SystemLoadApp;
+
 use super::anim::step_per_frame;
 use super::fold::{
     FoldSummary, SatelliteFoldState, advance_fold_anim, fully_folded, hidden_by_ancestry,
@@ -33,7 +35,7 @@ pub struct GroupingPlugin;
 impl Plugin for GroupingPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<FoldSummary>()
-            .add_systems(Startup, attach_fold_state.in_set(Boot::Derive))
+            .add_load_systems(Boot::Derive, attach_fold_state)
             .add_systems(
                 Update,
                 (
