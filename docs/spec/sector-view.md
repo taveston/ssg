@@ -49,10 +49,10 @@ The sector view has no frame body. Its camera behaves as the system view's does 
 
 | ID | Requirement | Built |
 |---|---|---|
-| SECT-30 | A double-click on a gated node, the inset's Enter system button, and the Enter key (bound through the bindings resource, CAM-18) with a gated node selected enter that system. A double-click on any other node only selects it. The layer is never changed by scrolling or zooming (ZOOM-14). | |
-| SECT-31 | Entering generates the system (SYSG-01) and replaces the running system with it. The view switches to the system view at the system fit, in the standard orientation, in the star's frame with nothing selected. The clock and date carry on. The breadcrumb reads "Sector / *system name*" (CAM-25). | |
-| SECT-32 | A system opened from a sector has a **Back** button (quiet) at the left of the top bar, before the breadcrumb, and the breadcrumb's Sector entry. Either returns to the sector view with the camera and selection as they were left, and the system's records are dropped. Entering the same system again gives the same system (SYSG-02). | |
-| SECT-33 | In a system started with `--system` (SOL-22) there is no sector: the Sector entry does nothing and there is no Back button. | |
+| SECT-30 | A double-click on a gated node, the inset's Enter system button, and the Enter key (bound through the bindings resource, CAM-18) with a gated node selected enter that system. A double-click on any other node only selects it. The layer is never changed by scrolling or zooming (ZOOM-14). | ✓ |
+| SECT-31 | Entering generates the system (SYSG-01) and replaces the running system with it. The view switches to the system view at the system fit, in the standard orientation, in the star's frame with nothing selected. The clock and date carry on. The breadcrumb reads "Sector / *system name*" (CAM-25). | ✓ |
+| SECT-32 | A system opened from a sector has a **Back** button (quiet) at the left of the top bar, before the breadcrumb, and the breadcrumb's Sector entry. Either returns to the sector view with the camera and selection as they were left, and the system's records are dropped. Entering the same system again gives the same system (SYSG-02). | ✓ |
+| SECT-33 | In a system started with `--system` (SOL-22) there is no sector: the Sector entry does nothing and there is no Back button. | ✓ |
 | SECT-34 | In the sector view the breadcrumb reads "Sector" alone, drawn in the frame colour (MRK-01), as the entry that stands for the current frame (CAM-25). | ✓ |
 
 ## 5. Start-up
@@ -63,7 +63,7 @@ The sector view has no frame body. Its camera behaves as the system view's does 
 | SECT-41 | The argument `--seed <n>`, a decimal `u64`, sets the sector's seed. Without it the seed is random (SGEN-04). `--seed` without `--sector`, and an unparsable value, stop the program with a message. | ✓ |
 | SECT-42 | `--sector` together with `--system` stops the program with a message. With neither, the game starts as before on Corvane (SOL-22). | ✓ |
 | SECT-43 | The arguments are read in `content/` by a plain function (ARCH-20) alongside SOL-22's; `main.rs` only adds the plugin (SOL-23). *Checked in review.* | ✓ |
-| SECT-44 | The screenshot tool (`OW_SHOT`) accepts the keys `sector` (a preset or N) and `seed`, which start the shot in the sector view; `select` then takes a gated system's name, or a designation. The key `enter` takes a gated system's name and enters it before the shot, so that `frame`, `select` and `hover` name its bodies. An unknown name is an error, as for the existing keys. | |
+| SECT-44 | The screenshot tool (`OW_SHOT`) accepts the keys `sector` (a preset or N) and `seed`, which start the shot in the sector view; `select` then takes a gated system's name, or a designation. The key `enter` takes a gated system's name and enters it before the shot, so that `frame`, `select` and `hover` name its bodies. An unknown name is an error, as for the existing keys. | ✓ |
 
 ## Tunables
 

@@ -13,10 +13,10 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **Sector view, part 2: entering and leaving a system** · SECT-30 to SECT-33, SECT-44, CAM-25
-  - Part 1 (on master) built the layer state, the sector map, its inset, camera and start-up. Its API notes are with the coordinator.
-  - Enter system despawns nothing yet: build the runtime despawn and respawn of the system (SECT-30 to SECT-32), the Back button, and a working "Sector" breadcrumb entry (CAM-25).
-  - Add the key `enter` to `OW_SHOT` and to its list in `CLAUDE.md` (SECT-44); `sector` and `seed` are done.
+## Fixes
+
+## Other
+
 - [ ] **Sector inset: move the figure formatting into the view**
   - Found in review of sector view part 1. `view/sector/inset/content.rs` formats figures with `significant()` from `content::generator::system::star` and reads kinds through `system::worlds`. Move the significant-figures formatter to `view/readout.rs` beside the UNIT formats. No change of behaviour.
 - [ ] **Bring older docs up to the writing style**

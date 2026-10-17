@@ -2,7 +2,7 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-297.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-300.
 
 ---
 
@@ -433,6 +433,21 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** `sector_sky_factor` 0.5 halves every opacity in display levels (F-273). The field stars still read as faint speckles: the brightest is about 37 of 255 over the ground's 7 to 14. But the glow, only about 15 levels at its peak in the system view, drops to about 8 at the core and 3 along most of the band, which a normal monitor barely shows. A contrast-stretched copy of the shot confirms the band crosses the opening sector view as SKY-08 asks; the eye just can't find it.
 - **Affects:** SKY-23, SKY-24 · **Type:** spec gap
 - **Disposition:** open. Judge on screen. Raise `sector_sky_factor` towards the SKY-24 ceiling (about 0.545, which changes little), or give the glow its own factor (say `sector_glow_factor` 1.0), since SKY-24's reason is about stars outshining nodes, not the glow.
+
+### F-297 · What survives a visit to a system
+- **Observation:** The spec says only that the clock carries on and that the system's records are dropped. The build: the clock keeps its date, rate and pause state through entering and leaving. Leaving drops the system view's selection, frame, bookmarks, tray, planner and hover state with the bodies, and entering again starts fresh at the system fit. Re-entering generates the system again, so its bodies stand where the current date puts them. Generated systems have no ships, so no order can be running at the switch; once they can, their orders would be dropped with the records.
+- **Affects:** SECT-31, SECT-32, ZOOM-11 · **Type:** spec gap
+- **Disposition:** open. Keep as built, or decide whether bookmarks and running orders should survive a visit once ships and travel between systems exist.
+
+### F-298 · The sidebar on entering and leaving
+- **Observation:** Entering from the inset would leave the sector's sidebar open with nothing selected in the system. The build starts the system view with the sidebar closed at once, so the system fit uses the whole window. Leaving puts the sector's sidebar back exactly as it was, with no slide, following "a cut between layers is the whole transition".
+- **Affects:** SECT-31, SECT-32, INS-07 · **Type:** spec gap
+- **Disposition:** open. Keep as built, or slide.
+
+### F-299 · Gate wrecks lie outside the system fit
+- **Observation:** In a generated system the gate wrecks sit at the gate ring, far outside the system fit, which counts planets only (ZOOM-15). At the fit some are drawn at the edge or cut off: in Sala (seed 11) "Bal…" is clipped at the right edge. Unlike gates, they have no edge arrows.
+- **Affects:** ZOOM-15, EDGE-01, SYSG-53 · **Type:** spec wrong
+- **Disposition:** open. Give wrecks edge arrows as gates have, take them into the fit, or leave them.
 
 ## Parked
 
