@@ -2,7 +2,7 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-262.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-264.
 
 ---
 
@@ -258,6 +258,16 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** SGEN-59 says a moved planet has its facts "worked out again". But the atmosphere depends on a random volatile endowment (SGEN-40) and water on two random draws (SGEN-41), and none of these is kept on the planet's summary, so the facts can't be worked out again consistently. Found in review of part 1; part 2 builds SGEN-59.
 - **Affects:** SGEN-59, SGEN-40, SGEN-41, SYSG-03 · **Type:** spec gap
 - **Disposition:** open. Suggested: store the endowment on the planet and keep the water class unless the new temperature rules it out, as SYSG-03 (detail never re-rolls) points to. Part 2 builds that, and you can change it.
+
+### F-262 · Should a fold marker's tray follow its things when they unfold?
+- **Observation:** MUL-10's rule (the tray follows the marker holding most of its rows' things) lets a fold marker's tray leave it. When framing Iver unfolds Iver Yard, the yard and its two docked ships make up the station's own marker, so the tray moves there: it jumps from below the fold marker to beside the station, its header changes from "IVER · 1 IN ORBIT" to "IVER YARD · 2 DOCKED", and Iver stays selected with no row highlighted. Part-way through an unfold, a together group that has unfolded can outnumber what is still folded, and the tray jumps away from a fold marker that is still there. MUL-10's "because they have parted or unfolded, the tray closes" suggests unfolding was meant to close it. The build follows, as the rule says.
+- **Affects:** MUL-10, MUL-07 · **Type:** spec gap
+- **Disposition:** open. Keep following, or say a fold marker's tray follows only its own fold marker and closes when it goes.
+
+### F-263 · Do docked things count for a tray's following when their row is closed?
+- **Observation:** In a larger marker, docked things sit under their station's row and are listed only when that row is open (MUL-09), and MUL-04 says they aren't counted there. For MUL-10's tally the build counts them either way, so a station with two docked ships outweighs two other things.
+- **Affects:** MUL-10, MUL-04, MUL-09 · **Type:** spec gap
+- **Disposition:** open. Accept, or count only the rows shown, or the station as one.
 
 ## Parked
 
