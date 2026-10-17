@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Procedural planet surfaces</title>
+<!--
+  Orphan Worlds: candidates for drawing planet surfaces procedurally, with no art assets.
+  A fragment shader draws each globe from the figures the generator already gives a body (kind, gravity,
+  equilibrium temperature, atmosphere class, water; World Generator 5.2) plus a seed. The seed would come
+  from the sector seed and the body's id, so a body looks the same each time it is inspected.
+  This page is a rehearsal of that shader, in GLSL so a browser can run it; the game would use WGSL.
+  Surface colours are placeholders for tuning. Gravity and temperature figures on the sheet are illustrative.
+  Candidate (docs/ideas/presentation/presentation.md, section 2, inspection view, and section 5, art scope).
+  Render at 1440 wide with the page served from the repo root, so IBM Plex loads from assets/fonts/.
+  Add ?png to the address to hide the page controls.
+-->
+<style>
+@font-face{font-family:"Plex Cond";src:url("../../../../assets/fonts/IBMPlexSansCondensed-Regular.ttf")}
+@font-face{font-family:"Plex Cond";font-weight:600;src:url("../../../../assets/fonts/IBMPlexSansCondensed-SemiBold.ttf")}
+@font-face{font-family:"Plex Mono";src:url("../../../../assets/fonts/IBMPlexMono-Regular.ttf")}
+:root{--ground:#070A0E;--text:#DCE6EC;--muted:#9FB6C4;--warn:#F0A040;--own:#5AA9E6}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--ground);color:var(--text)}
+body{font-family:"Plex Cond",sans-serif;font-size:14px;width:1440px;padding:24px 32px 32px}
+h1{font-size:14px;font-weight:600;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin:0 0 6px;display:flex;gap:12px;align-items:center}
+.tag{font:11px "Plex Mono",monospace;color:var(--warn);border:1px solid var(--warn);border-radius:2px;padding:1px 6px;letter-spacing:.06em}
+.lede{color:var(--muted);margin:0 0 14px;font-size:13.5px;max-width:1180px;line-height:1.45}
+.controls{font:12px "Plex Mono",monospace;color:var(--muted);margin:0 0 16px;display:flex;gap:10px;align-items:center}
+.controls input{width:56px;background:#0C1117;color:var(--text);border:1px solid #1E2A35;border-radius:2px;font:12px "Plex Mono",monospace;padding:2px 6px}
+.controls button{background:#0C1117;color:var(--text);border:1px solid #2A3A48;border-radius:2px;font:12px "Plex Mono",monospace;padding:2px 10px;cursor:pointer}
+body.png .controls{display:none}
+.board{margin-bottom:26px}
+.board h2{font-size:12px;font-weight:600;color:var(--muted);margin:0 0 4px;letter-spacing:.06em;text-transform:uppercase}
+.note{color:var(--muted);font-size:12.5px;line-height:1.45;margin:0 0 10px;max-width:1180px}
+.row{display:flex;flex-wrap:wrap}
+.cell{flex:none}
+.cell h3{font-size:12.5px;font-weight:600;color:var(--text);margin:0 0 6px}
+.cell h3 i{font-style:normal;color:var(--muted)}
+.frame{border:1px solid #1E2A35;border-radius:4px;overflow:hidden;line-height:0}
+.frame canvas{display:block}
+.cap{color:var(--muted);font-size:12.5px;line-height:1.45;margin:8px 2px 0;width:0;min-width:100%}
+.cap b{color:var(--text);font-weight:600}
+.fig{font:11px "Plex Mono",monospace;color:var(--muted);margin:5px 2px 0;width:0;min-width:100%;line-height:1.4}
+.rowlabel{font:11px "Plex Mono",monospace;letter-spacing:.06em;margin:10px 0 6px}
+</style>
+</head>
+<body>
+<h1>Procedural planet surfaces: seven kinds, how much is known, and light <span class="tag">CANDIDATE</span></h1>
+<p class="lede">Planet surfaces drawn by a shader from the body's own figures, with no art assets: kind, gravity, equilibrium temperature, atmosphere class and water, plus a seed. The seed would come from the sector seed and the body's id, so a body looks the same each time it is inspected. The same shader carries "fidelity follows knowledge": fewer noise octaves and no small craters give a body seen from far away, and blur and grain on top give the telescope frame. Surface colours, atmospheres and the figures printed on the sheet are placeholders for tuning. Rings, clouds on rocky worlds and sub-Neptunes are left out; a sub-Neptune would use the ice-giant look with a paler envelope.</p>
+<div class="controls">Seed <input id="seed" value="7"><button id="redraw">Redraw</button></div>
+<div id="sheet"></div>
+
+<script type="x-shader/x-vertex" id="vs">#version 300 es
+in vec2 a;
+void main(){gl_Position=vec4(a,0.,1.);}
+</script>
+<script type="x-shader/x-fragment" id="fs">#version 300 es
+precision highp float;
+out vec4 outColor;
+uniform vec2 uRes;
+uniform int uKind;
+uniform vec3 uSeedOff;
+uniform float uTemp, uAge, uK, uZoom, uStarI, uAtm, uAtmThick, uAtmSelf, uCaps, uAmbient;
+uniform vec3 uLight, uStar, uAtmCol;
+uniform vec2 uCenter;
+uniform mat3 uRot;
+uniform vec3 uCities[6];
+uniform int uNCities;
+#define DISC 0.88
+#define BUMP 1.0
+const vec3 BG=vec3(7.,10.,14.)/255.;
+const mat3 ROT=mat3(0.00,0.80,0.60,-0.80,0.36,-0.48,-0.60,-0.48,0.64);
+
+float gOct,wC1,wC2,wC3,wC4,wC5,gDens;
+
+float hash13(vec3 p3){p3=fract(p3*.1031);p3+=dot(p3,p3.zyx+31.32);return fract((p3.x+p3.y)*p3.z);}
+vec3 hash33(vec3 p3){p3=fract(p3*vec3(.1031,.1030,.0973));p3+=dot(p3,p3.yxz+33.33);return fract((p3.xxy+p3.yxx)*p3.zyx);}
+float vnoise(vec3 p){
+  vec3 i=floor(p),f=fract(p);f=f*f*f*(f*(f*6.-15.)+10.);
+  float a=hash13(i),b=hash13(i+vec3(1,0,0)),c=hash13(i+vec3(0,1,0)),d=hash13(i+vec3(1,1,0));
+  float e=hash13(i+vec3(0,0,1)),g=hash13(i+vec3(1,0,1)),h=hash13(i+vec3(0,1,1)),k=hash13(i+vec3(1,1,1));
+  return mix(mix(mix(a,b,f.x),mix(c,d,f.x),f.y),mix(mix(e,g,f.x),mix(h,k,f.x),f.y),f.z);
+}
+// Layered noise. The octave count is fractional, and the mean stays near 0.5 whatever the count,
+// so a body seen from far away has the same large forms as the same body surveyed.
+float fbm(vec3 p,float oct){
+  float s=0.,a=.5;
+  for(int i=0;i<10;i++){
+    float w=clamp(oct-float(i),0.,1.);
+    if(w<=0.)break;
+    s+=a*w*vnoise(p);
+    p=ROT*p*2.02+vec3(1.7,9.2,3.1);a*=.5;
+  }
+  return s+a;
+}
+float ridged(vec3 p,float oct){
+  float s=0.,a=.5;
+  for(int i=0;i<10;i++){
+    float w=clamp(oct-float(i),0.,1.);
+    if(w<=0.)break;
+    float n=1.-abs(2.*vnoise(p)-1.);n*=n;
+    s+=a*w*n;
+    p=ROT*p*2.1+vec3(3.1,1.4,7.7);a*=.5;
+  }
+  return s;
+}
+vec3 warp(vec3 p,float f,float amt){
+  return p+amt*vec3(fbm(p*f+vec3(3.,1.,7.),3.),fbm(p*f+vec3(11.,5.,2.),3.),fbm(p*f+vec3(7.,13.,9.),3.));
+}
+// Distances to the nearest and second-nearest feature point. Their difference is small along cell edges.
+vec2 worley(vec3 p){
+  vec3 ci=floor(p);float f1=9.,f2=9.;
+  for(int x=-1;x<=1;x++)for(int y=-1;y<=1;y++)for(int z=-1;z<=1;z++){
+    vec3 c=ci+vec3(float(x),float(y),float(z));
+    vec3 d=c+hash33(c)-p;float l=dot(d,d);
+    if(l<f1){f2=f1;f1=l;}else if(l<f2)f2=l;
+  }
+  return sqrt(vec2(f1,f2));
+}
+// Craters on a jittered grid: a bowl, a raised rim and a little ejecta. Heights are in units of the planet radius.
+float craterLayer(vec3 p,float scale,float dens,float depth){
+  vec3 q=p*scale,ci=floor(q);float h=0.;
+  for(int x=-1;x<=1;x++)for(int y=-1;y<=1;y++)for(int z=-1;z<=1;z++){
+    vec3 c=ci+vec3(float(x),float(y),float(z));
+    if(hash13(c+vec3(11.3,2.7,5.1))>dens)continue;
+    vec3 cen=c+.25+.5*hash33(c+vec3(3.7,8.1,1.3));
+    float rad=mix(.14,.34,hash13(c+vec3(9.1,4.2,6.6)));
+    float d=length(q-cen)/rad;
+    if(d>2.2)continue;
+    float bowl=d<1.?-(1.-d*d):0.;
+    float rim=exp(-pow((d-1.)*3.2,2.))*.5;
+    // flat inside the rim, so there is no step at d = 1, and faded out before the cut-off at 2.2
+    float ej=.1*exp(-max(d-1.,0.)*2.2)*(1.-smoothstep(1.5,2.2,d));
+    h+=(bowl+rim+ej)*rad*depth;
+  }
+  return h/scale;
+}
+
+// ---- height, for the shading normal ----
+float H(vec3 p){
+  float h=0.;
+  if(uKind==0){
+    float m=smoothstep(.50,.60,fbm(p*1.3+vec3(4.,1.,2.),4.));
+    float mk=1.-.65*m;
+    h=(fbm(p*2.4,gOct)-.5)*.035*(1.-.75*m);
+    if(wC1>.001)h+=mk*wC1*craterLayer(p,5.,gDens,.28);
+    if(wC2>.001)h+=mk*wC2*craterLayer(p,13.,gDens*1.1,.26);
+    if(wC3>.001)h+=mk*wC3*craterLayer(p,34.,gDens*1.2,.24);
+    if(wC4>.001)h+=wC4*craterLayer(p,90.,gDens*1.2,.22);
+    if(wC5>.001)h+=wC5*craterLayer(p,240.,gDens*1.2,.2);
+  }else if(uKind==1){
+    vec3 w=warp(p*2.,1.5,.5);
+    h=(fbm(w*1.4,gOct)-.5)*.04+ridged(w*.9+vec3(2.),min(gOct,6.))*.02;
+    float cn=abs(fbm(p*1.1+vec3(8.,2.,5.),5.)-.5);
+    h-=.015*smoothstep(.035,0.,cn);
+    if(wC1>.001)h+=wC1*craterLayer(p,6.,gDens*.5,.15);
+    if(wC2>.001)h+=wC2*craterLayer(p,15.,gDens*.6,.13);
+    if(wC3>.001)h+=wC3*craterLayer(p,38.,gDens*.7,.11);
+    if(wC4>.001)h+=wC4*craterLayer(p,90.,gDens*.7,.1);
+    if(wC5>.001)h+=wC5*craterLayer(p,240.,gDens*.7,.09);
+  }else if(uKind==3){
+    vec2 wa=worley(warp(p*3.2,4.,.25));
+    h=(fbm(p*3.,gOct)-.5)*.012-.010*smoothstep(.07,0.,wa.y-wa.x);
+    if(wC1>.001)h+=wC1*craterLayer(p,8.,gDens*.25,.15);
+    if(wC3>.001)h+=wC3*craterLayer(p,30.,gDens*.3,.14);
+    if(wC4>.001)h+=wC4*craterLayer(p,90.,gDens*.3,.12);
+  }else if(uKind==4){
+    vec2 wa=worley(warp(p*3.5,3.,.3));
+    h=(fbm(p*5.,gOct)-.5)*.02-.016*smoothstep(.10,0.,wa.y-wa.x);
+  }
+  return h;
+}
+
+vec3 gasColor(vec3 pn){
+  float lat=pn.y;
+  float sh=2.4*sin(lat*9.+1.3)+1.1*sin(lat*23.+.4);   // differential rotation: shear the noise by latitude
+  float cs=cos(sh),sn=sin(sh);
+  vec3 q=vec3(cs*pn.x+sn*pn.z,pn.y,-sn*pn.x+cs*pn.z)+uSeedOff;
+  float bandN=vnoise(vec3(lat*6.5,uSeedOff.x,0.))*.6+vnoise(vec3(lat*15.,uSeedOff.y,3.))*.4;
+  float turb=fbm(vec3(q.x*5.,q.y*26.,q.z*5.),gOct);
+  float fine=fbm(vec3(q.x*16.,q.y*80.,q.z*16.)+7.,gOct);
+  float t=bandN+(turb-.5)*.5+(fine-.5)*.16;
+  vec3 dk=vec3(.40,.25,.17),md=vec3(.72,.54,.36),lt=vec3(.94,.87,.74);
+  vec3 c=t<.5?mix(dk,md,smoothstep(.18,.5,t)):mix(md,lt,smoothstep(.5,.78,t));
+  float lon=atan(pn.x,pn.z),la=asin(clamp(pn.y,-1.,1.));
+  float dl=lon-.9-uSeedOff.x;dl=atan(sin(dl),cos(dl));
+  vec2 d=vec2(dl/.36,(la+.32)/.17);
+  float e=dot(d,d);
+  float spot=smoothstep(1.,.25,e);
+  float ang=2.4*(1.-clamp(e,0.,1.));
+  vec2 dr=vec2(cos(ang)*d.x-sin(ang)*d.y,sin(ang)*d.x+cos(ang)*d.y);
+  float sw=fbm(vec3(dr*3.,1.)+uSeedOff,5.);
+  c=mix(c,vec3(.74,.36,.24)*(.8+.4*sw),spot*.9);
+  c+=vec3(.25,.2,.15)*smoothstep(.7,1.,e)*smoothstep(1.4,1.,e)*.5;
+  for(int i=0;i<5;i++){
+    vec3 hh=hash33(vec3(float(i)*3.1+uSeedOff.x,7.7,uSeedOff.y));
+    float l0=hh.x*6.28-3.14,a0=(hh.y-.5)*1.4;
+    float dl2=atan(sin(lon-l0),cos(lon-l0));
+    vec2 d2=vec2(dl2/.09,(la-a0)/.05);
+    c=mix(c,vec3(.95,.92,.86),smoothstep(1.,.3,dot(d2,d2))*.7*step(.35,hh.z));
+  }
+  return c;
+}
+vec3 iceGiantColor(vec3 pn){
+  float lat=pn.y;
+  vec3 q=vec3(pn.x*2.,pn.y*7.,pn.z*2.)+uSeedOff;
+  float t=vnoise(vec3(lat*5.,uSeedOff.z,1.))*.5+.5*fbm(q,min(gOct,4.));
+  vec3 c=mix(vec3(.30,.55,.72),vec3(.52,.78,.86),smoothstep(.25,.7,t));
+  float st=smoothstep(.62,.8,fbm(vec3(pn.x*3.,pn.y*18.,pn.z*3.)+uSeedOff*2.,gOct))*smoothstep(.9,.3,abs(lat-.35));
+  return mix(c,vec3(.9,.97,1.),st*.5);
+}
+vec3 denseColor(vec3 pn){
+  vec3 w=pn*1.8+uSeedOff+.55*vec3(fbm(pn*2.+uSeedOff,4.),fbm(pn*2.+uSeedOff+5.,4.),fbm(pn*2.+uSeedOff+9.,4.));
+  float t=fbm(vec3(w.x*2.2,w.y*6.5,w.z*2.2),gOct)*.75+.12*sin(w.y*6.+2.5*fbm(w*3.,4.));
+  vec3 c=mix(vec3(.60,.46,.26),vec3(.95,.86,.60),smoothstep(.2,.65,t+.1));
+  float st=smoothstep(.58,.78,fbm(vec3(w.x*3.,w.y*14.,w.z*3.)+3.,gOct));
+  return mix(c,vec3(.50,.38,.24),st*.35);
+}
+
+// albedo in display space, then converted to linear; emission in linear
+void shade(vec3 p,vec3 pn,float h,out vec3 alb,out vec3 emi){
+  emi=vec3(0.);
+  if(uKind==0){
+    float m=smoothstep(.50,.60,fbm(p*1.3+vec3(4.,1.,2.),4.));
+    alb=mix(vec3(.55,.53,.50),vec3(.20,.20,.22),m*.85);
+    alb*=.75+.5*fbm(p*7.,gOct);
+    alb*=1.+clamp(h*14.,-.45,.5);
+  }else if(uKind==1){
+    float t=clamp(h*16.+.5,0.,1.);
+    vec3 lowc=vec3(.30,.19,.14),midc=vec3(.60,.39,.27),hic=vec3(.80,.66,.52);
+    vec3 c=t<.5?mix(lowc,midc,t*2.):mix(midc,hic,(t-.5)*2.);
+    float dk=smoothstep(.46,.62,fbm(p*1.7+vec3(5.,3.,1.),4.));
+    c=mix(c,vec3(.22,.21,.22),dk*.65);
+    c*=.86+.28*fbm(p*13.,gOct);
+    float edge=1.-uCaps*.22+.05*(fbm(p*5.+vec3(2.),4.)-.5);
+    float cap=smoothstep(edge,edge+.02,abs(pn.y));
+    alb=mix(c,vec3(.90,.93,.96),cap*.92);
+  }else if(uKind==2){
+    alb=denseColor(pn);
+  }else if(uKind==3){
+    vec2 wa=worley(warp(p*3.2,4.,.25));
+    float crack=wa.y-wa.x;
+    vec2 wb=worley(warp(p*7.5,3.,.2)+vec3(5.));
+    float crack2=wb.y-wb.x;
+    vec3 c=vec3(.80,.86,.90)*(.88+.24*fbm(p*7.,gOct));
+    float chaos=smoothstep(.55,.70,fbm(p*3.3+vec3(1.),5.));
+    c=mix(c,vec3(.56,.43,.35),chaos*.8);
+    c=mix(c,vec3(.50,.33,.26),smoothstep(.05,0.,crack)*.75);
+    c=mix(c,vec3(.55,.38,.30),smoothstep(.035,0.,crack2)*.4);
+    alb=c*(1.+clamp(h*30.,-.3,.3));
+  }else if(uKind==4){
+    vec2 wa=worley(warp(p*3.5,3.,.3));
+    float crack=wa.y-wa.x;
+    vec2 wb=worley(p*8.+vec3(3.));
+    float crack2=wb.y-wb.x;
+    alb=vec3(.10,.08,.075)*(.7+.6*fbm(p*12.,gOct));
+    float lava=smoothstep(.10,0.,crack)+.55*smoothstep(.055,0.,crack2);
+    float fl=.65+.7*fbm(p*9.+uSeedOff,4.);
+    float hv=clamp(lava*fl,0.,1.5);
+    vec3 heat=hv<.5?mix(vec3(.45,.05,.02),vec3(1.,.34,.05),hv*2.):mix(vec3(1.,.34,.05),vec3(1.,.85,.35),clamp((hv-.5)*2.,0.,1.));
+    emi=heat*lava*2.2+vec3(1.,.3,.08)*smoothstep(.3,0.,crack)*.12;
+  }else if(uKind==5){
+    alb=iceGiantColor(pn);
+  }else{
+    alb=gasColor(pn);
+  }
+  alb=pow(alb,vec3(2.2));
+}
+
+void main(){
+  float hs=.5*min(uRes.x,uRes.y);
+  vec2 uv=(gl_FragCoord.xy-.5*uRes)/(hs*DISC);
+  uv=uv/uZoom+uCenter;
+  float r=length(uv);
+  float aa=max(fwidth(r),1e-5);
+  gOct=min(mix(2.5,8.5,uK)+max(0.,log2(uZoom)),10.);
+  wC1=smoothstep(-.1,.3,uK);wC2=smoothstep(.25,.65,uK);wC3=smoothstep(.55,.95,uK);
+  wC4=smoothstep(2.5,6.,uZoom)*step(.9,uK);wC5=smoothstep(9.,20.,uZoom)*step(.9,uK);
+  gDens=mix(.28,.75,clamp(uAge/8.,0.,1.));
+  vec3 L=normalize(uLight);
+  vec3 col=vec3(0.);
+  float cover=clamp((1.-r)/aa+.5,0.,1.);
+  if(uAtm>0.){
+    vec3 limb=vec3(uv/max(r,1e-4),0.);
+    float g=exp(-max(r-1.,0.)/(uAtmThick*.45));
+    float lf=uAtmSelf>.5?1.:clamp(dot(limb,L)*.9+.35,0.,1.);
+    col+=uAtmCol*g*lf*uAtm*.9*(1.-cover);
+  }
+  if(cover>0.){
+    float rr=min(r,.99999);
+    vec3 N=vec3(uv/max(r,1e-4)*rr,sqrt(1.-rr*rr));
+    vec3 pn=uRot*N;
+    vec3 p=pn+uSeedOff;
+    bool bump=(uKind==0||uKind==1||uKind==3||uKind==4);
+    float h0=0.;vec3 nb=pn;
+    if(bump){
+      float eps=max(.5*aa,1e-4);
+      vec3 ax=abs(pn.y)<.95?vec3(0,1,0):vec3(1,0,0);
+      vec3 T1=normalize(cross(ax,pn)),T2=cross(pn,T1);
+      h0=H(p);
+      float h1=H(p+T1*eps),h2=H(p+T2*eps);
+      vec2 g=vec2(h1-h0,h2-h0)/eps;
+      nb=normalize(pn-BUMP*(g.x*T1+g.y*T2));
+    }
+    vec3 alb,emi;shade(p,pn,h0,alb,emi);
+    vec3 nv=nb*uRot;
+    float ndlG=dot(N,L);
+    float wrap=(uKind==2||uKind==5||uKind==6)?.25:(uKind==1?.08:0.);
+    float diff=clamp((dot(nv,L)+wrap)/(1.+wrap),0.,1.)*smoothstep(-.02,.12,ndlG+wrap*.5);
+    vec3 surf=alb*diff*uStar*uStarI+alb*uAmbient+emi;
+    if(uAtm>0.){
+      float rim=pow(1.-N.z,3.5);
+      float lf=uAtmSelf>.5?1.:clamp(ndlG*1.2+.1,0.,1.);
+      surf+=uAtmCol*rim*lf*uAtm*.55;
+    }
+    float night=1.-smoothstep(-.06,.12,ndlG);
+    for(int i=0;i<6;i++){
+      if(i>=uNCities)break;
+      float d=dot(pn,uCities[i]);
+      float gl=exp((d-1.)*5000.)+.18*exp((d-1.)*700.);
+      surf+=vec3(1.,.74,.42)*gl*night*1.4;
+    }
+    col+=surf*cover;
+  }
+  col=1.-exp(-col*1.25);
+  col=pow(col,vec3(1./2.2));
+  outColor=vec4(BG+col*(1.-BG),1.);
+}
+</script>
+
+<script>
+const DISC=.88, BLUE='#5AA9E6', ORANGE='#F0A040', PALE='rgb(159,182,196)', TEXT='rgb(220,230,236)';
+const rad=d=>d*Math.PI/180;
+function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+
+/* ---- the bodies: the figures the generator gives each planet ---- */
+const BODIES={
+  airless:{kind:0,label:'Airless',fig:'rocky · airless · 0.38 g · 440 K',seed:3,temp:440,age:6.5,atm:0,atmThick:.03,atmCol:[.6,.6,.6],atmSelf:0,caps:0,amb:.004,tilt:8,lon:25,roll:-12},
+  thin:{kind:1,label:'Cold terrestrial',fig:'rocky · thin N₂ · 0.82 g · 232 K',seed:5,temp:232,age:4.2,atm:.38,atmThick:.035,atmCol:[.78,.66,.52],atmSelf:0,caps:.25,amb:.006,tilt:24,lon:-40,roll:-10},
+  dense:{kind:2,label:'Dense atmosphere',fig:'rocky · dense CO₂ · 0.9 g · 735 K',seed:11,temp:735,age:4.5,atm:1,atmThick:.06,atmCol:[.98,.82,.55],atmSelf:0,caps:0,amb:.02,tilt:10,lon:0,roll:-8},
+  icy:{kind:3,label:'Icy',fig:'rocky · icy · 0.13 g · 102 K',seed:17,temp:102,age:.8,atm:0,atmThick:.03,atmCol:[.6,.7,.8],atmSelf:0,caps:0,amb:.006,tilt:14,lon:60,roll:-16},
+  molten:{kind:4,label:'Molten',fig:'rocky · molten · 1.6 g · 1200 K',seed:23,temp:1200,age:.3,atm:.35,atmThick:.04,atmCol:[1,.38,.12],atmSelf:1,caps:0,amb:.002,tilt:12,lon:110,roll:-6},
+  icegiant:{kind:5,label:'Ice giant',fig:'envelope · 0.9 g · 59 K',seed:29,temp:59,age:4,atm:.9,atmThick:.05,atmCol:[.45,.75,.95],atmSelf:0,caps:0,amb:.02,tilt:18,lon:0,roll:-14},
+  gas:{kind:6,label:'Gas giant',fig:'envelope · 2.4 g · 120 K',seed:31,temp:120,age:4,atm:.8,atmThick:.04,atmCol:[.92,.82,.62],atmSelf:0,caps:0,amb:.02,tilt:8,lon:0,roll:-6}
+};
+const STARS={sun:{c:[1,.96,.90],i:1.2,name:'Sun-like'},k:{c:[1,.80,.55],i:1.2,name:'K dwarf'},m:{c:[1,.58,.30],i:1.2,name:'M dwarf'},f:{c:[.88,.92,1],i:1.2,name:'F star'}};
+let SEED=7;
+const SETTLE=[[10,30],[-18,12]];   // Port Arden and Kessel Deep, as (latitude, longitude) on Halden IV
+
+/* ---- rotation: the surface noise lives in body space, the light in view space ---- */
+const mul3=(A,B)=>A.map((_,i)=>B[0].map((_,j)=>A[i][0]*B[0][j]+A[i][1]*B[1][j]+A[i][2]*B[2][j]));
+const Ry=a=>{const c=Math.cos(a),s=Math.sin(a);return[[c,0,s],[0,1,0],[-s,0,c]]};
+const Rx=a=>{const c=Math.cos(a),s=Math.sin(a);return[[1,0,0],[0,c,-s],[0,s,c]]};
+const Rz=a=>{const c=Math.cos(a),s=Math.sin(a);return[[c,-s,0],[s,c,0],[0,0,1]]};
+const tr=A=>A[0].map((_,j)=>A.map(r=>r[j]));
+const viewMat=b=>mul3(Rz(rad(b.roll)),mul3(Rx(rad(b.tilt)),Ry(rad(b.lon))));
+const colMajor=U=>{const o=[];for(let j=0;j<3;j++)for(let i=0;i<3;i++)o.push(U[i][j]);return new Float32Array(o)};
+const bodyVec=(lat,lon)=>[Math.cos(rad(lat))*Math.sin(rad(lon)),Math.sin(rad(lat)),Math.cos(rad(lat))*Math.cos(rad(lon))];
+const applyM=(M,v)=>[M[0][0]*v[0]+M[0][1]*v[1]+M[0][2]*v[2],M[1][0]*v[0]+M[1][1]*v[1]+M[1][2]*v[2],M[2][0]*v[0]+M[2][1]*v[1]+M[2][2]*v[2]];
+const norm3=a=>{const l=Math.hypot(...a);return a.map(x=>x/l)};
+
+/* ---- WebGL ---- */
+const glc=document.createElement('canvas');
+const gl=glc.getContext('webgl2',{preserveDrawingBuffer:true,antialias:false});
+if(!gl){document.body.insertAdjacentHTML('afterbegin','<p style="color:#F0A040">WebGL2 is not available in this browser.</p>');throw new Error('no webgl2')}
+function compile(type,src){const s=gl.createShader(type);gl.shaderSource(s,src.trim());gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(s));return s}
+const prog=gl.createProgram();
+gl.attachShader(prog,compile(gl.VERTEX_SHADER,document.getElementById('vs').textContent));
+gl.attachShader(prog,compile(gl.FRAGMENT_SHADER,document.getElementById('fs').textContent));
+gl.linkProgram(prog);
+if(!gl.getProgramParameter(prog,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(prog));
+gl.useProgram(prog);
+const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+const aLoc=gl.getAttribLocation(prog,'a');gl.enableVertexAttribArray(aLoc);gl.vertexAttribPointer(aLoc,2,gl.FLOAT,false,0,0);
+const U={};['uRes','uKind','uSeedOff','uTemp','uAge','uK','uZoom','uStarI','uAtm','uAtmThick','uAtmSelf','uCaps','uAmbient','uLight','uStar','uAtmCol','uCenter','uRot','uCities','uNCities'].forEach(n=>U[n]=gl.getUniformLocation(prog,n));
+
+function lightDir(phase){const p=rad(phase);return norm3([-Math.sin(p),.22,Math.cos(p)])}
+function renderGL(px,B,o){
+  glc.width=glc.height=px;gl.viewport(0,0,px,px);
+  const r=rng(B.seed*131+SEED*977),off=[10+r()*40,10+r()*40,10+r()*40];
+  const star=STARS[o.star||'sun'];
+  const cities=(o.cities||[]).map(c=>bodyVec(c[0],c[1])).flat();
+  while(cities.length<18)cities.push(0,0,0);
+  gl.uniform2f(U.uRes,px,px);gl.uniform1i(U.uKind,B.kind);gl.uniform3fv(U.uSeedOff,off);
+  gl.uniform1f(U.uTemp,B.temp);gl.uniform1f(U.uAge,B.age);gl.uniform1f(U.uK,o.k);gl.uniform1f(U.uZoom,o.zoom||1);
+  gl.uniform1f(U.uStarI,star.i);gl.uniform1f(U.uAtm,B.atm);gl.uniform1f(U.uAtmThick,B.atmThick);gl.uniform1f(U.uAtmSelf,B.atmSelf);
+  gl.uniform1f(U.uCaps,B.caps);gl.uniform1f(U.uAmbient,B.amb);
+  gl.uniform3fv(U.uLight,lightDir(o.phase===undefined?35:o.phase));gl.uniform3fv(U.uStar,star.c);gl.uniform3fv(U.uAtmCol,B.atmCol);
+  gl.uniform2f(U.uCenter,(o.center||[0,0])[0],(o.center||[0,0])[1]);
+  gl.uniformMatrix3fv(U.uRot,false,colMajor(tr(viewMat(B))));
+  gl.uniform3fv(U.uCities,new Float32Array(cities.slice(0,18)));gl.uniform1i(U.uNCities,Math.min(6,(o.cities||[]).length));
+  gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+}
+
+/* ---- 2D layers on top of the render ---- */
+function halo(ctx,txt,x,y){ctx.lineJoin='round';ctx.lineWidth=4;ctx.strokeStyle='rgb(7,10,14)';ctx.strokeText(txt,x,y);ctx.fillText(txt,x,y)}
+function brackets(ctx,size,color,len=14,inset=8){
+  ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.beginPath();
+  for(const [x,y,sx,sy] of [[inset,inset,1,1],[size-inset,inset,-1,1],[inset,size-inset,1,-1],[size-inset,size-inset,-1,-1]]){
+    ctx.moveTo(x+sx*len,y);ctx.lineTo(x,y);ctx.lineTo(x,y+sy*len)}
+  ctx.stroke();
+}
+function stateLabel(ctx,size,txt,color,px=10,clear=false){ctx.font=`${px}px "Plex Mono"`;ctx.fillStyle=color;ctx.textBaseline='alphabetic';ctx.fillText(txt,clear?18:12,size-(clear?20:12))}
+// The telescope frame: the render at a fraction of its size, blurred back up, desaturated, with grain and faint line banding.
+function telescope(ctx,size,block,seed){
+  const src=document.createElement('canvas');src.width=src.height=size;src.getContext('2d').drawImage(ctx.canvas,0,0);
+  const sm=document.createElement('canvas');sm.width=sm.height=Math.max(8,Math.round(size/block));
+  const sx=sm.getContext('2d');sx.imageSmoothingEnabled=true;sx.drawImage(src,0,0,sm.width,sm.height);
+  ctx.save();ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.filter=`blur(${Math.max(.8,size/260)}px)`;ctx.drawImage(sm,0,0,size,size);ctx.restore();
+  const id=ctx.getImageData(0,0,size,size),d=id.data,r=rng(seed+99);
+  for(let i=0;i<d.length;i+=4){
+    const y=(i/4/size)|0,n=(r()-.5)*22,band=Math.sin(y*1.7)*2;
+    const l=.3*d[i]+.59*d[i+1]+.11*d[i+2];
+    for(let k=0;k<3;k++){const v=d[i+k]*.62+l*.38;d[i+k]=Math.max(0,Math.min(255,v+n+band+(k===2?4:0)))}
+  }
+  ctx.putImageData(id,0,0);
+}
+function softBlur(ctx,size,px){
+  const src=document.createElement('canvas');src.width=src.height=size;src.getContext('2d').drawImage(ctx.canvas,0,0);
+  ctx.save();ctx.filter=`blur(${px}px)`;ctx.drawImage(src,0,0);ctx.restore();
+}
+// Vector overlays of the planetary view (board 4): graticule, settlements, a route, polar ice, an extraction site.
+function overlays(ctx,size,B){
+  const V=viewMat(B),R=size*.5*DISC,C=size/2;
+  const P=(lat,lon)=>{const v=applyM(V,bodyVec(lat,lon));return{x:C+v[0]*R,y:C-v[1]*R,vis:v[2]>.04}};
+  ctx.save();ctx.lineWidth=1;ctx.strokeStyle='rgba(159,182,196,.16)';
+  for(let lat=-60;lat<=60;lat+=30){ctx.beginPath();let pen=false;for(let lon=-180;lon<=180;lon+=3){const q=P(lat,lon);if(!q.vis){pen=false;continue}pen?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y);pen=true}ctx.stroke()}
+  for(let lon=-180;lon<180;lon+=30){ctx.beginPath();let pen=false;for(let lat=-85;lat<=85;lat+=3){const q=P(lat,lon);if(!q.vis){pen=false;continue}pen?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y);pen=true}ctx.stroke()}
+  // polar ice, dashed
+  ctx.setLineDash([5,4]);ctx.strokeStyle=BLUE;ctx.lineWidth=1.3;ctx.beginPath();let pen=false;
+  for(let lon=-180;lon<=180;lon+=4){const q=P(74,lon+8*Math.sin(lon*.05));if(!q.vis){pen=false;continue}pen?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y);pen=true}
+  ctx.stroke();ctx.setLineDash([]);
+  // route between the two settlements
+  const A=SETTLE[0],Bk=SETTLE[1];
+  ctx.setLineDash([2,4]);ctx.strokeStyle='rgba(90,169,230,.8)';ctx.beginPath();pen=false;
+  for(let t=0;t<=1.001;t+=.02){const q=P(A[0]+(Bk[0]-A[0])*t,A[1]+(Bk[1]-A[1])*t);if(!q.vis){pen=false;continue}pen?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y);pen=true}
+  ctx.stroke();ctx.setLineDash([]);
+  ctx.font='12px "Plex Cond"';ctx.textBaseline='alphabetic';
+  const sq=(lat,lon,name,sel)=>{const q=P(lat,lon);if(!q.vis)return;
+    ctx.fillStyle='rgba(7,10,14,.9)';ctx.fillRect(q.x-5,q.y-5,10,10);ctx.strokeStyle=BLUE;ctx.lineWidth=1.5;ctx.strokeRect(q.x-5,q.y-5,10,10);
+    if(sel){ctx.strokeStyle='#fff';ctx.lineWidth=1.5;const s=11,l=5;ctx.beginPath();
+      for(const [x,y,sx,sy] of [[-s,-s,1,1],[s,-s,-1,1],[-s,s,1,-1],[s,s,-1,-1]]){ctx.moveTo(q.x+x+sx*l,q.y+y);ctx.lineTo(q.x+x,q.y+y);ctx.lineTo(q.x+x,q.y+y+sy*l)}ctx.stroke()}
+    ctx.fillStyle=TEXT;halo(ctx,name,q.x+13,q.y+4)};
+  sq(A[0],A[1],'Port Arden',true);sq(Bk[0],Bk[1],'Kessel Deep',false);
+  const t=P(64,40);if(t.vis){ctx.strokeStyle=BLUE;ctx.lineWidth=1.5;ctx.fillStyle='rgba(7,10,14,.9)';ctx.beginPath();ctx.moveTo(t.x,t.y-6);ctx.lineTo(t.x+6,t.y+5);ctx.lineTo(t.x-6,t.y+5);ctx.closePath();ctx.fill();ctx.stroke();ctx.fillStyle=TEXT;halo(ctx,'Ice quarry',t.x+10,t.y+4)}
+  const p=P(74,-62);if(p.vis){ctx.fillStyle=BLUE;halo(ctx,'Polar ice · surveyed',p.x-30,p.y-8)}
+  ctx.restore();
+}
+
+/* ---- one panel ---- */
+function bodyPanel(frame,size,bodyKey,o){
+  const B=BODIES[bodyKey],ss=o.ss||2;
+  frame.innerHTML='';
+  const cv=document.createElement('canvas');cv.width=cv.height=size;frame.appendChild(cv);
+  const ctx=cv.getContext('2d');
+  renderGL(size*ss,B,o);
+  ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+  ctx.drawImage(glc,0,0,size*ss,size*ss,0,0,size,size);
+  if(o.k<.2){telescope(ctx,size,o.block||4,B.seed);brackets(ctx,size,'rgba(220,230,236,.75)',size<250?9:14,size<250?6:10);
+    if(size>=250)stateLabel(ctx,size,'TELESCOPE FRAME · UNSURVEYED',ORANGE,10,true)}
+  else if(o.k<.8){softBlur(ctx,size,.9);stateLabel(ctx,size,'PARTIAL SURVEY · ORBITAL PASS',ORANGE)}
+  else if(o.label){stateLabel(ctx,size,o.label,BLUE)}
+  if(o.overlay)overlays(ctx,size,B);
+  return ctx;
+}
+function cell(row,w,title,capHTML,fig){
+  const c=document.createElement('div');c.className='cell';c.style.marginRight='0';
+  c.innerHTML=(title?`<h3>${title}</h3>`:'')+'<div class="frame"></div>'+(fig?`<div class="fig">${fig}</div>`:'')+(capHTML?`<p class="cap">${capHTML}</p>`:'');
+  c.style.width=(w+2)+'px';row.appendChild(c);return c.querySelector('.frame');
+}
+function board(sheet,title,note){
+  const b=document.createElement('section');b.className='board';
+  b.innerHTML=`<h2>${title}</h2>`+(note?`<p class="note">${note}</p>`:'')+'<div class="row"></div>';
+  sheet.appendChild(b);return b.querySelector('.row');
+}
+
+function build(){
+  const sheet=document.getElementById('sheet');sheet.innerHTML='';
+
+  /* A: the seven kinds */
+  let row=board(sheet,'The seven kinds, surveyed and unsurveyed','Top row: surveyed, at full detail. Bottom row: the same bodies unsurveyed. Light comes from the left at a 35° phase, from a Sun-like star. Each caption gives the figures the shader reads. Figures are illustrative.');
+  row.style.gap='12px';
+  const keys=['airless','thin','dense','icy','molten','icegiant','gas'];
+  const SA=184;
+  keys.forEach(k=>{const B=BODIES[k];bodyPanel(cell(row,SA,`${B.label}`,'',B.fig),SA,k,{k:1,phase:35,ss:2})});
+  const lab=document.createElement('div');lab.className='rowlabel';lab.style.color=ORANGE;lab.style.width='100%';lab.textContent='UNSURVEYED';row.appendChild(lab);
+  keys.forEach(k=>{bodyPanel(cell(row,SA,'','',''),SA,k,{k:0,phase:35,ss:2,block:3})});
+
+  /* B: fidelity follows knowledge */
+  row=board(sheet,'Fidelity follows knowledge: one body, four states','Halden IV, a cold terrestrial (0.82 g, thin nitrogen, −41 °C) with its settlements. One shader and one seed throughout; only the knowledge value changes, so the large forms stay put and detail arrives as the faction learns more.');
+  row.style.gap='14px';
+  const SB=330,H={k:0,phase:50,ss:1.5,block:4};
+  const cities=SETTLE;
+  bodyPanel(cell(row,SB,'<i>1</i> · Unsurveyed','Large forms only, then blur and grain, with corner brackets and an orange label as in board 5. Estimates, not measurements.'),SB,'thin',{...H,k:0});
+  bodyPanel(cell(row,SB,'<i>2</i> · Partial survey','An orbital pass. Mid-size craters and ridges show; the picture is still soft.'),SB,'thin',{...H,k:.5});
+  bodyPanel(cell(row,SB,'<i>3</i> · Surveyed','Full detail, clean. Dark patches, ridged highlands, eroded craters, a thin polar cap and a faint haze at the limb.'),SB,'thin',{...H,k:1,label:'SURVEYED'});
+  bodyPanel(cell(row,SB,'<i>4</i> · Surveyed, planetary view','The same render with the planetary view\'s vector overlays: settlements, a supply route, polar ice, an extraction site.'),SB,'thin',{...H,k:1,label:'SURVEYED',overlay:true});
+
+  /* C: light */
+  row=board(sheet,'Light: phase and star colour','The same cold terrestrial under a moving light, then under other stars at a 70° phase. The shader takes the star direction and colour, so a red dwarf\'s world looks red-lit without any change to the surface.');
+  row.style.gap='12px';
+  const SC=216;
+  [[20,'sun','Sun-like · 20°','Nearly full. Relief flattens: with the light behind the viewer, craters lose their shadows.'],
+   [70,'sun','Sun-like · 70°','A gibbous phase. The terminator crosses the disc and relief is strongest next to it.'],
+   [120,'sun','Sun-like · 120°','A crescent. The haze at the limb brightens on the lit edge only.'],
+   [140,'sun','Sun-like · 140°','A thin crescent. The two settlements show as lights on the night side; the dark side keeps a faint outline (a small ambient term).'],
+   [70,'m','M dwarf · 70°','Orange-red light. Most worlds in the sector orbit stars like this.'],
+   [70,'f','F star · 70°','A cooler-blue white light on the same terrain.']
+  ].forEach(([ph,st,t,cap])=>bodyPanel(cell(row,SC,t,cap),SC,'thin',{k:1,phase:ph,star:st,ss:2,cities:ph===140?cities:[]}));
+
+  /* D: close in */
+  row=board(sheet,'Close in: detail does not run out','The same surveyed body at 1×, 6× and 24× on the view. Octaves and finer crater scales are added as the view closes. This is the planetary view\'s globe, and the inspection inset at its closest.');
+  row.style.gap='24px';
+  const SD=440;
+  bodyPanel(cell(row,SD,'1×','The whole disc.'),SD,'airless',{k:1,phase:60,ss:1.5,zoom:1});
+  bodyPanel(cell(row,SD,'6×','The same airless body, a patch on the lit side. Crater scales of 34 and 90 across the sphere now resolve.'),SD,'airless',{k:1,phase:60,ss:1.5,zoom:6,center:[-.38,.18]});
+  bodyPanel(cell(row,SD,'24×','Craters down to the finest scale, and the grain of the underlying relief. Past this the noise would need more octaves.'),SD,'airless',{k:1,phase:60,ss:1.5,zoom:24,center:[-.38,.18]});
+
+  const foot=document.createElement('p');foot.className='note';foot.style.marginTop='-8px';
+  foot.textContent='Not shown: rings, clouds on rocky worlds, ocean worlds, ruins, settlement lights beyond the one test (the 140° crescent above), and ships, stations and gates, which are built from component designs and are a separate problem.';
+  sheet.appendChild(foot);
+}
+
+document.body.classList.toggle('png',location.search.includes('png'));
+document.getElementById('seed').addEventListener('change',e=>{SEED=parseInt(e.target.value,10)||0;build()});
+document.getElementById('redraw').addEventListener('click',()=>{SEED=parseInt(document.getElementById('seed').value,10)||0;build()});
+Promise.all([document.fonts.load('13px "Plex Cond"'),document.fonts.load('600 13px "Plex Cond"'),document.fonts.load('11px "Plex Mono"')]).then(()=>{build();window.__done=true});
+</script>
+</body>
+</html>
