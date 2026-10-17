@@ -1,4 +1,5 @@
-// Bakes one face of a body's surface into the cubemap strip (SURF-30):
+// Bakes one face of a body's surface, or a band of its rows, into the
+// cubemap strip (SURF-30, SURF-31):
 // for each texel, the direction on the sphere it stands for, then the
 // look's layers at that direction. Row 0 holds the albedo (linear RGB)
 // and the height in units of the radius; row 1, for a body that glows,
@@ -24,7 +25,13 @@ struct BakeParams {
     look: u32,
     face_px: u32,
     rows: u32,
+    // The face this dispatch bakes, the strip column it is written to
+    // (its own for a cube, 0 for a close-in face, SURF-34), and the
+    // strip's texel rows it covers: from `first_row` up to `end_row`.
     face: u32,
+    column: u32,
+    first_row: u32,
+    end_row: u32,
     octaves: f32,
     crater_density: f32,
     ray_density: f32,
@@ -659,11 +666,12 @@ fn face_direction(face: u32, s: f32, t: f32) -> vec3<f32> {
 @compute @workgroup_size(8, 8, 1)
 fn bake(@builtin(global_invocation_id) id: vec3<u32>) {
     let w = params.face_px;
-    if (id.x >= w || id.y >= w * params.rows) {
+    let strip_y = id.y + params.first_row;
+    if (id.x >= w || strip_y >= params.end_row) {
         return;
     }
-    let row = id.y / w;
-    let y = id.y - row * w;
+    let row = strip_y / w;
+    let y = strip_y - row * w;
     let pn = face_direction(params.face, texel_coordinate(id.x), texel_coordinate(y));
     let p = pn + params.seed_offset.xyz;
 
@@ -689,5 +697,5 @@ fn bake(@builtin(global_invocation_id) id: vec3<u32>) {
         let s = shade(p, pn, 0.0);
         texel = vec4<f32>(s.emi, 0.0);
     }
-    textureStore(strip, vec2<i32>(i32(params.face * w + id.x), i32(id.y)), texel);
+    textureStore(strip, vec2<i32>(i32(params.column * w + id.x), i32(strip_y)), texel);
 }

@@ -7,12 +7,18 @@
 //! facts, the star, the seed and the knowledge value and nothing else
 //! (`describe_surface`), so two bodies with equal inputs bake equal
 //! pictures. `SurfaceBakes` keeps one strip per body and knowledge state,
-//! up to `bake_cache_count`, dropping the least recently drawn, and bakes
-//! a body again when its description changes. Each frame the scheduler
-//! issues at most a few faces as jobs; the render world runs the jobs it
-//! can (the pipeline compiled, the image ready) and reports each face
-//! back, so a face is marked done only once the GPU has it, and one that
-//! was skipped is issued again.
+//! up to `bake_cache_count`, dropping the least recently drawn but never
+//! one drawn this frame, and bakes a body again when its description
+//! changes. Close in, a body may also hold one **close face**: a single
+//! face baked again finer (SURF-34), kept only while it is drawn.
+//!
+//! Each bake is cut into pieces: a cube's are its six faces, a close
+//! face's are bands of rows, each about as many texels as a face of the
+//! ordinary bake. Each frame the scheduler issues at most a few pieces
+//! as jobs; the render world runs the jobs it can (the pipeline
+//! compiled, the image ready) and reports each piece back, so a piece is
+//! marked done only once the GPU has it, and one that was skipped is
+//! issued again.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -53,8 +59,8 @@ use crate::view::tunables::Tunables;
 pub const STRIP_FORMAT: TextureFormat = TextureFormat::Rgba16Float;
 /// The compute shader's workgroup is this many texels square.
 const WORKGROUP: u32 = 8;
-/// A face issued this many frames ago with no word back is issued again:
-/// the renderer runs a frame behind, so word of a face takes up to two.
+/// A piece issued this many frames ago with no word back is issued again:
+/// the renderer runs a frame behind, so word of a piece takes up to two.
 const REISSUE_AFTER_FRAMES: u64 = 2;
 /// The surface noise is sampled this far from the origin, in noise
 /// units: the seed's offset is drawn from this range.
@@ -70,7 +76,13 @@ pub struct BakeParams {
     pub look: u32,
     pub face_px: u32,
     pub rows: u32,
+    /// The face a job bakes, the strip column it writes it to, and the
+    /// strip's texel rows it covers, from `first_row` up to `end_row`. A
+    /// description holds the whole of face 0; each job sets its own.
     pub face: u32,
+    pub column: u32,
+    pub first_row: u32,
+    pub end_row: u32,
     pub octaves: f32,
     pub crater_density: f32,
     pub ray_density: f32,
@@ -181,6 +193,8 @@ pub fn describe_surface(
     let [_, c2, c3, c4] = crater_scales_on(knowledge, tunables);
     let on = |on: bool| if on { 1.0 } else { 0.0 };
     let draws = seed_draws(inputs.seed);
+    let face_px = face_px.unwrap_or_else(|| super::chooser::face_px(inputs.knowledge, tunables));
+    let rows = if glows { 2 } else { 1 };
     let haze = tunables.hazy_colour;
     let mix = tunables.sub_neptune_haze_colour;
     let params = BakeParams {
@@ -189,9 +203,12 @@ pub fn describe_surface(
         haze_colour: Vec4::new(haze[0], haze[1], haze[2], 0.0),
         haze_mix: Vec4::new(mix[0], mix[1], mix[2], tunables.sub_neptune_haze_mix),
         look: look.shader_kind(),
-        face_px: face_px.unwrap_or_else(|| super::chooser::face_px(inputs.knowledge, tunables)),
-        rows: if glows { 2 } else { 1 },
+        face_px,
+        rows,
         face: 0,
+        column: 0,
+        first_row: 0,
+        end_row: face_px * rows,
         octaves: octaves(knowledge, tunables),
         crater_density: crater_density(inputs.star.age_gyr, facts.activity, tunables),
         ray_density: ray_density(look, facts.activity, tunables),
@@ -229,67 +246,142 @@ pub struct BakeKey {
     pub knowledge: Knowledge,
 }
 
+/// What a bake holds of a body's surface: the whole cube, or one face
+/// baked again close in (SURF-34).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+enum Part {
+    Cube,
+    Close(u32),
+}
+
+/// One piece of a bake: the face it is of, the strip column it is
+/// written to, the strip's texel rows it covers, and how far along it is.
+#[derive(Debug, Clone, Copy)]
+struct Piece {
+    face: u32,
+    column: u32,
+    rows: (u32, u32),
+    done: bool,
+    /// The frame the piece was last issued on, 0 for never.
+    issued: u64,
+}
+
+/// SURF-31: a cube's pieces: its six faces, each whole, each in its own
+/// column.
+fn cube_pieces(params: &BakeParams) -> Vec<Piece> {
+    let height = params.face_px * params.rows;
+    (0..FACES)
+        .map(|face| Piece {
+            face,
+            column: face,
+            rows: (0, height),
+            done: false,
+            issued: 0,
+        })
+        .collect()
+}
+
+/// SURF-31 / SURF-34: a close face's pieces: `bands` bands of its rows,
+/// all in the strip's one column, so a face many times finer than the
+/// ordinary bake's still bakes a little each frame.
+fn band_pieces(face: u32, params: &BakeParams, bands: u32) -> Vec<Piece> {
+    let height = params.face_px * params.rows;
+    let band = height.div_ceil(bands.max(1)).max(1);
+    (0..height.div_ceil(band))
+        .map(|at| Piece {
+            face,
+            column: 0,
+            rows: (at * band, ((at + 1) * band).min(height)),
+            done: false,
+            issued: 0,
+        })
+        .collect()
+}
+
 /// One body's bake: its strip and how far along it is.
 #[derive(Debug, Clone)]
 pub struct BakeEntry {
     /// What the strip was baked from; a change means a new bake.
     pub params: BakeParams,
     pub strip: Handle<Image>,
-    faces_done: [bool; FACES as usize],
-    /// The frame each face was last issued on, 0 for never.
-    issued: [u64; FACES as usize],
-    /// SURF-31: every face is in the strip; until then the body draws its
-    /// disc marker.
+    pieces: Vec<Piece>,
+    /// SURF-31: every piece is in the strip; until then the body draws
+    /// its disc marker.
     pub ready: bool,
     /// The frame the bake was last drawn or asked for (SURF-33).
     last_used: u64,
 }
 
-/// One face to bake this frame, for the render world.
+impl BakeEntry {
+    /// A bake not yet begun, with a new strip as wide as its pieces'
+    /// columns.
+    fn new(
+        params: &BakeParams,
+        pieces: Vec<Piece>,
+        images: &mut Assets<Image>,
+        frame: u64,
+    ) -> Self {
+        let columns = pieces.iter().map(|p| p.column + 1).max().unwrap_or(1);
+        Self {
+            params: *params,
+            strip: images.add(strip_image(params.face_px, columns, params.rows)),
+            pieces,
+            ready: false,
+            last_used: frame,
+        }
+    }
+}
+
+/// One piece to bake this frame, for the render world: its strip, the
+/// parameters with the piece's face, column and rows, and which piece it
+/// is, to report back.
 #[derive(Debug, Clone)]
 pub struct BakeJob {
     pub strip: Handle<Image>,
     pub params: BakeParams,
+    pub piece: u32,
 }
 
-/// The faces the render world wants baked this frame (SURF-31).
+/// The pieces the render world wants baked this frame (SURF-31).
 #[derive(Resource, ExtractResource, Clone, Default, Debug)]
 #[extract_app(RenderApp)]
 pub struct PendingBakeJobs(pub Vec<BakeJob>);
 
-/// One face baked: its strip and which face.
-type FaceWord = (AssetId<Image>, u32);
+/// One piece baked: its strip and which piece.
+type PieceWord = (AssetId<Image>, u32);
 
-/// Word from the render world of the faces it baked: each strip and
-/// face, as the compute pass ran them.
+/// Word from the render world of the pieces it baked: each strip and
+/// piece, as the compute pass ran them.
 #[derive(Resource, Clone, Default)]
-pub struct BakedFaces(Arc<Mutex<Vec<FaceWord>>>);
+pub struct BakedFaces(Arc<Mutex<Vec<PieceWord>>>);
 
 impl BakedFaces {
-    /// The render world's word that it baked a face; a headless test
-    /// stands in for it.
-    pub fn report(&self, strip: AssetId<Image>, face: u32) {
-        self.0.lock().unwrap().push((strip, face));
+    /// The render world's word that it baked a piece (for a cube, piece
+    /// `n` is face `n`); a headless test stands in for it.
+    pub fn report(&self, strip: AssetId<Image>, piece: u32) {
+        self.0.lock().unwrap().push((strip, piece));
     }
 
-    fn drain(&self) -> Vec<FaceWord> {
+    fn drain(&self) -> Vec<PieceWord> {
         std::mem::take(&mut *self.0.lock().unwrap())
     }
 }
 
-/// SURF-33: the bakes kept, by body and knowledge state.
+/// SURF-33 / SURF-34: the bakes kept, by body and knowledge state, and
+/// each body's close face while it is drawn.
 #[derive(Resource, Default, Debug)]
 pub struct SurfaceBakes {
-    entries: HashMap<BakeKey, BakeEntry>,
-    /// Counts the frames, for recency.
+    entries: HashMap<(BakeKey, Part), BakeEntry>,
+    /// Counts the frames, for recency. Requests made during a frame are
+    /// stamped with it; the scheduler moves it on once it has evicted.
     frame: u64,
 }
 
-/// A strip for a surface: six faces wide, one row per set of layers,
-/// written by the compute pass, sampled by the globe pass and readable
-/// back for the tests.
-pub fn strip_image(face_px: u32, rows: u32) -> Image {
-    let (width, height) = strip_size(face_px, rows);
+/// A strip for a surface: `columns` faces wide (six for a cube, one for
+/// a close face), one row per set of layers, written by the compute
+/// pass, sampled by the globe pass and readable back for the tests.
+pub fn strip_image(face_px: u32, columns: u32, rows: u32) -> Image {
+    let (width, height) = strip_size(face_px, columns, rows);
     let mut image = Image::new_uninit(
         Extent3d {
             width,
@@ -312,9 +404,9 @@ impl SurfaceBakes {
     /// SURF-30 / SURF-33: asks for a body's bake, starting it if there is
     /// none or its inputs changed, and marks it as drawn this frame.
     /// Starting one drops the body's other bakes (another knowledge
-    /// state's, or stale inputs'), so a body holds one bake and no face
-    /// is spent on a picture nothing shows. Returns the entry; `ready`
-    /// says whether the strip can be drawn.
+    /// state's, or stale inputs', and its close face), so a body holds
+    /// one bake and no piece is spent on a picture nothing shows. Returns
+    /// the entry; `ready` says whether the strip can be drawn.
     pub fn request(
         &mut self,
         key: BakeKey,
@@ -322,59 +414,112 @@ impl SurfaceBakes {
         images: &mut Assets<Image>,
     ) -> &BakeEntry {
         let frame = self.frame;
+        let slot = (key, Part::Cube);
         let kept = self
             .entries
-            .get(&key)
+            .get(&slot)
             .is_some_and(|entry| entry.params == *params);
         if !kept {
-            self.entries.retain(|other, _| other.body != key.body);
+            self.entries.retain(|(other, _), _| other.body != key.body);
         }
-        let entry = self.entries.entry(key).or_insert_with(|| BakeEntry {
-            params: *params,
-            strip: images.add(strip_image(params.face_px, params.rows)),
-            faces_done: [false; FACES as usize],
-            issued: [0; FACES as usize],
-            ready: false,
-            last_used: frame,
+        let entry = self
+            .entries
+            .entry(slot)
+            .or_insert_with(|| BakeEntry::new(params, cube_pieces(params), images, frame));
+        entry.last_used = frame;
+        entry
+    }
+
+    /// SURF-34: asks for a body's close face: `face` of its cube baked
+    /// again from `params` (finer, with the finer crater scales) in
+    /// `bands` pieces, and marks it as drawn this frame. A body holds one
+    /// close face: asking for another face, or with other inputs, drops
+    /// the old one. The body's cube bake is left as it is. A close face
+    /// not asked for during a frame is dropped at the frame's end.
+    pub fn request_close(
+        &mut self,
+        key: BakeKey,
+        face: u32,
+        params: &BakeParams,
+        bands: u32,
+        images: &mut Assets<Image>,
+    ) -> &BakeEntry {
+        let frame = self.frame;
+        let slot = (key, Part::Close(face));
+        let kept = self
+            .entries
+            .get(&slot)
+            .is_some_and(|entry| entry.params == *params);
+        if !kept {
+            self.entries
+                .retain(|(other, part), _| other.body != key.body || *part == Part::Cube);
+        }
+        let entry = self.entries.entry(slot).or_insert_with(|| {
+            BakeEntry::new(params, band_pieces(face, params, bands), images, frame)
         });
         entry.last_used = frame;
         entry
     }
 
     /// A body's bake as it stands, if one was asked for.
-    #[allow(
-        dead_code,
-        reason = "the globe on the map reads it once it is built (SURF-52)"
-    )]
+    #[cfg(test)]
     pub fn entry(&self, key: BakeKey) -> Option<&BakeEntry> {
-        self.entries.get(&key)
+        self.entries.get(&(key, Part::Cube))
     }
 
-    /// How many bakes are kept.
+    /// A body's close face as it stands, with the face it is of, if one
+    /// was asked for (SURF-34).
+    #[cfg(test)]
+    pub fn close_entry(&self, key: BakeKey) -> Option<(u32, &BakeEntry)> {
+        self.entries
+            .iter()
+            .find_map(|((other, part), entry)| match part {
+                Part::Close(face) if *other == key => Some((*face, entry)),
+                _ => None,
+            })
+    }
+
+    /// How many bakes are kept, close faces included.
     #[cfg(test)]
     pub fn len(&self) -> usize {
         self.entries.len()
     }
 
-    /// SURF-31: marks the faces the render world baked; a bake with every
-    /// face in is ready.
-    fn take_word(&mut self, baked: &[FaceWord]) {
-        for &(strip, face) in baked {
-            if let Some(entry) = self.entries.values_mut().find(|e| e.strip.id() == strip) {
-                entry.faces_done[face as usize] = true;
-                entry.ready = entry.faces_done.iter().all(|&done| done);
+    /// SURF-31: marks the pieces the render world baked; a bake with
+    /// every piece in is ready.
+    fn take_word(&mut self, baked: &[PieceWord]) {
+        for &(strip, piece) in baked {
+            if let Some(entry) = self.entries.values_mut().find(|e| e.strip.id() == strip)
+                && let Some(done) = entry.pieces.get_mut(piece as usize)
+            {
+                done.done = true;
+                entry.ready = entry.pieces.iter().all(|p| p.done);
             }
         }
     }
 
-    /// SURF-33: drops the least recently drawn bakes beyond `keep`.
+    /// SURF-33 / SURF-34: drops every close face not drawn this frame,
+    /// then the least recently drawn cube bakes beyond `keep`. A bake
+    /// drawn this frame is never dropped, so however many globes are
+    /// drawn at once each keeps its bake and finishes; the cache shrinks
+    /// back to `keep` once fewer are drawn.
     fn evict(&mut self, keep: usize) {
-        while self.entries.len() > keep.max(1) {
+        let now = self.frame;
+        self.entries
+            .retain(|(_, part), entry| *part == Part::Cube || entry.last_used >= now);
+        let cubes = |entries: &HashMap<(BakeKey, Part), BakeEntry>| {
+            entries
+                .keys()
+                .filter(|(_, part)| *part == Part::Cube)
+                .count()
+        };
+        while cubes(&self.entries) > keep.max(1) {
             let Some(oldest) = self
                 .entries
                 .iter()
+                .filter(|((_, part), entry)| *part == Part::Cube && entry.last_used < now)
                 .min_by_key(|(_, entry)| entry.last_used)
-                .map(|(key, _)| *key)
+                .map(|(slot, _)| *slot)
             else {
                 break;
             };
@@ -382,33 +527,41 @@ impl SurfaceBakes {
         }
     }
 
-    /// SURF-31: the faces to bake this frame, at most `faces_per_frame`,
-    /// the most recently asked-for bakes first: each face not yet done
-    /// and not issued within the last frames.
-    fn issue(&mut self, faces_per_frame: usize) -> Vec<BakeJob> {
+    /// SURF-31: the pieces to bake this frame, at most `per_frame`: cube
+    /// bakes before close faces, so a body has a picture before it has a
+    /// finer one, and within each the most recently asked-for first; each
+    /// piece not yet done and not issued within the last frames.
+    fn issue(&mut self, per_frame: usize) -> Vec<BakeJob> {
         let frame = self.frame;
-        let mut pending: Vec<&mut BakeEntry> =
-            self.entries.values_mut().filter(|e| !e.ready).collect();
-        pending.sort_by_key(|entry| std::cmp::Reverse(entry.last_used));
+        let mut pending: Vec<(Part, &mut BakeEntry)> = self
+            .entries
+            .iter_mut()
+            .filter(|(_, entry)| !entry.ready)
+            .map(|((_, part), entry)| (*part, entry))
+            .collect();
+        pending
+            .sort_by_key(|(part, entry)| (*part != Part::Cube, std::cmp::Reverse(entry.last_used)));
         let mut jobs = Vec::new();
-        for entry in pending {
-            for face in 0..FACES {
-                if jobs.len() >= faces_per_frame {
+        for (_, entry) in pending {
+            for (at, piece) in entry.pieces.iter_mut().enumerate() {
+                if jobs.len() >= per_frame {
                     return jobs;
                 }
-                let at = face as usize;
-                let waiting =
-                    entry.issued[at] != 0 && frame - entry.issued[at] < REISSUE_AFTER_FRAMES;
-                if entry.faces_done[at] || waiting {
+                let waiting = piece.issued != 0 && frame - piece.issued < REISSUE_AFTER_FRAMES;
+                if piece.done || waiting {
                     continue;
                 }
-                entry.issued[at] = frame;
+                piece.issued = frame;
                 jobs.push(BakeJob {
                     strip: entry.strip.clone(),
                     params: BakeParams {
-                        face,
+                        face: piece.face,
+                        column: piece.column,
+                        first_row: piece.rows.0,
+                        end_row: piece.rows.1,
                         ..entry.params
                     },
+                    piece: at as u32,
                 });
             }
         }
@@ -416,25 +569,26 @@ impl SurfaceBakes {
     }
 }
 
-/// SURF-31: how many faces to bake each frame so a bake takes at most
-/// `bake_frames` frames.
-pub fn faces_per_frame(bake_frames: u32) -> usize {
+/// SURF-31: how many pieces to bake each frame so a cube bake takes at
+/// most `bake_frames` frames.
+pub fn pieces_per_frame(bake_frames: u32) -> usize {
     FACES.div_ceil(bake_frames.max(1)) as usize
 }
 
-/// SURF-31 / SURF-33: takes word of the faces baked, drops the bakes
-/// beyond the cache, and issues this frame's faces.
+/// SURF-31 / SURF-33: takes word of the pieces baked, drops the bakes
+/// beyond the cache and the close faces not drawn this frame, then moves
+/// on a frame and issues its pieces.
 pub fn advance_bakes(
     mut bakes: ResMut<SurfaceBakes>,
     baked: Res<BakedFaces>,
     tunables: Res<Tunables>,
     mut jobs: ResMut<PendingBakeJobs>,
 ) {
-    bakes.frame += 1;
     let word = baked.drain();
     bakes.take_word(&word);
     bakes.evict(tunables.bake_cache_count);
-    jobs.0 = bakes.issue(faces_per_frame(tunables.bake_frames));
+    bakes.frame += 1;
+    jobs.0 = bakes.issue(pieces_per_frame(tunables.bake_frames));
 }
 
 /// The bake's compute pipeline in the render world.
@@ -472,9 +626,10 @@ fn init_bake_pipeline(
     commands.insert_resource(BakePipeline { layout, pipeline });
 }
 
-/// This frame's jobs with their bind groups, for the compute pass.
+/// This frame's jobs with their bind groups, for the compute pass: each
+/// job's strip, parameters and piece.
 #[derive(Resource, Default)]
-struct BakeBindGroups(Vec<(AssetId<Image>, BakeParams, BindGroup)>);
+struct BakeBindGroups(Vec<(AssetId<Image>, BakeParams, u32, BindGroup)>);
 
 /// Set once the bake pipeline's failure to compile has been logged, so
 /// the error is said once, not every frame a face waits.
@@ -504,13 +659,13 @@ fn prepare_bake_bind_groups(
             &pipeline_cache.get_bind_group_layout(&pipeline.layout),
             &BindGroupEntries::sequential((&uniform, &gpu_image.texture_view)),
         );
-        bound.push((job.strip.id(), job.params, bind_group));
+        bound.push((job.strip.id(), job.params, job.piece, bind_group));
     }
     commands.insert_resource(BakeBindGroups(bound));
 }
 
-/// SURF-31: runs this frame's bake jobs, one dispatch per face, and
-/// reports each face baked. Nothing runs until the pipeline has
+/// SURF-31: runs this frame's bake jobs, one dispatch per piece, and
+/// reports each piece baked. Nothing runs until the pipeline has
 /// compiled.
 fn run_bakes(
     mut render_context: RenderContext,
@@ -544,14 +699,14 @@ fn run_bakes(
             ..default()
         });
     pass.set_pipeline(compute);
-    for (strip, params, bind_group) in &bound.0 {
+    for (strip, params, piece, bind_group) in &bound.0 {
         pass.set_bind_group(0, bind_group, &[]);
         pass.dispatch_workgroups(
             params.face_px.div_ceil(WORKGROUP),
-            (params.face_px * params.rows).div_ceil(WORKGROUP),
+            (params.end_row - params.first_row).div_ceil(WORKGROUP),
             1,
         );
-        baked.report(*strip, params.face);
+        baked.report(*strip, *piece);
     }
 }
 
@@ -721,9 +876,9 @@ mod tests {
         bakes.frame = 1;
         let strip = bakes.request(key(1), &p, &mut images).strip.clone();
         assert!(!bakes.entry(key(1)).unwrap().ready);
-        assert_eq!(faces_per_frame(6), 1);
-        assert_eq!(faces_per_frame(2), 3);
-        assert_eq!(faces_per_frame(0), 6);
+        assert_eq!(pieces_per_frame(6), 1);
+        assert_eq!(pieces_per_frame(2), 3);
+        assert_eq!(pieces_per_frame(0), 6);
         let jobs = bakes.issue(1);
         assert_eq!(jobs.len(), 1);
         assert_eq!((jobs[0].params.face, jobs[0].strip.id()), (0, strip.id()));
@@ -737,6 +892,12 @@ mod tests {
         let jobs = bakes.issue(6);
         let faces: Vec<u32> = jobs.iter().map(|j| j.params.face).collect();
         assert_eq!(faces, [2, 3, 4, 5]);
+        // Each face is written whole, to its own column of the strip.
+        for job in &jobs {
+            assert_eq!(job.piece, job.params.face);
+            assert_eq!(job.params.column, job.params.face);
+            assert_eq!((job.params.first_row, job.params.end_row), (0, 64 * 2));
+        }
         let ready = |bakes: &SurfaceBakes| bakes.entry(key(1)).unwrap().ready;
         assert!(!ready(&bakes));
         bakes.take_word(&[(strip.id(), 2), (strip.id(), 3), (strip.id(), 4)]);
@@ -749,7 +910,7 @@ mod tests {
         assert!(bakes.request(key(1), &p, &mut images).ready);
         let finer = params(128);
         assert!(!bakes.request(key(1), &finer, &mut images).ready);
-        assert_ne!(bakes.entries[&key(1)].strip.id(), strip.id());
+        assert_ne!(bakes.entry(key(1)).unwrap().strip.id(), strip.id());
         // Recency: the body drawn longest ago goes first.
         for index in 2..=5 {
             bakes.frame = 10 + u64::from(index);
@@ -759,9 +920,103 @@ mod tests {
         bakes.request(key(1), &p, &mut images);
         bakes.evict(3);
         assert_eq!(bakes.len(), 3);
-        assert!(bakes.entries.contains_key(&key(1)));
-        assert!(bakes.entries.contains_key(&key(5)));
-        assert!(!bakes.entries.contains_key(&key(2)));
+        assert!(bakes.entry(key(1)).is_some());
+        assert!(bakes.entry(key(5)).is_some());
+        assert!(bakes.entry(key(2)).is_none());
+    }
+
+    /// SURF-33: a bake drawn this frame is never dropped, however many
+    /// are drawn at once, so each finishes; once fewer are drawn the
+    /// cache shrinks back to its size, least recently drawn first.
+    #[test]
+    fn bakes_drawn_this_frame_are_never_dropped() {
+        let mut images = Assets::<Image>::default();
+        let mut bakes = SurfaceBakes::default();
+        let key = |index: u32| BakeKey {
+            body: Entity::from_raw_u32(index).unwrap(),
+            knowledge: Knowledge::Surveyed,
+        };
+        let p = params(64);
+        // Five globes drawn every frame through a cache of two.
+        let mut strips = Vec::new();
+        for frame in 1..=40 {
+            bakes.frame = frame;
+            strips = (1..=5)
+                .map(|index| bakes.request(key(index), &p, &mut images).strip.id())
+                .collect();
+            bakes.evict(2);
+            assert_eq!(bakes.len(), 5);
+            let jobs = bakes.issue(1);
+            let word: Vec<PieceWord> = jobs.iter().map(|j| (j.strip.id(), j.piece)).collect();
+            bakes.take_word(&word);
+        }
+        for index in 1..=5 {
+            let entry = bakes.entry(key(index)).unwrap();
+            assert!(entry.ready, "body {index} finished");
+            assert_eq!(
+                entry.strip.id(),
+                strips[index as usize - 1],
+                "never restarted"
+            );
+        }
+        // Then only two are drawn: the others go, oldest first.
+        bakes.frame = 41;
+        bakes.request(key(4), &p, &mut images);
+        bakes.request(key(5), &p, &mut images);
+        bakes.evict(2);
+        assert_eq!(bakes.len(), 2);
+        assert!(bakes.entry(key(4)).is_some() && bakes.entry(key(5)).is_some());
+    }
+
+    /// SURF-34: a close face is one face baked in bands into a strip one
+    /// face wide, after any cube bake; it leaves the body's cube bake
+    /// alone, a body holds one at a time, and it goes as soon as a frame
+    /// passes without it being drawn.
+    #[test]
+    fn a_close_face_bakes_in_bands_beside_the_cube_and_lives_while_drawn() {
+        let mut images = Assets::<Image>::default();
+        let mut bakes = SurfaceBakes::default();
+        let key = BakeKey {
+            body: Entity::from_raw_u32(1).unwrap(),
+            knowledge: Knowledge::Surveyed,
+        };
+        let cube = params(16);
+        let close = params(64);
+        bakes.frame = 1;
+        let cube_strip = bakes.request(key, &cube, &mut images).strip.id();
+        let entry = bakes.request_close(key, 4, &close, 16, &mut images);
+        let image = images.get(entry.strip.id()).unwrap();
+        assert_eq!(image.texture_descriptor.size.width, 64, "one face wide");
+        assert_eq!(image.texture_descriptor.size.height, 64 * 2);
+        assert_eq!(bakes.len(), 2);
+        // The cube's six faces come first, then the close face's bands.
+        let jobs = bakes.issue(100);
+        assert_eq!(jobs.len(), 6 + 16);
+        assert!(jobs[..6].iter().all(|j| j.strip.id() == cube_strip));
+        let bands = &jobs[6..];
+        let mut next_row = 0;
+        for (at, job) in bands.iter().enumerate() {
+            assert_eq!(job.piece, at as u32);
+            assert_eq!((job.params.face, job.params.column), (4, 0));
+            assert_eq!(job.params.first_row, next_row);
+            next_row = job.params.end_row;
+        }
+        assert_eq!(next_row, 64 * 2, "the bands cover every row");
+        let word: Vec<PieceWord> = bands.iter().map(|j| (j.strip.id(), j.piece)).collect();
+        bakes.take_word(&word);
+        assert!(bakes.close_entry(key).unwrap().1.ready);
+        // Another face replaces it; the cube stays.
+        bakes.request_close(key, 2, &close, 16, &mut images);
+        assert_eq!(bakes.close_entry(key).unwrap().0, 2);
+        assert_eq!(bakes.len(), 2);
+        assert_eq!(bakes.entry(key).unwrap().strip.id(), cube_strip);
+        // Not drawn for a frame: it goes, the cube stays.
+        bakes.evict(8);
+        bakes.frame = 2;
+        bakes.request(key, &cube, &mut images);
+        bakes.evict(8);
+        assert!(bakes.close_entry(key).is_none());
+        assert!(bakes.entry(key).is_some());
     }
 
     /// SURF-33: a body's bake in a new knowledge state replaces its old
@@ -810,7 +1065,7 @@ mod tests {
     /// pass, sampled and read back.
     #[test]
     fn the_strip_is_six_faces_wide_and_bindable_every_way() {
-        let image = strip_image(64, 2);
+        let image = strip_image(64, FACES, 2);
         assert_eq!(image.texture_descriptor.size.width, 384);
         assert_eq!(image.texture_descriptor.size.height, 128);
         assert_eq!(image.texture_descriptor.format, STRIP_FORMAT);

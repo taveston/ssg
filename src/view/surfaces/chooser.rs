@@ -316,21 +316,20 @@ pub fn face_px(knowledge: Knowledge, tunables: &Tunables) -> u32 {
 
 /// SURF-34: whether a globe drawn with this projected radius, in pixels,
 /// is close enough in to bake its visible face again finer.
-#[allow(
-    dead_code,
-    reason = "read by the globe on the map once it is built (SURF-50)"
-)]
 pub fn needs_rebake(projected_radius_px: f32, tunables: &Tunables) -> bool {
     projected_radius_px > tunables.bake_face_px as f32 * tunables.rebake_zoom_factor
 }
 
 /// SURF-34: the face size of a close-in bake, in pixels.
-#[allow(
-    dead_code,
-    reason = "read by the globe on the map once it is built (SURF-50)"
-)]
 pub fn rebake_face_px(tunables: &Tunables) -> u32 {
     tunables.bake_face_px * tunables.rebake_scale
+}
+
+/// SURF-31 / SURF-34: how many pieces a close-in face is baked in, so
+/// each holds about as many texels as a face of the ordinary bake and a
+/// frame bakes no more than it would for a cube.
+pub fn rebake_pieces(tunables: &Tunables) -> u32 {
+    tunables.rebake_scale * tunables.rebake_scale
 }
 
 #[cfg(test)]
@@ -684,6 +683,9 @@ mod tests {
         assert!(!needs_rebake(edge, &t));
         assert!(needs_rebake(edge + 1.0, &t));
         assert_eq!(rebake_face_px(&t), t.bake_face_px * t.rebake_scale);
+        // Each piece of the close face holds an ordinary face's texels.
+        let piece = rebake_face_px(&t).pow(2) / rebake_pieces(&t);
+        assert_eq!(piece, t.bake_face_px.pow(2));
     }
 
     /// SURF-23 / SURF-24: each look's group sets whether it has a halo,

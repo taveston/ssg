@@ -3,7 +3,8 @@
 //! height and, for a body that glows, a second row for the emissive. The
 //! sums here map a direction to its face and texel and a texel back to
 //! its direction; `bake.wesl` and `globe.wesl` run the same sums, so this
-//! is the plain copy the tests check.
+//! is the plain copy the tests check. A close-in face (SURF-34) is a
+//! strip of one column holding a single face, laid out the same way.
 //!
 //! Each face keeps a one-texel border past its edge, baked as the true
 //! continuation of the sphere, so a bilinear sample on a face's edge
@@ -13,7 +14,6 @@
 //! The body frame: +Y is the north pole, +Z the prime meridian, so the
 //! substellar point of a locked body is +Z (SURF-21, SURF-41).
 
-#[cfg(test)]
 use bevy::math::Vec3;
 
 /// The six faces, in strip order: +X, -X, +Y, -Y, +Z, -Z.
@@ -24,7 +24,6 @@ const BORDER: f32 = 1.0;
 
 /// Where a direction lands on the cube: its face and its coordinates on
 /// it, each in [-1, 1].
-#[cfg(test)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FacePoint {
     pub face: u32,
@@ -34,7 +33,6 @@ pub struct FacePoint {
 
 /// SURF-35: the face a direction lands on and where on it: the face of
 /// its largest axis, with the other two axes divided by it.
-#[cfg(test)]
 pub fn face_point(d: Vec3) -> FacePoint {
     let a = d.abs();
     if a.x >= a.y && a.x >= a.z {
@@ -134,9 +132,10 @@ pub fn strip_texel(d: Vec3, row: u32, face_px: u32) -> (f32, f32) {
     (x, y)
 }
 
-/// The size of a strip in texels: six faces wide, `rows` faces tall.
-pub fn strip_size(face_px: u32, rows: u32) -> (u32, u32) {
-    (FACES * face_px, rows * face_px)
+/// The size of a strip in texels: `columns` faces wide (six for a whole
+/// cube, one for a close-in face), `rows` faces tall.
+pub fn strip_size(face_px: u32, columns: u32, rows: u32) -> (u32, u32) {
+    (columns * face_px, rows * face_px)
 }
 
 /// SURF-26: `count` directions spread evenly over the sphere, on a
@@ -187,7 +186,8 @@ mod tests {
                 }
             }
         }
-        assert_eq!(strip_size(64, 2), (384, 128));
+        assert_eq!(strip_size(64, FACES, 2), (384, 128));
+        assert_eq!(strip_size(64, 1, 2), (64, 128));
     }
 
     /// SURF-35: on a face's edge the sample sits on the boundary between

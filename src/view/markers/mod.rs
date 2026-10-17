@@ -523,7 +523,7 @@ impl MarkerPaint<'_, '_> {
 
 /// A marker's alpha and how far its fold has run, from its body's fold,
 /// join (MUL-05) and motion mode.
-fn marker_fade(
+pub fn marker_fade(
     fold: Option<&SatelliteFoldState>,
     motion: Option<&MotionModeState>,
     slide: Option<&JoinSlide>,

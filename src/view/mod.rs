@@ -152,6 +152,7 @@ impl Plugin for ViewPlugin {
                 sky::SkyMaterialPlugin,
                 surfaces::SurfacesPlugin,
                 surfaces::SurfaceRenderPlugin,
-            ));
+            ))
+            .add_plugins(surfaces::map::MapGlobePlugin);
     }
 }

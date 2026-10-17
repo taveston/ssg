@@ -44,11 +44,18 @@ struct Globe {
     node_px: f32,
     // Past this radius, in disc units, the node is transparent.
     opaque_radius: f32,
+    // SURF-34: the face drawn from the close-in strip, 6 for none, and
+    // that strip's face size.
+    close_face: u32,
+    close_px: u32,
 }
 
 @group(1) @binding(0) var<uniform> globe: Globe;
 @group(1) @binding(1) var strip: texture_2d<f32>;
 @group(1) @binding(2) var strip_sampler: sampler;
+// SURF-34: one face baked again finer, a strip one face wide.
+@group(1) @binding(3) var close_strip: texture_2d<f32>;
+@group(1) @binding(4) var close_sampler: sampler;
 
 const BUMP: f32 = 1.0;
 // The faint line banding of the telescope frame, in display levels of
@@ -60,9 +67,15 @@ fn view_from_body() -> mat3x3<f32> {
     return mat3x3<f32>(globe.view_from_body_x.xyz, globe.view_from_body_y.xyz, globe.view_from_body_z.xyz);
 }
 
+struct FacePoint {
+    face: u32,
+    s: f32,
+    t: f32,
+}
+
 // The face a direction lands on and where on it (`face_point` in
 // `cube.rs`): the face of its largest axis.
-fn strip_uv(d: vec3<f32>, row: u32) -> vec2<f32> {
+fn face_point(d: vec3<f32>) -> FacePoint {
     let a = abs(d);
     var face: u32;
     var s: f32;
@@ -80,15 +93,36 @@ fn strip_uv(d: vec3<f32>, row: u32) -> vec2<f32> {
         if (d.z > 0.0) { face = 4u; s = d.x / m; t = d.y / m; }
         else { face = 5u; s = -d.x / m; t = d.y / m; }
     }
-    let w = f32(globe.face_px);
-    let inner = w - 2.0;
-    let x = f32(face) * w + 1.0 + (s + 1.0) * inner / 2.0;
-    let y = f32(row) * w + 1.0 + (t + 1.0) * inner / 2.0;
-    return vec2<f32>(x / (6.0 * w), y / (f32(globe.rows) * w));
+    return FacePoint(face, s, t);
 }
 
+// Where a point of a face is sampled in a strip `columns` faces wide
+// whose faces are `face_px` square, the face being in column `column`:
+// the face's coordinates mapped over the face less its border
+// (`strip_texel` in `cube.rs`).
+fn strip_uv(p: FacePoint, row: u32, column: u32, columns: f32, face_px: u32) -> vec2<f32> {
+    let w = f32(face_px);
+    let inner = w - 2.0;
+    let x = f32(column) * w + 1.0 + (p.s + 1.0) * inner / 2.0;
+    let y = f32(row) * w + 1.0 + (p.t + 1.0) * inner / 2.0;
+    return vec2<f32>(x / (columns * w), y / (f32(globe.rows) * w));
+}
+
+// The bake at a direction: from the close-in strip on its face (SURF-34),
+// from the cube's strip elsewhere.
 fn sample_strip(d: vec3<f32>, row: u32) -> vec4<f32> {
-    return textureSampleLevel(strip, strip_sampler, strip_uv(d, row), 0.0);
+    let p = face_point(d);
+    if (p.face == globe.close_face) {
+        let uv = strip_uv(p, row, 0u, 1.0, globe.close_px);
+        return textureSampleLevel(close_strip, close_sampler, uv, 0.0);
+    }
+    let uv = strip_uv(p, row, p.face, 6.0, globe.face_px);
+    return textureSampleLevel(strip, strip_sampler, uv, 0.0);
+}
+
+// The face size the bake at a direction was baked at.
+fn texel_px(d: vec3<f32>) -> u32 {
+    return select(globe.face_px, globe.close_px, face_point(d).face == globe.close_face);
 }
 
 // The globe's light at a point `p` of the node, in disc units (the disc
@@ -132,7 +166,7 @@ fn globe_light(p: vec2<f32>, aa: f32) -> vec3<f32> {
         let alb = base.rgb;
         // The shading normal from the height: its gradient along two
         // tangents, a pixel or a texel apart, whichever is larger.
-        let eps = max(0.5 * aa, 2.0 / f32(globe.face_px));
+        let eps = max(0.5 * aa, 2.0 / f32(texel_px(d)));
         let ax = select(vec3<f32>(1.0, 0.0, 0.0), vec3<f32>(0.0, 1.0, 0.0), abs(d.y) < 0.95);
         let t1 = normalize(cross(ax, d));
         let t2 = cross(d, t1);

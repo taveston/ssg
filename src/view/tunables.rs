@@ -679,6 +679,13 @@ pub struct Tunables {
     /// How strongly the telescope frame's corner brackets are drawn in the
     /// inset (SURF-46).
     pub inset_bracket_alpha: f32,
+    /// On the map, a natural body's true-size disc is drawn as its globe
+    /// once its projected radius exceeds this many pixels... (SURF-50)
+    pub globe_min_px: f32,
+    /// ...and goes back to the plain disc only once the radius falls
+    /// below this many, less than `globe_min_px`, so the picture doesn't
+    /// flicker at the edge (SURF-50).
+    pub globe_release_px: f32,
     /// A lava override on a body too cool to melt by its own facts
     /// (Earth's) uses this equilibrium temperature, in K, for the
     /// override's surface temperature only (SURF-63).
@@ -944,6 +951,8 @@ impl Default for Tunables {
             rebake_scale: 4,
             inset_image_px: 300.0,
             inset_bracket_alpha: 0.75,
+            globe_min_px: 24.0,
+            globe_release_px: 20.0,
             earth_override_t_k: 1_500.0,
         }
     }

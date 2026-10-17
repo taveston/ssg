@@ -14,7 +14,7 @@ use bevy::render::gpu_readback::{Readback, ReadbackComplete};
 use bevy::window::ExitCondition;
 use bevy::winit::WinitPlugin;
 
-use super::bake::{BakeKey, SurfaceBakes, SurfaceInputs, describe_surface};
+use super::bake::{BakeKey, Surface, SurfaceBakes, SurfaceInputs, describe_surface};
 use super::cube::{FACES, fibonacci_sphere, texel_direction};
 use super::star::{StarClass, StarLight};
 use super::{SurfaceRenderPlugin, SurfacesPlugin};
@@ -77,18 +77,20 @@ fn gpu_app() -> App {
     app
 }
 
-/// A baked strip as texels: `rows` rows of six faces, each `face_px`
-/// square, each texel RGBA as floats.
+/// A baked strip as texels: `rows` rows of `columns` faces (six for a
+/// cube, one for a close face), each `face_px` square, each texel RGBA
+/// as floats.
 struct Baked {
     face_px: u32,
     rows: u32,
+    columns: u32,
     texels: Vec<[f32; 4]>,
 }
 
 impl Baked {
-    fn texel(&self, face: u32, x: u32, y: u32, row: u32) -> [f32; 4] {
-        let width = FACES * self.face_px;
-        let index = (row * self.face_px + y) * width + face * self.face_px + x;
+    fn texel(&self, column: u32, x: u32, y: u32, row: u32) -> [f32; 4] {
+        let width = self.columns * self.face_px;
+        let index = (row * self.face_px + y) * width + column * self.face_px + x;
         self.texels[index as usize]
     }
 
@@ -174,8 +176,8 @@ fn f16_to_f32(h: u16) -> f32 {
 }
 
 /// The strip's bytes as texels: rows padded to the copy alignment.
-fn decode(bytes: &[u8], face_px: u32, rows: u32) -> Baked {
-    let width = FACES * face_px;
+fn decode(bytes: &[u8], face_px: u32, rows: u32, columns: u32) -> Baked {
+    let width = columns * face_px;
     let height = rows * face_px;
     let row_bytes = (width * 8).div_ceil(256) * 256;
     let mut texels = Vec::with_capacity((width * height) as usize);
@@ -194,6 +196,7 @@ fn decode(bytes: &[u8], face_px: u32, rows: u32) -> Baked {
     Baked {
         face_px,
         rows,
+        columns,
         texels,
     }
 }
@@ -208,34 +211,41 @@ fn bake(app: &mut App, inputs: &SurfaceInputs, knowledge_face: Option<u32>) -> B
         body,
         knowledge: inputs.knowledge,
     };
-    let strip = {
-        let world = app.world_mut();
-        world.resource_scope(|world, mut bakes: Mut<SurfaceBakes>| {
-            let mut images = world.resource_mut::<Assets<Image>>();
-            bakes
-                .request(key, &surface.params, &mut images)
-                .strip
-                .clone()
-        })
-    };
+    let strip = run_bake(app, |bakes, images| {
+        let entry = bakes.request(key, &surface.params, images);
+        (entry.strip.clone(), entry.ready)
+    });
+    read_back(app, strip, &surface, FACES)
+}
+
+/// Asks for a bake each frame, as a globe being drawn does, until it is
+/// ready, and returns its strip.
+fn run_bake(
+    app: &mut App,
+    mut ask: impl FnMut(&mut SurfaceBakes, &mut Assets<Image>) -> (Handle<Image>, bool),
+) -> Handle<Image> {
     let mut frames = 0;
     loop {
-        app.update();
-        frames += 1;
-        let ready = {
+        let (strip, ready) = {
             let world = app.world_mut();
-            // Asking again each frame keeps the bake recent and reports
-            // its state.
             world.resource_scope(|world, mut bakes: Mut<SurfaceBakes>| {
                 let mut images = world.resource_mut::<Assets<Image>>();
-                bakes.request(key, &surface.params, &mut images).ready
+                ask(&mut bakes, &mut images)
             })
         };
         if ready {
-            break;
+            return strip;
         }
+        app.update();
+        frames += 1;
         assert!(frames < PATIENCE, "the bake never finished");
     }
+}
+
+/// Reads a baked strip of `surface`'s, `columns` faces wide, back from
+/// the GPU.
+fn read_back(app: &mut App, strip: Handle<Image>, surface: &Surface, columns: u32) -> Baked {
+    let mut frames = 0;
     let sink = app.world().resource::<ReadbackSink>().clone();
     *sink.0.lock().unwrap() = None;
     let reader = app
@@ -261,7 +271,7 @@ fn bake(app: &mut App, inputs: &SurfaceInputs, knowledge_face: Option<u32>) -> B
         assert!(frames < PATIENCE, "the read-back never came");
     };
     app.world_mut().entity_mut(reader).despawn();
-    decode(&bytes, surface.face_px(), surface.rows())
+    decode(&bytes, surface.face_px(), surface.rows(), columns)
 }
 
 fn facts(
@@ -307,6 +317,57 @@ fn differing(a: &Baked, b: &Baked) -> usize {
         .zip(&b.texels)
         .filter(|(p, q)| p.iter().zip(q.iter()).any(|(x, y)| (x - y).abs() > 1e-4))
         .count()
+}
+
+/// Bakes `face` of `inputs` on its own as a close face, at the test's
+/// face size, in a few bands, with the finer crater scales on or off,
+/// and reads it back.
+fn bake_close(app: &mut App, inputs: &SurfaceInputs, face: u32, fine: bool) -> Baked {
+    let tunables = app.world().resource::<Tunables>().clone();
+    let surface = describe_surface(inputs, Some(FACE_PX), fine, &tunables);
+    let key = BakeKey {
+        body: app.world_mut().spawn_empty().id(),
+        knowledge: inputs.knowledge,
+    };
+    // Five bands, so the last is short.
+    let strip = run_bake(app, |bakes, images| {
+        let entry = bakes.request_close(key, face, &surface.params, 5, images);
+        (entry.strip.clone(), entry.ready)
+    });
+    read_back(app, strip, &surface, 1)
+}
+
+/// SURF-34 / SURF-31: a close face baked on its own, in bands, into a
+/// strip one face wide holds the same texels as that face of the cube
+/// baked at the same size, every row of every layer; with the finer
+/// crater scales on it differs.
+#[test]
+fn a_close_face_baked_in_bands_matches_the_cubes_face() {
+    let mut app = gpu_app();
+    let rock = facts(
+        WorldKind::Rocky,
+        Atmosphere::Airless,
+        Water::None,
+        false,
+        Activity::Dead,
+        900.0,
+    );
+    let inputs = surveyed(&rock, 7);
+    let cube = bake(&mut app, &inputs, None);
+    assert_eq!(cube.rows, 2, "a glowing rock bakes both layers");
+    let close = bake_close(&mut app, &inputs, 4, false);
+    let mut compared = 0;
+    for row in 0..cube.rows {
+        for y in 0..FACE_PX {
+            for x in 0..FACE_PX {
+                assert_eq!(close.texel(0, x, y, row), cube.texel(4, x, y, row));
+                compared += 1;
+            }
+        }
+    }
+    assert_eq!(compared, close.texels.len());
+    let fine = bake_close(&mut app, &inputs, 4, true);
+    assert!(differing(&close, &fine) > 0, "the finest craters show");
 }
 
 /// SURF-71 / SURF-01: baking one face twice for the same inputs gives the

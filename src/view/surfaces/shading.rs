@@ -46,9 +46,17 @@ pub struct GlobeUniform {
     pub plumes: u32,
     pub node_px: f32,
     pub opaque_radius: f32,
+    /// SURF-34: the face drawn from the close-in strip instead of the
+    /// cube's, `NO_CLOSE_FACE` for none, and that strip's face size.
+    pub close_face: u32,
+    pub close_px: u32,
 }
 
-/// The material that draws one globe from its strip.
+/// The close face of a globe with none: no face of the cube has it.
+pub const NO_CLOSE_FACE: u32 = super::cube::FACES;
+
+/// The material that draws one globe from its strip, and from its close
+/// face's strip where it has one (SURF-34).
 #[derive(AsBindGroup, Asset, TypePath, Clone, Debug)]
 pub struct GlobeMaterial {
     #[uniform(0)]
@@ -56,6 +64,9 @@ pub struct GlobeMaterial {
     #[texture(1)]
     #[sampler(2)]
     pub strip: Handle<Image>,
+    #[texture(3)]
+    #[sampler(4)]
+    pub close: Option<Handle<Image>>,
 }
 
 impl UiMaterial for GlobeMaterial {
@@ -223,6 +234,16 @@ pub struct GlobeView {
     /// SURF-25: the grain's seed, so the telescope frame's grain is fixed
     /// per body.
     pub grain_seed: u32,
+    /// SURF-34: the face drawn from a close-in bake, and that bake's face
+    /// size, while one is ready.
+    pub close: Option<CloseFace>,
+}
+
+/// SURF-34: a face of the globe drawn from its close-in bake.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CloseFace {
+    pub face: u32,
+    pub face_px: u32,
 }
 
 /// SURF-40: what the globe pass reads for a surface seen a given way.
@@ -254,6 +275,8 @@ pub fn globe_uniform(surface: &Surface, view: &GlobeView, tunables: &Tunables) -
         plumes: u32::from(look.plumes),
         node_px: view.node_px,
         opaque_radius: view.opaque_radius,
+        close_face: view.close.map_or(NO_CLOSE_FACE, |close| close.face),
+        close_px: view.close.map_or(0, |close| close.face_px),
     }
 }
 
@@ -394,9 +417,24 @@ mod tests {
             node_px: 300.0,
             opaque_radius: 10.0,
             grain_seed: 9,
+            close: None,
         };
         let u = globe_uniform(&seen, &view, &t);
         assert_eq!(u.telescope, 0);
+        assert_eq!(u.close_face, NO_CLOSE_FACE);
+        let close = CloseFace {
+            face: 4,
+            face_px: 4096,
+        };
+        let near = globe_uniform(
+            &seen,
+            &GlobeView {
+                close: Some(close),
+                ..view
+            },
+            &t,
+        );
+        assert_eq!((near.close_face, near.close_px), (4, 4096));
         assert_eq!(u.light, Vec4::new(1.0, 0.0, 0.0, 0.0));
         assert_eq!(u.light_colour.x, t.star_light_strength);
         assert_eq!((u.face_px, u.rows), (t.bake_face_px, 1));
