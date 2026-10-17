@@ -41,6 +41,11 @@ The first three are spatial layers, nested from sector down to planet. Faction a
   - **"In orbit" is an outline of the whole system (decided 2026-10-13, from F5-07).** A flat list of the selection's satellites vanished as soon as one was clicked, so a single click had to wait out the double-click window. A tree from the star down stays put when you click, so a click selects at once, and moving to a parent or a sibling is one click. (Specced: INS-05, INS-07.)
   - **Fidelity follows knowledge (candidate):** the view shows the best image the faction holds. An unsurveyed body is a grainy telescope frame. A surveyed one is a clean render with overlays (ice, ruins, settlements). An old observation shows the last image with its date. Own ships and stations render fully; foreign contacts only as well as they have been observed. This ties the visuals to the uncertainty pillar and to partly known salvage sites (*Salvage & Research*). (Only placeholder surveyed and unsurveyed images are specced, INS-04: how information is gathered isn't designed yet, so there is no stale state, status text or date. Foreign contacts not yet.)
   - **Renders from designs (candidate):** ship and station renders are assembled from their component designs. So two bids for the same requirements look visibly different, and as-built variants and refits show.
+  - **Planet surfaces are procedural (direction, 2026-10-17).** A shader draws each planet from the figures the generator already gives it (kind, gravity, equilibrium temperature, atmosphere class, water) and a seed derived from the sector seed and the body's id, so a body looks the same each time it is inspected. No art assets. Mock-up 29 shows seven kinds, four states of knowledge, phase and star colour, and close zoom.
+    - **Knowledge is one value.** Fewer noise octaves and no small craters give a body seen from far away, and blur and grain on top give the telescope frame. The same large forms stay put as the faction learns more, so the unsurveyed and surveyed images are plainly the same planet. The planetary view's globe uses the same shader and adds octaves as the view closes.
+    - **Light (decided 2026-10-17, from review of mock-up 29):** a sharp day-night terminator and almost no ambient light, for a photographic look. Atmospheres glow at the limb on the lit side only.
+    - **Why:** the generator already produces the figures, art for every kind of body would be a large cost, and a procedural surface can show knowledge as a continuous value instead of a set of pictures.
+    - **Still open:** the look needs tuning per kind (the icy and ice-giant kinds are the weakest), and nothing is specced.
 - **Information model (decided):** the player has a semi-omniscient view. Signal delay isn't modelled: what the faction knows, the player sees at once, in every system.
 - **Abstract uncertainty (candidate):** limits on knowledge are modelled abstractly rather than through physics.
   - Undetected contacts aren't shown. Thermal detection (see *Component Catalogue*, sensors) decides what appears.
@@ -141,7 +146,7 @@ The first three are spatial layers, nested from sector down to planet. Faction a
 
 ## 5. Art scope (direction)
 
-The vector layer is cheap to produce, and so is the sky: it is generated, with no art. Photoreal work is needed for generated body types and surfaces, stations, gates, ruins and ship components. The administration view needs portraits and 2D interface art. This keeps art cost in line with the scope risk (design document, section 7).
+The vector layer is cheap to produce, and so is the sky: it is generated, with no art. Planet and moon surfaces are generated too (section 2, planet surfaces), so photoreal art is needed only for stations, gates, ruins and ship components. The administration view needs portraits and 2D interface art. This keeps art cost in line with the scope risk (design document, section 7).
 
 ## 6. Open questions
 
@@ -157,4 +162,5 @@ The vector layer is cheap to produce, and so is the sky: it is generated, with n
 - Camera: the final tilt limit and pan and rotate speeds after testing; the tilt range for the sector view.
 - Motion rule: final values for R_show, `tail_secs` and `dot_fade_from_degrees` after testing; whether the label should glide from the dot to its fixed spot on the ring as the tail closes, rather than jump.
 - Planetary view as a globe or a flat map, and how much surface detail is modelled.
+- Procedural surfaces: colour tuning per kind; whether a body's look should also show its composition and history (metal-rich, ice-rich, scarred by the collapse); clouds on rocky worlds, rings and sub-Neptunes; and whether the shader runs per pixel or bakes a cubemap when a body is opened.
 - How the administration view is organised, and how the player moves between it and the spatial layers: candidate in `ui-style.md`.
