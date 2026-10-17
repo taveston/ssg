@@ -2,7 +2,7 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-273.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-278.
 
 ---
 
@@ -245,8 +245,8 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Disposition:** open. Copy into SGEN-22, or give another notation.
 
 ### F-259 · Same sector on every machine depends on the platform's maths library
-- **Observation:** SGEN-02 asks for the same sector "on every run and machine". The random numbers are integer arithmetic, identical everywhere, and a test pins the published xoshiro256** and SplitMix64 values. But the generator also uses `powf`, `ln`, `exp`, `cbrt`, `sin` and `cos`, which Rust takes from the platform's maths library, and their last bit may differ between operating systems. Range and Hill-spacing branches can turn that into a different sector. The same build target gives the same sector every run.
-- **Affects:** SGEN-02, SGEN-06 · **Type:** spec gap
+- **Observation:** SGEN-02 asks for the same sector "on every run and machine". The random numbers are integer arithmetic, identical everywhere, and a test pins the published xoshiro256** and SplitMix64 values. But the generator also uses `powf`, `ln`, `exp`, `cbrt`, `sin` and `cos`, which Rust takes from the platform's maths library, and their last bit may differ between operating systems. Range and Hill-spacing branches can turn that into a different sector. The same build target gives the same sector every run. The sky (SKY-01) uses the same generator and functions, so the same holds for it.
+- **Affects:** SGEN-02, SGEN-06, SKY-01 · **Type:** spec gap
 - **Disposition:** open. Accept "same target, same sector", or write the few functions in the repo (SGEN-06 rules out a crate such as `libm`), or allow such a crate.
 
 ### F-260 · Every sub-Neptune has the same surface gravity
@@ -313,6 +313,31 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** Over the 200-sector sweep there were 6 junctions and no relays: at two mean spacings the top scorers are already joined, so SGEN-56 is barely exercised and the gated set is in effect the top N by score. Found in review.
 - **Affects:** SGEN-56, SGEN-60 · **Type:** spec gap
 - **Disposition:** open. Say whether that is intended, or tune the range.
+
+### F-273 · The sky's opacities are applied in display levels, as in the mock-up
+- **Observation:** Bevy blends in linear light, where a faint opacity shows far brighter than in mock-up 28's browser blending: the glow at 0.085 would add about 60 display levels instead of about 15, and the faintest star about 45 instead of 18. The build adds each star's and the glow's light as an sRGB blend over the ground would, so the sky keeps the mock-up's weights. Where two stars overlap their light adds rather than composites, a slight difference. The review confirmed the screenshot levels match the mock-up's.
+- **Affects:** SKY-09, SKY-13 · **Type:** spec gap
+- **Disposition:** open. Say in SKY-09 that opacities are in display (sRGB) levels over the ground, or blend in linear light and lower the opacities.
+
+### F-274 · Star sizes are logical pixels, with a softness floor that keeps SKY-11
+- **Observation:** SKY-10 gives star sizes in "screen pixels". They are built in logical pixels, like markers (MRK-03), so at the 1.25 display scale `sky_sigma_px` 0.55 is 0.69 physical pixels. A star's softness is never set below the size at which SKY-11's tolerance holds (about 0.47 px at tolerance 0.05), so a lower `sky_sigma_px` can't make stars flicker. The defaults are above the floor, so nothing changes today.
+- **Affects:** SKY-10, SKY-11 · **Type:** spec gap
+- **Disposition:** open. Say which pixels, and whether SKY-11 may raise SKY-10's size.
+
+### F-275 · The sky reads thinner and dimmer than mock-up 28 in the game window
+- **Observation:** Mock-up 28's panels fit the camera's 45° field of view into 380 px; the game puts it into 720 logical (900 physical) px, so the same 150,000 stars are several times sparser per pixel and each is a softer, dimmer point. The band shows mostly as extra density and a faint lift towards its core, and the dark lanes are hard to see. Rings and markers keep their weight easily. Screenshots are in the session scratchpad's sky-shots folder; the review saw the same.
+- **Affects:** SKY-04, SKY-09, SKY-13, SKY-14 · **Type:** spec wrong
+- **Disposition:** open. Keep the sky quiet, or raise `sky_field_stars` / `sky_band_stars` (about 0.68 ms of GPU per 150k stars today), or raise `sky_peak` / `sky_glow_alpha` / `sky_lane_depth`.
+
+### F-276 · Glow noise and dither details the spec leaves open
+- **Observation:** Following mock-up 28, these are named constants in `view/sky/glow.rs`, not tunables: lanes are value noise of the direction, 4 octaves at 5.5 cells per unit, above a 0.5 to 0.72 threshold, strongest within 5.5° of the centre line; mottle is 3 octaves at 22 cells; the glow isn't drawn beyond 4 standard deviations, where it is under a hundredth of a level; the dither is triangular, fixed per screen pixel, and fades in over the glow's first level so the plain ground gets no noise.
+- **Affects:** SKY-13, SKY-14, SKY-15 · **Type:** spec gap
+- **Disposition:** open. Confirm these, or make any of them tunables.
+
+### F-277 · The view uses the generator's random numbers
+- **Observation:** The sky (`src/view/sky/generate.rs`, `band.rs`) imports `content::generator::rng::{Rng, derive_seed}`, because SKY-02 asks for the generator's own seed derivation (SGEN-03). ARCH-02 lists view → sim and content → sim, and doesn't name view → content, though it only forbids sim or content → view. Found in review; the code is left as built.
+- **Affects:** ARCH-02, SKY-01, SKY-02 · **Type:** spec gap
+- **Disposition:** open. Say in ARCH-02 that the view may use content's plain data and utilities, or move `rng.rs` to a shared module outside the three domains that both use.
 
 ## Parked
 

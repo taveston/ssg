@@ -13,13 +13,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **Sky in the system view** · SKY-01, SKY-03 to SKY-22, MRK-12
-  - A new module `src/view/sky/` with its plugin. The sky is made by one plain function from a seed and `Tunables` (SKY-01), with no Bevy types; the view makes it at start-up from `sky_default_seed`, because the sector seed doesn't exist yet (SKY-02 comes with the sector item below). Draw it as the bottom layer in the map area only, at infinity: through the camera's heading, tilt and field of view, with no position (SKY-16, SKY-18, SKY-20). Never a hover or click target (SKY-19). Always on, with no toggle (SKY-22).
-  - MRK-12 changed meaning (the sky is the new bottom layer), so its ✓ is cleared.
-  - Add the `sky_*` tunables of `docs/spec/sky.md` to the `Tunables` resource, documented field by field. `sector_sky_factor` waits for the sector item.
-  - How to draw it is open (spec, open points): tens of thousands of soft points as one instanced draw, and the glow as a cheap field over the map area, are the obvious start. Mock-up 28 is the look. Judge it on screen and add findings.
-  - Tests: the same seed gives the same sky and two seeds differ (SKY-01, SKY-03); the star counts and the magnitude ratios per step, over many seeds (SKY-04, SKY-05); the band's latitude spread and the core being denser (SKY-06); over 1,000 seeds the band's tilt is in range and it passes within the margin of the standard view's line of sight, with the fallback when the range is out of reach (SKY-07, SKY-08); the brightest and faintest opacity (SKY-09); a star's deposited light stays within the tolerance for sub-pixel offsets (SKY-11); no colour above the saturation cap (SKY-12); the glow's falloff, lane and mottle bounds, and the dither's size and zero mean (SKY-13 to SKY-15); a star's projected position doesn't change under pan, zoom or a change of frame, and turns by the heading change (SKY-16); nothing changes with the clock (SKY-17); no star is drawn outside the map area, also while the inset slides (SKY-18); a click through the sky hits what is beneath (SKY-19); the sky is below every other layer (SKY-20); no star is an outline (SKY-21).
-
 - [ ] **System generator** · SYSG-01 to SYSG-71, INS-08
   - `generate_system` builds the records Corvane and Sol use (SCL-03). Add planet facts (SYSG-22) and the gate state (SYSG-52) as simulation components.
   - INS-08 changed meaning (planet facts and gate state in the inset), so its ✓ is cleared.
@@ -37,6 +30,8 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Other
 
+- [ ] **Sky: draw the stars instanced**
+  - Found in review of the sky item. The stars mesh carries four full vertices per star (about 30 MB with the index buffer). One instance record per star over a 4-vertex corner mesh would cut that about fourfold, as the sky spec's open point suggests. It costs VRAM, not frame time, so it is low priority.
 - [ ] **Bring older docs up to the writing style**
   - The rules are in `docs/README.md` (Writing). Do it one doc at a time, with no change of meaning.
   - The longest are the likeliest to need it: `ideas/mechanics/requirements-and-bids.md`, `ideas/mechanics/component-stats.md` and `ideas/mechanics/transfers.md`.
