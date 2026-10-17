@@ -11,7 +11,9 @@
 
 use bevy::prelude::*;
 
-use super::nodes::{NodeScreens, node_name};
+use std::collections::HashMap;
+
+use super::nodes::{NodeScreen, NodeScreens, node_name};
 use super::{ForEntry, NodeKind};
 use crate::content::start::LoadedSector;
 use crate::view::anim::step_per_frame;
@@ -110,50 +112,54 @@ pub fn place_node_labels(
     mut labels: LabelNodes,
 ) {
     let hovered: Vec<usize> = hovered.iter().map(|entry| entry.0).collect();
-    let gap = tunables.label_gap_px;
     let margin = tunables.bracket_margin_px;
-    let obstacles: Vec<Rect> = screens
-        .0
-        .values()
-        .map(|s| Rect::from_center_half_size(s.centre, Vec2::splat(s.half + margin)))
+    let none = HashMap::new();
+    let shown = if layer.is_sector() { &screens.0 } else { &none };
+    let obstacles: Vec<Rect> = shown.values().map(|s| node_box(s, margin)).collect();
+    let picked = |id: usize| (selection.is_selected(id), hovered.contains(&id));
+    let candidates: Vec<Candidate> = labels
+        .iter()
+        .filter_map(|(label, entry, computed, state, ..)| {
+            let screen = shown.get(&entry.0)?;
+            let (selected, over) = picked(entry.0);
+            label_wanted(screen.kind, selected, over).then(|| Candidate {
+                body: label,
+                rank: sector_label_rank(selected, over, screen.kind),
+                depth: screen.depth,
+                marker: node_box(screen, margin),
+                slots: SLOTS,
+                full_size: node_size(computed),
+                name_size: node_size(computed),
+                pinned: selected || over,
+                previous: state.shown,
+            })
+        })
         .collect();
-    let mut candidates: Vec<Candidate> = Vec::new();
-    let mut owners: Vec<Entity> = Vec::new();
-    for (label, entry, computed, state, ..) in &labels {
-        let Some(screen) = screens.0.get(&entry.0).filter(|_| layer.is_sector()) else {
-            continue;
-        };
-        let (selected, over) = (selection.is_selected(entry.0), hovered.contains(&entry.0));
-        if !label_wanted(screen.kind, selected, over) {
-            continue;
-        }
-        let size = node_size(computed);
-        candidates.push(Candidate {
-            body: label,
-            rank: sector_label_rank(selected, over, screen.kind),
-            depth: screen.depth,
-            marker: Rect::from_center_half_size(screen.centre, Vec2::splat(screen.half + margin)),
-            slots: SLOTS,
-            full_size: size,
-            name_size: size,
-            pinned: selected || over,
-            previous: state.shown,
-        });
-        owners.push(label);
-    }
-    let placed = place_labels(&candidates, &obstacles, gap);
+    let placed = place_labels(&candidates, &obstacles, tunables.label_gap_px);
+    let wanted: HashMap<Entity, Option<Placement>> = candidates
+        .iter()
+        .zip(placed)
+        .map(|(candidate, placement)| (candidate.body, placement))
+        .collect();
     let step = step_per_frame(time.delta_secs(), tunables.label_fade_ms);
-    for (label, _, _, mut state, mut node, mut color) in &mut labels {
-        let at = owners.iter().position(|&owner| owner == label);
-        let wanted: Option<Placement> = at.and_then(|index| placed[index]);
-        let (alpha, shown) = advance_fade(state.alpha, state.shown, wanted, step);
-        *state = LabelState { shown, alpha };
-        let place = at.zip(shown).map(|(index, placement)| {
-            let candidate = &candidates[index];
-            label_rect(candidate.marker, candidate.full_size, placement.slot, gap).min
+    for (label, entry, computed, mut state, mut node, mut color) in &mut labels {
+        let want = wanted.get(&label).copied().flatten();
+        let (alpha, now) = advance_fade(state.alpha, state.shown, want, step);
+        *state = LabelState { shown: now, alpha };
+        // A label fading out stays where it was, beside its node.
+        let place = shown.get(&entry.0).zip(now).map(|(screen, placement)| {
+            let size = node_size(computed);
+            let gap = tunables.label_gap_px;
+            label_rect(node_box(screen, margin), size, placement.slot, gap).min
         });
         write_label(&mut node, &mut color, place, alpha);
     }
+}
+
+/// HOV-07 / LBL-01: the box round a node that labels are placed beside
+/// and keep clear of: its drawn square and `margin` on every side.
+fn node_box(screen: &NodeScreen, margin: f32) -> Rect {
+    Rect::from_center_half_size(screen.centre, Vec2::splat(screen.half + margin))
 }
 
 /// A label's node and colour from its place and fade: hidden with no

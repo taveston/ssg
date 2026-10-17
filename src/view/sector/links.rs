@@ -8,7 +8,7 @@
 use bevy::prelude::*;
 
 use super::SectorNode;
-use crate::content::generator::network::LinkState;
+use crate::content::generator::network::{Link, LinkState};
 use crate::content::start::LoadedSector;
 use crate::view::colors;
 use crate::view::map_layer::MapLayer;
@@ -151,6 +151,25 @@ pub fn link_pieces(
     }
 }
 
+/// SECT-04: every link's pieces, from its ends' render positions by
+/// entry id.
+pub fn lay_out_links(
+    links: &[Link],
+    world: &[Vec3],
+    view: RingView,
+    tunables: &Tunables,
+    project: impl Fn(Vec3) -> Option<Vec2>,
+) -> Vec<(LinkStroke, Piece)> {
+    let mut pieces = Vec::new();
+    for link in links {
+        let stroke = LinkStroke::of(link.state);
+        let ends = (world[link.ends[0]], world[link.ends[1]]);
+        let laid = link_pieces(ends, stroke, view, tunables, &project);
+        pieces.extend(laid.into_iter().map(|piece| (stroke, piece)));
+    }
+    pieces
+}
+
 /// SECT-04: lay out every link with this frame's camera and refill the
 /// stroke gizmos. Nothing is drawn while the system view is shown.
 pub fn draw_links(
@@ -164,26 +183,17 @@ pub fn draw_links(
 ) {
     pieces.0.clear();
     if let (Some(loaded), Some((_, camera)), true) = (&sector, now.camera(), layer.is_sector()) {
-        let world: Vec<Vec3> = {
-            let mut by_id = vec![Vec3::ZERO; loaded.sector.entries.len()];
-            for node in &nodes {
-                by_id[node.id] = node.world;
-            }
-            by_id
-        };
+        let mut world = vec![Vec3::ZERO; loaded.sector.entries.len()];
+        for node in &nodes {
+            world[node.id] = node.world;
+        }
         let view = RingView {
             camera_pos: camera.translation(),
             camera_forward: camera.forward().as_vec3(),
             max_error_rad: f32::INFINITY,
         };
-        for link in &loaded.sector.links {
-            let stroke = LinkStroke::of(link.state);
-            let ends = (world[link.ends[0]], world[link.ends[1]]);
-            let laid = link_pieces(ends, stroke, view, &tunables, |p| now.project(p));
-            pieces
-                .0
-                .extend(laid.into_iter().map(|piece| (stroke, piece)));
-        }
+        let project = |p: Vec3| now.project(p);
+        pieces.0 = lay_out_links(&loaded.sector.links, &world, view, &tunables, project);
     }
     let Some(assets) = assets.as_mut() else {
         return;

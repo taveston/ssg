@@ -172,26 +172,25 @@ pub fn place_nodes(
     let camera = now.camera().map(|(_, transform)| transform.translation());
     let scale = map.scale_factor();
     let viewport = map.viewport().filter(|_| layer.is_sector());
-    for (entity, node, _, _) in &nodes {
-        let (Some(at), Some(eye), Some(viewport)) = (now.project(node.world), camera, viewport)
-        else {
-            continue;
-        };
-        // A node beyond the map's edge, under the sidebar, isn't drawn,
-        // as a marker there isn't.
-        if !in_viewport(at, viewport) {
-            continue;
-        }
-        screens.0.insert(
-            node.id,
-            NodeScreen {
+    if let (Some(eye), Some(viewport)) = (camera, viewport) {
+        for (entity, node, ..) in &nodes {
+            // A node beyond the map's edge, under the sidebar, isn't
+            // drawn, as a marker there isn't.
+            let Some(at) = now
+                .project(node.world)
+                .filter(|&at| in_viewport(at, viewport))
+            else {
+                continue;
+            };
+            let screen = NodeScreen {
                 node: entity,
                 kind: node.kind,
                 centre: snap_to_pixel(at, scale),
                 half: node_px(node.kind, &tunables) / 2.0,
                 depth: eye.distance(node.world),
-            },
-        );
+            };
+            screens.0.insert(node.id, screen);
+        }
     }
     let depths: Vec<(usize, f32)> = screens.0.iter().map(|(&id, s)| (id, s.depth)).collect();
     let order: HashMap<usize, i32> = layers::depth_layers(&depths).into_iter().collect();
