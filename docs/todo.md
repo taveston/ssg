@@ -35,26 +35,12 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Fixes
 
-- [ ] **Planet marker: review fixes** · GRP-10, GRP-11, GRP-12, GRP-13, INS-06
-  - Found in review of the moon ring and object pip item.
-  - The moon ring's box and its drawing differ while it fades: `ring_offset` scales the marker's `BackFrame` (box, hit area, label box) by the fade, but the ring node is drawn at the full `moon_ring_offset_px` from the start (`markers/moon_ring.rs`, `MarkerPaint::paint`). Make them agree.
-  - Missing tests: the pip fades in over `fold_unfold_anim_ms` and with its parent's fade (MOT-11); hovering the pip or fold marker, or its open tray, keeps it popped (headless, not only `wants_out`); the INS-06 hand-over for a moon as its ring fades; GRP-11's "+N" is dropped first when crowded; a label test with a real label size and a neighbour nearby.
 ## Other
 
 - [ ] **Sector generator: test follow-ups after review**
   - Found in review of sector generator part 2.
   - The SGEN-58 invariant checks the ring is clear and within the slide limit, but not that it took the nearest clear radius, outward first. Where no planet moved, check that no radius between the start and the ring is clear.
   - Two tests sit close to their limits: the lowest preset mean is 4.07 links per system (limit 4.0), and step-3 crossings are 0.66% (limit 1%). Note this beside the tunables they depend on, so tuning that trips them is expected.
-- [ ] **Tray rows that tie are ordered by entity id**
-  - Things in the same phase sort by `Entity`, so their tray rows can change order when unrelated code spawns entities (seen when the double-click fix shifted TF-1's row and `the_tray_keys_step_open_and_close_rows_without_panning` had to loosen). Break ties by something stable, such as the name, and tighten that test again.
-- [ ] **Planet marker: clean-up after review**
-  - `MarkerPaint::paint` collects each disc marker's ring nodes into a new Vec every frame, and `lay_out_holders` clones `Node` twice per pool node every frame. Cache them or skip them while nothing changes.
-  - `MarkersPlugin` also calls `init_resource::<FoldSummary>()`, which `GroupingPlugin` already does; grouping is its one writer (ARCH-03). Drop it, or say it is there only for test apps.
-- [ ] **Text sizes: clean-up after review**
-  - Found in review of the map text sizes item.
-  - `changing_a_text_size_tunable_changes_every_text_it_names` doesn't cover an edge tab's name: add a gate tab and check its label follows `map_label_px`.
-  - `apply_text_sizes` is registered in `TunablesPlugin`; give it a small plugin of its own in `text_size.rs`, so the tunables module doesn't depend on a view system.
-
 - [ ] **Bring older docs up to the writing style**
   - The rules are in `docs/README.md` (Writing). Do it one doc at a time, with no change of meaning.
   - The longest are the likeliest to need it: `ideas/mechanics/requirements-and-bids.md`, `ideas/mechanics/component-stats.md` and `ideas/mechanics/transfers.md`.
