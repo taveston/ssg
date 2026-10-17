@@ -804,7 +804,7 @@ impl Default for GeneratorTunables {
 
 /// The template rules of SGEN-33 and the belt counts of SGEN-37. Where the
 /// spec leaves a bound or a mix open, the choice is noted on the field
-/// (F-NEW-2).
+/// (F-255).
 fn default_template_rules() -> TemplateRules {
     use PlanetKind::*;
     // Small planets of the compact template, also used by debris discs.
@@ -838,7 +838,7 @@ fn default_template_rules() -> TemplateRules {
             planet_count: CountSpan::new(0, 2),
             kinds: rocky_mix,
             // "Beyond half the snow line" has no outer bound in the spec;
-            // two snow lines is chosen (F-NEW-2).
+            // two snow lines is chosen (F-255).
             orbits: OrbitRule::SnowLines(Span::new(0.5, 2.0)),
             belt_count: CountSpan::new(0, 1),
             cold_giants: false,
@@ -848,7 +848,7 @@ fn default_template_rules() -> TemplateRules {
             planet_count: CountSpan::new(0, 3),
             kinds: small_mix,
             // "Inside twice the snow line" has no inner bound in the spec;
-            // a twentieth of the snow line is chosen (F-NEW-2).
+            // a twentieth of the snow line is chosen (F-255).
             orbits: OrbitRule::SnowLines(Span::new(0.05, 2.0)),
             belt_count: CountSpan::new(2, 3),
             cold_giants: true,
@@ -857,7 +857,7 @@ fn default_template_rules() -> TemplateRules {
             hot_giant_period_days: None,
             planet_count: CountSpan::new(0, 2),
             // "Giants and super-Earths": the spec gives no mix, so the
-            // three kinds are equally likely (F-NEW-2).
+            // three kinds are equally likely (F-255).
             kinds: vec![(GasGiant, 1.0), (IceGiant, 1.0), (SuperEarth, 1.0)],
             orbits: OrbitRule::Au(Span::new(2.0, 30.0)),
             belt_count: CountSpan::new(1, 2),

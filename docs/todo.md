@@ -43,11 +43,11 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - How to draw it is open (spec, open points): tens of thousands of soft points as one instanced draw, and the glow as a cheap field over the map area, are the obvious start. Mock-up 28 is the look. Judge it on screen and add findings.
   - Tests: the same seed gives the same sky and two seeds differ (SKY-01, SKY-03); the star counts and the magnitude ratios per step, over many seeds (SKY-04, SKY-05); the band's latitude spread and the core being denser (SKY-06); over 1,000 seeds the band's tilt is in range and it passes within the margin of the standard view's line of sight, with the fallback when the range is out of reach (SKY-07, SKY-08); the brightest and faintest opacity (SKY-09); a star's deposited light stays within the tolerance for sub-pixel offsets (SKY-11); no colour above the saturation cap (SKY-12); the glow's falloff, lane and mottle bounds, and the dither's size and zero mean (SKY-13 to SKY-15); a star's projected position doesn't change under pan, zoom or a change of frame, and turns by the heading change (SKY-16); nothing changes with the clock (SKY-17); no star is drawn outside the map area, also while the inset slides (SKY-18); a click through the sky hits what is beneath (SKY-19); the sky is below every other layer (SKY-20); no star is an outline (SKY-21).
 
-- [ ] **Sector generator** · SGEN-01 to SGEN-92, ARCH-22
-  - Build `src/content/generator/` as plain data, one module per stage, with its own seeded random generator. Ask before adding a crate. Add `GeneratorTunables` (ARCH-22) holding every tunable in the spec's table, documented field by field.
+- [ ] **Sector generator** · SGEN-50 to SGEN-92
+  - Part 1 (settings, volume, stars, summaries, `GeneratorTunables`) is built; add gate choice, links, failure and names as further stages of `generate_sector`.
+  - Build `src/content/generator/` as plain data, one module per stage, with its own seeded random generator. Ask before adding a crate.
   - The name data file is `assets/names/names.txt` (SGEN-80): author at least 120 stems, 40 endings and the reserved list. Placeholder syllables are fine.
   - Tests first: the invariants of SGEN-91 over many seeds are the main check, plus one test per requirement, named for what it checks (ARCH-30). Build the stages in order (volume and stars, summaries, gate choice, links, failure) and keep each stage's tests green before the next.
-  - ARCH-22 changed meaning (a third tunables struct), so its ✓ is cleared.
   - Where the spec leaves a choice open, pick something sensible and add a finding.
 - [ ] **System generator** · SYSG-01 to SYSG-71, INS-08 · needs "Belts become a list" and "Sector generator"
   - `generate_system` builds the records Corvane and Sol use (SCL-03). Add planet facts (SYSG-22) and the gate state (SYSG-52) as simulation components.
@@ -74,6 +74,11 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Other
 
+- [ ] **Sector generator: test clean-up after review**
+  - Found in review of sector generator part 1.
+  - Distribution tests check only bounds in places. Add shape checks: SGEN-26 log10 separations have about the M and "other" means and spreads before the limits; SGEN-27 wide-pair separations are log-uniform; SGEN-31 weights for K, G, F and A, not only M; SGEN-33 the compact template's innermost period is at most 6 days.
+  - `COMPANION_LETTERS` has three letters and `zip` silently drops a fourth companion (only if `star_count_weights` is tuned past 4 stars). Assert or extend.
+  - `tuning_a_stage_leaves_earlier_stages_alone` asserts every entry position stays put under a stars tunable, but wide partners' positions are the stars stage's output. Compare slab and site positions only.
 - [ ] **Planet marker: clean-up after review**
   - `MarkerPaint::paint` collects each disc marker's ring nodes into a new Vec every frame, and `lay_out_holders` clones `Node` twice per pool node every frame. Cache them or skip them while nothing changes.
   - `MarkersPlugin` also calls `init_resource::<FoldSummary>()`, which `GroupingPlugin` already does; grouping is its one writer (ARCH-03). Drop it, or say it is there only for test apps.

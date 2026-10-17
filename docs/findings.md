@@ -2,7 +2,7 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-254.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-262.
 
 ---
 
@@ -223,6 +223,46 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** Folded ships, groups and stations go to an object marker, and natural bodies to the moon ring. A satellite of a satellite that has itself folded is counted nowhere. Before, the moon sat in the planet's fold marker and carried its own folds. Now, at the system fit, Morrow IX's Tern Relay (an own station) and the Kessel trader (TEST-09) are on no marker: Morrow shows "+11" and no pip. When one of them is selected, its mark goes round Morrow's marker and ring.
 - **Affects:** GRP-11, GRP-12, MUL-04, INS-06, TEST-09 · **Type:** spec gap
 - **Disposition:** open. Say whether things folded into a folded moon pass up to the nearest drawn parent's object marker (and how its tray lists them), or stay unshown.
+
+### F-254 · A star's age is drawn up to its lifetime, and giants may pass the maximum
+- **Observation:** SGEN-23 says age is drawn from `age_min_gyr` to `age_max_gyr` "and capped at" the main-sequence lifetime. Drawing then capping would put most F and A stars at exactly their lifetime (59% of 1.4 M☉ stars at 4.3 Gyr). The build draws uniformly from `age_min_gyr` to the lesser of `age_max_gyr` and the lifetime. A giant's age (its progenitor's lifetime × 1.0 to 1.1) can pass `age_max_gyr`: a 1 M☉ giant is 10 to 11 Gyr old. The build follows the spec there.
+- **Affects:** SGEN-23 · **Type:** spec gap
+- **Disposition:** open. Copy the draw into SGEN-23, and say whether giants may pass `age_max_gyr`.
+
+### F-255 · Template bounds the spec leaves open
+- **Observation:** SGEN-33 leaves some ranges and mixes open. The build, all in `template_rules`: a hot giant's 0 to 2 outer planets go from 0.5 to 2 snow lines, with the solar-like kinds (0.7 rocky, 0.3 super-Earth); a debris disc's planets go from 0.05 to 2 snow lines, with the compact kinds; a white-dwarf remnant's kinds are gas giant, ice giant and super-Earth, equally likely. Planet counts within a template's range are uniform. Only the Hill rule (SGEN-34) redraws; a planet outside the template's range or beyond the companion limit is dropped at once.
+- **Affects:** SGEN-33, SGEN-34 · **Type:** spec gap
+- **Disposition:** open. Copy the bounds and mixes into the spec, or give others.
+
+### F-256 · Belts also keep inside the companion limit
+- **Observation:** SGEN-30 limits planets to `companion_truncation_fraction` × the nearest companion's separation, but says nothing of belts. A belt at 6 snow lines (16 AU round a G star) could sit outside a companion at 5 AU. The build keeps a belt's outer edge inside the same limit; a belt that finds no room in 20 tries is dropped.
+- **Affects:** SGEN-30, SGEN-37 · **Type:** spec gap
+- **Disposition:** open. Add belts to SGEN-30, or drop the limit for belts.
+
+### F-257 · Companion mass and separation limits
+- **Observation:** SGEN-25 limits a companion's class but not its mass, so a G companion of a 0.85 M☉ G primary could be heavier than it. The build caps a companion's mass at the primary's. SGEN-26 says separations are "limited to" `companion_min_au` and `wide_pair_min_au`; clamping would pile about a fifth of non-M companions at exactly 1,000 AU, so the build redraws an out-of-range separation up to 20 times, then clamps.
+- **Affects:** SGEN-25, SGEN-26 · **Type:** spec gap
+- **Disposition:** open. Copy both into the spec, or choose otherwise.
+
+### F-258 · Spectral types of white dwarfs and giants
+- **Observation:** SGEN-22 builds a spectral type from "its class letter, a digit and V ('D' for a white dwarf, 'III' for a giant)", but neither has a class letter. The build writes a white dwarf as "D" and the digit ("D4"). A giant takes its letter from its temperature (M below 3,700 K, K below 5,200, G below 6,000, F below 7,500, else A), then the digit and "III" ("K2III"). Drawing a giant's radius and luminosity independently could give 1,900 to 10,000 K, so the build draws both at the same place in their log ranges. Every giant is then about 4,300 to 4,600 K, a K giant, with its digit set by mass.
+- **Affects:** SGEN-22 · **Type:** spec gap
+- **Disposition:** open. Copy into SGEN-22, or give another notation.
+
+### F-259 · Same sector on every machine depends on the platform's maths library
+- **Observation:** SGEN-02 asks for the same sector "on every run and machine". The random numbers are integer arithmetic, identical everywhere, and a test pins the published xoshiro256** and SplitMix64 values. But the generator also uses `powf`, `ln`, `exp`, `cbrt`, `sin` and `cos`, which Rust takes from the platform's maths library, and their last bit may differ between operating systems. Range and Hill-spacing branches can turn that into a different sector. The same build target gives the same sector every run.
+- **Affects:** SGEN-02, SGEN-06 · **Type:** spec gap
+- **Disposition:** open. Accept "same target, same sector", or write the few functions in the repo (SGEN-06 rules out a crate such as `libm`), or allow such a crate.
+
+### F-260 · Every sub-Neptune has the same surface gravity
+- **Observation:** The sub-Neptune curve in SGEN-36, R = 2.4 × (M ÷ 6)^0.5, makes M ÷ R² a constant, so every sub-Neptune has a gravity of 1.04 g, whatever its mass. Envelopes aren't scored for settlement, so nothing depends on it yet, but the inspection inset will show the same figure for every one.
+- **Affects:** SGEN-36, SGEN-38 · **Type:** spec wrong
+- **Disposition:** open. Use another exponent, or accept it.
+
+### F-261 · A moved planet's facts need draws that aren't stored
+- **Observation:** SGEN-59 says a moved planet has its facts "worked out again". But the atmosphere depends on a random volatile endowment (SGEN-40) and water on two random draws (SGEN-41), and none of these is kept on the planet's summary, so the facts can't be worked out again consistently. Found in review of part 1; part 2 builds SGEN-59.
+- **Affects:** SGEN-59, SGEN-40, SGEN-41, SYSG-03 · **Type:** spec gap
+- **Disposition:** open. Suggested: store the endowment on the planet and keep the water class unless the new temperature rules it out, as SYSG-03 (detail never re-rolls) points to. Part 2 builds that, and you can change it.
 
 ## Parked
 
