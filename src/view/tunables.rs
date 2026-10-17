@@ -537,6 +537,149 @@ pub struct Tunables {
     /// The sector view's inner zoom limit: the view radius, in light
     /// years, closer than which the camera doesn't zoom (SECT-11).
     pub sector_min_view_radius_ly: f32,
+
+    // --- Planet surfaces (docs/spec/surfaces.md) ---
+    /// Rock melts above this surface temperature, in K: the lava look
+    /// applies, and the heat glow reaches full strength (SURF-15,
+    /// SURF-20).
+    pub melt_t_k: f32,
+    /// Rock begins to glow dull red above this surface temperature, in K
+    /// (SURF-20).
+    pub glow_t_k: f32,
+    /// The glow's colour runs from dull red at `glow_t_k` to pale yellow
+    /// this many K above `melt_t_k`; the molten sea of the lava look
+    /// grows over the same span (SURF-15, SURF-20).
+    pub heat_ramp_k: f32,
+    /// A tidally locked, airless planet's substellar point is this many
+    /// times its equilibrium temperature: the fourth root of 4 (SURF-21).
+    pub locked_peak_factor: f32,
+    /// The night side of a locked, airless planet is no colder than this,
+    /// in K (SURF-21).
+    pub night_floor_k: f32,
+    /// A thin atmosphere with ice is hazy, its surface hidden, up to this
+    /// equilibrium temperature in K (SURF-17).
+    pub hazy_t_max_k: f32,
+    /// The hazy look's palette, as a display-space colour (SURF-17).
+    pub hazy_colour: [f32; 3],
+    /// The hazy look's limb halo is this many times the dense look's
+    /// (SURF-17).
+    pub hazy_halo_factor: f32,
+    /// The sub-Neptune's envelope colour is mixed toward this
+    /// display-space colour... (SURF-12)
+    pub sub_neptune_haze_colour: [f32; 3],
+    /// ...by this much... (SURF-12)
+    pub sub_neptune_haze_mix: f32,
+    /// ...and its halo is this many times thicker than an ice giant's
+    /// (SURF-12).
+    pub sub_neptune_halo_factor: f32,
+    /// A cold terrestrial world with ice has polar caps reaching this many
+    /// degrees from each pole (SURF-18).
+    pub cap_latitude_deg: f32,
+    /// The crater density, the share of the crater grid's cells that hold
+    /// a crater, for a star of age 0... (SURF-22)
+    pub crater_density_min: f32,
+    /// ...rising linearly to this... (SURF-22)
+    pub crater_density_max: f32,
+    /// ...at this age in Gyr and above (SURF-22).
+    pub crater_density_full_age_gyr: f32,
+    /// The crater density is multiplied by this for a dead world...
+    /// (SURF-22)
+    pub crater_factor_dead: f32,
+    /// ...this for an active one... (SURF-22)
+    pub crater_factor_active: f32,
+    /// ...and this for an extreme one (SURF-22).
+    pub crater_factor_extreme: f32,
+    /// A fresh crater's rays are at full strength up to this age in Gyr...
+    /// (SURF-22)
+    pub ray_full_age_gyr: f32,
+    /// ...and gone at this age; each ray crater's age is drawn up to it
+    /// (SURF-22).
+    pub ray_max_age_gyr: f32,
+    /// The share of the coarse ray grid's cells that hold a fresh crater
+    /// with rays (SURF-22).
+    pub ray_density: f32,
+    /// The colour of a star's light by its class, as linear RGB, in the
+    /// order of `StarClass`: M, K, G, F, A, white dwarf, giant (SURF-23).
+    pub star_light_colours: [[f32; 3]; 7],
+    /// How strong the star's light is on a globe, a multiplier on the
+    /// light colour (SURF-23).
+    pub star_light_strength: f32,
+    /// Diffuse light falls from full to none over this much of the cosine
+    /// of the light angle at the terminator (SURF-23).
+    pub terminator_width: f32,
+    /// On a look with an atmosphere or envelope, light wraps this far past
+    /// the terminator (SURF-23).
+    pub wrap_light: f32,
+    /// The night side keeps this much of the albedo on the airless, icy,
+    /// lava and volcanic looks... (SURF-23)
+    pub ambient_light_bare: f32,
+    /// ...on the looks with a thin atmosphere (cold terrestrial, hazy)...
+    /// (SURF-23)
+    pub ambient_light_thin: f32,
+    /// ...and on the dense and envelope looks (SURF-23).
+    pub ambient_light_dense: f32,
+    /// The limb glow of a thin atmosphere falls off over this much of the
+    /// radius... (SURF-24)
+    pub halo_width_thin: f32,
+    /// ...a dense atmosphere's over this much... (SURF-24)
+    pub halo_width_dense: f32,
+    /// ...and an envelope's over this much (SURF-24).
+    pub halo_width_envelope: f32,
+    /// The knowledge value of a surveyed body... (SURF-25)
+    pub knowledge_surveyed: f32,
+    /// ...and of an unsurveyed one (SURF-25).
+    pub knowledge_unsurveyed: f32,
+    /// The surface noise has this many octaves at knowledge 0... (SURF-25)
+    pub octaves_min: f32,
+    /// ...and this many at knowledge 1 (SURF-25).
+    pub octaves_max: f32,
+    /// One threshold per crater scale after the coarsest: that scale is
+    /// drawn at knowledge values above it. The coarsest scale is always
+    /// drawn; scales beyond the list only close in (SURF-25, SURF-34).
+    pub crater_scale_knowledge: [f32; 3],
+    /// Below this knowledge value the picture is the telescope frame
+    /// (SURF-25).
+    pub telescope_knowledge: f32,
+    /// The telescope frame is the render at this many times lower
+    /// resolution, blurred back up... (SURF-25)
+    pub telescope_block: f32,
+    /// ...desaturated by this much... (SURF-25)
+    pub telescope_desaturate: f32,
+    /// ...with grain of this many display levels, of 255 (SURF-25).
+    pub telescope_grain: f32,
+    /// The large forms of a body are its albedo averaged over caps this
+    /// many degrees across... (SURF-26)
+    pub large_form_deg: f32,
+    /// ...centred on this many evenly spread directions... (SURF-26)
+    pub large_form_samples: usize,
+    /// ...and the unsurveyed and surveyed pictures agree on each to
+    /// within this (SURF-26).
+    pub large_form_tolerance: f32,
+    /// A bake is spread over at most this many frames (SURF-31).
+    pub bake_frames: u32,
+    /// A surveyed body's cubemap faces are this many pixels square...
+    /// (SURF-32, SURF-34)
+    pub bake_face_px: u32,
+    /// ...and an unsurveyed body's this many (SURF-32).
+    pub bake_face_unsurveyed_px: u32,
+    /// How many bodies' bakes are kept; the least recently drawn goes
+    /// first (SURF-33).
+    pub bake_cache_count: usize,
+    /// Close in, once the globe's projected radius exceeds `bake_face_px`
+    /// times this, the visible face is baked again... (SURF-34)
+    pub rebake_zoom_factor: f32,
+    /// ...at `bake_face_px` times this, with the finer crater scales on
+    /// (SURF-34).
+    pub rebake_scale: u32,
+    /// The inset's globe is this many pixels across (SURF-45).
+    pub inset_image_px: f32,
+    /// How strongly the telescope frame's corner brackets are drawn in the
+    /// inset (SURF-46).
+    pub inset_bracket_alpha: f32,
+    /// A lava override on a body too cool to melt by its own facts
+    /// (Earth's) uses this equilibrium temperature, in K, for the
+    /// override's surface temperature only (SURF-63).
+    pub earth_override_t_k: f32,
 }
 
 impl Default for Tunables {
@@ -738,6 +881,67 @@ impl Default for Tunables {
             link_collapsed_px: 1.0,
             link_collapsed_alpha: 0.2,
             sector_min_view_radius_ly: 3.0,
+
+            melt_t_k: 1_400.0,
+            glow_t_k: 800.0,
+            heat_ramp_k: 800.0,
+            locked_peak_factor: 1.414,
+            night_floor_k: 90.0,
+            hazy_t_max_k: 150.0,
+            hazy_colour: [0.80, 0.58, 0.32],
+            hazy_halo_factor: 0.6,
+            sub_neptune_haze_colour: [0.72, 0.78, 0.84],
+            sub_neptune_haze_mix: 0.5,
+            sub_neptune_halo_factor: 1.5,
+            cap_latitude_deg: 12.0,
+            crater_density_min: 0.28,
+            crater_density_max: 0.75,
+            crater_density_full_age_gyr: 8.0,
+            crater_factor_dead: 1.0,
+            crater_factor_active: 0.5,
+            crater_factor_extreme: 0.0,
+            ray_full_age_gyr: 0.15,
+            ray_max_age_gyr: 1.6,
+            ray_density: 0.3,
+            star_light_colours: [
+                [1.0, 0.58, 0.30],
+                [1.0, 0.80, 0.55],
+                [1.0, 0.96, 0.90],
+                [0.88, 0.92, 1.0],
+                [0.80, 0.86, 1.0],
+                [0.85, 0.90, 1.0],
+                [1.0, 0.70, 0.45],
+            ],
+            star_light_strength: 1.2,
+            terminator_width: 0.04,
+            wrap_light: 0.12,
+            ambient_light_bare: 0.002,
+            ambient_light_thin: 0.002,
+            ambient_light_dense: 0.008,
+            halo_width_thin: 0.03,
+            halo_width_dense: 0.06,
+            halo_width_envelope: 0.05,
+            knowledge_surveyed: 1.0,
+            knowledge_unsurveyed: 0.0,
+            octaves_min: 2.5,
+            octaves_max: 8.5,
+            crater_scale_knowledge: [0.1, 0.45, 0.75],
+            telescope_knowledge: 0.2,
+            telescope_block: 4.0,
+            telescope_desaturate: 0.38,
+            telescope_grain: 22.0,
+            large_form_deg: 30.0,
+            large_form_samples: 32,
+            large_form_tolerance: 0.08,
+            bake_frames: 6,
+            bake_face_px: 1024,
+            bake_face_unsurveyed_px: 256,
+            bake_cache_count: 8,
+            rebake_zoom_factor: 0.5,
+            rebake_scale: 4,
+            inset_image_px: 300.0,
+            inset_bracket_alpha: 0.75,
+            earth_override_t_k: 1_500.0,
         }
     }
 }
