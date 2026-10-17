@@ -38,6 +38,10 @@
 //!   systems (SECT-44). `select` and `hover` then name a gated system or
 //!   an entry's designation, and `distance` is from the sector's centre.
 //! - `seed`: the sector's seed, as `--seed` takes it; only with `sector`.
+//! - `enter`: a gated system's name; only with `sector`. The shot enters
+//!   that system before anything else, as Enter system does (SECT-30),
+//!   and `frame`, `select`, `hover`, `tray` and `planner` then name its
+//!   bodies.
 //!
 //! Names are the bodies' display names, or in the sector view the
 //! systems' names and the entries' designations. The app starts, waits a moment for
@@ -48,7 +52,8 @@
 //! A bad `sector` or `seed`, or `seed` without `sector`, stops the app as
 //! an unknown key does. These exit at once with an error log instead of
 //! waiting for the timeout:
-//! - a name that matches no body (or, in the sector view, no entry);
+//! - a name that matches no body (or, in the sector view, no entry), and
+//!   an `enter` that names no gated system of the sector;
 //! - `planner` with no `select`, or selecting a body that can't open the
 //!   planner: anything but a ship the faction commands, parked in a named
 //!   orbit with no order (PLNR-01);
@@ -79,8 +84,8 @@ use super::planner::model::blocking_reason;
 use super::planner::state::{PickTarget, PlannerState};
 use super::planner::words::reason;
 use super::scale::{km_to_render, sector_km_to_render};
-use super::sector::ForEntry;
 use super::sector::input::NodeTarget;
+use super::sector::{EnterRequest, ForEntry};
 use super::selection::Selection;
 use super::targets::{Hovered, MarkerFor};
 use super::tunables::Tunables;
@@ -131,6 +136,8 @@ pub struct ShotPlan {
     pub sector: Option<String>,
     /// The sector's seed, as `--seed` takes it.
     pub seed: Option<String>,
+    /// A gated system of the sector to enter before the shot.
+    pub enter: Option<String>,
 }
 
 /// The `planner` value that opens the planner without picking.
@@ -157,6 +164,7 @@ impl ShotPlan {
             tray: None,
             sector: None,
             seed: None,
+            enter: None,
         };
         let pairs = spec.split(';').map(str::trim).filter(|p| !p.is_empty());
         for pair in pairs {
@@ -180,6 +188,7 @@ impl ShotPlan {
                 "tray" => plan.tray = Some(value.to_string()),
                 "sector" => plan.sector = Some(value.to_string()),
                 "seed" => plan.seed = Some(value.to_string()),
+                "enter" => plan.enter = Some(value.to_string()),
                 _ => return Err(format!("unknown key `{key}`")),
             }
         }
@@ -194,9 +203,12 @@ impl ShotPlan {
     /// size or seed, or a seed with no sector, is an error.
     pub fn sector_request(&self) -> Result<Option<SectorRequest>, String> {
         let Some(size) = self.sector.as_deref() else {
-            return match self.seed {
-                Some(_) => Err("`seed` seeds a sector: give `sector` too".to_string()),
-                None => Ok(None),
+            return match (&self.seed, &self.enter) {
+                (Some(_), _) => Err("`seed` seeds a sector: give `sector` too".to_string()),
+                (_, Some(_)) => {
+                    Err("`enter` enters a sector's system: give `sector` too".to_string())
+                }
+                (None, None) => Ok(None),
             };
         };
         let gated_count = sector_size(size, &GeneratorTunables::default())?;
@@ -220,6 +232,8 @@ fn number<T: std::str::FromStr>(key: &str, value: &str) -> Result<T, String> {
 pub enum ShotPhase {
     /// Waiting for the world to load.
     Starting,
+    /// Waiting for the system named by `enter` to be shown.
+    Entering,
     /// Waiting for the planner's order to be ready, to schedule it.
     Scheduling,
     /// Schedule refused the order, solved again from the clock; the shot
@@ -318,19 +332,35 @@ struct ShotScene<'w, 's> {
 }
 
 /// What a shot of the sector view reads and sets: the layer, the sector,
-/// its selection and its nodes' hit targets (SECT-44).
+/// its selection, its nodes' hit targets and the request to enter one of
+/// its systems (SECT-44).
 #[derive(SystemParam)]
 struct ShotSector<'w, 's> {
     layer: Res<'w, MapLayer>,
     loaded: Option<Res<'w, LoadedSector>>,
     selection: ResMut<'w, SectorSelection>,
     targets: Query<'w, 's, (Entity, &'static ForEntry), With<NodeTarget>>,
+    enter: Option<ResMut<'w, EnterRequest>>,
 }
 
 impl ShotSector<'_, '_> {
     /// SECT-44: the entry a name stands for in the loaded sector.
     fn find(&self, name: &str) -> Option<usize> {
         sector_entry_named(&self.loaded.as_ref()?.sector, name)
+    }
+
+    /// SECT-44: ask to enter the gated system named `name`, as Enter
+    /// system does; a name that is no gated system's is an error.
+    fn enter(&mut self, name: &str) -> Result<ShotPhase, String> {
+        let gated = self.loaded.as_ref().and_then(|loaded| {
+            let mut gated = loaded.sector.gated.iter();
+            gated.find(|g| g.names.system == name).map(|g| g.id)
+        });
+        let (Some(id), Some(enter)) = (gated, self.enter.as_mut()) else {
+            return Err(format!("no gated system in the sector is named `{name}`"));
+        };
+        enter.0 = Some(id);
+        Ok(ShotPhase::Entering)
     }
 
     /// SECT-44: select and hover the entries the plan names. A key that
@@ -395,6 +425,9 @@ impl ShotScene<'_, '_> {
     /// says which phase comes next; or says why the shot can't be taken:
     /// a body that doesn't exist, or a planner that can't open.
     fn start(&mut self, plan: &ShotPlan) -> Result<ShotPhase, String> {
+        if let (true, Some(name)) = (self.sector.layer.is_sector(), &plan.enter) {
+            return self.sector.enter(name);
+        }
         if self.sector.layer.is_sector() {
             self.sector.start(plan, &mut self.commands)?;
             self.set_rate(plan.rate_days_per_sec);
@@ -485,6 +518,12 @@ fn run_shot(
     }
     match shot.phase {
         ShotPhase::Starting if now >= START_AFTER_SECS => match scene.start(&shot.plan) {
+            Ok(next) => shot.phase = next,
+            Err(why) => shot.fail(&why, &mut exit),
+        },
+        // The system is loaded at the start of the frame after the
+        // request; its bodies are named from then on.
+        ShotPhase::Entering if !scene.sector.layer.is_sector() => match scene.start(&shot.plan) {
             Ok(next) => shot.phase = next,
             Err(why) => shot.fail(&why, &mut exit),
         },
@@ -758,8 +797,9 @@ mod tests {
         assert!(ShotPlan::parse("frame=Morrow").is_err());
     }
 
-    /// SECT-44: `sector` takes a preset or a count, and `seed` a decimal
-    /// seed; a bad size or seed, or a seed alone, is an error.
+    /// SECT-44: `sector` takes a preset or a count, `seed` a decimal seed
+    /// and `enter` a system's name; a bad size or seed, or a seed or an
+    /// `enter` without `sector`, is an error.
     #[test]
     fn the_sector_and_seed_keys_start_a_sector() {
         let plan = ShotPlan::parse("out=a.png;sector=small;seed=42;select=OW-0003").unwrap();
@@ -773,7 +813,15 @@ mod tests {
             ShotPlan::parse("out=a.png").unwrap().sector_request(),
             Ok(None)
         );
-        for bad in ["sector=huge", "sector=small;seed=x", "seed=4", "sector=1"] {
+        let entering = ShotPlan::parse("out=a.png;sector=small;enter=Tarsa").unwrap();
+        assert_eq!(entering.enter.as_deref(), Some("Tarsa"));
+        for bad in [
+            "sector=huge",
+            "sector=small;seed=x",
+            "seed=4",
+            "sector=1",
+            "enter=Tarsa",
+        ] {
             assert!(
                 ShotPlan::parse(&format!("out=a.png;{bad}")).is_err(),
                 "{bad}"

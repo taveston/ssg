@@ -92,7 +92,8 @@ impl Plugin for NearArcsPlugin {
         app.add_plugins(UiMaterialPlugin::<NearArcMaterial>::default())
             .add_systems(
                 Update,
-                draw_near_arcs
+                (drop_orphaned_arcs, draw_near_arcs)
+                    .chain()
                     .after(RingsDrawn)
                     .after(MarkersPlaced)
                     .in_set(Stage::Overlay),
@@ -226,6 +227,20 @@ fn true_size_discs(
             ))
         })
         .collect()
+}
+
+/// An arc whose ring is gone, with the system it was in (SECT-32), goes
+/// too; an arc whose ring only isn't drawn this frame is kept, hidden.
+fn drop_orphaned_arcs(
+    mut commands: Commands,
+    arcs: Query<(Entity, &NearArcFor)>,
+    everything: Query<()>,
+) {
+    for (arc, arc_for) in &arcs {
+        if !everything.contains(arc_for.0) {
+            commands.entity(arc).despawn();
+        }
+    }
 }
 
 /// MRK-12: redraw each satellite ring's near arc over its true-size

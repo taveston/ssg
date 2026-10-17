@@ -42,9 +42,7 @@ pub struct GateDestination(pub String);
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GateState {
     Working,
-    Dormant {
-        faulted_here: bool,
-    },
+    Dormant { faulted_here: bool },
 }
 
 /// PLAN-30: how closely a ship must match a gate's speed to enter it, in

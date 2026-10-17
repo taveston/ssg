@@ -86,7 +86,8 @@ impl Plugin for ViewPlugin {
     fn build(&self, app: &mut App) {
         // Shared state with no single owner: selection is written by clicks
         // and the inset's buttons, the frame by the camera, and both are
-        // read across the view.
+        // read across the view. Each holds the shown system's bodies, so
+        // it is reset when that system is dropped (SECT-32).
         app.reset_with_system::<selection::Selection>()
             .reset_with_system::<planner::state::PlannerState>()
             .reset_with_system::<multi::OpenTray>()

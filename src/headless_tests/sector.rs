@@ -30,7 +30,7 @@ use crate::view::sector::readout::{SeedLine, TRUTH_LINE, TruthReadout};
 use crate::view::sector::{EnterRequest, ForEntry, NodeKind, SectorNode, SectorPlugin};
 
 /// The seed every sector here is made from.
-const SEED: u64 = 11;
+pub(super) const SEED: u64 = 11;
 
 /// A small sector in the sector view, with the real camera, paused.
 fn sector_app() -> App {
@@ -78,7 +78,7 @@ pub(super) fn sector_app_with(extra: impl FnOnce(&mut App)) -> App {
 
 /// `sector_app` with Bevy's picking running, the pointer following the
 /// window's cursor.
-fn picking_sector_app() -> App {
+pub(super) fn picking_sector_app() -> App {
     let mut app = sector_app_with(|app| {
         app.add_plugins((PickingPlugin, InteractionPlugin))
             .add_systems(
@@ -98,7 +98,7 @@ fn picking_sector_app() -> App {
 
 /// A primary click at `at`, as the mouse and Bevy's pointer see it, so a
 /// hit from any picking backend turns into a click.
-fn pointer_click_at(app: &mut App, at: Vec2) {
+pub(super) fn pointer_click_at(app: &mut App, at: Vec2) {
     use bevy::camera::NormalizedRenderTarget;
     use bevy::input::mouse::MouseButtonInput;
     use bevy::picking::pointer::{Location, PointerAction, PointerId, PointerInput};
@@ -135,19 +135,19 @@ fn pointer_click_at(app: &mut App, at: Vec2) {
     run(app, 1);
 }
 
-fn sector(app: &App) -> &Sector {
+pub(super) fn sector(app: &App) -> &Sector {
     &app.world().resource::<LoadedSector>().sector
 }
 
-fn screens(app: &App) -> HashMap<usize, NodeScreen> {
+pub(super) fn screens(app: &App) -> HashMap<usize, NodeScreen> {
     app.world().resource::<NodeScreens>().0.clone()
 }
 
-fn rig(app: &App) -> CameraRig {
+pub(super) fn rig(app: &App) -> CameraRig {
     *app.world().resource::<CameraRig>()
 }
 
-fn selected(app: &App) -> Option<usize> {
+pub(super) fn selected(app: &App) -> Option<usize> {
     app.world().resource::<SectorSelection>().0
 }
 
@@ -164,7 +164,7 @@ fn for_entry<T: Component>(app: &mut App, id: usize) -> Vec<Entity> {
 }
 
 /// The node drawn nearest the middle of the map of `kind`, by entry id.
-fn central_node(app: &App, kind: NodeKind) -> usize {
+pub(super) fn central_node(app: &App, kind: NodeKind) -> usize {
     let centre = VIEWPORT.as_vec2() / 2.0;
     screens(app)
         .into_iter()
@@ -781,7 +781,7 @@ fn the_inset_header_names_the_entry_and_offers_entering_a_gated_one() {
     let mut app = sector_app();
     let gated = central_node(&app, NodeKind::Gated);
     let ungated = central_node(&app, NodeKind::Ungated);
-    for (id, enterable) in [(gated, true), (ungated, false)] {
+    for (id, enterable) in [(ungated, false), (gated, true)] {
         app.world_mut().resource_mut::<SectorSelection>().0 = Some(id);
         run(&mut app, 2);
         let panel = panel(&mut app);

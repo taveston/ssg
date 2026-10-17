@@ -72,6 +72,7 @@ use crate::{Boot, Stage};
 mod brackets;
 mod camera;
 mod double_click;
+mod entering;
 mod frame_cue;
 mod generated;
 mod grouping;
