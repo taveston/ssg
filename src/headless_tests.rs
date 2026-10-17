@@ -284,14 +284,15 @@ fn camera_app_with(extra: impl FnOnce(&mut App)) -> App {
 
 fn blueprint(name: &'static str, class: BodyClass, radius_km: f64) -> BodyBlueprint {
     BodyBlueprint {
-        name,
+        name: name.into(),
         class,
         affiliation: Affiliation::Neutral,
         record: None,
         propulsion: None,
         group: None,
-        description: "",
+        description: "".into(),
         key_facts: vec![],
+        planet_facts: None,
         knowledge: Knowledge::Unsurveyed,
         orbit: OrbitPlacement::Own { radius_km },
         radius_km: 1_000.0,

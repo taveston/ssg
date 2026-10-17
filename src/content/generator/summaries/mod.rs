@@ -10,7 +10,7 @@ mod belts;
 mod facts;
 pub mod planets;
 
-pub use facts::rework_moved_planet;
+pub use facts::{SolidFacts, Sunlight, rework_moved_planet, solid_body_facts};
 
 use super::bodies::Summary;
 use super::catalogue::{Entry, Star, StarClass};

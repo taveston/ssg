@@ -16,6 +16,7 @@ pub mod clock;
 pub mod group;
 pub mod named_orbit;
 pub mod orbit;
+pub mod planet_facts;
 pub mod rail;
 pub mod ship;
 pub mod spawn;

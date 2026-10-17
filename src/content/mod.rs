@@ -71,7 +71,7 @@ impl Plugin for ContentPlugin {
 mod tests {
     use super::*;
 
-    fn star_of(args: &[&str]) -> Result<&'static str, String> {
+    fn star_of(args: &[&str]) -> Result<String, String> {
         chosen_system(args).map(|system| system().star_name)
     }
 
@@ -79,15 +79,15 @@ mod tests {
     /// whatever else is passed.
     #[test]
     fn corvane_is_loaded_without_a_system_argument() {
-        assert_eq!(star_of(&[]), Ok("Corvane"));
-        assert_eq!(star_of(&["--other", "sol"]), Ok("Corvane"));
+        assert_eq!(star_of(&[]).as_deref(), Ok("Corvane"));
+        assert_eq!(star_of(&["--other", "sol"]).as_deref(), Ok("Corvane"));
     }
 
     /// SOL-22: `--system` picks a system by name.
     #[test]
     fn the_system_argument_picks_the_system() {
-        assert_eq!(star_of(&["--system", "sol"]), Ok("Sol"));
-        assert_eq!(star_of(&["--system", "corvane"]), Ok("Corvane"));
+        assert_eq!(star_of(&["--system", "sol"]).as_deref(), Ok("Sol"));
+        assert_eq!(star_of(&["--system", "corvane"]).as_deref(), Ok("Corvane"));
     }
 
     /// SOL-22: an unknown or missing name is an error listing the known

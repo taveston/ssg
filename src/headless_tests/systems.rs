@@ -4,8 +4,8 @@
 //! code, and Sol.
 
 use super::*;
-use crate::sim::body::{Belt, BeltComposition};
-use crate::sim::system::{BeltBlueprint, GateBlueprint, SystemData};
+use crate::sim::body::{Belt, BeltComposition, GateState};
+use crate::sim::system::{BeltBlueprint, GateBlueprint, SystemData, facts};
 use crate::sim::units::{EARTH_MASS_KG, SOLAR_MASS_KG};
 
 /// ARCH-13: the simulation runs headless with `MinimalPlugins` and the sim
@@ -76,8 +76,8 @@ fn generated_system() -> SystemData {
     planet.mass_kg = EARTH_MASS_KG;
     planet.children = vec![blueprint("Tessaly a", BodyClass::Moon, 200_000.0)];
     SystemData {
-        star_name: "Vey",
-        star_class: "G5V",
+        star_name: "Vey".into(),
+        star_key_facts: facts(&[("Class", "G5V")]),
         star_mass_kg: SOLAR_MASS_KG,
         star_radius_km: 696_000.0,
         star_knowledge: Knowledge::Unsurveyed,
@@ -98,12 +98,13 @@ fn generated_system() -> SystemData {
             salvage_sites: vec![],
         }],
         gates: vec![GateBlueprint {
-            name: "Gate Vey",
-            destination: "Ostra",
+            name: "Gate Vey".into(),
+            destination: "Ostra".into(),
             radius_km: 5.0,
             distance_km: 4.0 * KM_PER_AU,
             angle_deg: 30.0,
             entry_tolerance_kms: 0.5,
+            state: GateState::Working,
         }],
     }
 }

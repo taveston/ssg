@@ -13,11 +13,11 @@
 //! This is the seam a generator replaces (SCL-03): anything that builds a
 //! `SystemData` the same shape can stand in for `hand_made_system`.
 
-use crate::sim::body::{Affiliation, BodyClass, Knowledge};
+use crate::sim::body::{Affiliation, BodyClass, GateState, Knowledge};
 use crate::sim::ship::{Drive, Propulsion};
 use crate::sim::system::{
     BeltBlueprint, BodyBlueprint, GateBlueprint, GroupBlueprint, MemberBlueprint,
-    NamedOrbitBlueprint, OrbitPlacement, SystemData,
+    NamedOrbitBlueprint, OrbitPlacement, SystemData, facts,
 };
 use crate::sim::track::{Echelon, Formation, ShipClass, ShipRecord, Track, TroopLoad};
 use crate::sim::units::{
@@ -87,8 +87,8 @@ pub fn hand_made_system() -> SystemData {
     let star_mass_kg = 0.78 * SOLAR_MASS_KG; // K2V
 
     SystemData {
-        star_name: "Corvane",
-        star_class: "K2V",
+        star_name: "Corvane".into(),
+        star_key_facts: facts(&[("Class", "K2V")]),
         star_mass_kg,
         star_radius_km: 508_000.0, // 0.73 solar radii
         star_knowledge: surveyed_today(),
@@ -101,14 +101,15 @@ pub fn hand_made_system() -> SystemData {
             composition: None,
             salvage_sites: vec![
                 BodyBlueprint {
-                    name: "Wreck Field",
+                    name: "Wreck Field".into(),
                     class: BodyClass::SalvageSite,
                     affiliation: Affiliation::Neutral,
                     record: None,
                     propulsion: None,
                     group: None,
-                    description: "An unsurveyed debris field scattered across the belt.",
-                    key_facts: vec![("Contents", "unknown")],
+                    description: "An unsurveyed debris field scattered across the belt.".into(),
+                    key_facts: facts(&[("Contents", "unknown")]),
+                    planet_facts: None,
                     knowledge: Knowledge::Unsurveyed,
                     orbit: own(1.3 * KM_PER_AU),
                     radius_km: 2.0,
@@ -118,14 +119,15 @@ pub fn hand_made_system() -> SystemData {
                     children: vec![],
                 },
                 BodyBlueprint {
-                    name: "Lantern",
+                    name: "Lantern".into(),
                     class: BodyClass::SalvageSite,
                     affiliation: Affiliation::Neutral,
                     record: None,
                     propulsion: None,
                     group: None,
-                    description: "The wreck of the station Lantern, last imaged years ago.",
-                    key_facts: vec![("Recoverable then", "4-6 kt"), ("Since then", "unknown")],
+                    description: "The wreck of the station Lantern, last imaged years ago.".into(),
+                    key_facts: facts(&[("Recoverable then", "4-6 kt"), ("Since then", "unknown")]),
+                    planet_facts: None,
                     knowledge: Knowledge::Unsurveyed,
                     orbit: own(1.22 * KM_PER_AU),
                     radius_km: 0.5,
@@ -138,28 +140,31 @@ pub fn hand_made_system() -> SystemData {
         }],
         gates: vec![
             GateBlueprint {
-                name: "Gate Ostra",
-                destination: "Ostra",
+                name: "Gate Ostra".into(),
+                destination: "Ostra".into(),
                 radius_km: 5.0,
                 distance_km: 6.0 * KM_PER_AU,
                 angle_deg: 40.0,
                 entry_tolerance_kms: 0.5,
+                state: GateState::Working,
             },
             GateBlueprint {
-                name: "Gate Brenn",
-                destination: "Brenn",
+                name: "Gate Brenn".into(),
+                destination: "Brenn".into(),
                 radius_km: 5.0,
                 distance_km: 6.3 * KM_PER_AU,
                 angle_deg: 190.0,
                 entry_tolerance_kms: 0.5,
+                state: GateState::Working,
             },
             GateBlueprint {
-                name: "Gate Soll",
-                destination: "Soll",
+                name: "Gate Soll".into(),
+                destination: "Soll".into(),
                 radius_km: 5.0,
                 distance_km: 6.1 * KM_PER_AU,
                 angle_deg: 300.0,
                 entry_tolerance_kms: 0.5,
+                state: GateState::Working,
             },
         ],
     }
@@ -168,14 +173,16 @@ pub fn hand_made_system() -> SystemData {
 /// TEST-01: Pell, a hot inner rock.
 fn pell() -> BodyBlueprint {
     BodyBlueprint {
-        name: "Pell",
+        name: "Pell".into(),
         class: BodyClass::Planet,
         affiliation: Affiliation::Own,
         record: None,
         propulsion: None,
         group: None,
-        description: "A scorched inner rock, too hot for anything but automated survey gear.",
-        key_facts: vec![("Class", "Hot rocky planet")],
+        description: "A scorched inner rock, too hot for anything but automated survey gear."
+            .into(),
+        key_facts: facts(&[("Class", "Hot rocky planet")]),
+        planet_facts: None,
         knowledge: surveyed_today(),
         orbit: own(0.35 * KM_PER_AU),
         radius_km: 2400.0,
@@ -205,14 +212,15 @@ fn iver() -> BodyBlueprint {
         )
     };
     BodyBlueprint {
-        name: "Iver",
+        name: "Iver".into(),
         class: BodyClass::Planet,
         affiliation: Affiliation::Own,
         record: None,
         propulsion: None,
         group: None,
-        description: "A tidally-locked world whose pre-collapse orbital yard has sat dormant for a generation.",
-        key_facts: vec![("Class", "Rocky planet")],
+        description: "A tidally-locked world whose pre-collapse orbital yard has sat dormant for a generation.".into(),
+        key_facts: facts(&[("Class", "Rocky planet")]),
+        planet_facts: None,
         knowledge: surveyed_today(),
         orbit: own(0.7 * KM_PER_AU),
         radius_km: 5800.0,
@@ -221,14 +229,15 @@ fn iver() -> BodyBlueprint {
         orbits: vec![],
         children: vec![
             BodyBlueprint {
-                name: "Iver Yard",
+                name: "Iver Yard".into(),
                 class: BodyClass::Station,
                 affiliation: Affiliation::Own,
                 record: Some(ShipRecord::new(ShipClass::Station, true)),
                 propulsion: None,
                 group: None,
-                description: "A dormant pre-collapse shipyard, barely maintained.",
-                key_facts: vec![("Status", "Dormant"), ("Owner", "Own")],
+                description: "A dormant pre-collapse shipyard, barely maintained.".into(),
+                key_facts: facts(&[("Status", "Dormant"), ("Owner", "Own")]),
+                planet_facts: None,
                 knowledge: surveyed_today(),
                 orbit: OrbitPlacement::Named("High"),
                 radius_km: 1.0,
@@ -261,38 +270,43 @@ fn iver() -> BodyBlueprint {
 /// ships parked in its "High" band.
 fn halden_iv() -> BodyBlueprint {
     let moon =
-        |name, description, orbit_radius_km, radius_km, phase0_rad, knowledge| BodyBlueprint {
-            name,
-            class: BodyClass::Moon,
-            affiliation: Affiliation::Own,
-            record: None,
-            propulsion: None,
-            group: None,
-            description,
-            key_facts: vec![("Class", "Moon")],
-            knowledge,
-            orbit: own(orbit_radius_km),
-            radius_km,
-            phase0_rad,
-            mass_kg: rocky_mass_kg(radius_km),
-            orbits: vec![],
-            children: vec![],
+        |name: &str, description: &str, orbit_radius_km, radius_km, phase0_rad, knowledge| {
+            BodyBlueprint {
+                name: name.into(),
+                class: BodyClass::Moon,
+                affiliation: Affiliation::Own,
+                record: None,
+                propulsion: None,
+                group: None,
+                description: description.into(),
+                key_facts: facts(&[("Class", "Moon")]),
+                planet_facts: None,
+                knowledge,
+                orbit: own(orbit_radius_km),
+                radius_km,
+                phase0_rad,
+                mass_kg: rocky_mass_kg(radius_km),
+                orbits: vec![],
+                children: vec![],
+            }
         };
     BodyBlueprint {
-        name: "Halden IV",
+        name: "Halden IV".into(),
         class: BodyClass::Planet,
         affiliation: Affiliation::Own,
         record: None,
         propulsion: None,
         group: None,
-        description: "Cold terrestrial capital world: three settlements under a thin nitrogen sky.",
-        key_facts: vec![
+        description: "Cold terrestrial capital world: three settlements under a thin nitrogen sky."
+            .into(),
+        key_facts: facts(&[
             ("Class", "Cold terrestrial · capital world"),
             ("Population", "212k"),
             ("Settlements", "3"),
             ("Surface", "0.82 g, thin N2, -41 C"),
             ("Governor", "A. Voss"),
-        ],
+        ]),
+        planet_facts: None,
         knowledge: Knowledge::Surveyed,
         orbit: own(2.0 * KM_PER_AU),
         radius_km: 6700.0,
@@ -321,10 +335,10 @@ fn halden_iv() -> BodyBlueprint {
                 surveyed_today(),
             ),
             BodyBlueprint {
-                key_facts: vec![
+                key_facts: facts(&[
                     ("Water ice", "likely, 2-9 Gt"),
                     ("Surface sites", "unknown"),
-                ],
+                ]),
                 ..moon(
                     "Halden IVc",
                     "An ice moon the faction has not yet surveyed up close.",
@@ -343,14 +357,15 @@ fn halden_iv() -> BodyBlueprint {
                 surveyed_today(),
             ),
             BodyBlueprint {
-                name: "Arden Highport",
+                name: "Arden Highport".into(),
                 class: BodyClass::Station,
                 affiliation: Affiliation::Own,
                 record: Some(ShipRecord::new(ShipClass::Station, true)),
                 propulsion: None,
                 group: None,
-                description: "Halden IV's primary orbital station.",
-                key_facts: vec![("Status", "Active"), ("Owner", "Own")],
+                description: "Halden IV's primary orbital station.".into(),
+                key_facts: facts(&[("Status", "Active"), ("Owner", "Own")]),
+                planet_facts: None,
                 knowledge: surveyed_today(),
                 // TEST-02 / TEST-10: in the Low band, so about 0.07 d.
                 orbit: OrbitPlacement::Named("Low"),
@@ -391,14 +406,15 @@ fn parked(
 ) -> BodyBlueprint {
     let own = affiliation == Affiliation::Own;
     BodyBlueprint {
-        name,
+        name: name.into(),
         class: BodyClass::Ship,
         affiliation,
         record: Some(record),
         propulsion: propulsion_for(name),
         group: None,
-        description,
+        description: description.into(),
         key_facts: vec![],
+        planet_facts: None,
         knowledge: if own {
             surveyed_today()
         } else {
@@ -469,7 +485,7 @@ fn ships_at_halden() -> Vec<BodyBlueprint> {
             Affiliation::Own,
             transport(
                 TroopLoad::Embarked(vec![Formation {
-                    name: "1st Arden Guard",
+                    name: "1st Arden Guard".into(),
                     echelon: Some(Echelon::Battalion),
                 }]),
                 0.85,
@@ -488,11 +504,11 @@ fn ships_at_halden() -> Vec<BodyBlueprint> {
             transport(
                 TroopLoad::Embarked(vec![
                     Formation {
-                        name: "2nd Halden Regiment",
+                        name: "2nd Halden Regiment".into(),
                         echelon: Some(Echelon::Regiment),
                     },
                     Formation {
-                        name: "Halden Field Brigade",
+                        name: "Halden Field Brigade".into(),
                         echelon: Some(Echelon::Brigade),
                     },
                 ]),
@@ -702,14 +718,15 @@ fn morrow() -> BodyBlueprint {
         .map(|i| {
             let name = MORROW_MOON_NAMES[i];
             BodyBlueprint {
-                name,
+                name: name.into(),
                 class: BodyClass::Moon,
                 affiliation: Affiliation::Own,
                 record: None,
                 propulsion: None,
                 group: None,
-                description: "One of Morrow's eleven moons.",
-                key_facts: vec![("Class", "Moon")],
+                description: "One of Morrow's eleven moons.".into(),
+                key_facts: facts(&[("Class", "Moon")]),
+                planet_facts: None,
                 knowledge: surveyed_today(),
                 orbit: own(MOON_RADII_KM[i]),
                 radius_km: MOON_BODY_RADII_KM[i],
@@ -725,14 +742,15 @@ fn morrow() -> BodyBlueprint {
     moons[MORROW_IX].children = morrow_ix_satellites();
 
     BodyBlueprint {
-        name: "Morrow",
+        name: "Morrow".into(),
         class: BodyClass::Planet,
         affiliation: Affiliation::Own,
         record: None,
         propulsion: None,
         group: None,
-        description: "An outer giant with a retinue of eleven moons.",
-        key_facts: vec![("Class", "Gas giant"), ("Moons", "11")],
+        description: "An outer giant with a retinue of eleven moons.".into(),
+        key_facts: facts(&[("Class", "Gas giant"), ("Moons", "11")]),
+        planet_facts: None,
         knowledge: surveyed_today(),
         orbit: own(4.3 * KM_PER_AU),
         radius_km: 71500.0,
@@ -757,27 +775,29 @@ fn morrow_ix_orbits() -> Vec<NamedOrbitBlueprint> {
 /// and a frame three levels deep: a station fast enough to be an exposure
 /// ring at 1 d/s, and a trader slow enough to be a dot.
 fn morrow_ix_satellites() -> Vec<BodyBlueprint> {
-    let satellite = |name, affiliation, record, description, orbit, phase0_rad| BodyBlueprint {
-        name,
-        class: BodyClass::Ship,
-        affiliation,
-        record: Some(record),
-        propulsion: None,
-        group: None,
-        description,
-        key_facts: vec![],
-        knowledge: Knowledge::Unsurveyed,
-        orbit,
-        radius_km: 0.1,
-        phase0_rad,
-        mass_kg: 0.0,
-        orbits: vec![],
-        children: vec![],
-    };
+    let satellite =
+        |name: &str, affiliation, record, description: &str, orbit, phase0_rad| BodyBlueprint {
+            name: name.into(),
+            class: BodyClass::Ship,
+            affiliation,
+            record: Some(record),
+            propulsion: None,
+            group: None,
+            description: description.into(),
+            key_facts: vec![],
+            planet_facts: None,
+            knowledge: Knowledge::Unsurveyed,
+            orbit,
+            radius_km: 0.1,
+            phase0_rad,
+            mass_kg: 0.0,
+            orbits: vec![],
+            children: vec![],
+        };
     let relay = BodyBlueprint {
         class: BodyClass::Station,
         knowledge: surveyed_today(),
-        key_facts: vec![("Status", "Active"), ("Owner", "Own")],
+        key_facts: facts(&[("Status", "Active"), ("Owner", "Own")]),
         radius_km: 0.5,
         ..satellite(
             "Tern Relay",
@@ -971,13 +991,13 @@ mod tests {
             .filter(|c| c.record.is_some() || c.group.is_some())
             .partition(|c| c.orbit == OrbitPlacement::Named("High"));
         assert!(in_high.len() >= 13, "{} ships in High", in_high.len());
-        let elsewhere: Vec<&str> = elsewhere.iter().map(|c| c.name).collect();
+        let elsewhere: Vec<&str> = elsewhere.iter().map(|c| c.name.as_str()).collect();
         assert_eq!(elsewhere, ["Arden Highport", "K-3"]);
         let in_low: Vec<&str> = halden
             .children
             .iter()
             .filter(|c| c.orbit == OrbitPlacement::Named("Low"))
-            .map(|c| c.name)
+            .map(|c| c.name.as_str())
             .collect();
         assert_eq!(in_low, ["Arden Highport"]);
         assert!(matches!(
@@ -993,7 +1013,7 @@ mod tests {
         }
         let mut phases: Vec<f64> = in_high
             .iter()
-            .filter(|c| !CONVOY[1..].contains(&c.name))
+            .filter(|c| !CONVOY[1..].contains(&c.name.as_str()))
             .map(|c| c.phase0_rad)
             .collect();
         phases.sort_by(f64::total_cmp);
@@ -1032,7 +1052,7 @@ mod tests {
                 let hill = hill_radius_km(radius_km, moon.mass_kg, planet.mass_kg);
                 let bands = band_radii(moon.radius_km, hill, &tunables);
                 assert!(bands.low_km > moon.radius_km);
-                let expect_high = !matches!(moon.name, "Morrow I" | "Morrow II");
+                let expect_high = !matches!(moon.name.as_str(), "Morrow I" | "Morrow II");
                 assert_eq!(
                     bands.high_km.is_some(),
                     expect_high,
@@ -1139,7 +1159,7 @@ mod tests {
     #[test]
     fn corvane_contains_the_required_bodies() {
         let system = hand_made_system();
-        let planet_names: Vec<&str> = system.planets.iter().map(|p| p.name).collect();
+        let planet_names: Vec<&str> = system.planets.iter().map(|p| p.name.as_str()).collect();
         for name in ["Pell", "Iver", "Halden IV", "Morrow"] {
             assert!(planet_names.contains(&name), "{name} missing");
         }
@@ -1148,7 +1168,7 @@ mod tests {
             panic!("Corvane has {} belts, not one", system.belts.len());
         };
         assert_eq!(belt.name, "Corvane belt");
-        let site_names: Vec<&str> = belt.salvage_sites.iter().map(|s| s.name).collect();
+        let site_names: Vec<&str> = belt.salvage_sites.iter().map(|s| s.name.as_str()).collect();
         assert!(site_names.contains(&"Wreck Field"));
         assert!(site_names.contains(&"Lantern"));
         assert!(!system.gates.is_empty());
@@ -1193,7 +1213,7 @@ mod tests {
             own(a)
                 && r.load
                     == TroopLoad::Embarked(vec![Formation {
-                        name: "1st Arden Guard",
+                        name: "1st Arden Guard".into(),
                         echelon: Some(Echelon::Battalion),
                     }])
         });

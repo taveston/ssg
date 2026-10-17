@@ -152,6 +152,54 @@ pub fn planet_summary(
     }
 }
 
+/// The facts of a small solid body, worked out by the rules for a rocky
+/// planet (SGEN-38 to SGEN-41): gravity, equilibrium temperature,
+/// atmosphere and water.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SolidFacts {
+    pub gravity_g: f64,
+    pub equilibrium_temperature_k: f64,
+    pub atmosphere: Atmosphere,
+    pub water: Water,
+}
+
+/// Where a solid body sits for its facts: its distance from the star, and
+/// whether that is at or beyond the snow line.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Sunlight {
+    pub luminosity_lsun: f64,
+    pub distance_au: f64,
+    pub beyond_snow_line: bool,
+}
+
+/// A moon's or belt body's facts by the rules for a rocky planet
+/// (SGEN-38 to SGEN-41): gravity from its own mass and radius, an
+/// equilibrium temperature at `light`'s distance, an atmosphere from a
+/// freshly drawn volatile endowment, and water drawn as a rocky planet's
+/// is. It draws the endowment, then the water.
+pub fn solid_body_facts(
+    mass_earth: f64,
+    radius_earth: f64,
+    light: Sunlight,
+    rng: &mut Rng,
+    t: &GeneratorTunables,
+) -> SolidFacts {
+    let temperature = equilibrium_temperature_k(
+        light.luminosity_lsun,
+        light.distance_au,
+        t.equilibrium_albedo,
+    );
+    let range = t.volatile_endowment_range;
+    let endowment = rng.log_uniform(range.min, range.max);
+    let atmosphere = atmosphere_of(mass_earth, radius_earth, temperature, Some(endowment), t);
+    SolidFacts {
+        gravity_g: gravity_g(mass_earth, radius_earth),
+        equilibrium_temperature_k: temperature,
+        atmosphere,
+        water: draw_water(atmosphere, temperature, light.beyond_snow_line, rng, t),
+    }
+}
+
 /// A planet's atmosphere from its mass, radius, equilibrium temperature
 /// and volatile endowment (SGEN-40). A planet with no endowment is one
 /// with an envelope.

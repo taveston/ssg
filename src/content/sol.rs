@@ -15,7 +15,7 @@
 
 use crate::sim::body::{Affiliation, BodyClass, Knowledge};
 use crate::sim::ship::{Drive, Propulsion};
-use crate::sim::system::{BeltBlueprint, BodyBlueprint, OrbitPlacement, SystemData};
+use crate::sim::system::{BeltBlueprint, BodyBlueprint, OrbitPlacement, SystemData, facts};
 use crate::sim::track::{ShipClass, ShipRecord};
 use crate::sim::units::{KM_PER_AU, SOLAR_MASS_KG, STANDARD_GRAVITY_M_PER_S2};
 
@@ -257,7 +257,7 @@ fn craft(figures: &CraftFigures) -> BodyBlueprint {
             BodyClass::Station,
             ShipRecord::new(ShipClass::Station, true),
             None,
-            vec![("Status", "Active"), ("Owner", "Own")],
+            facts(&[("Status", "Active"), ("Owner", "Own")]),
         ),
         Craft::Ship {
             drive_name,
@@ -280,14 +280,15 @@ fn craft(figures: &CraftFigures) -> BodyBlueprint {
         ),
     };
     BodyBlueprint {
-        name: figures.name,
+        name: figures.name.into(),
         class,
         affiliation: Affiliation::Own,
         record: Some(record),
         propulsion,
         group: None,
-        description: figures.description,
+        description: figures.description.into(),
         key_facts,
+        planet_facts: None,
         knowledge: Knowledge::Surveyed,
         orbit: OrbitPlacement::Named(figures.band),
         radius_km: if class == BodyClass::Station {
@@ -330,14 +331,15 @@ fn natural_body(
     children: Vec<BodyBlueprint>,
 ) -> BodyBlueprint {
     BodyBlueprint {
-        name,
+        name: name.into(),
         class,
         affiliation: Affiliation::Neutral,
         record: None,
         propulsion: None,
         group: None,
-        description,
-        key_facts,
+        description: description.into(),
+        key_facts: facts(&key_facts),
+        planet_facts: None,
         knowledge: Knowledge::Surveyed,
         orbit: OrbitPlacement::Own {
             radius_km: orbit_radius_km,
@@ -394,8 +396,8 @@ fn planet(figures: &PlanetFigures) -> BodyBlueprint {
 /// SOL-02 to SOL-17: the Sol system as records.
 pub fn sol_system() -> SystemData {
     SystemData {
-        star_name: "Sol",
-        star_class: "G2V",
+        star_name: "Sol".into(),
+        star_key_facts: facts(&[("Class", "G2V")]),
         star_mass_kg: SOLAR_MASS_KG,
         star_radius_km: 695_700.0,
         star_knowledge: Knowledge::Surveyed,
@@ -524,8 +526,8 @@ mod tests {
     fn the_star_is_the_sun() {
         let system = sol_system();
         assert_eq!(
-            (system.star_name, system.star_class),
-            ("Sol", "G2V"),
+            (system.star_name, system.star_key_facts),
+            ("Sol".to_string(), facts(&[("Class", "G2V")])),
             "star name and class"
         );
         assert_eq!(system.star_mass_kg, SOLAR_MASS_KG);
@@ -538,7 +540,7 @@ mod tests {
     #[test]
     fn the_planets_follow_table_one() {
         let system = sol_system();
-        let names: Vec<&str> = system.planets.iter().map(|p| p.name).collect();
+        let names: Vec<&str> = system.planets.iter().map(|p| p.name.as_str()).collect();
         assert_eq!(
             names,
             [
@@ -559,7 +561,7 @@ mod tests {
         ] {
             let planet = planet_named(name);
             assert_eq!(planet.class, BodyClass::Planet, "{name}");
-            assert_eq!(planet.key_facts, [("Class", class)], "{name}");
+            assert_eq!(planet.key_facts, facts(&[("Class", class)]), "{name}");
         }
     }
 
@@ -583,7 +585,12 @@ mod tests {
             assert!(radii.is_sorted(), "{}'s moons run outwards", planet.name);
             for moon in moons {
                 assert_eq!(moon.class, BodyClass::Moon);
-                assert_eq!(moon.key_facts[0], ("Class", "Moon"), "{}", moon.name);
+                assert_eq!(
+                    moon.key_facts[..1],
+                    facts(&[("Class", "Moon")]),
+                    "{}",
+                    moon.name
+                );
                 let notes = moon.key_facts.len() - 1;
                 let expected = usize::from(moon.name == "Triton" || planet.name == "Uranus");
                 assert_eq!(notes, expected, "{}'s notes", moon.name);
@@ -598,16 +605,16 @@ mod tests {
         );
         let neptune = planet_named("Neptune");
         assert_eq!(
-            neptune.children[1].key_facts[1],
-            ("Real orbit", "retrograde, drawn prograde")
+            neptune.children[1].key_facts[1..],
+            facts(&[("Real orbit", "retrograde, drawn prograde")])
         );
         let uranus = planet_named("Uranus");
         assert_eq!(
-            uranus.children[0].key_facts[1],
-            (
+            uranus.children[0].key_facts[1..],
+            facts(&[(
                 "Real orbit",
                 "round Uranus's tilted equator, drawn in the system plane"
-            )
+            )])
         );
     }
 
@@ -683,7 +690,8 @@ mod tests {
     /// ships with drives, all round Earth.
     #[test]
     fn earth_holds_two_stations_and_two_cargo_ships() {
-        let names: Vec<&str> = craft_round_earth().iter().map(|c| c.name).collect();
+        let craft = craft_round_earth();
+        let names: Vec<&str> = craft.iter().map(|c| c.name.as_str()).collect();
         assert_eq!(
             names,
             ["Perigee Station", "Marlin", "Vestige", "Apogee Station"]
@@ -830,7 +838,7 @@ mod tests {
             assert!(bands.low_km > body.radius_km, "{}", body.name);
             assert_eq!(
                 bands.high_km.is_none(),
-                no_high.contains(&body.name),
+                no_high.contains(&body.name.as_str()),
                 "{}: {bands:?}",
                 body.name
             );

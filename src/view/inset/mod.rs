@@ -8,3 +8,4 @@ pub mod content;
 pub mod fidelity;
 pub mod inspect;
 pub mod outline;
+pub mod world_facts;

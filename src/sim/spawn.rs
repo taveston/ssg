@@ -53,7 +53,7 @@ pub fn spawn_system(
     };
     let SystemData {
         star_name,
-        star_class,
+        star_key_facts,
         star_mass_kg,
         star_radius_km,
         star_knowledge,
@@ -64,10 +64,10 @@ pub fn spawn_system(
 
     let star = commands
         .spawn((
-            Name::new(star_name),
-            DisplayName(star_name.to_string()),
+            Name::new(star_name.clone()),
+            DisplayName(star_name),
             Description("The system's star.".to_string()),
-            KeyFacts(vec![("Class".to_string(), star_class.to_string())]),
+            KeyFacts(star_key_facts),
             BodyClass::Star,
             PhysicalRadius(star_radius_km),
             StellarMass(star_mass_kg),
@@ -140,8 +140,8 @@ fn spawn_gate(commands: &mut Commands, gate: GateBlueprint, star_mass_kg: f64, c
     };
     let entity = commands
         .spawn((
-            Name::new(gate.name),
-            DisplayName(gate.name.to_string()),
+            Name::new(gate.name.clone()),
+            DisplayName(gate.name.clone()),
             Description(format!(
                 "A gate linking to the {} system.",
                 gate.destination
@@ -153,6 +153,7 @@ fn spawn_gate(commands: &mut Commands, gate: GateBlueprint, star_mass_kg: f64, c
             BodyClass::Gate,
             GateDestination(gate.destination.to_string()),
             GateEntryTolerance(gate.entry_tolerance_kms),
+            gate.state,
             PhysicalRadius(gate.radius_km),
             Mass(0.0),
             Affiliation::Neutral,
@@ -160,7 +161,7 @@ fn spawn_gate(commands: &mut Commands, gate: GateBlueprint, star_mass_kg: f64, c
             orbit_components(orbit),
         ))
         .id();
-    spawn_docking_orbit(commands, entity, gate.name, context.star, &orbit);
+    spawn_docking_orbit(commands, entity, &gate.name, context.star, &orbit);
 }
 
 /// BAND-02: the orbit a gate or salvage site offers a ship sent to it:
@@ -168,12 +169,12 @@ fn spawn_gate(commands: &mut Commands, gate: GateBlueprint, star_mass_kg: f64, c
 fn spawn_docking_orbit(
     commands: &mut Commands,
     place: Entity,
-    name: &'static str,
+    name: &str,
     parent: Entity,
     orbit: &Orbit,
 ) {
     commands.spawn((
-        Name::new(name),
+        Name::new(name.to_string()),
         NamedOrbit {
             parent,
             name: name.to_string(),
@@ -257,7 +258,7 @@ impl Placements {
             .filter(|(child, _)| child.class == BodyClass::Station)
             .filter_map(|(child, placed)| {
                 Some(StationSpot {
-                    name: child.name,
+                    name: &child.name,
                     orbit: placed.named?,
                     radius_km: placed.radius_km,
                     phase_rad: child.phase0_rad,
@@ -306,8 +307,8 @@ pub fn resolve_placement(
 
 /// A station as placed by content, for checking that no two are together.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct StationSpot {
-    pub name: &'static str,
+pub struct StationSpot<'a> {
+    pub name: &'a str,
     /// The named orbit it sits in.
     pub orbit: Entity,
     pub radius_km: f64,
@@ -375,7 +376,7 @@ fn spawn_body(
         phase0_rad: blueprint.phase0_rad,
     };
     let (name, class, radius_km, mass_kg) = (
-        blueprint.name,
+        blueprint.name.clone(),
         blueprint.class,
         blueprint.radius_km,
         blueprint.mass_kg,
@@ -399,7 +400,7 @@ fn spawn_body(
         }
         BodyClass::Gate | BodyClass::SalvageSite => {
             let round = parent.unwrap_or(context.star);
-            spawn_docking_orbit(commands, entity, name, round, &orbit);
+            spawn_docking_orbit(commands, entity, &name, round, &orbit);
         }
         // A station is a place in its parent's band, as a parked ship is
         // (SCL-07, BAND-02): it offers no orbit of its own.
@@ -431,21 +432,17 @@ fn spawn_body_entity(
         propulsion,
         description,
         key_facts,
+        planet_facts,
         knowledge,
         radius_km,
         mass_kg,
         ..
     } = blueprint;
     let mut entity_commands = commands.spawn((
-        Name::new(name),
-        DisplayName(name.to_string()),
-        Description(description.to_string()),
-        KeyFacts(
-            key_facts
-                .into_iter()
-                .map(|(k, v)| (k.to_string(), v.to_string()))
-                .collect(),
-        ),
+        Name::new(name.clone()),
+        DisplayName(name),
+        Description(description),
+        KeyFacts(key_facts),
         class,
         PhysicalRadius(radius_km),
         Mass(mass_kg),
@@ -455,6 +452,10 @@ fn spawn_body_entity(
     ));
     if let Some(record) = record {
         entity_commands.insert(record);
+    }
+    if let Some(planet_facts) = planet_facts {
+        // SYSG-22: what a generated world is like.
+        entity_commands.insert(planet_facts);
     }
     if let Some(Propulsion { drive, delta_v_kms }) = propulsion {
         // PLAN-20: a ship that can be ordered to move.

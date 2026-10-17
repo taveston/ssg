@@ -5,7 +5,8 @@
 
 use bevy::prelude::*;
 
-use super::body::{Affiliation, BeltComposition, BodyClass, Knowledge};
+use super::body::{Affiliation, BeltComposition, BodyClass, GateState, Knowledge};
+use super::planet_facts::PlanetFacts;
 use super::ship::Propulsion;
 use super::track::ShipRecord;
 
@@ -32,11 +33,22 @@ pub struct NamedOrbitBlueprint {
     pub radius_km: f64,
 }
 
+/// Authored key facts from label and value pairs, for content written
+/// out by hand.
+pub fn facts(pairs: &[(&str, &str)]) -> Vec<(String, String)> {
+    pairs
+        .iter()
+        .map(|&(label, value)| (label.to_string(), value.to_string()))
+        .collect()
+}
+
 /// A node in the system tree. Periods are derived from the orbit radius
 /// and the parent's mass, not stored, so they can't drift out of sync with
-/// the radius (SCL-04).
+/// the radius (SCL-04). Names and text are owned, so a generator can make
+/// them at run time.
+#[derive(Debug, Clone, PartialEq)]
 pub struct BodyBlueprint {
-    pub name: &'static str,
+    pub name: String,
     pub class: BodyClass,
     pub affiliation: Affiliation,
     /// What the faction knows of a ship or station (SYM-01); `None` for
@@ -48,8 +60,11 @@ pub struct BodyBlueprint {
     /// For a group of ships (SYM-09): its members. A group's `record` is
     /// `None`: what it is comes from its members.
     pub group: Option<GroupBlueprint>,
-    pub description: &'static str,
-    pub key_facts: Vec<(&'static str, &'static str)>,
+    pub description: String,
+    pub key_facts: Vec<(String, String)>,
+    /// A planet's, moon's or belt body's physical facts (SYSG-22);
+    /// `None` for hand-made bodies and anything else.
+    pub planet_facts: Option<PlanetFacts>,
     pub knowledge: Knowledge,
     /// Where it sits round its parent (SCL-07).
     pub orbit: OrbitPlacement,
@@ -68,12 +83,14 @@ pub struct BodyBlueprint {
 /// under one commander), and its members. The members share the group's
 /// affiliation, command, orbit and phase (PHAS-14), so they carry none of
 /// their own.
+#[derive(Debug, Clone, PartialEq)]
 pub struct GroupBlueprint {
     pub task_force: bool,
     pub members: Vec<MemberBlueprint>,
 }
 
 /// One ship of a group: its name and what the faction knows of it.
+#[derive(Debug, Clone, PartialEq)]
 pub struct MemberBlueprint {
     pub name: &'static str,
     pub record: ShipRecord,
@@ -82,6 +99,7 @@ pub struct MemberBlueprint {
 /// One belt (SCL-08): an annulus round the star, by name, with its mass
 /// and composition where they are known, and the salvage sites that orbit
 /// within it.
+#[derive(Debug, Clone, PartialEq)]
 pub struct BeltBlueprint {
     pub name: String,
     pub inner_radius_km: f64,
@@ -91,25 +109,35 @@ pub struct BeltBlueprint {
     pub salvage_sites: Vec<BodyBlueprint>,
 }
 
+/// A gate round the star, on an orbit of its own at `distance_km`,
+/// starting `angle_deg` round it.
+#[derive(Debug, Clone, PartialEq)]
 pub struct GateBlueprint {
-    pub name: &'static str,
-    pub destination: &'static str,
+    pub name: String,
+    pub destination: String,
     pub radius_km: f64,
     pub distance_km: f64,
     pub angle_deg: f64,
     /// PLAN-30: how close to the gate's speed a ship must match to enter;
     /// stored, not yet read by any rule.
     pub entry_tolerance_kms: f64,
+    /// Whether it can be passed (SYSG-52).
+    pub state: GateState,
 }
 
+/// One system's records, ready to spawn: the star and everything round
+/// it.
+#[derive(Debug, Clone, PartialEq)]
 pub struct SystemData {
-    pub star_name: &'static str,
-    /// The star's spectral class, shown as its key fact.
-    pub star_class: &'static str,
+    pub star_name: String,
+    /// The star's authored key facts, its spectral class first.
+    pub star_key_facts: Vec<(String, String)>,
     pub star_mass_kg: f64,
     /// The star's mean physical radius (SCL-05).
     pub star_radius_km: f64,
     pub star_knowledge: Knowledge,
+    /// The records round the star: planets, and any ship, station or
+    /// salvage site with an orbit of its own round it.
     pub planets: Vec<BodyBlueprint>,
     /// Any number of belts, none included (SCL-08).
     pub belts: Vec<BeltBlueprint>,

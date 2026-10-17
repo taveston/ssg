@@ -36,6 +36,24 @@ pub struct DisplayName(pub String);
 #[derive(Component, Clone, Debug, PartialEq, Eq)]
 pub struct GateDestination(pub String);
 
+/// Whether a gate can be passed (SYSG-52): working, or dormant (intact
+/// but closed). A dormant gate says whether this end of its link is the
+/// faulted one; why it is closed is not modelled yet.
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GateState {
+    Working,
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "only the system generator makes dormant gates, which the sector view will call (SECT-01)"
+        )
+    )]
+    Dormant {
+        faulted_here: bool,
+    },
+}
+
 /// PLAN-30: how closely a ship must match a gate's speed to enter it, in
 /// km/s. Stored on the gate; no rule reads it yet.
 #[derive(Component, Clone, Copy, Debug, PartialEq)]

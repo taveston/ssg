@@ -1,9 +1,11 @@
-//! Every number the sector generator spec marks tunable, in one plain
-//! struct passed to the generator (SGEN-05, ARCH-22). It is not a Bevy
-//! resource: the generator is plain Rust and takes it as an argument.
+//! Every number the sector and system generator specs mark tunable, in
+//! one plain struct passed to the generators (SGEN-05, ARCH-22). It is not
+//! a Bevy resource: the generator is plain Rust and takes it as an
+//! argument.
 //!
-//! The tunables table at the end of `docs/spec/sector-generator.md` lists
-//! them with the requirements that use them. Fields are grouped by stage,
+//! The tunables tables at the end of `docs/spec/sector-generator.md` and
+//! `docs/spec/system-generator.md` list them with the requirements that
+//! use them. Fields are grouped by stage,
 //! in the table's order. Several rows of the table are small tables of
 //! their own (a share per star class, a range per planet kind); those use
 //! the helper types below.
@@ -282,7 +284,34 @@ pub struct ScienceValues {
     pub extreme_metallicity: f64,
 }
 
-/// Every tunable of the sector generator (SGEN-05).
+/// How many moons a planet of one kind gets (SYSG-30): any whole number
+/// in a range, equally likely, or a number drawn with weights.
+#[derive(Debug, Clone, PartialEq)]
+pub enum MoonCount {
+    Range(CountSpan),
+    Weights(Vec<(u32, f64)>),
+}
+
+/// Densities in g/cm³ of an icy and a rocky small body, from which its
+/// radius follows from its mass (SYSG-32, SYSG-41).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Densities {
+    pub icy_g_cm3: f64,
+    pub rocky_g_cm3: f64,
+}
+
+impl Densities {
+    /// The density for an icy body or a rocky one, in g/cm³.
+    pub fn get(&self, icy: bool) -> f64 {
+        if icy {
+            self.icy_g_cm3
+        } else {
+            self.rocky_g_cm3
+        }
+    }
+}
+
+/// Every tunable of the sector and system generators (SGEN-05).
 #[derive(Debug, Clone, PartialEq)]
 pub struct GeneratorTunables {
     // --- Settings ---
@@ -555,6 +584,50 @@ pub struct GeneratorTunables {
     /// The largest sector must generate within this many seconds in a
     /// debug test build (SGEN-92).
     pub generation_test_cap_s: f64,
+
+    // --- System detail: moons ---
+    /// How many moons a planet of each kind draws (SYSG-30).
+    pub moon_counts: ByKind<MoonCount>,
+    /// The most moons any planet has (SYSG-30); moons are lettered, so at
+    /// most 26 (SYSG-34).
+    pub moon_max_count: u32,
+    /// The innermost moon's orbit radius, in planet radii (SYSG-31).
+    pub moon_first_orbit_radii: Span,
+    /// Each moon's orbit radius over the one inside it (SYSG-31).
+    pub moon_orbit_ratio: Span,
+    /// No moon orbits beyond this many planet radii (SYSG-31).
+    pub moon_outer_limit_radii: f64,
+    /// No moon orbits beyond this share of its planet's Hill radius
+    /// (SYSG-31).
+    pub moon_hill_fraction: f64,
+    /// No moon orbits closer than this many planet radii (SYSG-31).
+    pub moon_inner_limit_radii: f64,
+    /// A giant's moon's mass over its planet's (SYSG-32).
+    pub moon_mass_ratio_giant: Span,
+    /// Any other planet's moon's mass over its planet's (SYSG-32).
+    pub moon_mass_ratio_other: Span,
+    /// The density of an icy moon (its planet at or beyond the snow line)
+    /// and of a rocky one (SYSG-32).
+    pub moon_density: Densities,
+
+    // --- System detail: belt bodies ---
+    /// Weights for a belt's number of large bodies (SYSG-41).
+    pub belt_body_count_weights: Vec<(u32, f64)>,
+    /// A belt body's mass range, in Earth masses (SYSG-41).
+    pub belt_body_mass_me: Span,
+    /// A belt's bodies weigh at most this share of the belt (SYSG-41).
+    pub belt_body_mass_cap: f64,
+    /// The density of a body in a mostly icy belt and in any other
+    /// (SYSG-41).
+    pub belt_body_density: Densities,
+
+    // --- System detail: gates ---
+    /// How closely a ship must match a gate's speed to enter it, in km/s
+    /// (SYSG-52, PLAN-30).
+    pub gate_entry_tolerance_km_s: f64,
+    /// Each record on the gate ring is jittered by up to this share of
+    /// the even spacing either way (SYSG-54).
+    pub gate_jitter_fraction: f64,
 }
 
 impl Default for GeneratorTunables {
@@ -806,6 +879,37 @@ impl Default for GeneratorTunables {
 
             invariant_seeds: 50,
             generation_test_cap_s: 30.0,
+
+            moon_counts: ByKind {
+                rocky: MoonCount::Weights(vec![(0, 0.80), (1, 0.15), (2, 0.05)]),
+                super_earth: MoonCount::Range(CountSpan::new(0, 1)),
+                sub_neptune: MoonCount::Range(CountSpan::new(0, 2)),
+                ice_giant: MoonCount::Range(CountSpan::new(1, 6)),
+                gas_giant: MoonCount::Range(CountSpan::new(3, 12)),
+            },
+            moon_max_count: 26,
+            moon_first_orbit_radii: Span::new(2.5, 8.0),
+            moon_orbit_ratio: Span::new(1.4, 2.2),
+            moon_outer_limit_radii: 30.0,
+            moon_hill_fraction: 0.5,
+            moon_inner_limit_radii: 2.0,
+            moon_mass_ratio_giant: Span::new(1e-7, 2e-4),
+            moon_mass_ratio_other: Span::new(1e-6, 1e-2),
+            moon_density: Densities {
+                icy_g_cm3: 1.8,
+                rocky_g_cm3: 3.3,
+            },
+
+            belt_body_count_weights: vec![(0, 0.4), (1, 0.3), (2, 0.2), (3, 0.1)],
+            belt_body_mass_me: Span::new(1e-5, 3e-4),
+            belt_body_mass_cap: 0.4,
+            belt_body_density: Densities {
+                icy_g_cm3: 1.5,
+                rocky_g_cm3: 2.5,
+            },
+
+            gate_entry_tolerance_km_s: 10.0,
+            gate_jitter_fraction: 0.25,
         }
     }
 }
@@ -1038,5 +1142,54 @@ mod tests {
         );
         assert_eq!((t.max_name_retries, t.belt_body_max), (20, 3));
         assert_eq!((t.invariant_seeds, t.generation_test_cap_s), (50, 30.0));
+    }
+
+    /// SGEN-05: the system generator's defaults are its spec table.
+    #[test]
+    fn the_system_defaults_match_the_spec_table() {
+        let t = GeneratorTunables::default();
+        let counts = &t.moon_counts;
+        assert_eq!(
+            counts.rocky,
+            MoonCount::Weights(vec![(0, 0.80), (1, 0.15), (2, 0.05)])
+        );
+        assert_eq!(counts.super_earth, MoonCount::Range(CountSpan::new(0, 1)));
+        assert_eq!(counts.sub_neptune, MoonCount::Range(CountSpan::new(0, 2)));
+        assert_eq!(counts.ice_giant, MoonCount::Range(CountSpan::new(1, 6)));
+        assert_eq!(counts.gas_giant, MoonCount::Range(CountSpan::new(3, 12)));
+        assert_eq!(t.moon_max_count, 26);
+        assert_eq!(t.moon_first_orbit_radii, Span::new(2.5, 8.0));
+        assert_eq!(t.moon_orbit_ratio, Span::new(1.4, 2.2));
+        assert_eq!(
+            (
+                t.moon_outer_limit_radii,
+                t.moon_hill_fraction,
+                t.moon_inner_limit_radii
+            ),
+            (30.0, 0.5, 2.0)
+        );
+        assert_eq!(t.moon_mass_ratio_giant, Span::new(1e-7, 2e-4));
+        assert_eq!(t.moon_mass_ratio_other, Span::new(1e-6, 1e-2));
+        assert_eq!(
+            (t.moon_density.get(true), t.moon_density.get(false)),
+            (1.8, 3.3)
+        );
+        assert_eq!(
+            t.belt_body_count_weights,
+            vec![(0, 0.4), (1, 0.3), (2, 0.2), (3, 0.1)]
+        );
+        assert_eq!(t.belt_body_mass_me, Span::new(1e-5, 3e-4));
+        assert_eq!(t.belt_body_mass_cap, 0.4);
+        assert_eq!(
+            (
+                t.belt_body_density.icy_g_cm3,
+                t.belt_body_density.rocky_g_cm3
+            ),
+            (1.5, 2.5)
+        );
+        assert_eq!(
+            (t.gate_entry_tolerance_km_s, t.gate_jitter_fraction),
+            (10.0, 0.25)
+        );
     }
 }

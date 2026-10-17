@@ -1,16 +1,18 @@
 //! What an inset says (INS-02, INS-04, INS-08, PLNR-01, PLNR-05), as
 //! plain values gathered from the selected body: its name, class line,
 //! image, description and key facts, and whether it is a ship the
-//! faction commands. `inset/inspect.rs` lays them out.
+//! faction commands. `inset/inspect.rs` lays them out; the rows for a
+//! world's physical facts and a gate's state are in `world_facts.rs`.
 
 use bevy::prelude::*;
 
 use crate::sim::body::{
-    Affiliation, BodyClass, Description, DisplayName, KeyFacts, Knowledge, PhysicalRadius,
-    StellarMass,
+    Affiliation, BodyClass, Description, DisplayName, GateState, KeyFacts, Knowledge,
+    PhysicalRadius, StellarMass,
 };
 use crate::sim::group::ShipGroup;
 use crate::sim::orbit::Orbit;
+use crate::sim::planet_facts::PlanetFacts;
 use crate::sim::ship::{DeltaV, Drive};
 use crate::sim::track::ShipRecord;
 use crate::sim::transfer::plan::Status;
@@ -19,6 +21,8 @@ use crate::view::planner::words::{DELTA_V, DRIVE, delta_v_fact};
 use crate::view::readout::{format_distance, format_duration};
 use crate::view::symbols::ownership_text;
 use crate::view::tunables::Tunables;
+
+use super::world_facts::{gate_state_row, planet_fact_rows};
 
 /// INS-02: the class line's readable class name.
 pub fn class_label(class: BodyClass) -> &'static str {
@@ -108,9 +112,14 @@ pub type InsetBodies<'w, 's> = Query<
         &'static Knowledge,
         Option<&'static ShipRecord>,
         PhysicalFacts,
+        WorldFacts,
         ShipFacts,
     ),
 >;
+
+/// What INS-08 reports of a generated world or a gate: its planet facts
+/// (SYSG-22) and its state (SYSG-52), where it has them.
+pub type WorldFacts = (Option<&'static PlanetFacts>, Option<&'static GateState>);
 
 /// What PLNR-01 and PLNR-05 read of a ship: its class, its delta-v and
 /// drive, and whether it is a group.
@@ -166,7 +175,7 @@ pub fn gather_content(
     bodies: &InsetBodies,
     tunables: &Tunables,
 ) -> Option<InsetContent> {
-    let (name, description, facts, class, affiliation, knowledge, record, physics, ship) =
+    let (name, description, facts, class, affiliation, knowledge, record, physics, world, ship) =
         bodies.get(body).ok()?;
     let (orbit, mass, radius) = physics;
     let (account, drive, group) = ship;
@@ -179,6 +188,13 @@ pub fn gather_content(
         radius,
         tunables.distance_au_threshold_au,
     ));
+    let (planet_facts, gate_state) = world;
+    if let Some(planet_facts) = planet_facts {
+        facts.extend(planet_fact_rows(planet_facts));
+    }
+    if let Some(&state) = gate_state {
+        facts.push(gate_state_row(state));
+    }
     if commanded_ship && let (Some(account), Some(drive)) = (account, drive) {
         facts.extend(ship_facts(account, drive));
     }
