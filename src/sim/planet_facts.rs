@@ -7,13 +7,6 @@ use bevy::prelude::*;
 
 /// What kind of world a body is (SYSG-22): a planet's kind, or a moon.
 /// A large belt body is a small rocky world.
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "only the system generator makes them, which entering a system calls (SECT-31)"
-    )
-)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WorldKind {
     Rocky,
@@ -35,13 +28,6 @@ pub enum Atmosphere {
 }
 
 /// A world's water: none, ice, or liquid water on the surface.
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "only the system generator makes them, which entering a system calls (SECT-31)"
-    )
-)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Water {
     None,

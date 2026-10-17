@@ -21,6 +21,8 @@ use std::collections::{HashMap, HashSet};
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
+use crate::sim::load::SystemLoadApp;
+
 use crate::Stage;
 use crate::sim::body::{Affiliation, BodyClass, DisplayName};
 use crate::sim::group::ShipGroup;
@@ -419,7 +421,7 @@ pub struct OutlinePlugin;
 
 impl Plugin for OutlinePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<Expanded>()
+        app.reset_with_system::<Expanded>()
             .init_resource::<ScrollToSelection>()
             .add_systems(
                 Update,

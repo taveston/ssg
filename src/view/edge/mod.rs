@@ -117,7 +117,7 @@ pub struct EdgePlugin;
 
 impl Plugin for EdgePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<GateEdgeTargets>()
+        app.reset_with_system::<GateEdgeTargets>()
             .add_load_systems(Boot::Overlay, spawn_edge_tabs)
             .add_systems(Update, update_edge_targets.in_set(Stage::Layout))
             .add_systems(Update, place_edge_tabs.in_set(Stage::Overlay));

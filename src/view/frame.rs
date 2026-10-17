@@ -122,7 +122,7 @@ pub struct FramePlugin;
 
 impl Plugin for FramePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<Frame>()
+        app.reset_with_system::<Frame>()
             .add_load_systems(Boot::Derive, start_in_the_star_frame);
     }
 }

@@ -42,13 +42,6 @@ pub struct GateDestination(pub String);
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GateState {
     Working,
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "only the system generator makes dormant gates, which entering a system calls (SECT-31)"
-        )
-    )]
     Dormant {
         faulted_here: bool,
     },

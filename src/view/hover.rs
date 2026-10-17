@@ -26,6 +26,7 @@ use super::camera::requests::{FrameRequest, PlanetaryViewRequest};
 use super::double_click::{MapClicks, double_click_interval, record_press};
 use super::frame::Frame;
 use super::gesture::{PressStart, was_click};
+use super::map_layer::MapLayer;
 use super::multi::{MultiKey, MultiMarkers, TrayFor, TrayRequest};
 use super::planner::state::{PickTarget, PlannerState};
 use super::rings::marks::RingMarkFor;
@@ -40,6 +41,7 @@ pub struct HoverPlugin;
 impl Plugin for HoverPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<MapClicks>()
+            .init_resource::<MapLayer>()
             .add_systems(
                 PreUpdate,
                 record_press
@@ -55,15 +57,16 @@ impl Plugin for HoverPlugin {
 /// the selection and closes the inset. While the transfer planner is open
 /// it does nothing (PLNR-03). The second click of a double-click whose
 /// target slid away meanwhile lands here too, and completes the
-/// double-click instead (ZOOM-16).
+/// double-click instead (ZOOM-16). In the sector view the sector's own
+/// handler takes empty clicks (SECT-20).
 fn clear_on_empty_click(
-    buttons: Res<ButtonInput<MouseButton>>,
-    bindings: Res<Bindings>,
+    (buttons, bindings, layer): (Res<ButtonInput<MouseButton>>, Res<Bindings>, Res<MapLayer>),
     check: ClickCheck,
     targets: PointerTargets,
     mut body_click: BodyClick,
 ) {
-    if buttons.just_released(bindings.select_button)
+    if !layer.is_sector()
+        && buttons.just_released(bindings.select_button)
         && check.released_as_click()
         && targets.over_nothing()
     {

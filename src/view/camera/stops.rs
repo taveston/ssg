@@ -165,7 +165,7 @@ pub struct StopsPlugin;
 
 impl Plugin for StopsPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<ZoomStops>()
+        app.reset_with_system::<ZoomStops>()
             .init_resource::<SectorFit>()
             .add_load_systems(Boot::Derive, compute_stops);
     }

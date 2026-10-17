@@ -40,7 +40,7 @@ pub struct SharedOrbitPlugin;
 
 impl Plugin for SharedOrbitPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<OrbitMembers>()
+        app.reset_with_system::<OrbitMembers>()
             .add_load_systems(Boot::Derive, index_members)
             // Once the simulation has moved ships between orbits, before
             // anything on screen reads who is where.

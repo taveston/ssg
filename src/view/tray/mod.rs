@@ -18,6 +18,8 @@ use std::collections::HashSet;
 
 use bevy::prelude::*;
 
+use crate::sim::load::SystemLoadApp;
+
 use crate::view::markers::MarkersPlaced;
 use crate::view::multi::{OpenTray, TrayRequest};
 use crate::view::multi_markers::MultiGathered;
@@ -47,8 +49,8 @@ impl Plugin for TrayPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<OpenTray>()
             .init_resource::<TrayRequest>()
-            .init_resource::<TrayState>()
-            .init_resource::<contents::TrayContents>()
+            .reset_with_system::<TrayState>()
+            .reset_with_system::<contents::TrayContents>()
             .add_systems(Startup, draw::spawn_tray.in_set(Boot::Overlay))
             .add_systems(
                 Update,

@@ -22,6 +22,8 @@
 
 use bevy::prelude::*;
 
+use crate::sim::load::SystemLoadApp;
+
 use super::markers::MarkersPlaced;
 use super::planner::PlannerUpdated;
 use crate::{Boot, Stage};
@@ -39,8 +41,8 @@ pub struct PathsPlugin;
 
 impl Plugin for PathsPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<gather::MapPaths>()
-            .init_resource::<strokes::DrawnPaths>()
+        app.reset_with_system::<gather::MapPaths>()
+            .reset_with_system::<strokes::DrawnPaths>()
             .add_systems(Startup, strokes::spawn_path_strokes.in_set(Boot::Overlay))
             .add_systems(
                 Update,

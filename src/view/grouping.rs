@@ -34,7 +34,7 @@ pub struct GroupingPlugin;
 
 impl Plugin for GroupingPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<FoldSummary>()
+        app.reset_with_system::<FoldSummary>()
             .add_load_systems(Boot::Derive, attach_fold_state)
             .add_systems(
                 Update,

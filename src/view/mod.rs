@@ -25,6 +25,8 @@
 
 use bevy::prelude::*;
 
+use crate::sim::load::SystemLoadApp;
+
 pub mod anim;
 pub mod belt;
 pub mod bindings;
@@ -85,13 +87,13 @@ impl Plugin for ViewPlugin {
         // Shared state with no single owner: selection is written by clicks
         // and the inset's buttons, the frame by the camera, and both are
         // read across the view.
-        app.init_resource::<selection::Selection>()
-            .init_resource::<planner::state::PlannerState>()
-            .init_resource::<multi::OpenTray>()
-            .init_resource::<multi::TrayRequest>()
-            .init_resource::<multi::MultiMarkers>()
+        app.reset_with_system::<selection::Selection>()
+            .reset_with_system::<planner::state::PlannerState>()
+            .reset_with_system::<multi::OpenTray>()
+            .reset_with_system::<multi::TrayRequest>()
+            .reset_with_system::<multi::MultiMarkers>()
             .init_resource::<gesture::PressStart>()
-            .init_resource::<double_click::MapClicks>()
+            .reset_with_system::<double_click::MapClicks>()
             .add_plugins((
                 frame::FramePlugin,
                 hovered::HoveredPlugin,

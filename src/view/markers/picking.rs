@@ -86,7 +86,7 @@ pub struct MarkerPickingPlugin;
 
 impl Plugin for MarkerPickingPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<MarkerSpots>()
+        app.reset_with_system::<MarkerSpots>()
             .add_load_systems(Boot::Overlay, spawn_marker_targets)
             .add_systems(Update, find_marker_spots.in_set(Stage::Overlay))
             .add_systems(PreUpdate, pick_markers.in_set(PickingSystems::Backend));
@@ -271,7 +271,7 @@ mod tests {
         let mut app = App::new();
         app.add_message::<PointerHits>()
             .init_resource::<PointerMap>()
-            .init_resource::<MarkerSpots>()
+            .reset_with_system::<MarkerSpots>()
             .init_resource::<Tunables>();
         let world = app.world_mut();
         world

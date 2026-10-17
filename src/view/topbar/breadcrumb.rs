@@ -2,9 +2,11 @@
 //! reference frame, "Sector / *system* / ancestors… / frame body". The
 //! system entry stands for the star's frame. Clicking an ancestor's entry
 //! makes it the frame; clicking the frame body's own entry re-centres it.
-//! Both go to the camera through `camera/requests.rs`. In the sector view
-//! the breadcrumb reads "Sector" alone, as the entry for the view shown
-//! (SECT-34).
+//! Both go to the camera through `camera/requests.rs`. The Sector entry
+//! goes back to the sector view when the system was entered from one, and
+//! does nothing in a system the game started with (SECT-32, SECT-33). In
+//! the sector view the breadcrumb reads "Sector" alone, as the entry for
+//! the view shown (SECT-34).
 //!
 //! The entries are worked out by a plain function from the frame body's
 //! path, so what the breadcrumb says can be tested apart from its nodes.
@@ -16,20 +18,23 @@ use crate::view::camera::requests::{FrameRequest, RecentreRequest};
 use crate::view::colors;
 use crate::view::fonts::{Face, Fonts};
 use crate::view::frame::{Frame, ancestors};
-use crate::view::map_layer::MapLayer;
+use crate::view::map_layer::{MapLayer, WayBack};
 use crate::view::text_size::TextSize;
 use crate::view::tunables::Tunables;
 
-/// The sector entry's text. In the system view it does nothing yet
-/// (SECT-32, SECT-33).
+/// The sector entry's text.
 const SECTOR: &str = "Sector";
 const SEPARATOR: &str = " / ";
 
 /// What clicking a breadcrumb entry does.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CrumbAction {
-    /// The sector entry in the system view: nothing yet.
+    /// The sector entry in a system the game started with, which has no
+    /// sector: nothing (SECT-33).
     None,
+    /// The sector entry in a system entered from the sector: go back to
+    /// the sector view (SECT-32).
+    Sector,
     /// The sector entry in the sector view, the view shown: nothing to do
     /// (SECT-34).
     Here,
@@ -48,8 +53,10 @@ pub struct Crumb {
 
 /// CAM-25: the entries for a frame. `path` runs from the star down to the
 /// frame body, each with its name; the last one is the frame body. The
-/// star's entry is named for the system.
-pub fn crumbs(path: &[(Entity, String)]) -> Vec<Crumb> {
+/// star's entry is named for the system. The Sector entry leads back to
+/// the sector view only if the system was entered from it (`from_sector`,
+/// SECT-32, SECT-33).
+pub fn crumbs(path: &[(Entity, String)], from_sector: bool) -> Vec<Crumb> {
     let last = path.len().saturating_sub(1);
     let entries = path.iter().enumerate().map(|(index, (body, name))| Crumb {
         label: name.clone(),
@@ -61,7 +68,11 @@ pub fn crumbs(path: &[(Entity, String)]) -> Vec<Crumb> {
     });
     std::iter::once(Crumb {
         label: SECTOR.to_string(),
-        action: CrumbAction::None,
+        action: if from_sector {
+            CrumbAction::Sector
+        } else {
+            CrumbAction::None
+        },
     })
     .chain(entries)
     .collect()
@@ -125,7 +136,7 @@ fn frame_path(
 /// layer shown changes.
 fn rebuild_breadcrumb(
     mut commands: Commands,
-    (frame, layer): (Res<Frame>, Res<MapLayer>),
+    (frame, layer, way_back): (Res<Frame>, Res<MapLayer>, Option<Res<WayBack>>),
     (fonts, tunables): (Res<Fonts>, Res<Tunables>),
     parents: Query<&ChildOf>,
     names: Query<&DisplayName>,
@@ -144,7 +155,7 @@ fn rebuild_breadcrumb(
     let entries = if layer.is_sector() {
         sector_crumbs()
     } else {
-        crumbs(&frame_path(&frame, &parents, &names))
+        crumbs(&frame_path(&frame, &parents, &names), way_back.is_some())
     };
     commands
         .entity(root)
@@ -178,7 +189,7 @@ fn crumb_text(text: &str, (fonts, tunables): (&Fonts, &Tunables), color: Color) 
 /// neutral colour.
 pub fn crumb_color(action: CrumbAction) -> Color {
     match action {
-        CrumbAction::None => colors::PANEL_BORDER,
+        CrumbAction::None | CrumbAction::Sector => colors::PANEL_BORDER,
         CrumbAction::Recentre | CrumbAction::Here => colors::REFERENCE,
         CrumbAction::Frame(_) => colors::NEUTRAL,
     }
@@ -195,12 +206,14 @@ fn spawn_crumb(row: &mut ChildSpawnerCommands, draw: (&Fonts, &Tunables), crumb:
 }
 
 /// CAM-25: an ancestor's entry asks for its frame; the frame body's own
-/// entry asks for a re-centre.
+/// entry asks for a re-centre; the Sector entry, in a system entered from
+/// the sector, asks to go back to it (SECT-32).
 fn on_crumb_click(
     click: On<PointerClick>,
     entries: Query<&CrumbEntry>,
     mut frame_request: ResMut<FrameRequest>,
     mut recentre: ResMut<RecentreRequest>,
+    way_back: Option<ResMut<WayBack>>,
 ) {
     if click.button != PointerButton::Primary {
         return;
@@ -208,6 +221,11 @@ fn on_crumb_click(
     match entries.get(click.entity).map(|entry| entry.0) {
         Ok(CrumbAction::Frame(body)) => frame_request.0 = Some(body),
         Ok(CrumbAction::Recentre) => recentre.0 = true,
+        Ok(CrumbAction::Sector) => {
+            if let Some(mut way_back) = way_back {
+                way_back.asked = true;
+            }
+        }
         _ => {}
     }
 }
@@ -236,7 +254,7 @@ mod tests {
             (planet, "Halden IV".to_string()),
             (station, "Arden Highport".to_string()),
         ];
-        let entries = crumbs(&path);
+        let entries = crumbs(&path, false);
         assert_eq!(
             breadcrumb_text(&entries),
             "Sector / Corvane / Halden IV / Arden Highport"
@@ -259,9 +277,26 @@ mod tests {
     fn in_the_star_frame_the_system_entry_is_the_frame_body() {
         let mut world = World::new();
         let star = world.spawn_empty().id();
-        let entries = crumbs(&[(star, "Corvane".to_string())]);
+        let entries = crumbs(&[(star, "Corvane".to_string())], false);
         assert_eq!(breadcrumb_text(&entries), "Sector / Corvane");
         assert_eq!(entries[1].action, CrumbAction::Recentre);
+    }
+
+    /// CAM-25 / SECT-32 / SECT-33: the Sector entry leads back to the
+    /// sector view only in a system entered from it, and is drawn in the
+    /// secondary colour either way; the rest of the path is the same.
+    #[test]
+    fn the_sector_entry_leads_back_only_from_a_system_entered_from_the_sector() {
+        let mut world = World::new();
+        let star = world.spawn_empty().id();
+        let path = [(star, "Tarsa".to_string())];
+        let entered = crumbs(&path, true);
+        let started = crumbs(&path, false);
+        assert_eq!(breadcrumb_text(&entered), "Sector / Tarsa");
+        assert_eq!(entered[0].action, CrumbAction::Sector);
+        assert_eq!(started[0].action, CrumbAction::None);
+        assert_eq!(entered[1..], started[1..]);
+        assert_eq!(crumb_color(CrumbAction::Sector), colors::PANEL_BORDER);
     }
 
     /// SECT-34: in the sector view the breadcrumb reads "Sector" alone, in

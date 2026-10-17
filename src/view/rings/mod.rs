@@ -90,7 +90,7 @@ pub struct RingsPlugin;
 
 impl Plugin for RingsPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<DrawnRings>()
+        app.reset_with_system::<DrawnRings>()
             .add_load_systems(Boot::Overlay, sync_ring_strokes)
             // Drawn with the rest of the overlay, once grouping and motion
             // have decided what shows, and after the multi-markers are

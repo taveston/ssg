@@ -1,5 +1,6 @@
-//! The top bar and the clock controls (CLK-02, CLK-05): the breadcrumb's
-//! slot (filled by `topbar/breadcrumb.rs`), the date, the Pause, 1 d/s and 5 d/s
+//! The top bar and the clock controls (CLK-02, CLK-05): the Back button
+//! of a system entered from the sector (SECT-32), the breadcrumb's slot
+//! (filled by `topbar/breadcrumb.rs`), the date, the Pause, 1 d/s and 5 d/s
 //! buttons with the active rate highlighted, and the clock keys (CLK-05:
 //! Space, `.` and `,`). Every change goes through the clock's own API
 //! (ARCH-14). A debug frames-per-second readout sits at the end,
@@ -16,6 +17,7 @@ use crate::view::buttons::{ButtonStyle, ConsoleButton, spawn_button};
 use crate::view::colors;
 use crate::view::date::{date_from_elapsed_days, format_date};
 use crate::view::fonts::{Face, Fonts};
+use crate::view::map_layer::WayBack;
 use crate::view::targets::MapInputBlocker;
 use crate::view::text_size::TextSize;
 use crate::view::topbar::breadcrumb::spawn_breadcrumb_root;
@@ -25,6 +27,11 @@ pub mod breadcrumb;
 
 #[derive(Component)]
 struct DateText;
+
+/// SECT-32: the Back button, shown only in a system entered from the
+/// sector.
+#[derive(Component)]
+pub struct BackButton;
 
 #[derive(Component)]
 struct FpsText;
@@ -47,6 +54,7 @@ impl Plugin for TopBarPlugin {
                 update_button_styles,
                 update_fps_text,
                 toggle_fps_readout,
+                show_back_button,
             ),
         );
     }
@@ -76,7 +84,8 @@ fn spawn_bar_button<'a>(
     button
 }
 
-/// CLK-02: breadcrumb, date, Pause, 1 d/s and 5 d/s.
+/// CLK-02 / SECT-32: Back (while it applies), breadcrumb, date, Pause,
+/// 1 d/s and 5 d/s.
 fn spawn_top_bar(mut commands: Commands, fonts: Res<Fonts>, tunables: Res<Tunables>) {
     commands
         .spawn((
@@ -97,6 +106,7 @@ fn spawn_top_bar(mut commands: Commands, fonts: Res<Fonts>, tunables: Res<Tunabl
             MapInputBlocker,
         ))
         .with_children(|bar| {
+            spawn_back_button(bar, (&fonts, &tunables));
             spawn_breadcrumb_root(bar);
             bar.spawn((
                 DateText,
@@ -125,6 +135,45 @@ fn spawn_top_bar(mut commands: Commands, fonts: Res<Fonts>, tunables: Res<Tunabl
                 TextColor(colors::PANEL_BORDER),
             ));
         });
+}
+
+/// SECT-32: a quiet Back button, hidden until a system entered from the
+/// sector is shown; a click asks to go back to the sector view.
+fn spawn_back_button(bar: &mut ChildSpawnerCommands, (fonts, tunables): (&Fonts, &Tunables)) {
+    spawn_button(
+        bar,
+        fonts,
+        "Back",
+        tunables.sidebar_text_px,
+        ConsoleButton::new(ButtonStyle::Quiet),
+    )
+    .insert(BackButton)
+    .observe(
+        |click: On<PointerClick>, way_back: Option<ResMut<WayBack>>| {
+            if let (PointerButton::Primary, Some(mut way_back)) = (click.button, way_back) {
+                way_back.asked = true;
+            }
+        },
+    );
+}
+
+/// SECT-32 / SECT-33: the Back button shows only while there is a sector
+/// to go back to: never in the sector view, nor in a system the game
+/// started with.
+fn show_back_button(
+    way_back: Option<Res<WayBack>>,
+    mut buttons: Query<&mut Node, With<BackButton>>,
+) {
+    let display = if way_back.is_some() {
+        Display::Flex
+    } else {
+        Display::None
+    };
+    for mut node in &mut buttons {
+        if node.display != display {
+            node.display = display;
+        }
+    }
 }
 
 /// CLK-05: Space pauses and resumes, `.` doubles the rate and `,` halves it

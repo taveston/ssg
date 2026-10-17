@@ -13,6 +13,8 @@
 //! - `input.rs`: hover, click and the selection marks (SECT-07, SECT-20).
 //! - `readout.rs`: the truth readout (SECT-08).
 //! - `inset/`: the inspection inset (SECT-20 to SECT-24).
+//! - `enter.rs`: entering a gated system and going back (SECT-30 to
+//!   SECT-32).
 //!
 //! The camera, the scale bar and the north dial are the system view's,
 //! told by `MapLayer` which layer they serve (SECT-09 to SECT-12).
@@ -21,6 +23,7 @@ use bevy::prelude::*;
 
 use crate::{Boot, Stage};
 
+pub mod enter;
 pub mod input;
 pub mod inset;
 pub mod labels;
@@ -52,8 +55,8 @@ pub struct SectorNode {
 pub struct ForEntry(pub usize);
 
 /// SECT-21 / SECT-30: a gated system the player has asked to enter, by
-/// entry id: set by the inset's Enter system button, taken by whatever
-/// enters the system.
+/// entry id: set by the inset's Enter system button, a double-click on
+/// its node or the Enter key, and taken by `enter.rs` next frame.
 #[derive(Resource, Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct EnterRequest(pub Option<usize>);
 
@@ -73,6 +76,10 @@ impl Plugin for SectorPlugin {
             .init_resource::<crate::view::markers::brackets::LayerMarks>()
             .init_resource::<input::NodeSpots>()
             .init_resource::<links::LinkPieces>()
+            .init_resource::<crate::view::double_click::MapClicks>()
+            // SECT-31: the layer changes at the start of a frame, so all
+            // of that frame sees the new one.
+            .add_systems(Update, enter::switch_layer.before(Stage::Simulation))
             .add_systems(Startup, nodes::fit_the_sector.in_set(Boot::Derive))
             .add_systems(
                 Startup,
@@ -108,6 +115,7 @@ impl Plugin for SectorPlugin {
                     readout::show_readout,
                     input::clear_on_empty_click,
                     input::handle_escape,
+                    input::enter_on_key,
                     inset::rebuild_inset,
                     inset::slide_panel,
                     inset::scroll_panel,

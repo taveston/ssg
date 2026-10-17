@@ -9,6 +9,8 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
+use crate::sim::load::SystemLoadApp;
+
 use super::scale::km_to_render;
 use super::screen::ScreenPositions;
 use super::world::ViewNow;
@@ -31,7 +33,7 @@ pub struct TrueSizePlugin;
 
 impl Plugin for TrueSizePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<DiscRadii>()
+        app.reset_with_system::<DiscRadii>()
             .add_systems(Update, measure_discs.in_set(Stage::Layout));
     }
 }

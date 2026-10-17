@@ -77,10 +77,6 @@ pub enum Start {
 #[derive(Resource, Debug, Clone)]
 pub struct LoadedSector {
     pub sector: Sector,
-    #[expect(
-        dead_code,
-        reason = "read when a system of the sector is entered (SECT-31)"
-    )]
     pub tunables: GeneratorTunables,
 }
 

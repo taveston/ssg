@@ -7,6 +7,9 @@
 //!
 //! The game starts in the sector view when it was started with a sector
 //! (`content::start::LoadedSector`), and in the system view otherwise.
+//! Entering a system from the sector and going back (`sector/enter.rs`)
+//! switch the layer; `WayBack` says whether there is a sector to go back
+//! to.
 
 use bevy::prelude::*;
 
@@ -42,6 +45,15 @@ impl SectorSelection {
     pub fn is_selected(&self, id: usize) -> bool {
         self.0 == Some(id)
     }
+}
+
+/// SECT-32 / SECT-33: the way back to the sector view, present only while
+/// a system entered from the sector is shown. The Back button and the
+/// breadcrumb's Sector entry exist for it, and set `asked` to leave; a
+/// system the game was started with (`--system`) has none.
+#[derive(Resource, Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct WayBack {
+    pub asked: bool,
 }
 
 /// Whether anything the shown layer can select is selected: the sidebar

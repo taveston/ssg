@@ -12,6 +12,8 @@ use std::collections::HashMap;
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
+use crate::sim::load::SystemLoadApp;
+
 use super::sidebar::SidebarState;
 use super::topbar::TOP_BAR_HEIGHT_PX;
 use super::tunables::Tunables;
@@ -151,7 +153,7 @@ pub struct ScreenPlugin;
 
 impl Plugin for ScreenPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<ScreenPositions>()
+        app.reset_with_system::<ScreenPositions>()
             .add_systems(Update, project_bodies.in_set(Stage::Screen));
     }
 }

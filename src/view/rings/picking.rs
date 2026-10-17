@@ -97,7 +97,7 @@ pub struct RingPickingPlugin;
 
 impl Plugin for RingPickingPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<RingPaths>()
+        app.reset_with_system::<RingPaths>()
             .add_load_systems(Boot::Overlay, sync_ring_targets)
             .add_systems(
                 Update,

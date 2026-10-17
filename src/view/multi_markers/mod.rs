@@ -15,6 +15,8 @@
 
 use bevy::prelude::*;
 
+use crate::sim::load::SystemLoadApp;
+
 use crate::view::markers::MarkersPlaced;
 use crate::view::multi::MultiMarkers;
 use crate::{Boot, Stage};
@@ -37,8 +39,8 @@ pub struct MultiMarkersPlugin;
 impl Plugin for MultiMarkersPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<MultiMarkers>()
-            .init_resource::<gather::ClusterLatch>()
-            .init_resource::<pop::ObjectPops>()
+            .reset_with_system::<gather::ClusterLatch>()
+            .reset_with_system::<pop::ObjectPops>()
             .configure_sets(
                 Update,
                 MultiGathered.in_set(Stage::Overlay).before(MarkersPlaced),

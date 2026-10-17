@@ -1,6 +1,6 @@
-//! Every camera and clock key and mouse button, the planner's slider keys
-//! and a multi-marker's tray keys, in one resource (CAM-18, PLNR-23,
-//! MUL-10).
+//! Every camera and clock key and mouse button, the planner's slider keys,
+//! a multi-marker's tray keys and the sector view's Enter key, in one
+//! resource (CAM-18, PLNR-23, MUL-10, SECT-30).
 //!
 //! No other module names a `KeyCode` or a `MouseButton`: systems ask this
 //! resource whether an action's binding is pressed. A rebinding screen is not yet specced;
@@ -62,6 +62,10 @@ pub struct Bindings {
     /// INS-03: close the unpinned inset.
     pub close_inset: Vec<KeyCode>,
 
+    // --- Sector view (SECT-30) ---
+    /// Enter the selected gated system.
+    pub enter_system: Vec<KeyCode>,
+
     // --- Transfer planner (PLNR-23) ---
     /// A focused slider moves one step back, in place of the pan.
     pub slider_down: Vec<KeyCode>,
@@ -122,6 +126,8 @@ impl Default for Bindings {
             select_drag_reserved: vec![KeyCode::ShiftLeft, KeyCode::ShiftRight],
 
             close_inset: vec![KeyCode::Escape],
+
+            enter_system: vec![KeyCode::Enter, KeyCode::NumpadEnter],
 
             slider_down: vec![KeyCode::ArrowLeft],
             slider_up: vec![KeyCode::ArrowRight],

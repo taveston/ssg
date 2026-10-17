@@ -12,13 +12,6 @@ pub const KM_PER_LIGHT_YEAR: f64 = 9.4607e12;
 /// Earth's mean radius, in km, the unit generated planets' radii are in.
 pub const EARTH_RADIUS_KM: f64 = 6_371.0;
 /// The Sun's mean radius, in km, the unit generated stars' radii are in.
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "read by the system generator, which entering a system calls (SECT-31)"
-    )
-)]
 pub const SOLAR_RADIUS_KM: f64 = 695_700.0;
 /// Earth's mass, the unit content uses for planets.
 pub const EARTH_MASS_KG: f64 = 5.972e24;

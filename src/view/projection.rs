@@ -28,8 +28,8 @@ pub struct ProjectionPlugin;
 
 impl Plugin for ProjectionPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<WorldPositions>()
-            .init_resource::<RenderOrigin>()
+        app.reset_with_system::<WorldPositions>()
+            .reset_with_system::<RenderOrigin>()
             .init_resource::<Frame>()
             .add_load_systems(Boot::Derive, attach_transforms)
             .add_systems(

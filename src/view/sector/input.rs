@@ -5,17 +5,25 @@
 //! marks it with the hover brackets and selecting it with the selection
 //! brackets (HOV-06), round its box (HOV-07), drawn by the system view's
 //! bracket pool. A click on a node selects it; a click on empty space and
-//! Esc clear the selection. Links are not targets (SECT-04).
+//! Esc clear the selection. Links are not targets (SECT-04). A
+//! double-click on a gated system's node, or Enter with one selected, asks
+//! to enter it (SECT-30); the second click of a double-click counts on
+//! the node the first one hit, through the map's shared click record, as
+//! the system view's does (`double_click.rs`).
 //!
 //! Everything here is idle while the system view is shown.
 
+use bevy::ecs::system::SystemParam;
+use bevy::picking::PickingSettings;
 use bevy::picking::backend::{HitData, PointerHits};
 use bevy::picking::pointer::{PointerId, PointerLocation};
 use bevy::prelude::*;
 
-use super::ForEntry;
 use super::nodes::NodeScreens;
+use super::{EnterRequest, ForEntry};
+use crate::content::start::LoadedSector;
 use crate::view::bindings::{Bindings, pressed};
+use crate::view::double_click::{MapClicks, double_click_interval};
 use crate::view::hover::{ClickCheck, on_marker_out, on_marker_over};
 use crate::view::map_layer::{MapLayer, SectorSelection};
 use crate::view::markers::brackets::{BracketBox, LayerMarks, Mark, mark_strength};
@@ -96,20 +104,93 @@ pub fn pick_nodes(
     }
 }
 
-/// SECT-20: a click on a node, or its label, selects it and opens its
-/// inset, in place of any other.
-pub fn on_node_click(
-    click: On<PointerClick>,
-    layer: Res<MapLayer>,
-    entries: Query<&ForEntry>,
-    check: ClickCheck,
-    mut selection: ResMut<SectorSelection>,
-) {
-    if !layer.is_sector() || !check.selects(&click) {
+/// What a click on the sector map reads and sets: the layer and the
+/// sector shown, the selection, the map's record of recent clicks (shared
+/// with the system view, `double_click.rs`) and the request to enter a
+/// system.
+#[derive(SystemParam)]
+pub struct NodeClick<'w, 's> {
+    layer: Res<'w, MapLayer>,
+    loaded: Option<Res<'w, LoadedSector>>,
+    entries: Query<'w, 's, &'static ForEntry>,
+    selection: ResMut<'w, SectorSelection>,
+    enter: ResMut<'w, EnterRequest>,
+    clicks: ResMut<'w, MapClicks>,
+    time: Res<'w, Time<Real>>,
+    picking: Option<Res<'w, PickingSettings>>,
+    tunables: Res<'w, Tunables>,
+}
+
+impl NodeClick<'_, '_> {
+    /// SECT-30: if the click now ending is the second of a double-click
+    /// whose first click hit a node, that node, wherever the map has slid
+    /// since (the inset opening narrows it, INS-07).
+    fn doubled_node(&mut self) -> Option<usize> {
+        let interval = double_click_interval(self.picking.as_deref());
+        let double = self
+            .clicks
+            .take_double(interval, self.tunables.drag_threshold_px)?;
+        self.entries.get(double.body).ok().map(|entry| entry.0)
+    }
+
+    /// SECT-30: a double-click on a node selects it, and on a gated
+    /// system's node also asks to enter it.
+    fn double_click(&mut self, id: usize) {
+        self.selection.0 = Some(id);
+        if is_gated(self.loaded.as_deref(), id) {
+            self.enter.0 = Some(id);
+        }
+    }
+
+    /// SECT-20 / SECT-30: a click on the node of `id` through its target
+    /// `target`, as Bevy counted it. A single click selects the node and
+    /// may start a double-click; a second click soon after, on this node
+    /// or where the first one's node was, is a double-click on the first.
+    /// The click after a double-click is a single click.
+    fn on_node(&mut self, target: Entity, id: usize, count: u8) {
+        let count = if self.clicks.begin() { 1 } else { count };
+        if count >= 2 {
+            self.clicks.doubled();
+            self.double_click(id);
+            return;
+        }
+        if let Some(first) = self.doubled_node() {
+            self.double_click(first);
+            return;
+        }
+        self.selection.0 = Some(id);
+        self.clicks.remember(target, self.time.elapsed());
+    }
+
+    /// SECT-20 / SECT-30: a click on empty space clears the selection,
+    /// unless it completes a double-click on the node it slid away from.
+    fn on_empty(&mut self) {
+        let after_double = self.clicks.begin();
+        if !after_double && let Some(first) = self.doubled_node() {
+            self.double_click(first);
+            return;
+        }
+        self.clicks.forget();
+        self.selection.0 = None;
+    }
+}
+
+/// SECT-30: whether the entry `id` is a gated system, the only kind that
+/// can be entered.
+pub fn is_gated(loaded: Option<&LoadedSector>, id: usize) -> bool {
+    loaded.is_some_and(|loaded| loaded.sector.gated_system(id).is_some())
+}
+
+/// SECT-20 / SECT-30: a click on a node, or its label, selects it and
+/// opens its inset, in place of any other; a double-click on a gated
+/// system's node enters it.
+pub fn on_node_click(click: On<PointerClick>, check: ClickCheck, mut node_click: NodeClick) {
+    if !node_click.layer.is_sector() || !check.selects(&click) {
         return;
     }
-    if let Ok(entry) = entries.get(click.entity) {
-        selection.0 = Some(entry.0);
+    if let Ok(entry) = node_click.entries.get(click.entity) {
+        let id = entry.0;
+        node_click.on_node(click.entity, id, click.count);
     }
 }
 
@@ -117,14 +198,34 @@ pub fn on_node_click(
 /// and release within the drag threshold that hits no node, label or
 /// panel.
 pub fn clear_on_empty_click(
-    (layer, buttons, bindings): (Res<MapLayer>, Res<ButtonInput<MouseButton>>, Res<Bindings>),
+    (buttons, bindings): (Res<ButtonInput<MouseButton>>, Res<Bindings>),
     check: ClickCheck,
     targets: PointerTargets,
-    mut selection: ResMut<SectorSelection>,
+    mut node_click: NodeClick,
 ) {
     let released = buttons.just_released(bindings.select_button);
-    if layer.is_sector() && released && check.released_as_click() && targets.over_nothing() {
-        selection.0 = None;
+    if node_click.layer.is_sector()
+        && released
+        && check.released_as_click()
+        && targets.over_nothing()
+    {
+        node_click.on_empty();
+    }
+}
+
+/// SECT-30: the Enter key enters the selected node's system, if it is a
+/// gated one.
+pub fn enter_on_key(
+    (layer, keys, bindings): (Res<MapLayer>, Res<ButtonInput<KeyCode>>, Res<Bindings>),
+    loaded: Option<Res<LoadedSector>>,
+    selection: Res<SectorSelection>,
+    mut enter: ResMut<EnterRequest>,
+) {
+    if !layer.is_sector() || !pressed(&keys, &bindings.enter_system) {
+        return;
+    }
+    if let Some(id) = selection.0.filter(|&id| is_gated(loaded.as_deref(), id)) {
+        enter.0 = Some(id);
     }
 }
 

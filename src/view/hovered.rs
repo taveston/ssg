@@ -8,6 +8,8 @@ use std::collections::HashSet;
 
 use bevy::prelude::*;
 
+use crate::sim::load::SystemLoadApp;
+
 use super::planner::state::PlannerState;
 use super::targets::{Hovered, MarkerFor, OrbitFor};
 use crate::Stage;
@@ -27,7 +29,7 @@ pub struct HoveredPlugin;
 
 impl Plugin for HoveredPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<HoveredBodies>()
+        app.reset_with_system::<HoveredBodies>()
             .add_systems(Update, collect_hovered.in_set(Stage::Screen));
     }
 }

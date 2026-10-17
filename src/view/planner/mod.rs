@@ -30,6 +30,8 @@
 
 use bevy::prelude::*;
 
+use crate::sim::load::SystemLoadApp;
+
 use crate::{Boot, Stage};
 
 pub mod compute;
@@ -52,8 +54,8 @@ pub struct PlannerPlugin;
 
 impl Plugin for PlannerPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<tooltip::TooltipHover>()
-            .init_resource::<compute::HoveredPlace>()
+        app.reset_with_system::<tooltip::TooltipHover>()
+            .reset_with_system::<compute::HoveredPlace>()
             .add_systems(Startup, tooltip::spawn_tooltip_box.in_set(Boot::Overlay))
             .add_systems(
                 Update,

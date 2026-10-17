@@ -41,10 +41,13 @@ pub struct LoadSystem;
 #[derive(Component, Debug)]
 pub struct OfLoadedSystem;
 
+/// Puts one resource back to its default.
+type Reset = fn(&mut World);
+
 /// The resets of the resources that hold the loaded system's state, as
-/// plugins registered them.
+/// plugins registered them, each with its resource's type.
 #[derive(Resource, Default)]
-struct SystemResets(Vec<(TypeId, fn(&mut World))>);
+struct SystemResets(Vec<(TypeId, Reset)>);
 
 /// How plugins take part in loading a system.
 pub trait SystemLoadApp {
