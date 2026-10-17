@@ -25,7 +25,7 @@ use crate::view::layers;
 use crate::view::map_layer::MapLayer;
 use crate::view::markers::draw::{BodyLook, spawn_icon};
 use crate::view::scale::sector_km_to_render_vec3;
-use crate::view::screen::{MapView, in_viewport, snap_to_pixel};
+use crate::view::screen::{MapView, snap_to_pixel};
 use crate::view::tunables::Tunables;
 use crate::view::world::ViewNow;
 
@@ -156,7 +156,7 @@ fn spawn_node(commands: &mut Commands, assets: (&Fonts, &Tunables), node: Sector
     }
 }
 
-/// SECT-03 / SECT-05: place every node in the viewport on its projected
+/// SECT-03 / SECT-05: place every node in the map area on its projected
 /// position this frame, nearer nodes layered over farther ones, and note
 /// where each is drawn. While the system view is shown every node is
 /// hidden.
@@ -171,15 +171,12 @@ pub fn place_nodes(
     screens.0.clear();
     let camera = now.camera().map(|(_, transform)| transform.translation());
     let scale = map.scale_factor();
-    let viewport = map.viewport().filter(|_| layer.is_sector());
-    if let (Some(eye), Some(viewport)) = (camera, viewport) {
+    let area = map.area().filter(|_| layer.is_sector()).map(|a| a.rect());
+    if let (Some(eye), Some(area)) = (camera, area) {
         for (entity, node, ..) in &nodes {
-            // A node beyond the map's edge, under the sidebar, isn't
-            // drawn, as a marker there isn't.
-            let Some(at) = now
-                .project(node.world)
-                .filter(|&at| in_viewport(at, viewport))
-            else {
+            // A node beyond the map area, under the top bar or the
+            // sidebar, isn't drawn: the panels let a little through.
+            let Some(at) = now.project(node.world).filter(|&at| area.contains(at)) else {
                 continue;
             };
             let screen = NodeScreen {

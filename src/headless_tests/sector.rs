@@ -332,12 +332,17 @@ fn nodes_sit_on_their_stars_nearer_over_farther() {
             assert!(z_of[&pair[0].0] > z_of[&pair[1].0], "nearer over farther");
         }
     };
+    let t = Tunables::default();
+    let sized = |app: &App| {
+        let by_kind = |s: &NodeScreen| crate::view::sector::nodes::node_px(s.kind, &t) / 2.0;
+        screens(app).values().all(|s| s.half == by_kind(s))
+    };
     check(&mut app);
-    let size_before = screens(&app).values().next().unwrap().half;
+    assert!(sized(&app));
     scroll(&mut app, 2.0);
     run(&mut app, SETTLE_FRAMES);
     check(&mut app);
-    assert_eq!(screens(&app).values().next().unwrap().half, size_before);
+    assert!(sized(&app), "the same size at any zoom");
 }
 
 /// SECT-04: each link is a straight line between its nodes' centres: a
