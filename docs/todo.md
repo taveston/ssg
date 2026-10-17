@@ -17,10 +17,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - In dot mode a together or overlap marker draws the tail of its first tray row's thing, behind its centre, so a convoy or cluster no longer looks still on a running clock. Joined things still draw no tail of their own, and a fold marker has none. Ring mode is unchanged.
   - Tests: the TEST-12 convoy shows one tail in dot mode; an overlap cluster shows its lead's tail; the tail follows the lead when the tray order changes; no tail in ring mode beyond the exposure ring.
 
-- [ ] **Belts become a list** · SCL-08, MRK-05, MRK-18, SOL-07, TEST-01
-  - A system holds any number of named belts. Replace the single `Belt` component (`src/sim/body.rs`) with one belt record per belt: a name, inner and outer radius, and optionally a mass and a rocky, metallic and icy split. `BeltBlueprint` becomes a list in the system blueprint. Corvane's belt is named "Corvane belt" and Sol's "Main belt".
-  - MRK-05, MRK-18, SOL-07 and TEST-01 changed meaning (more than one belt, belt names), so their ✓ is cleared. SOL-11's count of one belt still holds.
-  - Tests: two belts draw two bands, each with its own grain seed; a system with no belt draws none; the belt counts and names of Corvane and Sol.
 - [ ] **Sky in the system view** · SKY-01, SKY-03 to SKY-22, MRK-12
   - A new module `src/view/sky/` with its plugin. The sky is made by one plain function from a seed and `Tunables` (SKY-01), with no Bevy types; the view makes it at start-up from `sky_default_seed`, because the sector seed doesn't exist yet (SKY-02 comes with the sector item below). Draw it as the bottom layer in the map area only, at infinity: through the camera's heading, tilt and field of view, with no position (SKY-16, SKY-18, SKY-20). Never a hover or click target (SKY-19). Always on, with no toggle (SKY-22).
   - MRK-12 changed meaning (the sky is the new bottom layer), so its ✓ is cleared.
@@ -34,7 +30,7 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - The name data file is `assets/names/names.txt` (SGEN-80): author at least 120 stems, 40 endings and the reserved list. Placeholder syllables are fine.
   - Tests first: the invariants of SGEN-91 over many seeds are the main check, plus one test per requirement, named for what it checks (ARCH-30). Build the stages in order (volume and stars, summaries, gate choice, links, failure) and keep each stage's tests green before the next.
   - Where the spec leaves a choice open, pick something sensible and add a finding.
-- [ ] **System generator** · SYSG-01 to SYSG-71, INS-08 · needs "Belts become a list" and "Sector generator"
+- [ ] **System generator** · SYSG-01 to SYSG-71, INS-08 · needs "Sector generator"
   - `generate_system` builds the records Corvane and Sol use (SCL-03). Add planet facts (SYSG-22) and the gate state (SYSG-52) as simulation components.
   - INS-08 changed meaning (planet facts and gate state in the inset), so its ✓ is cleared.
   - Tests: the invariants of SYSG-70 over generated systems; a generated system spawns in a headless app and its named orbits resolve (SYSG-05).

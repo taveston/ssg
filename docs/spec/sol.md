@@ -20,7 +20,7 @@
 | SOL-04 | The moons are the twenty-one bodies of table 2, each a child of its parent with the orbit radius, mean radius and mass the table gives and the key fact "Class: Moon". Triton also has the key fact "Real orbit: retrograde, drawn prograde", and each moon of Uranus "Real orbit: round Uranus's tilted equator, drawn in the system plane". | ✓ |
 | SOL-05 | Each body's period, from Kepler's third law with its parent's mass (SCL-04), is within 1% of the real period in the tables. | ✓ |
 | SOL-06 | At day 0 each planet is at its phase in table 1: its mean longitude at J2000.0, which Sol takes as day 0 (the calendar keeps its own epoch, CLK-02). Ceres starts at 0°. The *i*th moon of a parent, counting outwards from 0, starts at 1.3 × *i* rad. | ✓ |
-| SOL-07 | Sol has one belt, named "Main belt", the main asteroid belt, from 2.2 to 3.2 AU, with no salvage sites. | |
+| SOL-07 | Sol has one belt, named "Main belt", the main asteroid belt, from 2.2 to 3.2 AU, with no salvage sites. | ✓ |
 | SOL-08 | Sol has no gates or salvage sites. Every natural body in it is neutral and surveyed; the stations and ships of SOL-12 are own and surveyed. | ✓ |
 | SOL-09 | With the default tunables, every star, planet and moon in Sol has a Low band, and a High band except Phobos, Deimos, Amalthea, Mimas, Enceladus and Proteus: half their Hill radius does not exceed their Low radius (BAND-01). Tethys keeps its High band by about 19 km (High 1,050 km, Low 1,031 km). | ✓ |
 | SOL-10 | The system fit (ZOOM-15) is Neptune's orbit, 30.07 AU. | ✓ |
