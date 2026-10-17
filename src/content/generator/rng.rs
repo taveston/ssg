@@ -100,9 +100,14 @@ impl Rng {
     }
 
     /// A number between `lo` and `hi` (both positive) whose logarithm is
-    /// uniform: each factor of ten in the range is equally likely.
+    /// uniform: each factor of ten in the range is equally likely. The
+    /// round trip through `ln` and `exp` can land a hair outside the range,
+    /// so the result is kept inside it.
     pub fn log_uniform(&mut self, lo: f64, hi: f64) -> f64 {
-        (lo.ln() + (hi.ln() - lo.ln()) * self.unit()).exp()
+        (lo.ln() + (hi.ln() - lo.ln()) * self.unit())
+            .exp()
+            .max(lo)
+            .min(hi)
     }
 
     /// A number from the normal distribution with this mean and spread
@@ -232,6 +237,9 @@ mod tests {
             assert!((3..=7).contains(&k));
             assert!((rng.direction().length() - 1.0).abs() < 1e-12);
         }
+        // An empty range gives its one value exactly, as when a companion's
+        // mass range is cut down to its primary's mass.
+        assert_eq!(rng.log_uniform(0.45, 0.45), 0.45);
     }
 
     #[test]

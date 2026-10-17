@@ -179,7 +179,7 @@ mod tests {
                         t.belt_mass_kg.beyond
                     };
                     let debris = if summary.template == Template::DebrisDisc {
-                        30.0
+                        t.debris_mass_factor
                     } else {
                         1.0
                     };

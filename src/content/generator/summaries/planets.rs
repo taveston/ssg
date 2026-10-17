@@ -413,6 +413,7 @@ mod tests {
     /// SGEN-35: hot-giant and remnant systems get no cold giants.
     #[test]
     fn hot_giants_and_remnants_have_no_cold_giants() {
+        let t = GeneratorTunables::default();
         for summary in all_summaries(20) {
             let giants = summary.planets.iter().filter(|p| p.kind.is_giant()).count();
             match summary.template {
@@ -422,7 +423,12 @@ mod tests {
                 Template::CompactMultiPlanet | Template::SolarLike | Template::DebrisDisc => {
                     assert!(giants <= 3)
                 }
-                Template::WhiteDwarfRemnant => assert!(giants <= 2),
+                // A remnant's giants are among its own planets, so a cold
+                // giant would push the count past the template's most.
+                Template::WhiteDwarfRemnant => {
+                    let most = t.template_rules.remnant.planet_count.max as usize;
+                    assert!(summary.planets.len() <= most, "{summary:?}");
+                }
             }
         }
     }
