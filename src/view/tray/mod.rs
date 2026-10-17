@@ -2,11 +2,14 @@
 //! beside the marker listing what it holds, so any one of them can be
 //! picked without leaving the map. A click on a multi-marker, or on a
 //! shared orbit's ring or identity mark, opens its tray (the click
-//! handlers ask through `TrayRequest`); a click anywhere else, Esc, or the
-//! marker ceasing to exist closes it. At most one is open (`OpenTray`).
+//! handlers ask through `TrayRequest`); a click anywhere else, Esc, or
+//! its things leaving every marker closes it. While things join and
+//! leave, it moves to the marker that keeps most of them. At most one is
+//! open (`OpenTray`).
 //!
 //! `rows.rs` says what a tray lists and says, as plain functions;
-//! `contents.rs` gathers that from the world each frame; `place.rs`
+//! `follow.rs` says which marker it follows; `contents.rs` gathers its
+//! contents from the world each frame; `place.rs`
 //! places it beside its marker inside the map area; `draw.rs` builds and
 //! places the panel; `input.rs` opens and closes it and takes its keys
 //! and row clicks.
@@ -22,6 +25,7 @@ use crate::{Boot, Stage};
 
 pub mod contents;
 pub mod draw;
+pub mod follow;
 pub mod input;
 pub mod place;
 pub mod rows;

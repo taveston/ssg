@@ -574,20 +574,160 @@ fn the_tray_follows_its_marker_inside_the_map_area() {
     assert_ne!(lefts[0], lefts[1], "the tray moved with its marker");
 }
 
-/// MUL-10: when its marker stops existing, here because framing Iver
-/// unfolds Iver Yard, the tray closes and the selection stays.
+/// MUL-10: when framing Iver unfolds Iver Yard, its fold marker goes, and
+/// the tray follows the yard and what is docked at it to the station
+/// marker they now make; the selection stays.
 #[test]
-fn the_tray_closes_when_its_marker_goes() {
+fn the_tray_follows_its_things_out_of_a_fold_marker() {
     let mut app = tray_app();
     run(&mut app, SETTLE_FRAMES);
     let iver = body(&mut app, "Iver");
+    let yard = body(&mut app, "Iver Yard");
     click_fold_marker(&mut app, iver);
     assert!(open_tray(&app).is_some());
     app.world_mut().resource_mut::<FrameRequest>().0 = Some(iver);
     run(&mut app, 60 + move_frames());
     assert!(multi_marker(&app, MultiKey::Fold(iver)).is_none());
-    assert_eq!(open_tray(&app), None);
+    assert_eq!(
+        open_tray(&app),
+        Some(TrayFor::Marker(MultiKey::Station(yard)))
+    );
+    assert_eq!(contents(&app).header, "IVER YARD · 2 DOCKED");
     assert_eq!(selected(&app), Some(iver));
+}
+
+/// The TEST-12 convoy: TF-2 and two haulers, together in Halden IV's
+/// High band.
+fn convoy(app: &mut App) -> [Entity; 3] {
+    ["TF-2", "Varga Courser", "Varga Drifter"].map(|n| body(app, n))
+}
+
+/// Zoom in on Halden IV until the convoy's marker is drawn and click it,
+/// opening its tray; returns its things in row order.
+fn open_the_convoys_tray(app: &mut App) -> Vec<Entity> {
+    let halden = body(app, "Halden IV");
+    let key = MultiKey::Together(convoy(app).into_iter().min().unwrap());
+    app.world_mut().resource_mut::<FrameRequest>().0 = Some(halden);
+    run(app, 60 + move_frames());
+    zoom_in_until(app, 12, |app| {
+        multi_marker(app, key).is_some_and(|m| m.drawn)
+    });
+    let (_, target) = multi_node(app, key).expect("the convoy's marker");
+    click_node(app, target, 1);
+    run(app, 2);
+    assert_eq!(open_tray(app), Some(TrayFor::Marker(key)));
+    contents(app).lines.iter().map(|l| l.row.entity).collect()
+}
+
+fn phase(app: &App, thing: Entity) -> f64 {
+    app.world().get::<Orbit>(thing).unwrap().phase0_rad
+}
+
+fn set_phase(app: &mut App, thing: Entity, phase0_rad: f64) {
+    app.world_mut().get_mut::<Orbit>(thing).unwrap().phase0_rad = phase0_rad;
+}
+
+fn sorted(mut things: Vec<Entity>) -> Vec<Entity> {
+    things.sort();
+    things
+}
+
+/// MUL-10: the convoy's marker is keyed by its lead. When the lead moves
+/// half way round the band, the other two are still together under a new
+/// key, and the tray stays open on them, listing just them.
+#[test]
+fn the_tray_stays_on_the_rest_when_a_convoys_lead_leaves() {
+    let mut app = tray_app();
+    let rows = open_the_convoys_tray(&mut app);
+    let lead = *rows.iter().min().unwrap();
+    let selection = selected(&app);
+    let away = phase(&app, lead) + std::f64::consts::PI;
+    set_phase(&mut app, lead, away);
+    run(&mut app, 10);
+    let rest: Vec<Entity> = rows.into_iter().filter(|&t| t != lead).collect();
+    let key = MultiKey::Together(*rest.iter().min().unwrap());
+    assert_eq!(open_tray(&app), Some(TrayFor::Marker(key)));
+    let listed = contents(&app).lines.iter().map(|l| l.row.entity).collect();
+    assert_eq!(sorted(listed), sorted(rest));
+    assert_eq!(selected(&app), selection);
+}
+
+/// Adds a hauler, Outrider, to Halden IV's "High" band opposite the
+/// convoy, before the system is spawned. Spawned last, it comes before
+/// every other entity in `Entity` order, so a marker it joins takes its
+/// key from it.
+fn add_an_outrider_opposite_the_convoy(mut waiting: ResMut<SystemDataResource>) {
+    use crate::sim::track::ShipClass;
+    let data = waiting.0.as_mut().unwrap();
+    let halden = data
+        .planets
+        .iter_mut()
+        .find(|p| p.name == "Halden IV")
+        .unwrap();
+    let convoy_phase = halden
+        .children
+        .iter()
+        .find(|c| c.name == "TF-2")
+        .unwrap()
+        .phase0_rad;
+    halden.children.push(BodyBlueprint {
+        class: BodyClass::Ship,
+        affiliation: Affiliation::Own,
+        record: Some(ShipRecord::new(ShipClass::Cargo, false)),
+        orbit: OrbitPlacement::Named("High"),
+        phase0_rad: convoy_phase + std::f64::consts::PI,
+        ..blueprint("Outrider", BodyClass::Ship, 0.0)
+    });
+}
+
+/// MUL-10: a ship that comes before the convoy's lead moves to the
+/// convoy's phase and takes over the marker's key; the tray stays open
+/// on it, now listing four things.
+#[test]
+fn the_tray_stays_when_a_thing_joins_ahead_of_the_first() {
+    let mut app = tray_app_with(|app| {
+        app.add_systems(
+            Startup,
+            add_an_outrider_opposite_the_convoy
+                .in_set(Boot::World)
+                .before(crate::sim::spawn::spawn_system),
+        );
+    });
+    let rows = open_the_convoys_tray(&mut app);
+    let lead = *rows.iter().min().unwrap();
+    let newcomer = body(&mut app, "Outrider");
+    assert!(newcomer < lead, "Outrider comes before the convoy");
+    let joined = phase(&app, lead);
+    set_phase(&mut app, newcomer, joined);
+    run(&mut app, 10);
+    assert_eq!(
+        open_tray(&app),
+        Some(TrayFor::Marker(MultiKey::Together(newcomer)))
+    );
+    let listed = contents(&app).lines.iter().map(|l| l.row.entity).collect();
+    let mut want = rows;
+    want.push(newcomer);
+    assert_eq!(sorted(listed), sorted(want));
+}
+
+/// MUL-10: when every thing in the convoy leaves its orbit, ships in
+/// flight join no marker, so none holds any of the tray's things: it
+/// closes and the selection stays.
+#[test]
+fn the_tray_closes_when_everything_parts_and_the_selection_stays() {
+    let mut app = tray_app();
+    let rows = open_the_convoys_tray(&mut app);
+    let selection = selected(&app);
+    assert!(selection.is_some_and(|s| rows.contains(&s)));
+    for thing in rows {
+        app.world_mut()
+            .entity_mut(thing)
+            .remove::<(Orbit, InNamedOrbit)>()
+            .insert(InFlight);
+    }
+    run(&mut app, 10);
+    assert_eq!(open_tray(&app), None);
+    assert_eq!(selected(&app), selection);
 }
 
 /// MUL-07 / MUL-09: a station marker's tray lists the station, then what

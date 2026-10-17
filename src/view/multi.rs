@@ -233,7 +233,8 @@ pub enum TrayFor {
 /// The tray that is open, if any (MUL-07, MUL-10). At most one is. While
 /// one is, the arrow keys are the tray's and do not pan (CAM-14), and Esc
 /// closes it before anything else (INS-03). The tray (`view/tray/`)
-/// opens and closes it.
+/// opens and closes it, and as things join and leave moves it to the
+/// marker that keeps most of them, whose key may differ.
 #[derive(Resource, Default, Debug, Clone, Copy, PartialEq)]
 pub struct OpenTray(pub Option<TrayFor>);
 

@@ -2,13 +2,15 @@
 //! header, its rows with each one's name, look and tag, the key hint, and
 //! the box of the marker it is beside. Gathered from the multi-marker (or
 //! a shared orbit's identity mark) every frame, so the rows follow the
-//! marker's things; when the marker stops existing the tray closes and
-//! the selection is kept (MUL-10).
+//! marker's things. A multi-marker's tray moves to whichever marker holds
+//! most of the things it listed (`follow.rs`); when none holds any, the
+//! tray closes and the selection is kept (MUL-10).
 
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
 use super::TrayState;
+use super::follow::marker_to_follow;
 use super::rows::{
     SideKey, TagFacts, TrayKind, TrayRow, key_hint, row_tag, tray_header, tray_rows,
 };
@@ -58,6 +60,10 @@ pub struct TrayLine {
 pub struct TrayContents {
     /// The tray these contents are for.
     pub tray: Option<TrayFor>,
+    /// Every thing it lists, in row order, docked things after their
+    /// station whether or not its row is open: what it follows to
+    /// another marker (MUL-10).
+    pub listed: Vec<Entity>,
     pub header: String,
     pub lines: Vec<TrayLine>,
     pub hint: String,
@@ -85,6 +91,23 @@ struct Held {
     /// Things docked at a station, listed under its row (MUL-04).
     docked: Docked,
     header: String,
+}
+
+impl Held {
+    /// Every thing held, in row order: each thing at the top, then what
+    /// is docked at it.
+    fn listed(&self) -> Vec<Entity> {
+        let docked_at = |thing: Entity| {
+            self.docked
+                .iter()
+                .filter(move |(station, _)| *station == thing)
+                .flat_map(|(_, at)| at.iter().copied())
+        };
+        self.top
+            .iter()
+            .flat_map(|&thing| std::iter::once(thing).chain(docked_at(thing)))
+            .collect()
+    }
 }
 
 /// The parts of a body a row is drawn from.
@@ -372,14 +395,33 @@ impl TrayInputs<'_, '_> {
     }
 }
 
-/// MUL-08 to MUL-10: gather the open tray's contents, and close it once
-/// its marker no longer exists, keeping the selection.
+/// MUL-10: the tray `open` is now: a multi-marker's tray that was open
+/// last frame goes to the marker holding most of what it listed, or
+/// closes when none holds any; a tray just opened, or a shared orbit's,
+/// stays as it is.
+fn followed(open: Option<TrayFor>, last: &TrayContents, multis: &MultiMarkers) -> Option<TrayFor> {
+    match open {
+        Some(TrayFor::Marker(_)) if last.tray == open => {
+            marker_to_follow(&last.listed, &multis.markers).map(TrayFor::Marker)
+        }
+        _ => open,
+    }
+}
+
+/// MUL-08 to MUL-10: gather the open tray's contents, moving it to the
+/// marker that keeps most of its things, and close it once no marker
+/// holds any of them or a shared orbit's mark is gone, keeping the
+/// selection.
 pub fn gather_tray(
     mut open: ResMut<OpenTray>,
     state: Res<TrayState>,
     inputs: TrayInputs,
     mut contents: ResMut<TrayContents>,
 ) {
+    let now = followed(open.0, &contents, &inputs.anchors.multis);
+    if open.0 != now {
+        open.0 = now;
+    }
     let found = open.0.and_then(|tray| {
         let anchor = inputs.anchors.anchor(tray, &inputs.tunables)?;
         let held = inputs.held(tray)?;
@@ -399,6 +441,7 @@ pub fn gather_tray(
     );
     let gathered = TrayContents {
         tray: Some(tray),
+        listed: held.listed(),
         header: held.header,
         hint: inputs.hint(&rows, state.cursor),
         lines: rows.iter().map(|&row| inputs.line(row, &state)).collect(),
