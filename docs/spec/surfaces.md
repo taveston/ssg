@@ -1,8 +1,8 @@
 # Spec: Planet surfaces
 
-**In short:** every natural body's picture is drawn by one shader from its planet facts (SYSG-22), its star and a seed, with no art assets. A **look** (airless, icy, cold terrestrial, hazy, dense, lava, volcanic, sub-Neptune, ice giant, gas giant) is chosen from the facts by a fixed order of rules; modifiers for heat, craters and rays, the star's light and the knowledge state apply on top. When a body is opened its surface is **baked** once into a cubemap (albedo, height, emissive) at a resolution set by its knowledge state, and every frame draws the globe from that bake with a cheap pass for light, terminator, limb and grain. The same bake serves the inspection inset and the system view close in, where a globe replaces the disc marker once the body's projected disc is large enough. Corvane and Sol get authored facts so every body has a picture; Earth is drawn as a lava world by an authored override, the one nod to the back story.
+**In short:** every natural body's picture is drawn by one shader from its planet facts (SYSG-22), its star and a seed, with no art assets. A **look** (airless, icy, cold terrestrial, hazy, dense, lava, volcanic, sub-Neptune, ice giant, gas giant) is chosen from the facts by a fixed order of rules; modifiers for heat, craters and rays, the star's light and the knowledge state apply on top. A star has a look of its own: a limb-darkened disc in its class colour. When a body is opened its surface is **baked** once into a cubemap (albedo, height, emissive) at a resolution set by its knowledge state, and every frame draws the globe from that bake with a cheap pass for light, terminator, limb and grain. The same bake serves the inspection inset and the system view close in, where a globe replaces the disc marker once the body's projected disc is large enough. Corvane and Sol get authored facts so every body has a picture; Earth is drawn as a lava world by an authored override, the one nod to the back story.
 
-*Scope:* the look chooser, the surface layers, the bake, the per-frame shading, where the picture is drawn in the inset and the system view, and the facts of the hand-made systems. Not here: the planetary view (section 3 of `presentation.md`, not yet specced; it will draw the same bake), settlement lights and surface overlays (no settlement data yet), clouds on rocky worlds, rings, the temperate look (surface water: reserved, SURF-14), knowledge states beyond surveyed and unsurveyed (INS-04), and a rotation period for bodies that are not locked. *Source ideas:* `docs/ideas/presentation/presentation.md` (section 2, procedural surfaces; section 5, planet looks from facts), mock-ups `29-planets.html` and `30-rays-and-hot-worlds.html`, `docs/ideas/mechanics/world-generator.md` 5.2. Where a mock-up and this spec disagree, this spec wins.
+*Scope:* the look chooser, the star's look, the surface layers, the bake, the per-frame shading, where the picture is drawn in the inset and the system view, and the facts of the hand-made systems. Not here: the planetary view (section 3 of `presentation.md`, not yet specced; it will draw the same bake), settlement lights and surface overlays (no settlement data yet), clouds on rocky worlds, rings, the temperate look (surface water: reserved, SURF-14), knowledge states beyond surveyed and unsurveyed (INS-04), and a rotation period for bodies that are not locked. *Source ideas:* `docs/ideas/presentation/presentation.md` (section 2, procedural surfaces; section 5, planet looks from facts), mock-ups `29-planets.html` and `30-rays-and-hot-worlds.html`, `docs/ideas/mechanics/world-generator.md` 5.2. Where a mock-up and this spec disagree, this spec wins.
 
 *How to read it:* each requirement has a stable ID. **Built** is ✓ once the requirement is in the code. Numbers in `code` are tunables (table at the end), read from `src/view/tunables.rs`, never hard-coded. Every built requirement has an automated test (ARCH-36). The look chooser, the temperature rule and the resolution rule are plain functions of plain values (ARCH-20), tested without a window; the shader's layers are tested by baking small faces in a headless render pass and reading pixels back, or marked *Manual* where that is not possible.
 
@@ -17,27 +17,33 @@
 | ID | Requirement | Built |
 |---|---|---|
 | SURF-01 | Every natural body with facts has a surface picture, drawn from the facts, the star and the body's seed and nothing else: no texture asset, no per-body art. Two bodies with equal facts, star and seed draw the same picture, pixel for pixel, on one machine. | ✓ |
-| SURF-02 | A body's seed is derived from the sector seed and the name "surface" followed by the body's id, by the derivation the generator's stages use (SGEN-03). A body of a hand-made system (Corvane, Sol) uses its authored surface seed (SURF-60). | ✓ |
+| SURF-02 | A body's seed is derived from the sector seed and the name "surface" followed by the body's display name (unique within a sector), by the derivation the generator's stages use (SGEN-03). A body of a hand-made system (Corvane, Sol) uses its authored surface seed (SURF-60). | ✓ |
 | SURF-03 | The look chooser (SURF-10 to SURF-19), the surface temperature rule (SURF-21), the crater and ray rule (SURF-22) and the resolution rule (SURF-32) are plain functions of the facts and the tunables, with no Bevy types (ARCH-20). | ✓ |
 | SURF-04 | The shader and the bake live in `src/view/surfaces/`, one module per concern (chooser, bake, shading, inset, map). Nothing in `sim/` or `content/` knows the looks exist; content carries facts and an optional override (SURF-61) only. *Checked in review.* | ✓ |
 | SURF-05 | A body without facts (none is expected once SURF-60 is built) draws the airless look with the default seed and logs a warning naming the body once. | ✓ |
 
 ## 2. The look
 
-The first row that matches wins, in the order the rows are listed here (SURF-10, 11, 12, 13, 14, 16, 17, 15, 18, 19): a dense atmosphere hides a hot surface, so dense comes before lava. "Surface temperature" is the peak of SURF-21.
+The first row that matches wins, in the order the rows are listed here (SURF-10, 11, 12, 14, 16, 13, 17, 15, 18, 19): a dense atmosphere hides a hot or volcanic surface, so dense comes before lava and volcanic, and only airless and thin worlds can be volcanic. "Surface temperature" is the peak of SURF-21.
 
 | ID | Requirement | Built |
 |---|---|---|
 | SURF-10 | **Gas giant:** kind gas giant. Bands sheared by latitude, a storm oval in a contrasting colour, a few small white ovals, no relief, a limb halo in the envelope colour. | ✓ |
 | SURF-11 | **Ice giant:** kind ice giant. Soft blue bands, bright streaks in one latitude band, no relief, a limb halo. | ✓ |
 | SURF-12 | **Sub-Neptune:** kind sub-Neptune. The ice giant look with the envelope colour mixed toward `sub_neptune_haze_colour` by `sub_neptune_haze_mix` and the halo `sub_neptune_halo_factor` times thicker. | ✓ |
-| SURF-13 | **Volcanic:** geological activity extreme. Sulphur and frost patches, irregular dark pits (paterae) a share of which glow as lava lakes, two plumes over the limb, no craters. | ✓ |
 | SURF-14 | **Temperate:** reserved for atmosphere thin or dense with surface water. Until it is specced, such a body takes the next row that matches. The chooser's order leaves this row's place free, so adding it changes no other row. | ✓ |
-| SURF-16 | **Dense:** atmosphere dense. An opaque cloud deck with bands and swirls in the atmosphere colour, a thick limb halo, no relief and no craters. | ✓ |
+| SURF-16 | **Dense:** atmosphere dense, whatever the activity. An opaque cloud deck with bands and swirls in the atmosphere colour, a thick limb halo, no relief and no craters. The deck hides a volcanic surface as it hides a hot one. | |
+| SURF-13 | **Volcanic:** geological activity extreme, on an airless or thin world. Sulphur and frost patches, irregular dark pits (paterae) a share of which glow as lava lakes, two plumes over the limb, no craters. | |
 | SURF-17 | **Hazy:** atmosphere thin, water ice and equilibrium temperature at most `hazy_t_max_k`. The dense look in the `hazy_colour` palette with the halo `hazy_halo_factor` times thinner: a cold, hazy world whose surface is hidden (a Titan). | ✓ |
 | SURF-15 | **Lava:** surface temperature above `melt_t_k`. Baked rock with a molten sea where the surface temperature (SURF-21) is above `melt_t_k`, with floating crust rafts and a glowing edge where the sea meets rock; craters removed where molten; emissive colour from the surface temperature (SURF-20). | ✓ |
 | SURF-18 | **Cold terrestrial:** atmosphere thin. Warped ridged relief, dark patches, eroded craters, a thin limb haze; polar caps if water is ice, covering `cap_latitude_deg` from each pole with a noisy edge. | ✓ |
 | SURF-19 | **Icy** if atmosphere is airless and water is ice: bright ice with patches of dark dusty terrain, fresh-ice crater rims, a few faint curved lineae, craters shallower than on rock. **Airless** otherwise: grey cratered rock with darker plains and craters at every scale. | ✓ |
+
+### Stars
+
+| ID | Requirement | Built |
+|---|---|---|
+| SURF-27 | **Star:** a star's picture is a disc in its class colour from `star_light_colours` (SURF-23), limb-darkened: the brightness at a point of the disc is 1 − `star_limb_darkening` × (1 − μ), for μ the cosine of the angle between the line of sight and the surface normal there, so the centre is brightest and the edge dimmest. It is a plain function of the class and the tunables (ARCH-20): no planet facts, seed, bake, light, terminator, halo or knowledge value. It is drawn in the inset only (SURF-45); on the map a star keeps its own marker. A star never takes SURF-05's fallback. | |
 
 ### Modifiers
 
@@ -57,8 +63,8 @@ The first row that matches wins, in the order the rows are listed here (SURF-10,
 |---|---|---|
 | SURF-30 | When a body's picture is first needed (the inset opens on it, or its globe is due on the map, SURF-50), its surface is baked into a cubemap of six square faces holding albedo (rgb), height and emissive (rgb). The bake depends on the facts, the star's type and age, the seed and the knowledge value, and on nothing that changes per frame: no light, no clock, no camera. | ✓ |
 | SURF-31 | The bake is spread over at most `bake_frames` frames, one or more faces per frame, so no frame stalls. Until it is complete the body draws its disc marker (inset: an empty image frame). | ✓ |
-| SURF-32 | The face size is `bake_face_px` for the surveyed state and `bake_face_unsurveyed_px` for the unsurveyed state, as a plain function of the knowledge state. | ✓ |
-| SURF-33 | Bakes are cached by body and knowledge state, up to `bake_cache_count` bodies; the least recently drawn is dropped first. A change of a body's knowledge state (or its facts, or the override of SURF-61) drops its bake and bakes again when next needed. | ✓ |
+| SURF-32 | The face size is `bake_face_px` for the surveyed state and `bake_face_unsurveyed_px` for the unsurveyed state, as a plain function of the knowledge state. The close-in bake (SURF-34) carries the finer detail. | |
+| SURF-33 | Bakes are cached by body and knowledge state, up to `bake_cache_count` bodies; the least recently drawn is dropped first. A change of a body's knowledge state (or its facts, or the override of SURF-61) drops its bake and bakes again when next needed. | |
 | SURF-34 | Close in, when the globe's projected radius exceeds `bake_face_px` × `rebake_zoom_factor`, the visible face is baked again at `bake_face_px` × `rebake_scale` with the finer crater scales on, and that face is drawn in place of the cached one while it is in view. The cached cubemap is kept. | |
 | SURF-35 | The bake is a cubemap, not an equirectangular map: no pole pinching. Faces are sampled with seamless edges: a point on a face edge samples the same value from either face. | ✓ |
 
@@ -67,21 +73,21 @@ The first row that matches wins, in the order the rows are listed here (SURF-10,
 | ID | Requirement | Built |
 |---|---|---|
 | SURF-40 | Each frame the globe is drawn from the bake with the per-frame pass only: light direction and colour (SURF-23), the terminator, the limb and rim (SURF-24), the heat glow (SURF-20, from the baked emissive), and the telescope frame (SURF-25). The molten area of the lava look is in the bake (SURF-21), as is the heat glow's emissive. The pass samples the bake and evaluates no surface noise. | ✓ |
-| SURF-41 | **Body frame:** the bake's cube frame has its poles on the orbital plane's normal (CAM-02) and a prime meridian fixed by the seed. A locked planet is turned each frame so its prime meridian faces the star (its substellar point, SURF-21); every other body keeps its prime meridian at its seed's fixed heading in the sky frame, not turning. | ✓ |
+| SURF-41 | **Body frame:** the bake's cube frame has its poles on the orbital plane's normal (CAM-02) and a prime meridian fixed by the seed. A locked planet is turned each frame so its prime meridian faces the star (its substellar point, SURF-21). A locked moon is locked to its planet, so it is turned each frame so its prime meridian faces its planet; for the temperature rule it still counts as not locked to the star (SURF-21). Every other body keeps its prime meridian at its seed's fixed heading in the sky frame, not turning. | ✓ |
 | SURF-42 | The globe is anti-aliased at its edge: the disc edge covers partial pixels by their coverage, not a hard step. | ✓ |
 
 ## 5. In the inset
 
 | ID | Requirement | Built |
 |---|---|---|
-| SURF-45 | The inset image (INS-04) is the globe (SURF-40) of the selected natural body, drawn `inset_image_px` across, seen along the system view camera's line of sight (in the sky frame, CAM-02) at the current clock, so its phase is the phase the map would show. Ships, stations, gates and salvage sites keep INS-04's placeholder. | ✓ |
+| SURF-45 | The inset image (INS-04) is the globe (SURF-40) of the selected planet or moon, drawn `inset_image_px` across, seen along the system view camera's line of sight (in the sky frame, CAM-02) at the current clock, so its phase is the phase the map would show. A selected star shows its picture (SURF-27) at the same size. Ships, stations, gates and salvage sites keep INS-04's placeholder. | |
 | SURF-46 | The image keeps INS-04's two states: surveyed is the clean globe; unsurveyed is the telescope frame (SURF-25) with four corner brackets at the image's corners, drawn as HOV-06's brackets at `inset_bracket_alpha`. | ✓ |
 
 ## 6. In the system view
 
 | ID | Requirement | Built |
 |---|---|---|
-| SURF-50 | When a natural body's projected radius (MRK-07) exceeds `globe_min_px`, its true-size disc (MRK-11) is drawn as the globe (SURF-40) instead of the filled disc: the fill and rim of MRK-11 are replaced by the picture, and the gap outside stays. The body marker (MRK-13), label and selection mark draw on top as before. Below `globe_min_px` the disc is MRK-11's. The disc returns only when the projected radius falls below `globe_release_px`, which is less than `globe_min_px`, so the picture doesn't flicker at the edge. | |
+| SURF-50 | When a planet's or moon's projected radius (MRK-07) exceeds `globe_min_px`, its true-size disc (MRK-11) is drawn as the globe (SURF-40) instead of the filled disc: the fill and rim of MRK-11 are replaced by the picture, and the gap outside stays. The body marker (MRK-13), label and selection mark draw on top as before. Below `globe_min_px` the disc is MRK-11's. The disc returns only when the projected radius falls below `globe_release_px`, which is less than `globe_min_px`, so the picture doesn't flicker at the edge. | |
 | SURF-51 | The globe on the map is lit by the same light as the inset (SURF-23), so the map and the inset agree on phase. | |
 | SURF-52 | A body whose bake is not ready (SURF-31) draws MRK-11's disc until it is. | |
 
@@ -91,10 +97,10 @@ Corvane and Sol are not generated, so their facts are authored. Gravity and equi
 
 | ID | Requirement | Built |
 |---|---|---|
-| SURF-60 | Every natural body of Corvane and Sol carries planet facts (SYSG-22) and a surface seed, authored in `content/`. Each star carries its spectral type, luminosity and age (SYSG-10). Corvane's star: K2V, luminosity by SGEN-22, age 5.1 Gyr. Sol: G2V, 1.0 L☉, 4.6 Gyr. | ✓ |
-| SURF-61 | Content may author a **look override** on a body: a look of SURF-10 to SURF-19 drawn instead of the chooser's, with the body's own facts for everything else (SURF-20 to SURF-26). The generator never sets one. Only Earth has one (SURF-63). | ✓ |
+| SURF-60 | Every natural body of Corvane and Sol carries planet facts (SYSG-22) and a surface seed, authored in `content/`. Each star carries its spectral type, luminosity and age (SYSG-10), and the key facts "Class", "Age" and "Luminosity" in SYSG-10's formats; a hand-made star has no metallicity and no "Metallicity" fact. Corvane's star: K2V, luminosity by SGEN-22, age 5.1 Gyr. Sol: G2V, 1.0 L☉, 4.6 Gyr. | |
+| SURF-61 | Content may author a **look override** on a body: a look of SURF-10 to SURF-19 drawn instead of the chooser's, with the body's own facts for everything else (SURF-20 to SURF-26). The generator never sets one. Only Earth has one (SURF-63). A lava override on a body whose own facts would not melt it (its peak surface temperature, SURF-21, is at most `melt_t_k`) uses `earth_override_t_k` in place of the equilibrium temperature for the override's surface temperature only; on a body hot enough to melt, the override keeps the body's own figures. Content needs no name check for this. The inset still reads the real facts. | |
 | SURF-62 | Corvane's bodies have the facts of table 1. | ✓ |
-| SURF-63 | Sol's bodies have the facts of table 2. Earth's facts are real (dense atmosphere, surface water, active) and it carries the override **lava**, so it is drawn as the world the collapse left (`docs/ideas/world/setting.md`), with its equilibrium temperature raised to `earth_override_t_k` for the override's surface temperature only; the inset still reads the real facts. | ✓ |
+| SURF-63 | Sol's bodies have the facts of table 2. Earth's facts are real (dense atmosphere, surface water, active) and it carries the override **lava**, so it is drawn as the world the collapse left (`docs/ideas/world/setting.md`). Its own facts would not melt it, so its surface temperature for the override is `earth_override_t_k` (SURF-61): glowing dark rock. | |
 
 **Table 1: Corvane facts.** Kinds, atmosphere, water, locking and activity. Teq and gravity from the rules.
 
@@ -102,7 +108,7 @@ Corvane and Sol are not generated, so their facts are authored. Gravity and equi
 |---|---|---|---|---|---|---|
 | Pell | rocky | airless | none | yes | dead | at 0.35 AU of a K2V, Teq about 340 K; the description's "scorched" reads as the heat glow only if `glow_t_k` is reached, which it is not: a dark baked rock |
 | Iver | rocky | thin | ice | yes | dead | "tidally locked" in its description |
-| Halden IV | rocky | thin | ice | no | active | the capital; see the open point on its temperature |
+| Halden IV | rocky | thin | ice | no | active | the capital |
 | Halden IVa, IVb, IVd | moon | airless | none | yes | dead | |
 | Halden IVc | moon | airless | ice | yes | dead | "an ice moon" |
 | Morrow | gas giant | envelope | none | no | none | |
@@ -133,7 +139,7 @@ Mercury and the Moon have water none: their polar ice is too little for the fact
 
 | ID | Requirement | Built |
 |---|---|---|
-| SURF-70 | The chooser is tested on every row with a fact set that selects it and one that just misses it, and on the Sol bodies of table 2: Io volcanic, Titan and Triton hazy, Venus dense, Mars cold terrestrial with caps, the Moon airless, Europa icy, Jupiter gas giant, Neptune ice giant, Earth with its override lava. A generated compact-system innermost rocky planet at Teq 1,500 K, locked, is lava; the same not locked, at 1,000 K with water none, is airless with glow; a Teq of 1,500 K with a dense atmosphere is dense. | ✓ |
+| SURF-70 | The chooser is tested on every row with a fact set that selects it and one that just misses it, and on the Sol bodies of table 2: Io volcanic, Titan and Triton hazy, Venus dense, Mars cold terrestrial with caps, the Moon airless, Europa icy, Jupiter gas giant, Neptune ice giant, Earth with its override lava. A generated compact-system innermost rocky planet at Teq 1,500 K, locked, is lava; the same not locked, at 1,000 K with water none, is airless with glow; a Teq of 1,500 K with a dense atmosphere is dense; activity extreme with a dense atmosphere is dense, and with a thin one volcanic. | |
 | SURF-71 | Determinism (SURF-01) is tested by baking one small face twice for the same inputs and comparing pixels, and once with a different seed and finding a difference. | ✓ |
 | SURF-72 | SURF-26 is tested on a baked body at both knowledge values. | ✓ |
 | SURF-73 | The map globe (SURF-50) is tested headlessly through what drives it: the projected radius against `globe_min_px` with hysteresis decides globe or disc. | |
@@ -144,7 +150,7 @@ All in the `Tunables` resource (`src/view/tunables.rs`). Defaults are starting v
 
 | Tunable | Default | Used by |
 |---|---|---|
-| `melt_t_k` | 1,400 K | SURF-15, SURF-20 |
+| `melt_t_k` | 1,400 K | SURF-15, SURF-20, SURF-61 |
 | `glow_t_k` | 800 K | SURF-20 |
 | `heat_ramp_k` | 800 K | SURF-20 |
 | `locked_peak_factor` | 1.414 (4^(1/4)) | SURF-21 |
@@ -157,8 +163,9 @@ All in the `Tunables` resource (`src/view/tunables.rs`). Defaults are starting v
 | `crater_factor_dead`, `crater_factor_active`, `crater_factor_extreme` | 1.0, 0.5, 0 | SURF-22 |
 | `ray_full_age_gyr`, `ray_max_age_gyr` | 0.15 Gyr, 1.6 Gyr | SURF-22 |
 | `ray_density` | 0.3 (share of the ray grid's cells that hold a fresh crater) | SURF-22 |
-| `star_light_colours` | M (1, .58, .30); K (1, .80, .55); G (1, .96, .90); F (.88, .92, 1); A (.80, .86, 1); white dwarf (.85, .90, 1); giant (1, .70, .45) | SURF-23 |
+| `star_light_colours` | M (1, .58, .30); K (1, .80, .55); G (1, .96, .90); F (.88, .92, 1); A (.80, .86, 1); white dwarf (.85, .90, 1); giant (1, .70, .45) | SURF-23, SURF-27 |
 | `star_light_strength` | 1.2 | SURF-23 |
+| `star_limb_darkening` | 0.6 | SURF-27 |
 | `terminator_width` | 0.04 (of the cosine of the light angle) | SURF-23 |
 | `wrap_light` | 0.12 | SURF-23 |
 | `ambient_light` | one value per look group: airless, icy, lava, volcanic 0.002; thin (cold terrestrial, hazy) 0.002; dense and envelope 0.008 | SURF-23 |
@@ -170,17 +177,16 @@ All in the `Tunables` resource (`src/view/tunables.rs`). Defaults are starting v
 | `telescope_block`, `telescope_desaturate`, `telescope_grain` | 4, 0.38, 22 (of 255) | SURF-25 |
 | `large_form_deg`, `large_form_samples`, `large_form_tolerance` | 30°, 32, 0.08 | SURF-26 |
 | `bake_frames` | 6 | SURF-31 |
-| `bake_face_px`, `bake_face_unsurveyed_px` | 1024, 256 | SURF-32, SURF-34 |
-| `bake_cache_count` | 8 | SURF-33 |
+| `bake_face_px`, `bake_face_unsurveyed_px` | 512, 256 | SURF-32, SURF-34 |
+| `bake_cache_count` | 3 | SURF-33 |
 | `rebake_zoom_factor`, `rebake_scale` | 0.5, 4 | SURF-34 |
 | `inset_image_px` | 300 | SURF-45 |
 | `inset_bracket_alpha` | 0.75 | SURF-46 |
 | `globe_min_px`, `globe_release_px` (release below min) | 24, 20 | SURF-50 |
-| `earth_override_t_k` | 1,500 K | SURF-63 |
+| `earth_override_t_k` | 1,000 K | SURF-61, SURF-63 |
 
 ## Open points
 
-- Halden IV sits at 2.0 AU round a 0.78 M☉ star (luminosity about 0.37 L☉ by SGEN-22), which gives a Teq of about 140 K, against its description's −41 °C (232 K), and with thin air and ice that is the hazy look: a capital whose surface is hidden. Either move it in to about 0.75 AU or accept it. Logged as F-300.
 - The temperate look (SURF-14) needs oceans, land and clouds, none of which the facts describe. When it is specced it may want new facts (land fraction, cloud cover) that the generator would have to supply.
 - A hot world with a thin atmosphere takes the lava look when it melts and the cold terrestrial look with glow when it doesn't, and in both its thin haze is not drawn (SURF-24 keys on the look). A hot dense world hides its glow under the clouds (SURF-20). All first guesses.
 - Bodies that are not locked do not turn (SURF-41). A rotation period would let them, and would give a day length for the economy; it needs a fact the generator does not have.

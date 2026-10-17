@@ -15,7 +15,7 @@
 | ID | Requirement | Built |
 |---|---|---|
 | SOL-01 | Sol is a system in `content/`, built from the same blueprint types as Corvane (SCL-03). No simulation or view code names it. *Checked in review.* | ✓ |
-| SOL-02 | The star is named "Sol": class G2V, mass `SOLAR_MASS_KG`, mean radius 695,700 km, surveyed. | ✓ |
+| SOL-02 | The star is named "Sol": class G2V, mass `SOLAR_MASS_KG`, mean radius 695,700 km, surveyed. Its key facts are "Class" G2V, "Age" 4.6 Gyr and "Luminosity" 1.00 L☉, in SYSG-10's formats (SURF-60); it has no metallicity. | |
 | SOL-03 | The planets are the nine bodies of table 1, each round the star with the orbit radius, mean radius and mass the table gives and the key fact "Class" set to the table's class. Ceres is a planet-class record. | ✓ |
 | SOL-04 | The moons are the twenty-one bodies of table 2, each a child of its parent with the orbit radius, mean radius and mass the table gives and the key fact "Class: Moon". Triton also has the key fact "Real orbit: retrograde, drawn prograde", and each moon of Uranus "Real orbit: round Uranus's tilted equator, drawn in the system plane". | ✓ |
 | SOL-05 | Each body's period, from Kepler's third law with its parent's mass (SCL-04), is within 1% of the real period in the tables. | ✓ |
@@ -28,8 +28,8 @@
 | SOL-12 | Sol has four own, surveyed records round Earth, the stations and ships of table 3, built from the same blueprint types as Corvane's (SCL-03). The stations are class Station with no drive. The ships are commanded, unarmed Cargo ships, each with the drive of its row (SOL-15, SOL-16). || ✓ |
 | SOL-13 | Perigee Station, Marlin and Vestige are members of Earth's Low band, and Apogee Station of its High band (SCL-07, BAND-02). None has an orbit of its own. With the default tunables Low is 6,871 km out (period 94.5 min) and High 216,614 km out (period 11.6 d). | ✓ |
 | SOL-14 | At day 0 the four sit at the phases of table 3. Marlin has Perigee Station's phase, so it is docked at it (PHAS-02). Vestige is not together with Perigee Station or Marlin (PHAS-02). || ✓ |
-| SOL-15 | **Marlin**, the near-future ship, has a hydrogen nuclear thermal drive: impulsive, exhaust velocity 9.0 km/s, loaded acceleration 0.1 g, and 15 km/s of delta-v. The exhaust velocity is the hydrogen row of `drives-and-transit.md` section 3; the delta-v and acceleration are a larger ship's than that row's typical 9.9 km/s and 0.2 g, chosen so Marlin can reach any inner-system body out to Ceres. || ✓ |
-| SOL-16 | **Vestige**, the relic ship, has a continuous fusion torch: impulsive, exhaust velocity 500 km/s, loaded acceleration 20 milli-g, and 500 km/s of delta-v (`drives-and-transit.md` section 3, torch row). || ✓ |
+| SOL-15 | **Marlin**, the near-future ship, has a hydrogen nuclear thermal drive: impulsive, exhaust velocity 9.0 km/s, loaded acceleration 0.1 g, and 15 km/s of delta-v. The drive's display name (PLNR-05) is "hydrogen NTR". The exhaust velocity is the hydrogen row of `drives-and-transit.md` section 3; the delta-v and acceleration are a larger ship's than that row's typical 9.9 km/s and 0.2 g, chosen so Marlin can reach any inner-system body out to Ceres. || ✓ |
+| SOL-16 | **Vestige**, the relic ship, has a continuous fusion torch: impulsive, exhaust velocity 500 km/s, loaded acceleration 20 milli-g, and 500 km/s of delta-v (`drives-and-transit.md` section 3, torch row). The drive's display name (PLNR-05) is "fusion torch". || ✓ |
 | SOL-17 | Marlin's delta-v covers the Hohmann crossing from Earth's Low band to its High band, about 4.0 km/s, three times and not four. Vestige's covers any number of them. The crossing's burns come from the `orbits` crate's Hohmann function. || ✓ |
 
 ## 2. Start-up
