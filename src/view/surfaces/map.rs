@@ -229,6 +229,14 @@ fn draw_map_globes(
             if node.display != Display::None {
                 node.display = Display::None;
             }
+            // A hidden picture lets go of its material, so the strips it
+            // drew from (a close face's especially) can be freed once the
+            // cache drops them.
+            if held.is_some() {
+                commands
+                    .entity(globe.picture)
+                    .remove::<MaterialNode<GlobeMaterial>>();
+            }
             continue;
         };
         fill_picture(

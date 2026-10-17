@@ -335,6 +335,13 @@ fn the_disc_becomes_the_globe_close_in_with_hysteresis() {
     zoom_to_radius(&mut app, halden, t.globe_release_px - 1.0);
     assert!(map_picture(&mut app, halden).is_none(), "gone below it");
     assert!(!map_globe(&mut app, halden).due);
+    let picture = map_globe(&mut app, halden).picture;
+    assert!(
+        app.world()
+            .get::<MaterialNode<GlobeMaterial>>(picture)
+            .is_none(),
+        "a hidden globe lets go of its bake"
+    );
     zoom_to_radius(&mut app, halden, between);
     assert!(
         map_picture(&mut app, halden).is_none(),
