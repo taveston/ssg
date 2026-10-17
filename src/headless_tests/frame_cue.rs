@@ -20,13 +20,15 @@ use crate::view::screen::screen_angle;
 /// frame cue, paused.
 fn cue_app() -> App {
     let mut app = camera_app_with(|app| {
-        app.insert_resource(placeholder_fonts()).add_plugins((
-            EdgePlugin,
-            MarkersPlugin,
-            HoveredPlugin,
-            PlotMarksPlugin,
-            FrameCuePlugin,
-        ));
+        app.insert_resource(placeholder_fonts())
+            .init_resource::<crate::view::fold::FoldSummary>()
+            .add_plugins((
+                EdgePlugin,
+                MarkersPlugin,
+                HoveredPlugin,
+                PlotMarksPlugin,
+                FrameCuePlugin,
+            ));
     });
     run(&mut app, 2);
     app

@@ -335,7 +335,8 @@ type PoolHolders<'w, 's> = Query<
 /// GRP-12 / GRP-13 / MUL-01: lay out the back frame and count under a
 /// pool node for `marker`: the back frame its size and at its offset, or
 /// hidden when it has none (a pip of one thing); the count only while
-/// it shows. Written only when they change.
+/// it shows. Compared field by field and written only when they change,
+/// so a still marker copies no `Node`.
 fn lay_out_holders(
     root: Entity,
     marker: &MultiMarker,
@@ -346,23 +347,28 @@ fn lay_out_holders(
         let Ok((mut holder, back)) = holders.get_mut(node) else {
             continue;
         };
-        let wanted = if back {
-            let offset = marker.back.unwrap_or_default();
-            Node {
-                display: display_if(marker.back.is_some()),
-                left: px(offset.x),
-                top: px(offset.y),
-                width: px(marker.frame_px),
-                height: px(marker.frame_px),
-                ..holder.clone()
+        if !back {
+            let display = display_if(marker.count_shown);
+            if holder.display != display {
+                holder.display = display;
             }
-        } else {
-            Node {
-                display: display_if(marker.count_shown),
-                ..holder.clone()
-            }
-        };
-        holder.set_if_neq(wanted);
+            continue;
+        }
+        let offset = marker.back.unwrap_or_default();
+        let display = display_if(marker.back.is_some());
+        let (left, top, side) = (px(offset.x), px(offset.y), px(marker.frame_px));
+        let same = holder.display == display
+            && holder.left == left
+            && holder.top == top
+            && holder.width == side
+            && holder.height == side;
+        if !same {
+            holder.display = display;
+            holder.left = left;
+            holder.top = top;
+            holder.width = side;
+            holder.height = side;
+        }
     }
 }
 

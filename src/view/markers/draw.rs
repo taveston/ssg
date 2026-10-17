@@ -314,9 +314,14 @@ fn spawn_marker(
         // GRP-10: the moon ring and the cover over it come before the
         // class detail and rim, so they draw under them.
         let fill = body_fill(false, tunables);
-        marker
-            .insert((MoonRing::default(), BackFrame(None)))
-            .with_children(|parent| spawn_moon_ring(parent, fill, disc_gap(tunables), tunables));
+        let mut parts = None;
+        marker.with_children(|parent| {
+            parts = Some(spawn_moon_ring(parent, fill, disc_gap(tunables), tunables));
+        });
+        marker.insert((MoonRing::default(), BackFrame(None)));
+        if let Some(parts) = parts {
+            marker.insert(parts);
+        }
     }
     let station = look.class == BodyClass::Station && shape == MarkerShape::Symbol;
     if station {

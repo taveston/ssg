@@ -223,10 +223,9 @@ pub struct MarkersPlugin;
 
 impl Plugin for MarkersPlugin {
     fn build(&self, app: &mut App) {
-        // MUL-13: a station's second line reads its docked count.
-        // GRP-10: a moon ring reads what is folded into its body.
+        // MUL-13: a station's second line reads its docked count. A moon
+        // ring reads `FoldSummary`, which `GroupingPlugin` owns (GRP-10).
         app.init_resource::<MultiMarkers>()
-            .init_resource::<super::fold::FoldSummary>()
             .add_systems(Startup, spawn_markers.in_set(Boot::Overlay))
             .add_systems(
                 Update,
@@ -434,16 +433,13 @@ impl MarkerScreen<'_> {
     }
 }
 
-/// A moon ring's node and its cover (GRP-10).
+/// A moon ring's node (GRP-10).
 type RingNodes<'w, 's> = Query<
     'w,
     's,
-    (&'static mut Node, Has<moon_ring::MoonRingNode>),
+    &'static mut Node,
     (
-        Or<(
-            With<moon_ring::MoonRingNode>,
-            With<moon_ring::MoonRingCover>,
-        )>,
+        With<moon_ring::MoonRingNode>,
         Without<MarkerShape>,
         Without<BodyDetail>,
     ),
@@ -456,7 +452,14 @@ struct MarkerPaint<'w, 's> {
     children: Query<'w, 's, &'static Children>,
     parts: TintedParts<'w, 's>,
     details: DetailNodes<'w, 's>,
-    rings: Query<'w, 's, &'static moon_ring::MoonRing>,
+    rings: Query<
+        'w,
+        's,
+        (
+            &'static moon_ring::MoonRing,
+            &'static moon_ring::MoonRingParts,
+        ),
+    >,
     ring_nodes: RingNodes<'w, 's>,
     tunables: Res<'w, Tunables>,
 }
@@ -476,34 +479,33 @@ impl MarkerPaint<'_, '_> {
             tint.color = fill;
         }
         show_body_detail(marker, !true_size, &self.children, &mut self.details);
-        let ring = self.rings.get(marker).map_or(0.0, |ring| ring.t);
-        let ring_nodes: Vec<Entity> = self
-            .children
-            .iter_descendants(marker)
-            .filter(|&child| self.ring_nodes.contains(child))
-            .collect();
-        for &child in &ring_nodes {
-            if let Ok((mut tint, ..)) = self.parts.get_mut(child) {
-                tint.color = fill;
+        let ring = self
+            .rings
+            .get(marker)
+            .ok()
+            .map(|(ring, parts)| (*ring, *parts));
+        if let Some((_, parts)) = ring {
+            for child in [parts.ring, parts.cover] {
+                if let Ok((mut tint, ..)) = self.parts.get_mut(child) {
+                    tint.color = fill;
+                }
             }
         }
         fade_parts(marker, alpha, &self.children, &mut self.parts);
-        for child in ring_nodes {
-            let Ok((mut node, is_ring)) = self.ring_nodes.get_mut(child) else {
-                continue;
+        let Some((ring, parts)) = ring else {
+            return;
+        };
+        if let Ok(mut node) = self.ring_nodes.get_mut(parts.ring) {
+            let display = if ring.t > 0.0 {
+                Display::Flex
+            } else {
+                Display::None
             };
-            if is_ring {
-                let display = if ring > 0.0 {
-                    Display::Flex
-                } else {
-                    Display::None
-                };
-                if node.display != display {
-                    node.display = display;
-                }
-                fade_parts(child, alpha * ring, &self.children, &mut self.parts);
+            if node.display != display {
+                node.display = display;
             }
         }
+        fade_parts(parts.ring, alpha * ring.t, &self.children, &mut self.parts);
     }
 }
 

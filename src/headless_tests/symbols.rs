@@ -11,11 +11,9 @@ use super::*;
 fn own_ships_carry_a_condition_bar_filled_to_their_condition() {
     use crate::view::symbols::draw::ConditionFill;
     let mut app = camera_app_with(|app| {
-        app.insert_resource(placeholder_fonts()).add_plugins((
-            EdgePlugin,
-            MarkersPlugin,
-            HoveredPlugin,
-        ));
+        app.insert_resource(placeholder_fonts())
+            .init_resource::<crate::view::fold::FoldSummary>()
+            .add_plugins((EdgePlugin, MarkersPlugin, HoveredPlugin));
     });
     run(&mut app, 3);
     let orison = body(&mut app, "Orison");

@@ -35,6 +35,14 @@ pub struct MoonRing {
 #[derive(Component)]
 pub struct MoonRingNode;
 
+/// On a body's marker: its ring node and the cover over it, found once
+/// at spawn so nothing searches the marker's children each frame.
+#[derive(Component, Debug, Clone, Copy)]
+pub struct MoonRingParts {
+    pub ring: Entity,
+    pub cover: Entity,
+}
+
 /// The cover over the ring: the marker's fill again, so the ring shows
 /// only where it reaches past the marker (GRP-10).
 #[derive(Component)]
@@ -80,7 +88,7 @@ pub fn spawn_moon_ring(
     fill: Color,
     gap: Outline,
     tunables: &Tunables,
-) {
+) -> MoonRingParts {
     let offset = tunables.moon_ring_offset_px;
     let full = |left: f32, top: f32| Node {
         position_type: PositionType::Absolute,
@@ -91,7 +99,7 @@ pub fn spawn_moon_ring(
         border_radius: BorderRadius::MAX,
         ..default()
     };
-    parent
+    let ring = parent
         .spawn((
             MoonRingNode,
             Node {
@@ -113,15 +121,19 @@ pub fn spawn_moon_ring(
                 Tint::new(colors::NEUTRAL, TintSlot::Border),
                 Pickable::IGNORE,
             ));
-        });
-    parent.spawn((
-        MoonRingCover,
-        full(0.0, 0.0),
-        BackgroundColor(fill),
-        Tint::new(fill, TintSlot::Background),
-        gap,
-        Pickable::IGNORE,
-    ));
+        })
+        .id();
+    let cover = parent
+        .spawn((
+            MoonRingCover,
+            full(0.0, 0.0),
+            BackgroundColor(fill),
+            Tint::new(fill, TintSlot::Background),
+            gap,
+            Pickable::IGNORE,
+        ))
+        .id();
+    MoonRingParts { ring, cover }
 }
 
 /// GRP-11: the label's second line for the moon count: the data face at

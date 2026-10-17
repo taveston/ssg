@@ -169,11 +169,9 @@ fn marker_width_px(app: &mut App, body: Entity) -> f32 {
 #[test]
 fn a_body_grows_into_a_true_size_disc_when_close() {
     let mut app = camera_app_with(|app| {
-        app.insert_resource(placeholder_fonts()).add_plugins((
-            EdgePlugin,
-            MarkersPlugin,
-            HoveredPlugin,
-        ));
+        app.insert_resource(placeholder_fonts())
+            .init_resource::<crate::view::fold::FoldSummary>()
+            .add_plugins((EdgePlugin, MarkersPlugin, HoveredPlugin));
     });
     let halden = body(&mut app, "Halden IV");
     run(&mut app, 2);
@@ -216,11 +214,9 @@ fn a_body_grows_into_a_true_size_disc_when_close() {
 #[test]
 fn nearer_bodies_draw_over_farther_and_symbols_over_bodies() {
     let mut app = camera_app_with(|app| {
-        app.insert_resource(placeholder_fonts()).add_plugins((
-            EdgePlugin,
-            MarkersPlugin,
-            HoveredPlugin,
-        ));
+        app.insert_resource(placeholder_fonts())
+            .init_resource::<crate::view::fold::FoldSummary>()
+            .add_plugins((EdgePlugin, MarkersPlugin, HoveredPlugin));
     });
     let names = ["Pell", "Iver", "Halden IV", "Morrow"];
     let bodies: Vec<Entity> = names.iter().map(|n| body(&mut app, n)).collect();
@@ -271,11 +267,9 @@ fn nearer_bodies_draw_over_farther_and_symbols_over_bodies() {
 #[test]
 fn a_symbol_keeps_its_size_at_every_zoom() {
     let mut app = camera_app_with(|app| {
-        app.insert_resource(placeholder_fonts()).add_plugins((
-            EdgePlugin,
-            MarkersPlugin,
-            HoveredPlugin,
-        ));
+        app.insert_resource(placeholder_fonts())
+            .init_resource::<crate::view::fold::FoldSummary>()
+            .add_plugins((EdgePlugin, MarkersPlugin, HoveredPlugin));
     });
     let symbol_px = app.world().resource::<Tunables>().ship_symbol_px;
     let orison = body(&mut app, "Orison");
