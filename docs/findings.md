@@ -2,7 +2,7 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-303.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-311.
 
 ---
 
@@ -22,6 +22,46 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** SURF-60 gives each star its spectral type, luminosity and age "(SYSG-10)". SYSG-10 gives a generated star the key facts Class, Age, Luminosity and Metallicity. The build stores the three values as data on every star, but Corvane's and Sol's key facts still show Class only, so their insets show no age or luminosity. SOL-02 names only the class.
 - **Affects:** SURF-60, SYSG-10, SOL-02 · **Type:** spec gap
 - **Disposition:** open. Decide whether hand-made stars also list Age and Luminosity; they have no metallicity to show.
+
+### F-303 · The inset scrolls its 300 px image out of view
+- **Observation:** INS-05 scrolls the selected outline row into view when the selection changes. With the globe at `inset_image_px` (300 px) the details are tall, so for a body low in the outline (a moon, Jupiter) the panel scrolls until the globe is partly or wholly above the top. The 64 px placeholder rarely scrolled off.
+- **Affects:** INS-05, SURF-45 · **Type:** spec wrong
+- **Disposition:** open. Scroll to reveal the row only if the image stays in view, scroll only on a change made in the outline, or use a smaller `inset_image_px`.
+
+### F-304 · Earth under the lava override reads as an evenly glowing orange ball
+- **Observation:** Earth is not locked, so at `earth_override_t_k` (1,500 K) its surface temperature is 1,500 K everywhere: full heat glow all over, a few open lakes, and the terminator lost under the glow. It reads as a hot orange marble rather than a dark world with lava. The build keeps the rule; the glow's strength is a shader constant (`GLOW_STRENGTH`, 0.15).
+- **Affects:** SURF-63, SURF-20, SURF-15 · **Type:** spec wrong
+- **Disposition:** open. Lower `earth_override_t_k` (about 1,000 K gives glowing dark rock), dim the night-side glow, or treat Earth's override as locked so it has a molten dayside.
+
+### F-305 · A locked moon faces its planet
+- **Observation:** SURF-41 turns a locked planet to face its star and leaves every other body at its seed's heading. A moon's `locked` fact means locked to its planet, so the build turns a locked moon's prime meridian to face its planet (the Moon keeps one face to Earth). The temperature rule still treats it as not locked to the star.
+- **Affects:** SURF-41 · **Type:** spec gap
+- **Disposition:** open. Copy into SURF-41 if agreed.
+
+### F-306 · Generated bodies have no id for the surface seed
+- **Observation:** SURF-02 derives a generated body's seed from the sector seed and "surface" plus the body's id, but generated bodies carry no id. The build uses the display name instead; names are unique within a sector, so each body gets its own fixed seed.
+- **Affects:** SURF-02 · **Type:** spec gap
+- **Disposition:** open. Say "name" in SURF-02, or give generated bodies an id.
+
+### F-307 · A surveyed bake is up to 100 MB of VRAM
+- **Observation:** At `bake_face_px` 1024 a strip is 6 × 1024² texels of Rgba16Float: 50 MB, or 100 MB for a body that glows (a second row for the emissive). With `bake_cache_count` 8 the cache can hold 400 to 800 MB. The inset draws 300 px, where 256 px faces are already sharp; 1024 is for the map close in (SURF-34).
+- **Affects:** SURF-32, SURF-33 · **Type:** spec wrong
+- **Disposition:** open. `bake_face_px` 512 with the close-in bake carrying the detail, `bake_cache_count` 3, or an 8-bit emissive row.
+
+### F-308 · The star keeps the placeholder image
+- **Observation:** INS-04 says a natural body's image is its globe, but SURF-10 to SURF-19 give no look for a star. The build keeps the placeholder for stars.
+- **Affects:** INS-04, SURF-45 · **Type:** spec gap
+- **Disposition:** open. A star look (a limb-darkened disc in the class colour) would be a small addition to the chooser.
+
+### F-309 · A volcanic world under a dense atmosphere shows its surface
+- **Observation:** The chooser puts volcanic (activity extreme) before dense, so a generated super-Earth with a dense atmosphere and extreme activity (two of three in the seed-7 sector sample) draws sulphur plains, glowing pits and plumes with no cloud deck or halo. A dense atmosphere would hide them, as it hides a hot surface.
+- **Affects:** SURF-13, SURF-16 · **Type:** spec wrong
+- **Disposition:** open. Put dense before volcanic (then only airless and thin worlds are volcanic), or add a volcanic variant of the dense look (a deck with a warmed halo).
+
+### F-310 · The lava override's temperature raise is not tied to Earth's name
+- **Observation:** SURF-63 raises Earth's Teq to `earth_override_t_k` for its override. The build applies the raise to any lava override on a body whose own facts would not melt it (today only Earth), so content needs no name check and a hotter authored override keeps its own figures.
+- **Affects:** SURF-63 · **Type:** spec gap
+- **Disposition:** open. Copy into SURF-61 or SURF-63 if agreed.
 
 ### F-162 · Which band Iver Yard sits in
 - **Observation:** SCL-07 now puts every station in a band, so the build drops a station's own orbit. TEST-02 and TEST-09 name the band for Arden Highport and Tern Relay, but nothing names one for Iver Yard, which had its own 45,000 km orbit. The build puts it in Iver's High band (197,200 km at 34 radii, period about 10.6 d). That band was nearest its old orbit when High was 10 radii; now the Low band (6,300 km) is nearer. This moves Iver's satellite frame out to 197,200 km.
