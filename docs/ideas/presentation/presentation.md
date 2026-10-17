@@ -41,11 +41,19 @@ The first three are spatial layers, nested from sector down to planet. Faction a
   - **"In orbit" is an outline of the whole system (decided 2026-10-13, from F5-07).** A flat list of the selection's satellites vanished as soon as one was clicked, so a single click had to wait out the double-click window. A tree from the star down stays put when you click, so a click selects at once, and moving to a parent or a sibling is one click. (Specced: INS-05, INS-07.)
   - **Fidelity follows knowledge (candidate):** the view shows the best image the faction holds. An unsurveyed body is a grainy telescope frame. A surveyed one is a clean render with overlays (ice, ruins, settlements). An old observation shows the last image with its date. Own ships and stations render fully; foreign contacts only as well as they have been observed. This ties the visuals to the uncertainty pillar and to partly known salvage sites (*Salvage & Research*). (Only placeholder surveyed and unsurveyed images are specced, INS-04: how information is gathered isn't designed yet, so there is no stale state, status text or date. Foreign contacts not yet.)
   - **Renders from designs (candidate):** ship and station renders are assembled from their component designs. So two bids for the same requirements look visibly different, and as-built variants and refits show.
-  - **Planet surfaces are procedural (direction, 2026-10-17).** A shader draws each planet from the figures the generator already gives it (kind, gravity, equilibrium temperature, atmosphere class, water) and a seed derived from the sector seed and the body's id, so a body looks the same each time it is inspected. No art assets. Mock-up 29 shows seven kinds, four states of knowledge, phase and star colour, and close zoom.
+  - **Planet surfaces are procedural (direction, 2026-10-17).** A shader draws each planet from the figures the generator already gives it (kind, gravity, equilibrium temperature, atmosphere class, water) and a seed derived from the sector seed and the body's id, so a body looks the same each time it is inspected. No art assets. Mock-up 29 shows seven looks (the generator's kinds are fewer; icy and molten are looks, not kinds), four states of knowledge, phase and star colour, and close zoom.
     - **Knowledge is one value.** Fewer noise octaves and no small craters give a body seen from far away, and blur and grain on top give the telescope frame. The same large forms stay put as the faction learns more, so the unsurveyed and surveyed images are plainly the same planet. The planetary view's globe uses the same shader and adds octaves as the view closes.
     - **Light (decided 2026-10-17, from review of mock-up 29):** a sharp day-night terminator and almost no ambient light, for a photographic look. Atmospheres glow at the limb on the lit side only.
+    - **Crater rays (direction, 2026-10-17):** airless and icy bodies get bright ray systems round their freshest craters. Rays are albedo only, so they show best at high sun. Each parent crater has its own age, up to the surface age, and its rays fade as it weathers, so young surfaces show many and old ones few; bodies with an atmosphere or a resurfaced crust show none. They read from the atmosphere, water and age figures the generator already gives, and they survive in the unsurveyed telescope frame. Mock-up 30, board A.
+    - **Hot and volcanic worlds (direction, 2026-10-17):** a rocky body hot from its star glows dull red above about 800 K and melts above about 1,400 K. Where it melts follows the tidally locked fact (`world-generator.md` 5.2): a locked world has a molten sea on its star-facing side, with floating crust and a cooling skin, and a dark night side; a spinning one melts all over. It has no craters while molten. A volcanic world is a different look (sulphur and frost patches, dark pits with lava lakes, plumes over the limb, no craters because eruptions bury them) and follows the geological activity fact (`world-generator.md` 5.2): dead keeps craters and rays, active thins them, extreme is this look. Mock-up 30, boards B and C.
+    - **Why:** the generator already gives equilibrium temperature, atmosphere, water and age, so rays and the hot-world ladder need only one new fact, locking, and volcanic worlds one more, geological activity. Both are generator facts (SGEN-44, SGEN-45), so nothing else leaves the generator.
+    - **Bake the surface, shade it live (decided 2026-10-17).** When a body is opened, its surface (albedo, height, emissive) is baked once into a cubemap at a resolution set by its knowledge state, and each frame draws the globe from that with a cheap pass: star direction and phase, terminator, limb and atmosphere, settlement lights, and the telescope grain for the unsurveyed. A change of knowledge re-bakes, which is a visible moment: the picture sharpens. Closing in past the cubemap's resolution re-bakes the visible patch at a finer scale with the small crater layers on. A cubemap, not an equirectangular map, so the poles don't pinch. The bake spreads over a few frames and the last few opened bodies are cached (about 24 MB each at 1024² faces). Why: the full shader per pixel every frame is too heavy for a planetary view on a large screen and wasteful for a surface that never changes, while a single pre-rendered image has a fixed resolution and breaks "detail does not run out". Baking only on open costs nothing for bodies never looked at.
     - **Why:** the generator already produces the figures, art for every kind of body would be a large cost, and a procedural surface can show knowledge as a continuous value instead of a set of pictures.
-    - **Still open:** the look needs tuning per kind (the ice giant is the plainest, and the molten kind's cracked crust is a guess), and nothing is specced.
+    - **One render, three places (direction, 2026-10-17):** the same bake serves the inspection inset, the planetary view's globe and the system view close in. In the system view, when a body's true projected disc grows past a threshold in pixels, the globe is drawn in place of the disc marker, lit by the star, and the marker's outline and label stay on top. So closing in on a planet shows the planet, not a symbol.
+    - **Every body has facts (decided 2026-10-17):** the shader reads the planet facts (SYSG-22), so the hand-made systems get them too: Corvane's bodies authored to suit their descriptions, Sol's from the real figures. One exception, as a nod to the back story: Earth is drawn as a lava world, the surface the collapse left (`../world/setting.md`). That needs a way for authored content to override the look the facts would give; the generator never uses it. The authored Sol facts stay real, so the inset still reads a temperate, dense-atmosphere world; only the render lies.
+    - **Surface age:** the shader's age is the system's age (SGEN-23), and activity (SGEN-45) resurfaces: dead keeps every crater and its rays, active halves the crater density and removes rays, extreme removes craters. No new fact.
+    - **Looks from facts (candidate, 2026-10-17):** see the table under section 5. The look is chosen by the first rule that matches, then the modifiers apply.
+    - **Specced** as `docs/spec/surfaces.md` (SURF): the chooser, the bake, the inset image (INS-04) and the map globe (MRK-11), and authored facts for Corvane and Sol. **Still open:** the look needs tuning per kind (the ice giant is the plainest, and the lava is warm orange but still smooth up close).
 - **Information model (decided):** the player has a semi-omniscient view. Signal delay isn't modelled: what the faction knows, the player sees at once, in every system.
 - **Abstract uncertainty (candidate):** limits on knowledge are modelled abstractly rather than through physics.
   - Undetected contacts aren't shown. Thermal detection (see *Component Catalogue*, sensors) decides what appears.
@@ -133,7 +141,7 @@ The first three are spatial layers, nested from sector down to planet. Faction a
 
 - **Purpose (decided):** where settlements are administered and ground combat takes place.
 - **Entry (direction):** from the system view, by the inset's "Open planetary view" button or by double-clicking the focused body; never by scrolling. The inspection view is a look at a body; the planetary view is where the player acts on it.
-- **Style (candidate):** a globe that uses the body's photoreal render as its surface, with vector overlays for settlements, infrastructure, extraction sites, ground formations, landing sites and orbital assets overhead. This joins the two visual styles in one view.
+- **Style (decided 2026-10-17: a globe):** a globe that uses the body's procedural render as its surface (section 2, procedural surfaces), with vector overlays for settlements, infrastructure, extraction sites, ground formations, landing sites and orbital assets overhead. This joins the two visual styles in one view.
 - **Ground combat (candidate):** delegated and lightly simulated, like space combat (*Combat, Raiders & Diplomacy*). The player sets objectives and posture, and watches formations move on the overlay.
 - **Coverage (candidate):** a full planetary view only for bodies with settlements, surface sites or fighting. Small moons and asteroids use the inspection view alone.
 
@@ -148,6 +156,35 @@ The first three are spatial layers, nested from sector down to planet. Faction a
 
 The vector layer is cheap to produce, and so is the sky: it is generated, with no art. Planet and moon surfaces are generated too (section 2, planet surfaces), so photoreal art is needed only for stations, gates, ruins and ship components. The administration view needs portraits and 2D interface art. This keeps art cost in line with the scope risk (design document, section 7).
 
+### Planet looks from facts (candidate, 2026-10-17)
+
+The render is chosen from the planet facts (SYSG-22) and nothing else. The first row that matches wins; the modifiers below apply on top. Every look is drawn by the one shader of mock-ups 29 and 30.
+
+| Look | Facts | What is drawn |
+|---|---|---|
+| Gas giant | kind gas giant | banded envelope with a storm and small white ovals, limb halo |
+| Ice giant | kind ice giant | soft blue bands, bright streaks, limb halo |
+| Sub-Neptune | kind sub-Neptune | the ice giant look with a paler, hazier envelope |
+| Volcanic | activity extreme | sulphur and frost patches, dark paterae with glowing lakes, plumes over the limb, no craters |
+| Temperate | atmosphere thin or dense, water surface | reserved: land and seas, ice caps, clouds need oceans and a biosphere the facts don't describe. Until then the next row applies |
+| Lava | surface temperature above the melt point (locked: at the substellar point; free: everywhere) | baked rock with a molten sea where it melts: on the star-facing side when locked, all over when free; glowing crust edges; no craters where molten |
+| Dense | atmosphere dense | an opaque cloud deck with bands and swirls, thick limb halo, little relief visible |
+| Hazy | atmosphere thin, water ice, cold | the dense look in a cold orange-brown, thinner halo: a Titan, whose haze hides the surface |
+| Cold terrestrial | atmosphere thin | warped ridged relief, dark patches, eroded craters, thin limb haze; polar caps if water ice |
+| Icy | atmosphere airless, water ice | bright ice with dark dusty terrain, fresh-ice rims, faint lineae, shallow craters |
+| Airless | atmosphere airless | grey cratered rock with dark plains, craters at every scale |
+
+Modifiers:
+
+- **Heat:** any rocky look glows dull red above about 800 K surface temperature, from the local temperature (locked: falling from the substellar point; free: uniform). Surface temperature follows from equilibrium temperature and locking as in `../mechanics/world-generator.md` 5.2; the melt point and the glow point are tunables.
+- **Craters and rays:** crater density from the system's age, reduced by activity (dead full, active half, extreme none). Rays on airless and icy looks only, when activity is dead; each ray system fades with its own age.
+- **Star:** the light's colour and strength from the star's spectral type (SGEN-22). Phase from the body's and the star's positions and the camera.
+- **Knowledge:** the number of noise octaves, the crater scales, and the blur and grain of the telescope frame, from the knowledge state (INS-04).
+- **Settlement lights:** on the night side once settlements are data. Until then none.
+- **Seed:** derived from the sector seed and the body's id (SGEN-03), so a body looks the same each time; the hand-made systems use a fixed seed per body.
+
+**Specced** as SURF-10 to SURF-26 (`docs/spec/surfaces.md`), with the temperate row reserved (SURF-14) and the hazy row added for Titans. Open: a hot world with an atmosphere (the dense look wins and the glow is hidden under the clouds, which is fine for a Venus and wrong for a hotter world).
+
 ## 6. Open questions
 
 - How gate distance appears on screen once placement is settled: true scale, compressed, or an optional overview scaling.
@@ -161,6 +198,6 @@ The vector layer is cheap to produce, and so is the sky: it is generated, with n
 - Zoom: step factor, animation timing, strength of the resistance at stops, the minimum view radius, and the standard tilt.
 - Camera: the final tilt limit and pan and rotate speeds after testing; the tilt range for the sector view.
 - Motion rule: final values for R_show, `tail_secs` and `dot_fade_from_degrees` after testing; whether the label should glide from the dot to its fixed spot on the ring as the tail closes, rather than jump.
-- Planetary view as a globe or a flat map, and how much surface detail is modelled.
-- Procedural surfaces: colour tuning per kind; whether a body's look should also show its composition and history (metal-rich, ice-rich, scarred by the collapse); clouds on rocky worlds, rings and sub-Neptunes; and whether the shader runs per pixel or bakes a cubemap when a body is opened.
+- How much surface detail the planetary view models beyond the render.
+- Procedural surfaces: colour tuning per kind; whether a body's look should also show its composition and history (metal-rich, ice-rich, scarred by the collapse); clouds on rocky worlds, rings and sub-Neptunes; and the knowledge states between unsurveyed and surveyed (how many, and what each shows).
 - How the administration view is organised, and how the player moves between it and the spatial layers: candidate in `ui-style.md`.

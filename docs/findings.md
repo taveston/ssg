@@ -8,6 +8,11 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 
 ## To triage
 
+### F-300 · Halden IV is too far out for its description
+- **Observation:** Halden IV orbits at 2.0 AU round Corvane's 0.78 M☉ K2V star. SGEN-22 gives that star about 0.37 L☉ and SGEN-39 gives Halden IV a Teq of about 140 K, against its description's −41 °C (232 K). With procedural surfaces (SURF-62) that Teq with thin air and ice gives the hazy look (SURF-17): a capital drawn as a Titan, surface hidden.
+- **Affects:** TEST-01, SURF-62 · **Type:** conflict
+- **Disposition:** open. Move Halden IV in to about 0.75 AU (its moons' periods are unaffected), or accept a colder capital and change the description.
+
 ### F-162 · Which band Iver Yard sits in
 - **Observation:** SCL-07 now puts every station in a band, so the build drops a station's own orbit. TEST-02 and TEST-09 name the band for Arden Highport and Tern Relay, but nothing names one for Iver Yard, which had its own 45,000 km orbit. The build puts it in Iver's High band (197,200 km at 34 radii, period about 10.6 d). That band was nearest its old orbit when High was 10 radii; now the Low band (6,300 km) is nearer. This moves Iver's satellite frame out to 197,200 km.
 - **Affects:** SCL-07, TEST-01 · **Type:** spec gap
