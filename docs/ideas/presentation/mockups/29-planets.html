@@ -305,15 +305,15 @@ void main(){
     vec3 alb,emi;shade(p,pn,h0,alb,emi);
     vec3 nv=nb*uRot;
     float ndlG=dot(N,L);
-    float wrap=(uKind==2||uKind==5||uKind==6)?.25:(uKind==1?.08:0.);
-    float diff=clamp((dot(nv,L)+wrap)/(1.+wrap),0.,1.)*smoothstep(-.02,.12,ndlG+wrap*.5);
+    float wrap=(uKind==2||uKind==5||uKind==6)?.12:(uKind==1?.03:0.);
+    float diff=clamp((dot(nv,L)+wrap)/(1.+wrap),0.,1.)*smoothstep(-.005,.04,ndlG+wrap*.5);
     vec3 surf=alb*diff*uStar*uStarI+alb*uAmbient+emi;
     if(uAtm>0.){
       float rim=pow(1.-N.z,3.5);
       float lf=uAtmSelf>.5?1.:clamp(ndlG*1.2+.1,0.,1.);
       surf+=uAtmCol*rim*lf*uAtm*.55;
     }
-    float night=1.-smoothstep(-.06,.12,ndlG);
+    float night=1.-smoothstep(-.02,.06,ndlG);
     for(int i=0;i<6;i++){
       if(i>=uNCities)break;
       float d=dot(pn,uCities[i]);
@@ -335,13 +335,13 @@ function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.i
 
 /* ---- the bodies: the figures the generator gives each planet ---- */
 const BODIES={
-  airless:{kind:0,label:'Airless',fig:'rocky · airless · 0.38 g · 440 K',seed:3,temp:440,age:6.5,atm:0,atmThick:.03,atmCol:[.6,.6,.6],atmSelf:0,caps:0,amb:.004,tilt:8,lon:25,roll:-12},
-  thin:{kind:1,label:'Cold terrestrial',fig:'rocky · thin N₂ · 0.82 g · 232 K',seed:5,temp:232,age:4.2,atm:.38,atmThick:.035,atmCol:[.78,.66,.52],atmSelf:0,caps:.25,amb:.006,tilt:24,lon:-40,roll:-10},
-  dense:{kind:2,label:'Dense atmosphere',fig:'rocky · dense CO₂ · 0.9 g · 735 K',seed:11,temp:735,age:4.5,atm:1,atmThick:.06,atmCol:[.98,.82,.55],atmSelf:0,caps:0,amb:.02,tilt:10,lon:0,roll:-8},
-  icy:{kind:3,label:'Icy',fig:'rocky · icy · 0.13 g · 102 K',seed:17,temp:102,age:.8,atm:0,atmThick:.03,atmCol:[.6,.7,.8],atmSelf:0,caps:0,amb:.006,tilt:14,lon:60,roll:-16},
-  molten:{kind:4,label:'Molten',fig:'rocky · molten · 1.6 g · 1200 K',seed:23,temp:1200,age:.3,atm:.35,atmThick:.04,atmCol:[1,.38,.12],atmSelf:1,caps:0,amb:.002,tilt:12,lon:110,roll:-6},
-  icegiant:{kind:5,label:'Ice giant',fig:'envelope · 0.9 g · 59 K',seed:29,temp:59,age:4,atm:.9,atmThick:.05,atmCol:[.45,.75,.95],atmSelf:0,caps:0,amb:.02,tilt:18,lon:0,roll:-14},
-  gas:{kind:6,label:'Gas giant',fig:'envelope · 2.4 g · 120 K',seed:31,temp:120,age:4,atm:.8,atmThick:.04,atmCol:[.92,.82,.62],atmSelf:0,caps:0,amb:.02,tilt:8,lon:0,roll:-6}
+  airless:{kind:0,label:'Airless',fig:'rocky · airless · 0.38 g · 440 K',seed:3,temp:440,age:6.5,atm:0,atmThick:.03,atmCol:[.6,.6,.6],atmSelf:0,caps:0,amb:.0015,tilt:8,lon:25,roll:-12},
+  thin:{kind:1,label:'Cold terrestrial',fig:'rocky · thin N₂ · 0.82 g · 232 K',seed:5,temp:232,age:4.2,atm:.38,atmThick:.035,atmCol:[.78,.66,.52],atmSelf:0,caps:.25,amb:.002,tilt:24,lon:-40,roll:-10},
+  dense:{kind:2,label:'Dense atmosphere',fig:'rocky · dense CO₂ · 0.9 g · 735 K',seed:11,temp:735,age:4.5,atm:1,atmThick:.06,atmCol:[.98,.82,.55],atmSelf:0,caps:0,amb:.008,tilt:10,lon:0,roll:-8},
+  icy:{kind:3,label:'Icy',fig:'rocky · icy · 0.13 g · 102 K',seed:17,temp:102,age:.8,atm:0,atmThick:.03,atmCol:[.6,.7,.8],atmSelf:0,caps:0,amb:.002,tilt:14,lon:60,roll:-16},
+  molten:{kind:4,label:'Molten',fig:'rocky · molten · 1.6 g · 1200 K',seed:23,temp:1200,age:.3,atm:.35,atmThick:.04,atmCol:[1,.38,.12],atmSelf:1,caps:0,amb:.001,tilt:12,lon:110,roll:-6},
+  icegiant:{kind:5,label:'Ice giant',fig:'envelope · 0.9 g · 59 K',seed:29,temp:59,age:4,atm:.9,atmThick:.05,atmCol:[.45,.75,.95],atmSelf:0,caps:0,amb:.008,tilt:18,lon:0,roll:-14},
+  gas:{kind:6,label:'Gas giant',fig:'envelope · 2.4 g · 120 K',seed:31,temp:120,age:4,atm:.8,atmThick:.04,atmCol:[.92,.82,.62],atmSelf:0,caps:0,amb:.008,tilt:8,lon:0,roll:-6}
 };
 const STARS={sun:{c:[1,.96,.90],i:1.2,name:'Sun-like'},k:{c:[1,.80,.55],i:1.2,name:'K dwarf'},m:{c:[1,.58,.30],i:1.2,name:'M dwarf'},f:{c:[.88,.92,1],i:1.2,name:'F star'}};
 let SEED=7;
@@ -479,7 +479,7 @@ function build(){
   const sheet=document.getElementById('sheet');sheet.innerHTML='';
 
   /* A: the seven kinds */
-  let row=board(sheet,'The seven kinds, surveyed and unsurveyed','Top row: surveyed, at full detail. Bottom row: the same bodies unsurveyed. Light comes from the left at a 35° phase, from a Sun-like star. Each caption gives the figures the shader reads. Figures are illustrative.');
+  let row=board(sheet,'The seven kinds, surveyed and unsurveyed','Top row: surveyed, at full detail. Bottom row: the same bodies unsurveyed. Light comes from the left at a 35° phase, from a Sun-like star, with a sharp terminator and almost no ambient light. Each caption gives the figures the shader reads. Figures are illustrative.');
   row.style.gap='12px';
   const keys=['airless','thin','dense','icy','molten','icegiant','gas'];
   const SA=184;
@@ -504,7 +504,7 @@ function build(){
   [[20,'sun','Sun-like · 20°','Nearly full. Relief flattens: with the light behind the viewer, craters lose their shadows.'],
    [70,'sun','Sun-like · 70°','A gibbous phase. The terminator crosses the disc and relief is strongest next to it.'],
    [120,'sun','Sun-like · 120°','A crescent. The haze at the limb brightens on the lit edge only.'],
-   [140,'sun','Sun-like · 140°','A thin crescent. The two settlements show as lights on the night side; the dark side keeps a faint outline (a small ambient term).'],
+   [140,'sun','Sun-like · 140°','A thin crescent. The two settlements show as lights on the night side; the dark side keeps only a faint outline (a very small ambient term and the thin atmosphere).'],
    [70,'m','M dwarf · 70°','Orange-red light. Most worlds in the sector orbit stars like this.'],
    [70,'f','F star · 70°','A cooler-blue white light on the same terrain.']
   ].forEach(([ph,st,t,cap])=>bodyPanel(cell(row,SC,t,cap),SC,'thin',{k:1,phase:ph,star:st,ss:2,cities:ph===140?cities:[]}));
