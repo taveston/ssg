@@ -11,7 +11,7 @@ use bevy::math::DVec3;
 use super::Sector;
 use super::catalogue::StarClass;
 use super::failure::rules::Failed;
-use super::gates::ring::ring_is_clear;
+use super::gates::ring::{hill_radius_au, ring_is_clear};
 use super::graph::Groups;
 use super::links::crossing::{segments_cross, top_down};
 use super::links::strategic;
@@ -283,10 +283,60 @@ fn every_ring_is_clear_and_near_its_start() {
             if !gated.moved_planets.is_empty() {
                 moved += 1;
                 assert_eq!(ring, start);
+                continue;
+            }
+            // The ring took the nearest clear radius, outward first: no
+            // radius between the start and the ring is clear, and a ring
+            // that slid inward had no clear radius outward within the
+            // limit either.
+            let clear = |r: f64| ring_is_clear(r, &summary.planets, star, &t);
+            let is_clear_between = |low: f64, high: f64| {
+                clear_candidates(&summary.planets, star, &t)
+                    .into_iter()
+                    .chain((1..200).map(|i| low + (high - low) * f64::from(i) / 200.0))
+                    .any(|r| low < r && r < high && clear(r))
+            };
+            let context = format!(
+                "{} entry {}: start {start} ring {ring}",
+                which(sector),
+                gated.id
+            );
+            if ring > start {
+                assert!(!is_clear_between(start, ring), "{context}");
+            } else if ring < start {
+                assert!(!is_clear_between(ring, start), "{context}");
+                let outward_limit = start * (1.0 + t.ring_slide_limit);
+                assert!(!clear(start), "{context}");
+                assert!(!is_clear_between(start, outward_limit), "{context}");
+                assert!(!clear(outward_limit), "{context}");
             }
         }
     }
     eprintln!("systems with moved planets: {moved}");
+}
+
+/// Every radius where a planet's blocked band of ring radii begins or
+/// ends. The clear radii are closed intervals between these, so any clear
+/// stretch includes one of them (SGEN-58).
+fn clear_candidates(
+    planets: &[super::bodies::PlanetSummary],
+    star: &super::catalogue::Star,
+    t: &GeneratorTunables,
+) -> Vec<f64> {
+    let star_earth = star_mass_earth(star.mass_msun);
+    planets
+        .iter()
+        .flat_map(|planet| {
+            let a = planet.orbit_au;
+            let clearance = t.ring_giant_clearance_hill * hill_radius_au(planet, star_earth);
+            [
+                a / (1.0 + t.ring_planet_gap),
+                a / (1.0 - t.ring_planet_gap),
+                a - clearance,
+                a + clearance,
+            ]
+        })
+        .collect()
 }
 
 /// SGEN-62, SGEN-65: every gated system has `links_min` to `links_max`

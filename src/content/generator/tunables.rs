@@ -497,14 +497,22 @@ pub struct GeneratorTunables {
     /// (SGEN-56, SGEN-60).
     pub link_range_factor: f64,
     /// The share by which the link range grows when a step cannot be done
-    /// within it (SGEN-56, SGEN-60).
+    /// within it (SGEN-56, SGEN-60). The range also bears on the mean
+    /// links per system and the step-3 crossing rate; see `mean_links_min`
+    /// and `links_min`.
     pub link_range_growth: f64,
-    /// The fewest links a gated system has (SGEN-61, SGEN-62).
+    /// The fewest links a gated system has (SGEN-61, SGEN-62). Together
+    /// with `links_max` and the link range this sets how often a step-3
+    /// link has to cross a step-2 one: the invariant test allows under 1%
+    /// and the sweep sits at about 0.66%, so tuning these can trip it.
     pub links_min: u32,
-    /// The most links a gated system has (SGEN-61, SGEN-62).
+    /// The most links a gated system has (SGEN-61, SGEN-62). See
+    /// `links_min` for the crossing rate it bears on.
     pub links_max: u32,
     /// The least mean number of links per system for the presets
-    /// (SGEN-62).
+    /// (SGEN-62). The sweep's lowest preset mean is about 4.07, so this
+    /// has little slack: raising it, or lowering `links_max` or the link
+    /// range, is expected to trip the invariant test.
     pub mean_links_min: f64,
     /// The share of gated systems with the highest overall scores that
     /// count as valuable (SGEN-64).
