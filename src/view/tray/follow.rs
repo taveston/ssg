@@ -90,33 +90,32 @@ mod tests {
     }
 
     /// MUL-10: a tie goes to the marker holding the first row's thing,
-    /// or failing that the earliest row's; docked things count.
+    /// or failing that the earliest row's, whichever order the markers
+    /// come in; docked things count.
     #[test]
     fn a_tie_goes_to_the_marker_holding_the_earliest_row() {
         let e = entities(7);
+        let listed = [e[1], e[0], e[2], e[3]];
+        let wins = |winner: &MultiMarker, loser: &MultiMarker| {
+            for markers in [
+                [winner.clone(), loser.clone()],
+                [loser.clone(), winner.clone()],
+            ] {
+                assert_eq!(marker_to_follow(&listed, &markers), Some(winner.key));
+            }
+        };
         let first = marker(MultiKey::Together(e[5]), &[e[5], e[1]], vec![]);
         let other = marker(MultiKey::Together(e[6]), &[e[6], e[0]], vec![]);
-        let listed = [e[1], e[0], e[2], e[3]];
-        assert_eq!(
-            marker_to_follow(&listed, &[other.clone(), first.clone()]),
-            Some(first.key)
-        );
+        wins(&first, &other);
         let station = marker(
             MultiKey::Station(e[4]),
             &[e[4]],
             vec![(e[4], vec![e[2], e[3]])],
         );
-        assert_eq!(
-            marker_to_follow(&listed, &[first.clone(), station.clone()]),
-            Some(station.key),
-            "two docked things outnumber one"
-        );
+        wins(&station, &first);
         let later = marker(MultiKey::Together(e[4]), &[e[4], e[3]], vec![]);
         let earlier = marker(MultiKey::Overlap(e[6]), &[e[6], e[2]], vec![]);
-        assert_eq!(
-            marker_to_follow(&listed, &[later, earlier.clone()]),
-            Some(earlier.key)
-        );
+        wins(&earlier, &later);
     }
 
     /// MUL-10: once no marker holds any listed thing, there is none to
