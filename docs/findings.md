@@ -2,7 +2,7 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-264.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-266.
 
 ---
 
@@ -268,6 +268,16 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** In a larger marker, docked things sit under their station's row and are listed only when that row is open (MUL-09), and MUL-04 says they aren't counted there. For MUL-10's tally the build counts them either way, so a station with two docked ships outweighs two other things.
 - **Affects:** MUL-10, MUL-04, MUL-09 · **Type:** spec gap
 - **Disposition:** open. Accept, or count only the rows shown, or the station as one.
+
+### F-264 · Where an overlap marker's tail starts when its centre is off the lead's orbit
+- **Observation:** MUL-05 says the marker's tail runs "behind the marker's centre along that thing's orbit". An overlap marker sits at the mean of its symbols, which can be off the lead's orbit when the cluster spans several orbits. The build starts the tail at the point of the lead's orbit nearest where the lead's symbol is drawn. As the lead slides into the marker that is the point nearest the marker's centre, and it is the centre itself when they share an orbit, as things together do.
+- **Affects:** MUL-05 · **Type:** spec gap
+- **Disposition:** open. Accept, and say so in MUL-05.
+
+### F-265 · Tails follow symbols into a marker but snap back when they part
+- **Observation:** A joining lead's tail start follows its symbol as it slides into the marker. When things part, every tail jumps straight back to its own body while the symbols are still sliding out over `fold_unfold_anim_ms`, and the other members get their tails back the same way. MUL-05 doesn't say whether tails follow the slide.
+- **Affects:** MUL-05 · **Type:** spec gap
+- **Disposition:** open. Keep it, or have tails follow the symbols out too.
 
 ## Parked
 
