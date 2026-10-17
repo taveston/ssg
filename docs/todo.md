@@ -13,6 +13,23 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
+- [ ] **Tidal locking and geological activity facts** · SGEN-44, SGEN-45, SGEN-59 (changed: the moved planet's facts include the new ones; ✓ cleared), SYSG-22, SYSG-33 (changed: two new facts, moons take their planet as parent; ✓ cleared), INS-08 (changed: Rotation and Activity lines; ✓ cleared)
+  - Add `locked: bool` and `activity: Option<Activity>` to `PlanetFacts`, worked out by plain rule functions beside the existing fact rules, with the tunables of the sector-generator table. Belt bodies use the star as parent and the planet tunable values.
+  - Tests: the Sol checks the requirements state (Moon, Callisto, Iapetus locked, Earth free; Earth active, Mars and Moon dead, Io extreme, Europa active) as unit tests of the rule functions with the real figures; every generated moon of a giant is locked over the invariant seeds; a body with an envelope has no activity.
+
+- [ ] **Planet facts for Corvane and Sol** · SURF-60 to SURF-63 · needs "Tidal locking and geological activity facts"
+  - Author the facts of tables 1 and 2 in `content/` (`planet_facts` is `None` on every hand-made body today), the stars' type, luminosity and age, a surface seed per body, and Earth's look override. Gravity and Teq come from the SGEN-38 and SGEN-39 rule functions.
+  - Tests: every natural body has facts; Earth's override is set and no other body's; Corvane's star luminosity follows SGEN-22.
+
+- [ ] **Procedural planet surfaces in the inset** · SURF-01 to SURF-05, SURF-10 to SURF-26, SURF-30 to SURF-35, SURF-40 to SURF-42, SURF-45, SURF-46, SURF-70 to SURF-72, INS-04 (changed: the image is the globe; ✓ cleared) · needs "Planet facts for Corvane and Sol"
+  - Port the shader of mock-ups 29 and 30 to WGSL under `src/view/surfaces/`, as a bake pass into a cubemap and a per-frame globe pass. Keep the look chooser, the surface temperature rule and the resolution rule as plain functions with unit tests.
+  - Start with the inset only. The bake spreads over frames; the inset shows an empty frame until it lands.
+  - Tests: the chooser on every row and the Sol bodies (SURF-70); determinism and seed difference by baking a 64 px face headlessly (SURF-71); large forms persist (SURF-72). Mark SURF-13, SURF-15 to SURF-19 *Manual* only if a pixel read-back of a small face can't check their distinguishing features (a glow where hot, rays only when dead, no craters when molten).
+
+- [ ] **The globe in the system view** · SURF-50 to SURF-52, SURF-73, MRK-11 (changed: the picture replaces the fill once large enough; ✓ cleared) · needs "Procedural planet surfaces in the inset"
+  - Replace MRK-11's fill and rim with the globe above `globe_min_px` with hysteresis `globe_release_px`; the gap, marker, label and selection mark stay on top. Same light as the inset.
+  - Tests: globe-or-disc from the projected radius with hysteresis, headless.
+
 ## Fixes
 
 ## Other

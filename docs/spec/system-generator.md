@@ -32,7 +32,7 @@
 |---|---|---|
 | SYSG-20 | Each planet of the summary is a record round the star at its summary orbit radius, with its summary mass and radius and the name the sector gave it (SGEN-82). It has its own orbit; natural bodies never share one (SCL-07). | ✓ |
 | SYSG-21 | Each natural body's starting phase is drawn uniformly from its own derived seed (SYSG-02, from the system's seed and the body's place in its list), so adding or removing one body doesn't move the others. | ✓ |
-| SYSG-22 | Each planet, moon and belt body carries **planet facts**: its kind, surface gravity (SGEN-38), equilibrium temperature (SGEN-39), atmosphere (SGEN-40) and water (SGEN-41), as data a rule or a view can read. A planet's kind is the one of SGEN-32, a moon's is "moon" and a belt body's is "rocky". | ✓ |
+| SYSG-22 | Each planet, moon and belt body carries **planet facts**: its kind, surface gravity (SGEN-38), equilibrium temperature (SGEN-39), atmosphere (SGEN-40), water (SGEN-41), whether it is tidally locked (SGEN-44) and its geological activity (SGEN-45), as data a rule or a view can read. A planet's kind is the one of SGEN-32, a moon's is "moon" and a belt body's is "rocky". | |
 | SYSG-23 | Each natural body has a one-line description built from its facts: kind, atmosphere and water in plain words. The wording is a placeholder. | ✓ |
 
 ## 4. Moons
@@ -44,7 +44,7 @@ A planet's moons follow the realistic spacing of the idea doc (`world-generator.
 | SYSG-30 | A planet gets a number of moons drawn from the range for its kind (`moon_counts`): gas giant 3 to 12, ice giant 1 to 6, sub-Neptune 0 to 2, super-Earth 0 to 1, rocky 0, 1 or 2 with probabilities 0.80, 0.15 and 0.05. No planet has more than `moon_max_count` moons. | ✓ |
 | SYSG-31 | A planet's moons lie at orbit radii, measured in planet radii, that start between `moon_first_orbit_radii` and grow by a factor between `moon_orbit_ratio` from one moon to the next. A moon is dropped, and so are all those beyond it, if its orbit lies beyond the outer limit, the smaller of `moon_outer_limit_radii` planet radii and `moon_hill_fraction` of the planet's Hill radius. No moon orbits closer than `moon_inner_limit_radii` planet radii. | ✓ |
 | SYSG-32 | A moon's mass is its planet's mass times a ratio drawn log-uniformly from `moon_mass_ratio_giant` for a giant and from `moon_mass_ratio_other` for any other planet. Its radius follows from the density `moon_density` (icy if the planet orbits at or beyond the snow line, otherwise rocky): R = (3 m ÷ 4 π ρ)^(1/3). | ✓ |
-| SYSG-33 | A moon has planet facts (SYSG-22) by the same rules as a rocky planet (SGEN-38 to SGEN-41), using its own mass and radius and its planet's distance from the star for its equilibrium temperature. | ✓ |
+| SYSG-33 | A moon has planet facts (SYSG-22) by the same rules as a rocky planet (SGEN-38 to SGEN-45), using its own mass and radius, its planet's distance from the star for its equilibrium temperature, and its planet as the parent (mass and orbit radius) and the moon values of `lock_q_over_k2` and `forced_eccentricity` for locking and tidal heat. A belt body's parent is the star and it uses the planet values of those tunables. | |
 | SYSG-34 | A moon is named for its planet, a space and a lowercase letter by distance from the planet, the nearest "a": for example "Morrow a", "Morrow b". | ✓ |
 | SYSG-35 | A moon's period follows from Kepler's third law with its planet's mass (SCL-04). | ✓ |
 
@@ -88,6 +88,7 @@ All fields of `GeneratorTunables` (SGEN-05), beside those in `sector-generator.m
 | Tunable | Default | Used by |
 |---|---|---|
 | `moon_counts` | as SYSG-30 | SYSG-30 |
+| `lock_initial_day_h`, `lock_q_over_k2`, `radiogenic_flux_w_m2`, `radiogenic_mass_exponent`, `radiogenic_reference_age_gyr`, `radiogenic_decay_gyr`, `tidal_response`, `forced_eccentricity`, `activity_active_w_m2`, `activity_extreme_w_m2` | in `sector-generator.md` | SYSG-33 |
 | `moon_max_count` | 26 | SYSG-30, SYSG-34 |
 | `moon_first_orbit_radii` | 2.5 to 8 planet radii | SYSG-31 |
 | `moon_orbit_ratio` | 1.4 to 2.2 | SYSG-31 |
@@ -107,6 +108,6 @@ All fields of `GeneratorTunables` (SGEN-05), beside those in `sector-generator.m
 
 - The look of a gate by state, in the system view, is not specced. The state shows in the inset (SYSG-55) and a wreck is a salvage-site marker (X).
 - The facts rules for moons and belt bodies reuse those for rocky planets. A cold icy moon with a thin atmosphere (a Titan) is rare under the retention rule and tends to come out airless.
-- Tidal locking, rotation periods, day length and surface features are not generated.
+- Rotation periods and day length of bodies that are not locked, and surface features, are not generated. A locked body's day is its period.
 - A system with a moon-heavy giant can have many bodies near the planet, and the satellite fit (ZOOM-15) fits them all. If that is a problem for the view, lower `moon_outer_limit_radii` before changing a rule.
 - Large belt bodies could be the sites of the settlements, yards and ruins of the historical layer. That layer places them later (`world-generator.md`, section 7).
