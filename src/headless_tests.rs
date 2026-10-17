@@ -87,6 +87,7 @@ mod rings;
 mod sector;
 mod shared_orbit_marks;
 mod sky;
+mod surfaces;
 mod symbols;
 mod systems;
 mod text_sizes;

@@ -71,6 +71,7 @@ pub mod shared_orbit;
 pub mod ship_groups;
 pub mod sidebar;
 pub mod sky;
+pub mod surfaces;
 pub mod symbols;
 pub mod targets;
 pub mod text_size;
@@ -149,6 +150,8 @@ impl Plugin for ViewPlugin {
                 tray::TrayPlugin,
                 sky::SkyPlugin,
                 sky::SkyMaterialPlugin,
+                surfaces::SurfacesPlugin,
+                surfaces::SurfaceRenderPlugin,
             ));
     }
 }

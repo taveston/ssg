@@ -11,7 +11,7 @@
 //! order is left free and nothing selects it yet (SURF-14).
 
 use crate::sim::body::Knowledge;
-use crate::sim::planet_facts::{Activity, Atmosphere, PlanetFacts, Water, WorldKind};
+use crate::sim::planet_facts::{Activity, Atmosphere, LookOverride, PlanetFacts, Water, WorldKind};
 use crate::view::tunables::Tunables;
 
 /// A surface look: the row of the look table a body is drawn by
@@ -47,6 +47,7 @@ pub enum LookGroup {
 
 impl Look {
     /// Every look, in the chooser's order.
+    #[cfg(test)]
     pub const ALL: [Look; 10] = [
         Look::GasGiant,
         Look::IceGiant,
@@ -113,6 +114,25 @@ impl Look {
     }
 }
 
+/// SURF-61: the look an authored override asks for. The temperate look is
+/// reserved (SURF-14), so an override naming it asks for nothing and the
+/// chooser decides.
+pub fn override_look(look_override: LookOverride) -> Option<Look> {
+    Some(match look_override {
+        LookOverride::GasGiant => Look::GasGiant,
+        LookOverride::IceGiant => Look::IceGiant,
+        LookOverride::SubNeptune => Look::SubNeptune,
+        LookOverride::Volcanic => Look::Volcanic,
+        LookOverride::Temperate => return None,
+        LookOverride::Lava => Look::Lava,
+        LookOverride::Dense => Look::Dense,
+        LookOverride::Hazy => Look::Hazy,
+        LookOverride::ColdTerrestrial => Look::ColdTerrestrial,
+        LookOverride::Icy => Look::Icy,
+        LookOverride::Airless => Look::Airless,
+    })
+}
+
 /// SURF-21: whether a body is locked to its star: a tidally locked planet
 /// or belt body. A moon locked to its planet counts as not locked to the
 /// star.
@@ -131,12 +151,7 @@ pub fn has_temperature_map(facts: &PlanetFacts) -> bool {
 /// θ the angle from the substellar point, and `night_floor_k` beyond
 /// 90°; on any other body it is Teq everywhere. `cos_theta` is the
 /// cosine of that angle. `bake.wesl` runs the same rule per texel.
-pub fn surface_temperature_k(
-    teq_k: f64,
-    mapped: bool,
-    cos_theta: f64,
-    tunables: &Tunables,
-) -> f64 {
+pub fn surface_temperature_k(teq_k: f64, mapped: bool, cos_theta: f64, tunables: &Tunables) -> f64 {
     if !mapped {
         return teq_k;
     }
@@ -301,11 +316,19 @@ pub fn face_px(knowledge: Knowledge, tunables: &Tunables) -> u32 {
 
 /// SURF-34: whether a globe drawn with this projected radius, in pixels,
 /// is close enough in to bake its visible face again finer.
+#[allow(
+    dead_code,
+    reason = "read by the globe on the map once it is built (SURF-50)"
+)]
 pub fn needs_rebake(projected_radius_px: f32, tunables: &Tunables) -> bool {
     projected_radius_px > tunables.bake_face_px as f32 * tunables.rebake_zoom_factor
 }
 
 /// SURF-34: the face size of a close-in bake, in pixels.
+#[allow(
+    dead_code,
+    reason = "read by the globe on the map once it is built (SURF-50)"
+)]
 pub fn rebake_face_px(tunables: &Tunables) -> u32 {
     tunables.bake_face_px * tunables.rebake_scale
 }
@@ -345,7 +368,14 @@ mod tests {
     }
 
     fn moon(atmosphere: Atmosphere, water: Water, activity: Activity, teq: f64) -> PlanetFacts {
-        facts(WorldKind::Moon, atmosphere, water, true, Some(activity), teq)
+        facts(
+            WorldKind::Moon,
+            atmosphere,
+            water,
+            true,
+            Some(activity),
+            teq,
+        )
     }
 
     fn look(facts: &PlanetFacts) -> Look {
@@ -373,7 +403,10 @@ mod tests {
         );
         // Dense hides a hot surface: dense comes before lava.
         assert_eq!(look(&rocky(Dense, Water::None, true, 1_500.0)), Look::Dense);
-        assert_eq!(look(&rocky(Airless, Water::None, true, 1_500.0)), Look::Lava);
+        assert_eq!(
+            look(&rocky(Airless, Water::None, true, 1_500.0)),
+            Look::Lava
+        );
         // Hazy needs thin, ice and a cold enough Teq.
         let hazy = rocky(Thin, Water::Ice, false, t.hazy_t_max_k as f64);
         assert_eq!(look(&hazy), Look::Hazy);
@@ -393,14 +426,20 @@ mod tests {
         let spinning_cool = rocky(Airless, Water::None, false, melt - 1.0);
         assert_eq!(look(&spinning_cool), Look::Airless);
         // A thin atmosphere melts at Teq alone: no temperature map.
-        assert_eq!(look(&rocky(Thin, Water::None, true, melt + 1.0)), Look::Lava);
+        assert_eq!(
+            look(&rocky(Thin, Water::None, true, melt + 1.0)),
+            Look::Lava
+        );
         assert_eq!(
             look(&rocky(Thin, Water::None, true, melt / factor + 1.0)),
             Look::ColdTerrestrial
         );
         // Icy needs airless and ice; airless is the rest.
         assert_eq!(look(&rocky(Airless, Water::Ice, false, 100.0)), Look::Icy);
-        assert_eq!(look(&rocky(Airless, Water::None, false, 100.0)), Look::Airless);
+        assert_eq!(
+            look(&rocky(Airless, Water::None, false, 100.0)),
+            Look::Airless
+        );
         assert_eq!(
             look(&rocky(Airless, Water::Surface, false, 100.0)),
             Look::Airless
@@ -434,9 +473,23 @@ mod tests {
         assert_eq!(look(&the_moon), Look::Airless);
         let europa = moon(Airless, Water::Ice, Activity::Active, 110.0);
         assert_eq!(look(&europa), Look::Icy);
-        let jupiter = facts(WorldKind::GasGiant, Envelope, Water::None, false, None, 110.0);
+        let jupiter = facts(
+            WorldKind::GasGiant,
+            Envelope,
+            Water::None,
+            false,
+            None,
+            110.0,
+        );
         assert_eq!(look(&jupiter), Look::GasGiant);
-        let neptune = facts(WorldKind::IceGiant, Envelope, Water::None, false, None, 47.0);
+        let neptune = facts(
+            WorldKind::IceGiant,
+            Envelope,
+            Water::None,
+            false,
+            None,
+            47.0,
+        );
         assert_eq!(look(&neptune), Look::IceGiant);
         let earth = facts(
             WorldKind::Rocky,
@@ -609,6 +662,16 @@ mod tests {
             t.bake_face_unsurveyed_px
         );
         assert!(t.bake_face_px > t.bake_face_unsurveyed_px);
+    }
+
+    /// SURF-61: every authored override names a look, except the reserved
+    /// temperate one, which leaves the choice to the facts.
+    #[test]
+    fn an_override_names_its_look_except_the_reserved_temperate_one() {
+        assert_eq!(override_look(LookOverride::Lava), Some(Look::Lava));
+        assert_eq!(override_look(LookOverride::GasGiant), Some(Look::GasGiant));
+        assert_eq!(override_look(LookOverride::Airless), Some(Look::Airless));
+        assert_eq!(override_look(LookOverride::Temperate), None);
     }
 
     /// SURF-34: the close-in bake is wanted once the projected radius

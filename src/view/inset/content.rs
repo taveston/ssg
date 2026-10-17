@@ -19,6 +19,7 @@ use crate::sim::transfer::plan::Status;
 use crate::sim::units::SOLAR_MASS_KG;
 use crate::view::planner::words::{DELTA_V, DRIVE, delta_v_fact};
 use crate::view::readout::{format_distance, format_duration};
+use crate::view::surfaces::inset::shows_globe;
 use crate::view::symbols::ownership_text;
 use crate::view::tunables::Tunables;
 
@@ -61,6 +62,9 @@ pub struct InsetContent {
     pub name: String,
     pub class_line: String,
     pub image: InsetImage,
+    /// SURF-45: a planet or moon, whose image is its globe rather than
+    /// the placeholder.
+    pub globe: bool,
     pub description: String,
     pub facts: Vec<(String, String)>,
     /// PLNR-01: a ship the faction commands, which may be given orders.
@@ -208,6 +212,7 @@ pub fn gather_content(
             ownership_text(*affiliation, record)
         ),
         image,
+        globe: shows_globe(*class),
         description: description.0.clone(),
         facts,
         commanded_ship: commanded_ship && !group,

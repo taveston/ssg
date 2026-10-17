@@ -23,7 +23,7 @@ pub enum BodyClass {
 pub use super::track::Affiliation;
 
 /// How well a body is known (INS-04).
-#[derive(Component, Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Component, Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Knowledge {
     Surveyed,
     Unsurveyed,

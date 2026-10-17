@@ -648,12 +648,15 @@ pub struct Tunables {
     /// ...with grain of this many display levels, of 255 (SURF-25).
     pub telescope_grain: f32,
     /// The large forms of a body are its albedo averaged over caps this
-    /// many degrees across... (SURF-26)
+    /// many degrees across... (SURF-26; read by its check, SURF-72)
+    #[allow(dead_code, reason = "read by the check of SURF-26 (SURF-72)")]
     pub large_form_deg: f32,
     /// ...centred on this many evenly spread directions... (SURF-26)
+    #[allow(dead_code, reason = "read by the check of SURF-26 (SURF-72)")]
     pub large_form_samples: usize,
     /// ...and the unsurveyed and surveyed pictures agree on each to
     /// within this (SURF-26).
+    #[allow(dead_code, reason = "read by the check of SURF-26 (SURF-72)")]
     pub large_form_tolerance: f32,
     /// A bake is spread over at most this many frames (SURF-31).
     pub bake_frames: u32,

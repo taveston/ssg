@@ -81,7 +81,7 @@ pub struct SurfaceSeed(pub u64);
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
 #[allow(
     dead_code,
-    reason = "content authors only Lava; the view's surfaces read every look"
+    reason = "content authors only Lava today; the view reads every look"
 )]
 pub enum LookOverride {
     GasGiant,

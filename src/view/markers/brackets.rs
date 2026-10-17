@@ -205,7 +205,7 @@ fn spawn_bracket(commands: &mut Commands) -> Entity {
 
 /// HOV-06: a corner's node: `arm` pixels each way from the box's corner,
 /// stroked `stroke` wide along the two outer edges, inside the box.
-fn corner_node(corner: BracketCorner, arm: f32, stroke: f32) -> Node {
+pub fn corner_node(corner: BracketCorner, arm: f32, stroke: f32) -> Node {
     let line = |on: bool| px(if on { stroke } else { 0.0 });
     let edge = |on: bool| if on { px(0) } else { Val::Auto };
     Node {

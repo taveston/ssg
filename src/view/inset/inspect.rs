@@ -46,6 +46,7 @@ use crate::view::planner::state::PlannerState;
 use crate::view::planner::words::TRANSFER;
 use crate::view::selection::Selection;
 use crate::view::sidebar::SidebarState;
+use crate::view::surfaces::inset::spawn_globe_image;
 use crate::view::targets::{MapInputBlocker, PointerTargets};
 use crate::view::topbar::TOP_BAR_HEIGHT_PX;
 use crate::view::tunables::Tunables;
@@ -531,7 +532,14 @@ fn fill_panel(
             },
         ))
         .with_children(|body| {
-            spawn_image(body, fidelity, content.image);
+            // SURF-45: a natural body's image is its globe; anything
+            // else keeps the placeholder (INS-04).
+            if content.globe {
+                let telescope = content.image == InsetImage::Telescope;
+                spawn_globe_image(body, tunables, content.body, telescope);
+            } else {
+                spawn_image(body, fidelity, content.image);
+            }
             spawn_text(
                 body,
                 &content.description,
