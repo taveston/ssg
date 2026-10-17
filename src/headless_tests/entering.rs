@@ -542,3 +542,61 @@ fn the_debug_shot_enters_a_system_by_name() {
         assert_eq!(layer(&app), MapLayer::Sector);
     }
 }
+
+/// SECT-32: a body hovered, clicked and framed through Bevy's picking, as
+/// the mouse does it, is let go of with its system: going back with the
+/// pointer still over where its marker was, and entering again, leaves
+/// nothing of it and asks nothing of a despawned entity.
+#[test]
+fn a_body_picked_with_the_mouse_is_let_go_of_with_its_system() {
+    use super::camera::move_cursor;
+    use crate::view::markers::picking::{MarkerPickingPlugin, MarkerTarget};
+    let mut app = entering_app_with(|app| {
+        app.add_plugins((PickingPlugin, InteractionPlugin, MarkerPickingPlugin))
+            .add_systems(
+                PreUpdate,
+                follow_cursor_with_pointer.before(PickingSystems::ProcessInput),
+            );
+    });
+    let window = the_window(&mut app);
+    app.world_mut()
+        .entity_mut(window)
+        .insert(bevy::window::PrimaryWindow);
+    app.world_mut()
+        .spawn(bevy::picking::pointer::PointerId::Mouse);
+    run(&mut app, 2);
+    let gated = central_node(&app, NodeKind::Gated);
+    let data = generated(&app, gated);
+    for _visit in 0..2 {
+        enter(&mut app, gated);
+        let planet = body(&mut app, &data.planets[0].name);
+        let mut targets = app
+            .world_mut()
+            .query_filtered::<(Entity, &MarkerFor), With<MarkerTarget>>();
+        let target = targets
+            .iter(app.world())
+            .find(|(_, marker_for)| marker_for.0 == planet)
+            .map(|(target, _)| target)
+            .expect("a hit target for the planet");
+        let at = app
+            .world()
+            .resource::<ScreenPositions>()
+            .get(planet)
+            .expect("the planet on screen");
+        move_cursor(&mut app, at);
+        run(&mut app, 3);
+        assert!(hovered(&app).contains(&target), "the marker is hovered");
+        pointer_click_at(&mut app, at);
+        assert_eq!(app.world().resource::<Selection>().selected, Some(planet));
+        app.world_mut().resource_mut::<FrameRequest>().0 = Some(planet);
+        run(&mut app, move_frames());
+        assert_eq!(frame(&app).body, planet);
+
+        go_back(&mut app);
+        assert_eq!(layer(&app), MapLayer::Sector);
+        move_cursor(&mut app, at + Vec2::splat(5.0));
+        run(&mut app, 3);
+        assert_no_system_left(&mut app);
+        assert!(frame(&app).in_star_frame());
+    }
+}
