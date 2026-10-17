@@ -64,10 +64,15 @@ impl LinkStroke {
 #[derive(Resource, Default, Debug)]
 pub struct LinkPieces(pub Vec<(LinkStroke, Piece)>);
 
-/// One gizmo per stroke. Without gizmo assets (a headless test) nothing
-/// is drawn, though the links are still laid out.
-pub fn spawn_link_strokes(mut commands: Commands, assets: Option<ResMut<Assets<GizmoAsset>>>) {
-    let Some(mut assets) = assets else {
+/// One gizmo per stroke, in a game with a sector to draw. Without gizmo
+/// assets (a headless test) nothing is drawn, though the links are still
+/// laid out.
+pub fn spawn_link_strokes(
+    mut commands: Commands,
+    sector: Option<Res<LoadedSector>>,
+    assets: Option<ResMut<Assets<GizmoAsset>>>,
+) {
+    let (Some(_), Some(mut assets)) = (sector, assets) else {
         return;
     };
     for stroke in [

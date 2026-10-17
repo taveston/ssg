@@ -54,8 +54,16 @@ pub struct GateRowFor(pub usize);
 #[derive(Component, Debug, Clone, PartialEq, Eq)]
 pub struct RowTitle(pub String);
 
-/// SECT-20: the panel, off the right edge and hidden until it slides in.
-pub fn spawn_panel(mut commands: Commands, tunables: Res<Tunables>) {
+/// SECT-20: the panel, off the right edge and hidden until it slides in;
+/// a game without a sector has none.
+pub fn spawn_panel(
+    mut commands: Commands,
+    sector: Option<Res<LoadedSector>>,
+    tunables: Res<Tunables>,
+) {
+    if sector.is_none() {
+        return;
+    }
     commands
         .spawn((SectorInsetPanel, sidebar_panel(&tunables)))
         .with_children(|panel| {
