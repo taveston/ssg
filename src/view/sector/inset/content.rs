@@ -9,11 +9,10 @@ use crate::content::generator::bodies::{BeltSummary, PlanetSummary, Water};
 use crate::content::generator::catalogue::{Entry, EntryKind, StarSystem};
 use crate::content::generator::network::{GatedSystem, Link, LinkState, Reason};
 use crate::content::generator::system::belt_bodies::belt_names;
-use crate::content::generator::system::star::significant;
 use crate::content::generator::system::worlds::{atmosphere, world_kind};
 use crate::sim::units::KM_PER_AU;
 use crate::view::inset::world_facts::{atmosphere_words, kind_words};
-use crate::view::readout::{format_distance, format_light_years};
+use crate::view::readout::{format_distance, format_light_years, significant};
 use crate::view::sector::nodes::node_name;
 
 /// A star's luminosity is shown to this many significant figures

@@ -11,6 +11,7 @@ use bevy::prelude::*;
 use generator::tunables::GeneratorTunables;
 
 pub mod corvane;
+pub mod figures;
 pub mod generator;
 pub mod sol;
 pub mod start;

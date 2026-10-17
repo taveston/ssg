@@ -3,6 +3,7 @@
 //! themselves, so a distance, a time or a delta-v reads the same
 //! everywhere.
 
+pub use crate::content::figures::significant;
 use crate::sim::units::{KM_PER_AU, KM_PER_LIGHT_YEAR};
 
 /// Decimal places a distance in AU is shown to (UNIT-01).
