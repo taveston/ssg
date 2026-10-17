@@ -15,6 +15,7 @@ pub mod figures;
 pub mod generator;
 pub mod sol;
 pub mod start;
+pub mod world_facts;
 
 pub struct ContentPlugin;
 

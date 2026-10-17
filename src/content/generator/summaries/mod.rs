@@ -11,7 +11,10 @@ mod facts;
 pub mod planets;
 pub mod tides;
 
-pub use facts::{SolidFacts, Sunlight, rework_moved_planet, solid_body_facts};
+pub use facts::{
+    SolidFacts, Sunlight, equilibrium_temperature_k, gravity_g, rework_moved_planet,
+    solid_body_facts,
+};
 pub use tides::{TidalSetting, TideClass};
 
 use super::bodies::Summary;

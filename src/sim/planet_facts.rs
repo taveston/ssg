@@ -2,7 +2,9 @@
 //! gravity, equilibrium temperature, atmosphere, water, tidal locking and
 //! geological activity (SYSG-22). They
 //! are data a rule or a view can read; the inset lists them (INS-08).
-//! Hand-made bodies carry none; generated ones always do.
+//! Every planet and moon carries them, hand-made or generated. Beside them
+//! a body may carry a surface seed and a look override, which the view
+//! uses to draw its surface (SURF-60, SURF-61).
 
 use bevy::prelude::*;
 
@@ -64,4 +66,33 @@ pub struct PlanetFacts {
     /// Its geological activity; `None` for a world with an envelope,
     /// which has no solid surface to show it (SGEN-45).
     pub activity: Option<Activity>,
+}
+
+/// The seed a body's surface picture is drawn from (SURF-02, SURF-60).
+/// A hand-made body carries the one its content authors; a generated
+/// body carries none and the view derives one.
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SurfaceSeed(pub u64);
+
+/// A look content may author on a body, drawn instead of the one its
+/// facts would choose; the body's own facts still set everything else
+/// (SURF-61). The variants name the looks the view knows; nothing here
+/// knows what they look like. The generator never sets one.
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+#[allow(
+    dead_code,
+    reason = "content authors only Lava; the view's surfaces read every look"
+)]
+pub enum LookOverride {
+    GasGiant,
+    IceGiant,
+    SubNeptune,
+    Volcanic,
+    Temperate,
+    Lava,
+    Dense,
+    Hazy,
+    ColdTerrestrial,
+    Icy,
+    Airless,
 }

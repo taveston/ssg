@@ -39,6 +39,7 @@ use super::network::GatedSystem;
 use super::rng::{Rng, derive_indexed_seed, derive_seed};
 use super::tunables::GeneratorTunables;
 use crate::sim::body::Knowledge;
+use crate::sim::star_facts::StarFacts;
 use crate::sim::system::SystemData;
 use crate::sim::units::{SOLAR_MASS_KG, SOLAR_RADIUS_KM};
 
@@ -129,6 +130,11 @@ pub fn generate_system(
         star_mass_kg: star.mass_msun * SOLAR_MASS_KG,
         star_radius_km: star.radius_rsun * SOLAR_RADIUS_KM,
         star_knowledge: Knowledge::Surveyed,
+        star_facts: StarFacts {
+            spectral_type: star.spectral_type.clone(),
+            luminosity_lsun: star.luminosity_lsun,
+            age_gyr: entry.age_gyr,
+        },
         planets: records,
         belts: belt_bodies::belts(&detail),
         gates: ring.gates,

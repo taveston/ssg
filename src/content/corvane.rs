@@ -13,6 +13,8 @@
 //! This is the seam a generator replaces (SCL-03): anything that builds a
 //! `SystemData` the same shape can stand in for `hand_made_system`.
 
+use crate::content::generator::tunables::GeneratorTunables;
+use crate::content::world_facts;
 use crate::sim::body::{Affiliation, BodyClass, GateState, Knowledge};
 use crate::sim::ship::{Drive, Propulsion};
 use crate::sim::system::{
@@ -85,13 +87,22 @@ fn own(radius_km: f64) -> OrbitPlacement {
 
 pub fn hand_made_system() -> SystemData {
     let star_mass_kg = 0.78 * SOLAR_MASS_KG; // K2V
+    let tunables = GeneratorTunables::default();
 
-    SystemData {
+    let mut system = SystemData {
         star_name: "Corvane".into(),
         star_key_facts: facts(&[("Class", "K2V")]),
         star_mass_kg,
         star_radius_km: 508_000.0, // 0.73 solar radii
         star_knowledge: surveyed_today(),
+        // SURF-60: a K2V star whose luminosity follows from its mass.
+        star_facts: world_facts::star_facts(
+            world_facts::corvane::SPECTRAL_TYPE,
+            star_mass_kg,
+            None,
+            world_facts::corvane::AGE_GYR,
+            &tunables,
+        ),
         planets: vec![pell(), iver(), halden_iv(), morrow()],
         belts: vec![BeltBlueprint {
             name: "Corvane belt".to_string(),
@@ -110,6 +121,8 @@ pub fn hand_made_system() -> SystemData {
                     description: "An unsurveyed debris field scattered across the belt.".into(),
                     key_facts: facts(&[("Contents", "unknown")]),
                     planet_facts: None,
+                    surface_seed: None,
+                    look_override: None,
                     knowledge: Knowledge::Unsurveyed,
                     orbit: own(1.3 * KM_PER_AU),
                     radius_km: 2.0,
@@ -128,6 +141,8 @@ pub fn hand_made_system() -> SystemData {
                     description: "The wreck of the station Lantern, last imaged years ago.".into(),
                     key_facts: facts(&[("Recoverable then", "4-6 kt"), ("Since then", "unknown")]),
                     planet_facts: None,
+                    surface_seed: None,
+                    look_override: None,
                     knowledge: Knowledge::Unsurveyed,
                     orbit: own(1.22 * KM_PER_AU),
                     radius_km: 0.5,
@@ -167,7 +182,10 @@ pub fn hand_made_system() -> SystemData {
                 state: GateState::Working,
             },
         ],
-    }
+    };
+    // SURF-62: every planet and moon carries the facts of its table.
+    world_facts::author_worlds(&mut system, &world_facts::corvane::WORLDS, &tunables);
+    system
 }
 
 /// TEST-01: Pell, a hot inner rock.
@@ -183,6 +201,8 @@ fn pell() -> BodyBlueprint {
             .into(),
         key_facts: facts(&[("Class", "Hot rocky planet")]),
         planet_facts: None,
+        surface_seed: None,
+        look_override: None,
         knowledge: surveyed_today(),
         orbit: own(0.35 * KM_PER_AU),
         radius_km: 2400.0,
@@ -221,6 +241,8 @@ fn iver() -> BodyBlueprint {
         description: "A tidally-locked world whose pre-collapse orbital yard has sat dormant for a generation.".into(),
         key_facts: facts(&[("Class", "Rocky planet")]),
         planet_facts: None,
+        surface_seed: None,
+        look_override: None,
         knowledge: surveyed_today(),
         orbit: own(0.7 * KM_PER_AU),
         radius_km: 5800.0,
@@ -238,6 +260,8 @@ fn iver() -> BodyBlueprint {
                 description: "A dormant pre-collapse shipyard, barely maintained.".into(),
                 key_facts: facts(&[("Status", "Dormant"), ("Owner", "Own")]),
                 planet_facts: None,
+                surface_seed: None,
+                look_override: None,
                 knowledge: surveyed_today(),
                 orbit: OrbitPlacement::Named("High"),
                 radius_km: 1.0,
@@ -281,6 +305,8 @@ fn halden_iv() -> BodyBlueprint {
                 description: description.into(),
                 key_facts: facts(&[("Class", "Moon")]),
                 planet_facts: None,
+                surface_seed: None,
+                look_override: None,
                 knowledge,
                 orbit: own(orbit_radius_km),
                 radius_km,
@@ -307,6 +333,8 @@ fn halden_iv() -> BodyBlueprint {
             ("Governor", "A. Voss"),
         ]),
         planet_facts: None,
+        surface_seed: None,
+        look_override: None,
         knowledge: Knowledge::Surveyed,
         orbit: own(2.0 * KM_PER_AU),
         radius_km: 6700.0,
@@ -366,6 +394,8 @@ fn halden_iv() -> BodyBlueprint {
                 description: "Halden IV's primary orbital station.".into(),
                 key_facts: facts(&[("Status", "Active"), ("Owner", "Own")]),
                 planet_facts: None,
+                surface_seed: None,
+                look_override: None,
                 knowledge: surveyed_today(),
                 // TEST-02 / TEST-10: in the Low band, so about 0.07 d.
                 orbit: OrbitPlacement::Named("Low"),
@@ -415,6 +445,8 @@ fn parked(
         description: description.into(),
         key_facts: vec![],
         planet_facts: None,
+        surface_seed: None,
+        look_override: None,
         knowledge: if own {
             surveyed_today()
         } else {
@@ -727,6 +759,8 @@ fn morrow() -> BodyBlueprint {
                 description: "One of Morrow's eleven moons.".into(),
                 key_facts: facts(&[("Class", "Moon")]),
                 planet_facts: None,
+                surface_seed: None,
+                look_override: None,
                 knowledge: surveyed_today(),
                 orbit: own(MOON_RADII_KM[i]),
                 radius_km: MOON_BODY_RADII_KM[i],
@@ -751,6 +785,8 @@ fn morrow() -> BodyBlueprint {
         description: "An outer giant with a retinue of eleven moons.".into(),
         key_facts: facts(&[("Class", "Gas giant"), ("Moons", "11")]),
         planet_facts: None,
+        surface_seed: None,
+        look_override: None,
         knowledge: surveyed_today(),
         orbit: own(4.3 * KM_PER_AU),
         radius_km: 71500.0,
@@ -786,6 +822,8 @@ fn morrow_ix_satellites() -> Vec<BodyBlueprint> {
             description: description.into(),
             key_facts: vec![],
             planet_facts: None,
+            surface_seed: None,
+            look_override: None,
             knowledge: Knowledge::Unsurveyed,
             orbit,
             radius_km: 0.1,

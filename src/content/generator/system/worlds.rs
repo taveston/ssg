@@ -152,6 +152,8 @@ pub fn natural_body(
         description: description(&facts),
         key_facts: vec![],
         planet_facts: Some(facts),
+        surface_seed: None,
+        look_override: None,
         knowledge: Knowledge::Surveyed,
         orbit: OrbitPlacement::Own {
             radius_km: orbit_radius_km,

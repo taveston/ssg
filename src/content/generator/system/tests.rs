@@ -230,6 +230,9 @@ fn natural_bodies_carry_facts_and_descriptions_of_their_kind() {
     let mut kinds = Vec::new();
     for (gated, system) in sector.gated.iter().zip(&systems) {
         for body in every_record(system) {
+            // SURF-61: the generator never overrides a look, and leaves
+            // the surface seed to the view (SURF-02).
+            assert_eq!((body.surface_seed, body.look_override), (None, None));
             if body.class == BodyClass::SalvageSite {
                 assert!(body.planet_facts.is_none());
                 continue;
@@ -325,13 +328,16 @@ fn link_ends_become_gates_or_wrecks_on_the_ring() {
 }
 
 /// SYSG-71: Corvane and Sol are still the hand-made systems they were:
-/// loaded by name, with none of the generator's planet facts.
+/// loaded by name, their worlds carrying the facts and surface seeds
+/// their content authors, which the generator never sets (SURF-60).
 #[test]
 fn the_hand_made_systems_stay_as_they_are() {
     for name in ["corvane", "sol"] {
         let system = crate::content::start::chosen_system(&["--system", name]).unwrap()();
         let records = every_record(&system);
-        assert!(records.iter().all(|b| b.planet_facts.is_none()));
+        let worlds = records.iter().filter(|b| b.planet_facts.is_some());
+        assert!(worlds.clone().count() > 0);
+        assert!(worlds.into_iter().all(|b| b.surface_seed.is_some()));
         assert!(system.gates.iter().all(|g| g.state == GateState::Working));
     }
 }

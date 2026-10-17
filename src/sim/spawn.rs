@@ -26,6 +26,7 @@ use super::body::{
 use super::group::spawn_members;
 use super::named_orbit::{DockingOrbitOf, InNamedOrbit, NamedOrbit};
 use super::orbit::{Orbit, OrbitPositionKm, kepler_period_days, orbit_position_km};
+use super::planet_facts::SurfaceSeed;
 use super::ship::{DeltaV, Propulsion};
 use super::system::{
     BeltBlueprint, BodyBlueprint, GateBlueprint, NamedOrbitBlueprint, OrbitPlacement, SystemData,
@@ -57,6 +58,7 @@ pub fn spawn_system(
         star_mass_kg,
         star_radius_km,
         star_knowledge,
+        star_facts,
         planets,
         belts,
         gates,
@@ -74,6 +76,7 @@ pub fn spawn_system(
             Mass(star_mass_kg),
             Affiliation::Neutral,
             star_knowledge,
+            star_facts,
         ))
         .id();
     let context = Context {
@@ -433,6 +436,8 @@ fn spawn_body_entity(
         description,
         key_facts,
         planet_facts,
+        surface_seed,
+        look_override,
         knowledge,
         radius_km,
         mass_kg,
@@ -456,6 +461,14 @@ fn spawn_body_entity(
     if let Some(planet_facts) = planet_facts {
         // SYSG-22: what a generated world is like.
         entity_commands.insert(planet_facts);
+    }
+    if let Some(seed) = surface_seed {
+        // SURF-60: the seed a hand-made world's surface is drawn from.
+        entity_commands.insert(SurfaceSeed(seed));
+    }
+    if let Some(look) = look_override {
+        // SURF-61: a look content draws instead of the facts' own.
+        entity_commands.insert(look);
     }
     if let Some(Propulsion { drive, delta_v_kms }) = propulsion {
         // PLAN-20: a ship that can be ordered to move.

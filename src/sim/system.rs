@@ -6,8 +6,9 @@
 use bevy::prelude::*;
 
 use super::body::{Affiliation, BeltComposition, BodyClass, GateState, Knowledge};
-use super::planet_facts::PlanetFacts;
+use super::planet_facts::{LookOverride, PlanetFacts};
 use super::ship::Propulsion;
+use super::star_facts::StarFacts;
 use super::track::ShipRecord;
 
 /// SCL-07: where a record sits round what it orbits. A natural body has an
@@ -63,8 +64,15 @@ pub struct BodyBlueprint {
     pub description: String,
     pub key_facts: Vec<(String, String)>,
     /// A planet's, moon's or belt body's physical facts (SYSG-22);
-    /// `None` for hand-made bodies and anything else.
+    /// `None` for anything else.
     pub planet_facts: Option<PlanetFacts>,
+    /// The seed a hand-made world's surface is drawn from (SURF-60);
+    /// `None` for generated bodies, whose seed the view derives, and for
+    /// anything that isn't a world.
+    pub surface_seed: Option<u64>,
+    /// A look drawn instead of the one the facts choose (SURF-61); only
+    /// content sets one.
+    pub look_override: Option<LookOverride>,
     pub knowledge: Knowledge,
     /// Where it sits round its parent (SCL-07).
     pub orbit: OrbitPlacement,
@@ -136,6 +144,8 @@ pub struct SystemData {
     /// The star's mean physical radius (SCL-05).
     pub star_radius_km: f64,
     pub star_knowledge: Knowledge,
+    /// The star's spectral type, luminosity and age as numbers (SURF-60).
+    pub star_facts: StarFacts,
     /// The records round the star: planets, and any ship, station or
     /// salvage site with an orbit of its own round it.
     pub planets: Vec<BodyBlueprint>,

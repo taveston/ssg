@@ -13,6 +13,8 @@
 //! It is built from the same blueprint types as Corvane (SCL-03), so
 //! nothing outside `content/` knows which system it is running.
 
+use crate::content::generator::tunables::GeneratorTunables;
+use crate::content::world_facts;
 use crate::sim::body::{Affiliation, BodyClass, Knowledge};
 use crate::sim::ship::{Drive, Propulsion};
 use crate::sim::system::{BeltBlueprint, BodyBlueprint, OrbitPlacement, SystemData, facts};
@@ -289,6 +291,8 @@ fn craft(figures: &CraftFigures) -> BodyBlueprint {
         description: figures.description.into(),
         key_facts,
         planet_facts: None,
+        surface_seed: None,
+        look_override: None,
         knowledge: Knowledge::Surveyed,
         orbit: OrbitPlacement::Named(figures.band),
         radius_km: if class == BodyClass::Station {
@@ -340,6 +344,8 @@ fn natural_body(
         description: description.into(),
         key_facts: facts(&key_facts),
         planet_facts: None,
+        surface_seed: None,
+        look_override: None,
         knowledge: Knowledge::Surveyed,
         orbit: OrbitPlacement::Own {
             radius_km: orbit_radius_km,
@@ -395,12 +401,21 @@ fn planet(figures: &PlanetFigures) -> BodyBlueprint {
 
 /// SOL-02 to SOL-17: the Sol system as records.
 pub fn sol_system() -> SystemData {
-    SystemData {
+    let tunables = GeneratorTunables::default();
+    let mut system = SystemData {
         star_name: "Sol".into(),
         star_key_facts: facts(&[("Class", "G2V")]),
         star_mass_kg: SOLAR_MASS_KG,
         star_radius_km: 695_700.0,
         star_knowledge: Knowledge::Surveyed,
+        // SURF-60: the Sun, at its real luminosity and age.
+        star_facts: world_facts::star_facts(
+            world_facts::sol::SPECTRAL_TYPE,
+            SOLAR_MASS_KG,
+            Some(world_facts::sol::LUMINOSITY_LSUN),
+            world_facts::sol::AGE_GYR,
+            &tunables,
+        ),
         planets: PLANETS.iter().map(planet).collect(),
         belts: vec![BeltBlueprint {
             name: "Main belt".to_string(),
@@ -411,7 +426,10 @@ pub fn sol_system() -> SystemData {
             salvage_sites: vec![],
         }],
         gates: vec![],
-    }
+    };
+    // SURF-63: every planet, Ceres and moon carries the facts of its table.
+    world_facts::author_worlds(&mut system, &world_facts::sol::WORLDS, &tunables);
+    system
 }
 
 #[cfg(test)]

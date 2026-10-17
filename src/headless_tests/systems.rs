@@ -5,6 +5,7 @@
 
 use super::*;
 use crate::sim::body::{Belt, BeltComposition, GateState};
+use crate::sim::star_facts::StarFacts;
 use crate::sim::system::{BeltBlueprint, GateBlueprint, SystemData, facts};
 use crate::sim::units::{EARTH_MASS_KG, SOLAR_MASS_KG};
 
@@ -81,6 +82,11 @@ fn generated_system() -> SystemData {
         star_mass_kg: SOLAR_MASS_KG,
         star_radius_km: 696_000.0,
         star_knowledge: Knowledge::Unsurveyed,
+        star_facts: StarFacts {
+            spectral_type: "G5V".into(),
+            luminosity_lsun: 1.0,
+            age_gyr: 4.6,
+        },
         planets: vec![
             planet,
             blueprint("Courier", BodyClass::Ship, 0.9 * KM_PER_AU),
@@ -280,4 +286,48 @@ fn sols_system_fit_is_neptunes_orbit() {
     let stops = app.world().resource::<ZoomStops>();
     let neptune = km_to_render(30.0699 * KM_PER_AU);
     assert!((stops.system_radius - neptune).abs() < neptune * 1e-5);
+}
+
+/// SURF-60 / SURF-61: spawned, Sol's star carries its type, luminosity and
+/// age; every world its facts and surface seed beside them; and Earth
+/// alone its look override.
+#[test]
+fn sols_worlds_spawn_with_their_seeds_and_earths_override() {
+    use crate::sim::planet_facts::{LookOverride, PlanetFacts, SurfaceSeed};
+    let mut app = sol_app();
+    run(&mut app, 1);
+
+    let mut stars = app.world_mut().query::<(&BodyClass, &StarFacts)>();
+    let (class, facts) = stars.single(app.world()).expect("one star with facts");
+    assert_eq!(*class, BodyClass::Star);
+    let star = (
+        facts.spectral_type.as_str(),
+        facts.luminosity_lsun,
+        facts.age_gyr,
+    );
+    assert_eq!(star, ("G2V", 1.0, 4.6));
+
+    let mut worlds = app.world_mut().query::<(
+        &DisplayName,
+        &BodyClass,
+        Has<PlanetFacts>,
+        Option<&SurfaceSeed>,
+        Option<&LookOverride>,
+    )>();
+    let mut count = 0;
+    for (name, class, has_facts, seed, look) in worlds.iter(app.world()) {
+        if !matches!(class, BodyClass::Planet | BodyClass::Moon) {
+            assert!(!has_facts && seed.is_none(), "{} is no world", name.0);
+            continue;
+        }
+        count += 1;
+        assert!(
+            has_facts && seed.is_some(),
+            "{} lacks facts or seed",
+            name.0
+        );
+        let expected = (name.0 == "Earth").then_some(&LookOverride::Lava);
+        assert_eq!(look, expected, "{}", name.0);
+    }
+    assert_eq!(count, 30);
 }

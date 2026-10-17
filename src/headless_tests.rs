@@ -296,6 +296,8 @@ fn blueprint(name: &'static str, class: BodyClass, radius_km: f64) -> BodyBluepr
         description: "".into(),
         key_facts: vec![],
         planet_facts: None,
+        surface_seed: None,
+        look_override: None,
         knowledge: Knowledge::Unsurveyed,
         orbit: OrbitPlacement::Own { radius_km },
         radius_km: 1_000.0,

@@ -72,6 +72,8 @@ fn wreck(destination: &str, radius_km: f64, phase0_rad: f64) -> BodyBlueprint {
             format!("Wreck of the gate to {destination}"),
         )],
         planet_facts: None,
+        surface_seed: None,
+        look_override: None,
         knowledge: Knowledge::Surveyed,
         orbit: OrbitPlacement::Own { radius_km },
         radius_km: GATE_RADIUS_KM,

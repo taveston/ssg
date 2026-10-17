@@ -23,6 +23,7 @@ pub mod planet_facts;
 pub mod rail;
 pub mod ship;
 pub mod spawn;
+pub mod star_facts;
 pub mod system;
 pub mod track;
 pub mod transfer;
