@@ -37,10 +37,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Other
 
-- [ ] **Sector generator: test follow-ups after review**
-  - Found in review of sector generator part 2.
-  - The SGEN-58 invariant checks the ring is clear and within the slide limit, but not that it took the nearest clear radius, outward first. Where no planet moved, check that no radius between the start and the ring is clear.
-  - Two tests sit close to their limits: the lowest preset mean is 4.07 links per system (limit 4.0), and step-3 crossings are 0.66% (limit 1%). Note this beside the tunables they depend on, so tuning that trips them is expected.
 - [ ] **Bring older docs up to the writing style**
   - The rules are in `docs/README.md` (Writing). Do it one doc at a time, with no change of meaning.
   - The longest are the likeliest to need it: `ideas/mechanics/requirements-and-bids.md`, `ideas/mechanics/component-stats.md` and `ideas/mechanics/transfers.md`.
