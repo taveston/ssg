@@ -333,10 +333,14 @@ impl ShotSector<'_, '_> {
         sector_entry_named(&self.loaded.as_ref()?.sector, name)
     }
 
-    /// SECT-44: select and hover the entries the plan names; a name that
-    /// is no entry's is an error.
+    /// SECT-44: select and hover the entries the plan names. A key that
+    /// only means something among a system's bodies is an error, as is a
+    /// name that is no entry's.
     fn start(&mut self, plan: &ShotPlan, commands: &mut Commands) -> Result<(), String> {
-        let wanted = [&plan.frame, &plan.select, &plan.hover, &plan.tray];
+        if plan.frame.is_some() || plan.tray.is_some() || plan.planner.is_some() {
+            return Err("in the sector view only `select` and `hover` name things".to_string());
+        }
+        let wanted = [&plan.select, &plan.hover];
         if let Some(missing) = wanted
             .into_iter()
             .flatten()
@@ -345,9 +349,6 @@ impl ShotSector<'_, '_> {
             return Err(format!(
                 "no system or entry in the sector is named `{missing}`"
             ));
-        }
-        if plan.frame.is_some() || plan.tray.is_some() || plan.planner.is_some() {
-            return Err("in the sector view only `select` and `hover` name things".to_string());
         }
         self.selection.0 = plan.select.as_deref().and_then(|n| self.find(n));
         if let Some(id) = plan.hover.as_deref().and_then(|n| self.find(n)) {
