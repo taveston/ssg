@@ -68,12 +68,10 @@ A finished item is deleted (git history keeps the record). Notes indented under 
   - Found in review of the moon ring and object pip item.
   - The moon ring's box and its drawing differ while it fades: `ring_offset` scales the marker's `BackFrame` (box, hit area, label box) by the fade, but the ring node is drawn at the full `moon_ring_offset_px` from the start (`markers/moon_ring.rs`, `MarkerPaint::paint`). Make them agree.
   - Missing tests: the pip fades in over `fold_unfold_anim_ms` and with its parent's fade (MOT-11); hovering the pip or fold marker, or its open tray, keeps it popped (headless, not only `wants_out`); the INS-06 hand-over for a moon as its ring fades; GRP-11's "+N" is dropped first when crowded; a label test with a real label size and a neighbour nearby.
-- [ ] **A double-click lands on what its first click hit** · F-247 · ZOOM-16
-  - With nothing selected, the first click selects and opens the inset, which narrows the map and moves the object before the second click (INS-07), so the double-click misses. Make the second click of a double-click act on what the first click hit, wherever the pointer now is over the map.
-  - Test: with nothing selected, a double-click on a planet frames it, though the inset opened between the clicks.
-
 ## Other
 
+- [ ] **Tray rows that tie are ordered by entity id**
+  - Things in the same phase sort by `Entity`, so their tray rows can change order when unrelated code spawns entities (seen when the double-click fix shifted TF-1's row and `the_tray_keys_step_open_and_close_rows_without_panning` had to loosen). Break ties by something stable, such as the name, and tighten that test again.
 - [ ] **Sector generator: test clean-up after review**
   - Found in review of sector generator part 1.
   - Distribution tests check only bounds in places. Add shape checks: SGEN-26 log10 separations have about the M and "other" means and spreads before the limits; SGEN-27 wide-pair separations are log-uniform; SGEN-31 weights for K, G, F and A, not only M; SGEN-33 the compact template's innermost period is at most 6 days.
