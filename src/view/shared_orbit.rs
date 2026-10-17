@@ -528,8 +528,21 @@ mod tests {
             let got = nearest_ring_angle(0.0, target, circle);
             assert!((got - want).abs() < 1e-3, "{got} for {want}");
         }
+        // A tilted ring is an ellipse on screen: the search finds the
+        // point nearest by brute force, not the one at the same angle.
+        let tilted = |angle: f32| Some(Vec2::new(angle.cos() * 100.0, angle.sin() * 25.0));
+        let target = Vec2::new(70.0, 40.0);
+        let gap = |angle| tilted(angle).unwrap().distance(target);
+        let best = (0..=2000)
+            .map(|i| i as f32 * 1e-3 - 0.5)
+            .map(gap)
+            .fold(f32::INFINITY, f32::min);
+        let got = nearest_ring_angle(0.5, target, tilted);
+        assert!(gap(got) <= best + 0.1, "{} for {best}", gap(got));
         let flat = |_| Some(Vec2::ZERO);
         assert_eq!(nearest_ring_angle(0.5, Vec2::ONE, flat), 0.5);
+        // Where the ring doesn't project (behind the camera), it stays put.
+        assert_eq!(nearest_ring_angle(0.5, Vec2::ONE, |_| None), 0.5);
     }
 
     /// MOT-02 / MOT-14: a ring's period is its members', and its bodies

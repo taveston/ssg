@@ -25,6 +25,7 @@ use crate::view::camera::state::camera_fov;
 use crate::view::colors;
 use crate::view::hovered::HoveredBodies;
 use crate::view::motion_mode::{MotionModeState, degrees_behind, tail_brightness};
+use crate::view::multi_markers::MultiGathered;
 use crate::view::scale::km_to_render;
 use crate::view::screen::{MapArea, ScreenPositions};
 use crate::view::selection::Selection;
@@ -90,7 +91,9 @@ impl Plugin for RingsPlugin {
         app.init_resource::<DrawnRings>()
             .add_systems(Startup, sync_ring_strokes.in_set(Boot::Overlay))
             // Drawn with the rest of the overlay, once grouping and motion
-            // have decided what shows.
+            // have decided what shows, and after the multi-markers are
+            // gathered, so a marker's tail (MUL-05) starts where the marker
+            // is this frame.
             .add_systems(
                 Update,
                 (
@@ -98,6 +101,7 @@ impl Plugin for RingsPlugin {
                     draw_orbit_rings.in_set(RingsDrawn),
                 )
                     .chain()
+                    .after(MultiGathered)
                     .in_set(Stage::Overlay),
             );
     }

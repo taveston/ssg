@@ -32,6 +32,7 @@ use super::{FadeView, RingExtent, ring_extent};
 use crate::view::frame::Frame;
 use crate::view::hover;
 use crate::view::hovered::HoveredBodies;
+use crate::view::multi_markers::MultiGathered;
 use crate::view::scale::km_to_render;
 use crate::view::screen::ScreenPositions;
 use crate::view::selection::Selection;
@@ -100,6 +101,7 @@ impl Plugin for RingPickingPlugin {
                 Update,
                 (sync_ring_targets.run_if(rings_changed), trace_rings)
                     .chain()
+                    .after(MultiGathered)
                     .in_set(Stage::Overlay),
             )
             .add_systems(PreUpdate, pick_rings.in_set(PickingSystems::Backend));

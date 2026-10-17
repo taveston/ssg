@@ -372,8 +372,9 @@ fn things_together_are_one_multi_marker() {
 }
 
 /// Every drawn tail laid by one of `things` this frame, as (thing, where
-/// its head lands on screen, where the thing itself is on screen).
-fn tails_of(app: &mut App, things: Vec<Entity>) -> Vec<(Entity, Vec2, Vec2)> {
+/// its head lands on screen, the point of its orbit near the thing that is
+/// nearest `centre` on screen, found by sampling).
+fn tails_of(app: &mut App, things: Vec<Entity>, centre: Vec2) -> Vec<(Entity, Vec2, Vec2)> {
     use crate::view::shared_orbit::{OrbitRings, ring_screen_point};
     use crate::view::world::ViewNow;
     use bevy::ecs::system::RunSystemOnce;
@@ -385,8 +386,12 @@ fn tails_of(app: &mut App, things: Vec<Entity>) -> Vec<(Entity, Vec2, Vec2)> {
                 let angles = ring.tail_angles();
                 for (member, head) in ring.tails().zip(angles) {
                     if things.contains(&member.body) {
-                        let at = |angle| ring_screen_point(&ring, angle, &view).unwrap();
-                        tails.push((member.body, at(head), at(member.angle)));
+                        let at = |angle| ring_screen_point(&ring, angle, &view);
+                        let nearest = (-500..=500)
+                            .filter_map(|i| at(member.angle + i as f32 * 1e-3))
+                            .min_by(|a, b| a.distance(centre).total_cmp(&b.distance(centre)))
+                            .unwrap();
+                        tails.push((member.body, at(head).unwrap(), nearest));
                     }
                 }
             }
@@ -423,7 +428,7 @@ fn a_together_marker_draws_one_tail_in_dot_mode() {
     run(&mut app, SETTLE_FRAMES);
     let centre = multi_marker(&app, key).unwrap().centre;
     let lead = first_row(&mut app, key);
-    let tails = tails_of(&mut app, trio.to_vec());
+    let tails = tails_of(&mut app, trio.to_vec(), centre);
     assert_eq!(tails.len(), 1, "one tail for the convoy: {tails:?}");
     let (thing, head, _) = tails[0];
     assert_eq!(thing, lead, "the first tray row's tail");
@@ -451,13 +456,14 @@ fn an_overlap_marker_draws_its_leads_tail() {
     run(&mut app, SETTLE_FRAMES);
     let marker = overlap(&mut app).expect("an overlap marker");
     let lead = first_row(&mut app, marker.key);
-    let tails = tails_of(&mut app, marker.things.clone());
+    let tails = tails_of(&mut app, marker.things.clone(), marker.centre);
     assert_eq!(tails.len(), 1, "one tail for the cluster: {tails:?}");
-    let (thing, head, own) = tails[0];
+    let (thing, head, nearest) = tails[0];
     assert_eq!(thing, lead, "the lead's tail");
+    let gap = head.distance(marker.centre);
     assert!(
-        head.distance(marker.centre) <= own.distance(marker.centre) + 0.5,
-        "the head is at least as near the marker's centre as the lead is"
+        gap <= nearest.distance(marker.centre) + 0.5,
+        "the head ({gap} px off) is as near the marker's centre as any point of the lead's orbit"
     );
 }
 
