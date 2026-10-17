@@ -13,12 +13,11 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Spec changes
 
-- [ ] **Sector view** · SECT-01 to SECT-44, CAM-25, SOL-22, UNIT-05
-  - A new view module with its plugin (`src/view/sector/`), a layer state both views read (SECT-01), and the light-year formatting in the shared module (UNIT-05).
-  - CAM-25 changed (the first entry is "Sector" and it works) and SOL-22 changed (`--sector` and `--seed` are now named), so their ✓ is cleared. Rename "Cluster" to "Sector" in `src/view/topbar/breadcrumb.rs` and its comments. Leave `cluster_join_px`, `overlap_clusters` and the other marker-grouping names alone: they mean overlapping markers.
-  - Add the keys `sector`, `seed` and `enter` to the `OW_SHOT` list in `CLAUDE.md` (SECT-44).
-  - The looks are first drafts: judge them on screen and add findings.
-- [ ] **Sky in the sector view and from the sector seed** · SKY-02, SKY-23, SKY-24, SECT-05 · needs "Sector view" and "Sector generator"
+- [ ] **Sector view, part 2: entering and leaving a system** · SECT-30 to SECT-33, SECT-44, CAM-25
+  - Part 1 (on master) built the layer state, the sector map, its inset, camera and start-up. Its API notes are with the coordinator.
+  - Enter system despawns nothing yet: build the runtime despawn and respawn of the system (SECT-30 to SECT-32), the Back button, and a working "Sector" breadcrumb entry (CAM-25).
+  - Add the key `enter` to `OW_SHOT` and to its list in `CLAUDE.md` (SECT-44); `sector` and `seed` are done.
+- [ ] **Sky in the sector view and from the sector seed** · SKY-02, SKY-23, SKY-24, SECT-05 · needs "Sector view, part 2"
   - Derive the sky's seed from the sector seed and the name "sky" with the generator's own derivation (SGEN-03, SKY-02); `sky_default_seed` stays for Corvane and Sol. The sector view draws the same sky through its camera, scaled by `sector_sky_factor` (0.5), and below the links (SKY-23, SECT-05). Add `sector_sky_factor` to `Tunables`.
   - Tests: the derived seed depends on the sector seed and a different sector gives a different sky; Corvane and Sol use the default; the sector view's sky equals the system view's at the same heading and tilt, with every opacity multiplied by the factor; the default tunables satisfy SKY-24; the sky is below the links.
 
@@ -26,6 +25,8 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Other
 
+- [ ] **Sector inset: move the figure formatting into the view**
+  - Found in review of sector view part 1. `view/sector/inset/content.rs` formats figures with `significant()` from `content::generator::system::star` and reads kinds through `system::worlds`. Move the significant-figures formatter to `view/readout.rs` beside the UNIT formats. No change of behaviour.
 - [ ] **Bring older docs up to the writing style**
   - The rules are in `docs/README.md` (Writing). Do it one doc at a time, with no change of meaning.
   - The longest are the likeliest to need it: `ideas/mechanics/requirements-and-bids.md`, `ideas/mechanics/component-stats.md` and `ideas/mechanics/transfers.md`.

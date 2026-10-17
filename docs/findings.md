@@ -2,7 +2,7 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-283.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-296.
 
 ---
 
@@ -335,9 +335,9 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Disposition:** open. Confirm these, or make any of them tunables.
 
 ### F-277 · The view uses the generator's random numbers
-- **Observation:** The sky (`src/view/sky/generate.rs`, `band.rs`) imports `content::generator::rng::{Rng, derive_seed}`, because SKY-02 asks for the generator's own seed derivation (SGEN-03). ARCH-02 lists view → sim and content → sim, and doesn't name view → content, though it only forbids sim or content → view. Found in review; the code is left as built.
-- **Affects:** ARCH-02, SKY-01, SKY-02 · **Type:** spec gap
-- **Disposition:** open. Say in ARCH-02 that the view may use content's plain data and utilities, or move `rng.rs` to a shared module outside the three domains that both use.
+- **Observation:** The sky (`src/view/sky/generate.rs`, `band.rs`) imports `content::generator::rng::{Rng, derive_seed}`, because SKY-02 asks for the generator's own seed derivation (SGEN-03). ARCH-02 lists view → sim and content → sim, and doesn't name view → content, though it only forbids sim or content → view. Found in review; the code is left as built. The sector view (part 1) goes further: it reads `content::start::LoadedSector` and the generator's `Sector`, `Entry`, `Link` and `GatedSystem` directly, since the sector has no sim representation. Found in that review too.
+- **Affects:** ARCH-02, SKY-01, SKY-02, SECT-01 · **Type:** spec gap
+- **Disposition:** open. Say in ARCH-02 that the view may use content's plain data and utilities, or move `rng.rs` to a shared module outside the three domains that both use, and the sector catalogue types into `sim/`.
 
 ### F-278 · Moon and belt-body draws the spec leaves open
 - **Observation:** SYSG-31 and SYSG-41 leave details open. The build: a moon's first orbit and each orbit ratio are uniform in their ranges; a first orbit below `moon_inner_limit_radii` is raised to it (never at the defaults); a belt body's orbit is uniform across the annulus; "2% apart" means the larger orbit is at least 1.02 times the smaller; an orbit too near another body or the ring is drawn again up to 20 times, then the body is dropped (as SGEN-34); the order is count, then each body's mass and orbit, then the mass cap; "mostly icy" is an icy share above 0.5. Belt bodies are class Planet, named inside out from the belt's spare names, and their kind is rocky, so the description reads "A rocky planet with …" even for a body 300 km across.
@@ -363,6 +363,71 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** INS-08 says a gate lists its state, so Corvane's and Sol's gate insets gained "State: Working", while SYSG-71 says the hand-made systems "stay as they are". Found in review.
 - **Affects:** INS-08, SYSG-71 · **Type:** conflict
 - **Disposition:** open. Accept the row, or show it for generated systems only.
+
+### F-283 · A dormant link's width isn't specced
+- **Observation:** SECT-04 gives widths for working and collapsed links but not for dormant dashes. The build draws the dashes at `link_working_px`.
+- **Affects:** SECT-04 · **Type:** spec gap
+- **Disposition:** open. Confirm, or add a `link_dormant_px`.
+
+### F-284 · The sector fit depends on the heading too
+- **Observation:** "Every node fits ... at the current tilt" is built as a fit of every node's position at the current heading and tilt. A round fit was much looser, because its corners never hold nodes. Home fits north up, so the zoom-out limit changes a little as the view turns.
+- **Affects:** SECT-11 · **Type:** spec gap
+- **Disposition:** open. Say "heading and tilt" in the spec, or ask for a fit that ignores heading.
+
+### F-285 · Key facts for brown dwarfs and multi-star systems
+- **Observation:** SECT-22 covers "an entry with a star", but a brown dwarf has no star. The build shows a brown dwarf's Mass, Age, Metallicity and Distance from centre. For systems with companions, Mass and Luminosity are the primary's; Star lists the spectral types separated by ", ", and Companions reads "2, nearest at 34.5 AU".
+- **Affects:** SECT-22 · **Type:** spec gap
+- **Disposition:** open. Confirm or reword.
+
+### F-286 · Close-in orbits read as long km figures in the sector inset
+- **Observation:** UNIT-01 switches to km below 0.1 AU, so M-dwarf planets and belts read like "6,979,824 km to 8,508,710 km".
+- **Affects:** SECT-23, UNIT-01 · **Type:** spec wrong
+- **Disposition:** open. Use AU always in the sector inset, or a lower threshold there.
+
+### F-287 · A large sector at its fit is crowded and mostly unlabelled
+- **Observation:** At the fit of a 200-system sector, the 14 px star markers crowd together and most gated labels give way. Only names round the rim show.
+- **Affects:** SECT-03, SECT-06 · **Type:** spec wrong
+- **Disposition:** open. Smaller nodes when zoomed out, labels only above some zoom, or accept it.
+
+### F-288 · Nodes and labels can draw over the truth readout
+- **Observation:** Panned or tilted, nodes and labels near the top left print over the readout. It is not a label obstacle and has no backing.
+- **Affects:** SECT-08, SECT-06 · **Type:** spec gap
+- **Disposition:** open. Make it a label obstacle, give it a panel backing, or hide nodes under it.
+
+### F-289 · The scale bar reads "10.0 ly"
+- **Observation:** UNIT-05's one decimal place makes a round scale-bar length read with a trailing ".0".
+- **Affects:** SECT-09, UNIT-05 · **Type:** spec wrong
+- **Disposition:** open. Drop the decimal on the bar's whole numbers, or keep it.
+
+### F-290 · The sector view has a render scale of its own
+- **Observation:** SCL-02 names one linear km-to-render scale. The sector view uses a second one, 10 render units per light year, also in `scale.rs`. This keeps a sector inside the camera's distance limits and clip planes.
+- **Affects:** SCL-02, ARCH-12 · **Type:** spec gap
+- **Disposition:** open. Add a line to SCL-02.
+
+### F-291 · Panels let about a fifth of what's beneath show through
+- **Observation:** The top bar and sidebar use `PANEL` at alpha 0.97, but blended in linear light, so nodes, labels and lines under them showed at roughly 20% brightness. The sector view now hides nodes outside the map area. Links, and orbit rings in the system view, still show dimly under the top bar.
+- **Affects:** MRK-01, INS-07, CLK-02 · **Type:** bug
+- **Disposition:** open. Make the panels opaque, or clip map content to the map area.
+
+### F-292 · Lines with `depth_bias -1` can lose pieces to the near clip
+- **Observation:** With the camera's 0.001 near plane, a gizmo biased to the front lands on the near clip, and parts of long lines vanished. Sector links were fixed by using no bias. Planner paths (`paths/strokes.rs`, `IN_FRONT = -1.0`) use the same bias and may drop pieces too.
+- **Affects:** PLNR-60, PLNR-69 · **Type:** bug
+- **Disposition:** open. Check paths and drop the bias, or use a smaller one.
+
+### F-293 · Labels are hover and click targets in the sector view
+- **Observation:** SECT-07 and SECT-20 name only nodes. As in the system view (HOV-02), a node's label also hovers and selects it.
+- **Affects:** SECT-07, SECT-20 · **Type:** spec gap
+- **Disposition:** open. Confirm.
+
+### F-294 · The reason appears twice in a gated system's inset
+- **Observation:** The class line ("Gated system · Extraction") and the Reason fact say the same thing, as the spec asks.
+- **Affects:** SECT-21, SECT-22 · **Type:** spec wrong (minor)
+- **Disposition:** open. Drop the Reason fact, or keep both.
+
+### F-295 · `OW_SHOT` `distance` is in km in the sector view
+- **Observation:** The shot's `distance` key keeps its km unit in the sector view, where 10 ly is 9.46e13 km, awkward to type and read. SECT-44 names only `sector`, `seed`, `select`, `hover` and `enter`. Found in review.
+- **Affects:** SECT-44 · **Type:** spec gap
+- **Disposition:** open. Accept a light-year figure in the sector view (for example `distance=12ly`), or leave it as documented in `CLAUDE.md`.
 
 ## Parked
 

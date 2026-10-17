@@ -36,7 +36,7 @@
 
 | ID | Requirement | Built |
 |---|---|---|
-| SOL-22 | The system to load is chosen at start-up by the argument `--system <name>`: `corvane` (the default, with no argument) or `sol`. An unknown or missing name after `--system` stops the program with a message listing the known names. Names are matched exactly, in lower case, so `--system Sol` is unknown. Any argument that this spec and `sector-view.md` (SECT-40 to SECT-42) don't name is ignored, which keeps the test runner's own arguments harmless. The choice is a plain function of the arguments (ARCH-20). | |
+| SOL-22 | The system to load is chosen at start-up by the argument `--system <name>`: `corvane` (the default, with no argument) or `sol`. An unknown or missing name after `--system` stops the program with a message listing the known names. Names are matched exactly, in lower case, so `--system Sol` is unknown. Any argument that this spec and `sector-view.md` (SECT-40 to SECT-42) don't name is ignored, which keeps the test runner's own arguments harmless. The choice is a plain function of the arguments (ARCH-20). | ✓ |
 | SOL-23 | The arguments are read in `content/`; `main.rs` only adds the plugin (ARCH-01). *Checked in review.* | ✓ |
 
 ## 3. Figures
