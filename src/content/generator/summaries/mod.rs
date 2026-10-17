@@ -10,6 +10,8 @@ mod belts;
 mod facts;
 pub mod planets;
 
+pub use facts::rework_moved_planet;
+
 use super::bodies::Summary;
 use super::catalogue::{Entry, Star, StarClass};
 use super::rng::Rng;

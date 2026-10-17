@@ -3,6 +3,7 @@
 
 use super::bodies::Summary;
 use super::catalogue::{Entry, Star, StarClass};
+use super::gates::{self, GateChoice};
 use super::settings::Settings;
 use super::stages::{Stage, StageSeeds};
 use super::tunables::GeneratorTunables;
@@ -50,6 +51,32 @@ pub fn summaries_for(gated_count: u32, seed: u64) -> (Vec<Entry>, Vec<Option<Sum
     let seeds = StageSeeds::derive(seed);
     let summaries = summaries::run(&entries, &mut stage_rng(&seeds, Stage::Summaries), &t);
     (entries, summaries)
+}
+
+/// The sectors the invariants are checked over (SGEN-91): for each size
+/// of `check_sizes`, `invariant_seeds` seeds, at the default tunables.
+/// Made once and shared by every test that reads them.
+pub fn sweep() -> &'static [Sector] {
+    static SWEEP: std::sync::OnceLock<Vec<Sector>> = std::sync::OnceLock::new();
+    SWEEP.get_or_init(|| {
+        let t = GeneratorTunables::default();
+        let seeds = check_seeds(u64::from(t.invariant_seeds));
+        check_sizes(&t)
+            .into_iter()
+            .flat_map(|n| seeds.iter().map(move |&seed| sector(n, seed)))
+            .collect()
+    })
+}
+
+/// Stages 1 to 4 at the default tunables: the entries and the gate
+/// choice.
+pub fn gates_for(gated_count: u32, seed: u64) -> (Vec<Entry>, GateChoice) {
+    let t = GeneratorTunables::default();
+    let (volume, entries) = stars_for(gated_count, seed);
+    let seeds = StageSeeds::derive(seed);
+    let summaries = summaries::run(&entries, &mut stage_rng(&seeds, Stage::Summaries), &t);
+    let gates = gates::run(gated_count, &volume.slab, &entries, &summaries, &t);
+    (entries, gates)
 }
 
 /// Each summary of `seeds` Medium sectors, with its primary's mass in
