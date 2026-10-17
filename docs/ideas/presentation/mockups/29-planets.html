@@ -159,11 +159,13 @@ float H(vec3 p){
     if(wC4>.001)h+=wC4*craterLayer(p,90.,gDens*.7,.1);
     if(wC5>.001)h+=wC5*craterLayer(p,240.,gDens*.7,.09);
   }else if(uKind==3){
-    vec2 wa=worley(warp(p*3.2,4.,.25));
-    h=(fbm(p*3.,gOct)-.5)*.012-.010*smoothstep(.07,0.,wa.y-wa.x);
-    if(wC1>.001)h+=wC1*craterLayer(p,8.,gDens*.25,.15);
-    if(wC3>.001)h+=wC3*craterLayer(p,30.,gDens*.3,.14);
-    if(wC4>.001)h+=wC4*craterLayer(p,90.,gDens*.3,.12);
+    // an icy moon: soft relief and craters that are a little shallower than on rock, as ice relaxes
+    h=(fbm(p*2.6,gOct)-.5)*.02;
+    if(wC1>.001)h+=wC1*craterLayer(p,6.,gDens,.2);
+    if(wC2>.001)h+=wC2*craterLayer(p,15.,gDens,.18);
+    if(wC3>.001)h+=wC3*craterLayer(p,38.,gDens,.16);
+    if(wC4>.001)h+=wC4*craterLayer(p,90.,gDens,.14);
+    if(wC5>.001)h+=wC5*craterLayer(p,240.,gDens,.12);
   }else if(uKind==4){
     vec2 wa=worley(warp(p*3.5,3.,.3));
     h=(fbm(p*5.,gOct)-.5)*.02-.016*smoothstep(.10,0.,wa.y-wa.x);
@@ -238,16 +240,16 @@ void shade(vec3 p,vec3 pn,float h,out vec3 alb,out vec3 emi){
   }else if(uKind==2){
     alb=denseColor(pn);
   }else if(uKind==3){
-    vec2 wa=worley(warp(p*3.2,4.,.25));
-    float crack=wa.y-wa.x;
-    vec2 wb=worley(warp(p*7.5,3.,.2)+vec3(5.));
-    float crack2=wb.y-wb.x;
-    vec3 c=vec3(.80,.86,.90)*(.88+.24*fbm(p*7.,gOct));
-    float chaos=smoothstep(.55,.70,fbm(p*3.3+vec3(1.),5.));
-    c=mix(c,vec3(.56,.43,.35),chaos*.8);
-    c=mix(c,vec3(.50,.33,.26),smoothstep(.05,0.,crack)*.75);
-    c=mix(c,vec3(.55,.38,.30),smoothstep(.035,0.,crack2)*.4);
-    alb=c*(1.+clamp(h*30.,-.3,.3));
+    // bright ice with patches of dark, dusty terrain, as on Ganymede, Callisto and Rhea
+    float dkp=smoothstep(.48,.64,fbm(p*1.7+vec3(2.,6.,3.),4.));
+    vec3 c=mix(vec3(.80,.82,.84),vec3(.40,.36,.33),dkp*.75);
+    c*=.84+.32*fbm(p*8.,gOct);
+    c=mix(c,vec3(.93,.95,.97),clamp(h*45.,0.,.65));      // fresh ice on rims and ejecta
+    c*=1.-clamp(-h*10.,0.,.25);                           // crater floors a little dimmer
+    // a few long, faint, curved lineae (Europa's, not a network): contour lines of a smooth noise field
+    float cn=abs(fbm(warp(p*1.5,1.2,.6)+vec3(4.),4.)-.5);
+    c=mix(c,vec3(.55,.40,.33),smoothstep(.012,0.,cn)*.22);
+    alb=c;
   }else if(uKind==4){
     vec2 wa=worley(warp(p*3.5,3.,.3));
     float crack=wa.y-wa.x;
@@ -338,7 +340,7 @@ const BODIES={
   airless:{kind:0,label:'Airless',fig:'rocky · airless · 0.38 g · 440 K',seed:3,temp:440,age:6.5,atm:0,atmThick:.03,atmCol:[.6,.6,.6],atmSelf:0,caps:0,amb:.0015,tilt:8,lon:25,roll:-12},
   thin:{kind:1,label:'Cold terrestrial',fig:'rocky · thin N₂ · 0.82 g · 232 K',seed:5,temp:232,age:4.2,atm:.38,atmThick:.035,atmCol:[.78,.66,.52],atmSelf:0,caps:.25,amb:.002,tilt:24,lon:-40,roll:-10},
   dense:{kind:2,label:'Dense atmosphere',fig:'rocky · dense CO₂ · 0.9 g · 735 K',seed:11,temp:735,age:4.5,atm:1,atmThick:.06,atmCol:[.98,.82,.55],atmSelf:0,caps:0,amb:.008,tilt:10,lon:0,roll:-8},
-  icy:{kind:3,label:'Icy',fig:'rocky · icy · 0.13 g · 102 K',seed:17,temp:102,age:.8,atm:0,atmThick:.03,atmCol:[.6,.7,.8],atmSelf:0,caps:0,amb:.002,tilt:14,lon:60,roll:-16},
+  icy:{kind:3,label:'Icy',fig:'rocky · icy · 0.13 g · 102 K',seed:17,temp:102,age:3.5,atm:0,atmThick:.03,atmCol:[.6,.7,.8],atmSelf:0,caps:0,amb:.002,tilt:14,lon:60,roll:-16},
   molten:{kind:4,label:'Molten',fig:'rocky · molten · 1.6 g · 1200 K',seed:23,temp:1200,age:.3,atm:.35,atmThick:.04,atmCol:[1,.38,.12],atmSelf:1,caps:0,amb:.001,tilt:12,lon:110,roll:-6},
   icegiant:{kind:5,label:'Ice giant',fig:'envelope · 0.9 g · 59 K',seed:29,temp:59,age:4,atm:.9,atmThick:.05,atmCol:[.45,.75,.95],atmSelf:0,caps:0,amb:.008,tilt:18,lon:0,roll:-14},
   gas:{kind:6,label:'Gas giant',fig:'envelope · 2.4 g · 120 K',seed:31,temp:120,age:4,atm:.8,atmThick:.04,atmCol:[.92,.82,.62],atmSelf:0,caps:0,amb:.008,tilt:8,lon:0,roll:-6}
