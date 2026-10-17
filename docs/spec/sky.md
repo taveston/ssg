@@ -17,7 +17,7 @@
 | ID | Requirement | Built |
 |---|---|---|
 | SKY-01 | The sky is a plain value made from a seed and the tunables by one function, with no Bevy types: a list of stars (a direction, a magnitude and a colour), the band's orientation (SKY-07) and the offsets of its noise (SKY-14). The same seed and tunables give the same sky, field for field, on every run and machine. The function reads no clock, environment or unseeded random source. The view makes the sky when a game starts and never stores it in the sector or a save. | ✓ |
-| SKY-02 | The sky's seed is derived from the sector seed and the name "sky", by the derivation the generator's stages use (SGEN-03). A system loaded without a sector (Corvane, Sol) uses `sky_default_seed`. Sol has no sky of its own. |  |
+| SKY-02 | The sky's seed is derived from the sector seed and the name "sky", by the derivation the generator's stages use (SGEN-03). A system loaded without a sector (Corvane, Sol) uses `sky_default_seed`. Sol has no sky of its own. | ✓ |
 | SKY-03 | Different seeds give different skies: the star lists differ, and so does the band's orientation. | ✓ |
 | SKY-04 | A sky holds `sky_field_stars` field stars and `sky_band_stars` band stars. | ✓ |
 | SKY-05 | A field star's direction is uniform over the sphere. Its magnitude is drawn between `sky_mag_min` and `sky_mag_max` so that the number of stars at magnitude *m* is proportional to 10 to the power (`sky_mag_slope` × *m*): a few bright stars, more medium ones and a faint majority. | ✓ |
@@ -53,8 +53,8 @@
 
 | ID | Requirement | Built |
 |---|---|---|
-| SKY-23 | The sector view draws the same sky as the system view, from the same seed, projected as SKY-16 says, with the opacity of every star and of the glow multiplied by `sector_sky_factor`. Changing layer changes nothing in the sky but that factor. |  |
-| SKY-24 | `sky_peak` × `sector_sky_factor` is at most `sector_faint_alpha` (SECT-03): in the sector view, the brightest star in the sky is no brighter than the faintest sector node. The default tunables satisfy it. |  |
+| SKY-23 | The sector view draws the same sky as the system view, from the same seed, projected as SKY-16 says, with the opacity of every star and of the glow multiplied by `sector_sky_factor`. Changing layer changes nothing in the sky but that factor. | ✓ |
+| SKY-24 | `sky_peak` × `sector_sky_factor` is at most `sector_faint_alpha` (SECT-03): in the sector view, the brightest star in the sky is no brighter than the faintest sector node. The default tunables satisfy it. | ✓ |
 
 ---
 

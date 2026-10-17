@@ -2,7 +2,7 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-296.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-297.
 
 ---
 
@@ -428,6 +428,11 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** The shot's `distance` key keeps its km unit in the sector view, where 10 ly is 9.46e13 km, awkward to type and read. SECT-44 names only `sector`, `seed`, `select`, `hover` and `enter`. Found in review.
 - **Affects:** SECT-44 · **Type:** spec gap
 - **Disposition:** open. Accept a light-year figure in the sector view (for example `distance=12ly`), or leave it as documented in `CLAUDE.md`.
+
+### F-296 · The band's glow is near invisible in the sector view at the default factor
+- **Observation:** `sector_sky_factor` 0.5 halves every opacity in display levels (F-273). The field stars still read as faint speckles: the brightest is about 37 of 255 over the ground's 7 to 14. But the glow, only about 15 levels at its peak in the system view, drops to about 8 at the core and 3 along most of the band, which a normal monitor barely shows. A contrast-stretched copy of the shot confirms the band crosses the opening sector view as SKY-08 asks; the eye just can't find it.
+- **Affects:** SKY-23, SKY-24 · **Type:** spec gap
+- **Disposition:** open. Judge on screen. Raise `sector_sky_factor` towards the SKY-24 ceiling (about 0.545, which changes little), or give the glow its own factor (say `sector_glow_factor` 1.0), since SKY-24's reason is about stars outshining nodes, not the glow.
 
 ## Parked
 
