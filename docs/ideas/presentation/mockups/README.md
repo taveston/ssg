@@ -28,6 +28,7 @@ Boards 1 to 6 are from the design canvas "Inspect & Planetary Transition"; 7 onw
 | `22-moon-count-label-weight.png` | How loud the moon count beside a planet's stacked ring should be: "N moons" on a second line, number only in the dim colour, number inline, and ring only with the count on hover; labels enlarged (2026-10-16, from F-244). Source: `22-moon-count-label-weight.html`; `../symbology.md` 4 |
 | `26-objects-and-moons-on-the-planet-marker.png` | Moons and objects kept apart: a neutral moon ring with the moon count, and a separate resting object marker down and to the right, as a 12 px frame with a count (A) or a 6 px pip (B), growing into the multi-marker on approach (2026-10-16, from F-229 and F-239). Source: `26-objects-and-moons-on-the-planet-marker.html`; `../symbology.md` 4 |
 | `27-resting-pips-for-mixed-objects.png` | The resting object pip for mixed affiliations: front pip the most pressing, back pip own when any is own, none for a single object; real size, enlarged, and popped out (2026-10-16, from F-229 and F-239). Source: `27-resting-pips-for-mixed-objects.html`; `../symbology.md` 4 |
+| `28-skybox.png` | A sky behind the system view: no sky, stars only (A), stars with a faint band (B), B with pale star colours, photographic style (C); close in; a magnitude ladder against the map marks; and the sky holding still under pan and turning with heading (2026-10-17). Procedural, drawn at infinity. Source: `28-skybox.html`; `../presentation.md` 2 |
 
 How to use them:
 

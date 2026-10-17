@@ -8,6 +8,7 @@ Hard sci-fi space strategy game for PC. This repo holds the prototype and the wh
 - `docs/spec/`: **the only basis for code.** Each requirement has a stable ID (`ZOOM-13`) and a Built column.
   - `system-view.md`: the system view (prefixes SCL, CLK, BTN, MRK, SYM, EDGE, LBL, HOV, INS, ZOOM, CAM, GRP, MOT, TEST) and its tunables table.
   - `ideology.md`: the ideology profile (IDEO).
+  - `sky.md`: the sky behind the system and sector views (SKY) and its tunables table.
   - `architecture.md`: how the code is organised, commented and tested (ARCH). Applies to all code.
 - `docs/findings.md`: open observations waiting for a decision.
 - `docs/ideas/`: design thinking, back story and open questions. Read it for context and intent, but never implement from it. If something you need is only in `ideas/`, stop and say so.
