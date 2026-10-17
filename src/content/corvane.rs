@@ -485,7 +485,7 @@ fn ships_at_halden() -> Vec<BodyBlueprint> {
             Affiliation::Own,
             transport(
                 TroopLoad::Embarked(vec![Formation {
-                    name: "1st Arden Guard".into(),
+                    name: "1st Arden Guard",
                     echelon: Some(Echelon::Battalion),
                 }]),
                 0.85,
@@ -504,11 +504,11 @@ fn ships_at_halden() -> Vec<BodyBlueprint> {
             transport(
                 TroopLoad::Embarked(vec![
                     Formation {
-                        name: "2nd Halden Regiment".into(),
+                        name: "2nd Halden Regiment",
                         echelon: Some(Echelon::Regiment),
                     },
                     Formation {
-                        name: "Halden Field Brigade".into(),
+                        name: "Halden Field Brigade",
                         echelon: Some(Echelon::Brigade),
                     },
                 ]),
@@ -1213,7 +1213,7 @@ mod tests {
             own(a)
                 && r.load
                     == TroopLoad::Embarked(vec![Formation {
-                        name: "1st Arden Guard".into(),
+                        name: "1st Arden Guard",
                         echelon: Some(Echelon::Battalion),
                     }])
         });

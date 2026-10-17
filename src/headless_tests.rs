@@ -73,6 +73,7 @@ mod brackets;
 mod camera;
 mod double_click;
 mod frame_cue;
+mod generated;
 mod grouping;
 mod inset;
 mod markers;
