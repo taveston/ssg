@@ -17,8 +17,6 @@ A finished item is deleted (git history keeps the record). Notes indented under 
 
 ## Other
 
-- [ ] **Sector inset: move the figure formatting into the view**
-  - Found in review of sector view part 1. `view/sector/inset/content.rs` formats figures with `significant()` from `content::generator::system::star` and reads kinds through `system::worlds`. Move the significant-figures formatter to `view/readout.rs` beside the UNIT formats. No change of behaviour.
 - [ ] **Bring older docs up to the writing style**
   - The rules are in `docs/README.md` (Writing). Do it one doc at a time, with no change of meaning.
   - The longest are the likeliest to need it: `ideas/mechanics/requirements-and-bids.md`, `ideas/mechanics/component-stats.md` and `ideas/mechanics/transfers.md`.
