@@ -2,7 +2,7 @@
 
 Observations from building and playing the prototype, in two sections. **To triage** holds findings waiting for a decision at the next design session. **Parked** holds findings that can't be decided until a later feature is designed, each with a line saying what brings it back. Once a finding is settled, the outcome goes into the spec, the code or the to-do list, and the finding is deleted.
 
-Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-278.
+Format and types are in `docs/README.md`. New findings go under To triage and take the next free number from F-283.
 
 ---
 
@@ -338,6 +338,31 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Observation:** The sky (`src/view/sky/generate.rs`, `band.rs`) imports `content::generator::rng::{Rng, derive_seed}`, because SKY-02 asks for the generator's own seed derivation (SGEN-03). ARCH-02 lists view → sim and content → sim, and doesn't name view → content, though it only forbids sim or content → view. Found in review; the code is left as built.
 - **Affects:** ARCH-02, SKY-01, SKY-02 · **Type:** spec gap
 - **Disposition:** open. Say in ARCH-02 that the view may use content's plain data and utilities, or move `rng.rs` to a shared module outside the three domains that both use.
+
+### F-278 · Moon and belt-body draws the spec leaves open
+- **Observation:** SYSG-31 and SYSG-41 leave details open. The build: a moon's first orbit and each orbit ratio are uniform in their ranges; a first orbit below `moon_inner_limit_radii` is raised to it (never at the defaults); a belt body's orbit is uniform across the annulus; "2% apart" means the larger orbit is at least 1.02 times the smaller; an orbit too near another body or the ring is drawn again up to 20 times, then the body is dropped (as SGEN-34); the order is count, then each body's mass and orbit, then the mass cap; "mostly icy" is an icy share above 0.5. Belt bodies are class Planet, named inside out from the belt's spare names, and their kind is rocky, so the description reads "A rocky planet with …" even for a body 300 km across.
+- **Affects:** SYSG-31, SYSG-41, SYSG-23 · **Type:** spec gap
+- **Disposition:** open. Copy into SYSG-31 and SYSG-41, and decide whether belt bodies need a word of their own.
+
+### F-279 · Gate and wreck details the spec leaves open
+- **Observation:** A generated gate's radius, and its wreck's, is 5 km, as Corvane's gates are (a named constant). Key facts are label-over-value pairs, so SYSG-53's "Wreck of the gate to *X*" is the value under the label "Site". A wreck is neutral and surveyed, with the placeholder description "What is left of a gate that collapsed." Corvane's hand-made Wreck Field, by contrast, is unsurveyed with "Contents: unknown".
+- **Affects:** SYSG-52, SYSG-53, SYSG-04 · **Type:** spec gap
+- **Disposition:** open. Accept, or give a label and size, and say whether a wreck is unsurveyed until salvage is modelled.
+
+### F-280 · How the star's facts are written
+- **Observation:** SYSG-10 says luminosity is in solar units to 3 significant figures. The build writes "0.523 solar luminosities", matching the inset's "solar masses"; metallicity is written with its sign, "[Fe/H] +0.16"; generated stars keep the shared description "The system's star."
+- **Affects:** SYSG-10, INS-08 · **Type:** spec gap
+- **Disposition:** open. Accept, or give the wording (for example "L☉", if the font has it).
+
+### F-281 · What a link's id is
+- **Observation:** SYSG-54 orders a ring's gates "by the link ids", but the sector spec never gives links an id. The build uses a link's index in the sector's link list, the order SGEN-90 stores them, which is stable. Found in review.
+- **Affects:** SYSG-54, SGEN-90 · **Type:** spec gap
+- **Disposition:** open. Say so in one of them.
+
+### F-282 · Hand-made gates now list a state
+- **Observation:** INS-08 says a gate lists its state, so Corvane's and Sol's gate insets gained "State: Working", while SYSG-71 says the hand-made systems "stay as they are". Found in review.
+- **Affects:** INS-08, SYSG-71 · **Type:** conflict
+- **Disposition:** open. Accept the row, or show it for generated systems only.
 
 ## Parked
 
