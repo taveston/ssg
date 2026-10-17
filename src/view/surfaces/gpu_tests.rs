@@ -591,11 +591,13 @@ fn each_look_bakes_its_distinguishing_features() {
     assert!(frozen.mean_abs_height() < dark.mean_abs_height());
 
     // SURF-35: across a face's edge the border texel of one face and the
-    // last inner texel of its neighbour hold almost the same value: no
-    // more apart than texels a step apart inside a face.
+    // last inner texel of its neighbour are baked for nearly the same
+    // direction, so they sit clearly closer than texels a whole step
+    // apart inside a face. A border copied from its own face's edge, or
+    // a neighbour turned the wrong way, would be a step or more apart.
     let b = &dark;
     let w = b.face_px;
-    let (mut seam, mut inside, mut n) = (0.0, 0.0, 0);
+    let (mut seam, mut inside) = (0.0, 0.0);
     for y in 1..w - 1 {
         // +X (face 0) at s = -1 meets +Z (face 4) at s = +1.
         let across =
@@ -604,10 +606,6 @@ fn each_look_bakes_its_distinguishing_features() {
             Baked::luminance(b.texel(4, w - 2, y, 0)) - Baked::luminance(b.texel(4, w - 3, y, 0));
         seam += across.abs();
         inside += within.abs();
-        n += 1;
     }
-    assert!(
-        seam / n as f32 <= 1.5 * inside / n as f32 + 0.02,
-        "seam {seam} inside {inside}"
-    );
+    assert!(seam <= 0.75 * inside, "seam {seam} inside {inside}");
 }
