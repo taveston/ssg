@@ -22,7 +22,7 @@ The code is split into domains, each a folder under `src/` with its own Bevy plu
 | ID | Requirement | Built |
 |---|---|---|
 | ARCH-01 | Code is organised into the domain folders above. `main.rs` only assembles plugins and configures system sets. | ✓ |
-| ARCH-02 | Dependencies point one way: view → sim → nothing; content → sim types only. No file under `src/sim/` or `src/content/` may `use crate::view` (or camera/input), Bevy rendering, UI, picking, gizmo or window types. | ✓ |
+| ARCH-02 | Dependencies point one way: view → sim → nothing; content → sim types only. The view may also use content's plain data and utilities: the generator's random numbers and seed derivation, and the sector catalogue types (the loaded sector and its entries, links and gated systems). No file under `src/sim/` or `src/content/` may `use crate::view` (or camera/input), Bevy rendering, UI, picking, gizmo or window types. | ✓ |
 | ARCH-03 | No dependency cycles between modules inside a domain. When two view modules need the same state (selection, frame, fold state, motion mode), that state lives in a small shared module both read (for example `view/selection.rs`), not in one feature module the others reach into. | ✓ |
 | ARCH-04 | Each plugin registers only its own systems, resources and components. Ordering between domains uses the system sets in `main.rs` (simulation before view), not cross-module `.after()` calls. | ✓ |
 

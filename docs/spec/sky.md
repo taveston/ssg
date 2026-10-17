@@ -1,6 +1,6 @@
 # Spec: Sky
 
-**In short:** a sky behind the map, in the system view and in the sector view, to give a sense of scale: the sector is a small part of a galaxy. It is one sky for the whole game, made from a seed derived from the sector seed, and tied to no system. It holds a field of stars of many brightnesses and a Milky Way: a denser band of faint stars with a very faint glow and dark lanes, tilted off the orbital plane so that it always crosses the opening view. It is drawn at infinity, so it turns with the camera's heading and tilt and never moves when the view pans or zooms. Its stars are soft points in pale versions of natural star colours. It is always on, never a target, and drawn below everything else. In the sector view it is dimmer, so it stays quieter than the sector's own stars.
+**In short:** a sky behind the map, in the system view and in the sector view, to give a sense of scale: the sector is a small part of a galaxy. It is one sky for the whole game, made from a seed derived from the sector seed, and tied to no system. It holds a field of stars of many brightnesses and a Milky Way: a denser band of faint stars with a very faint glow and dark lanes, tilted off the orbital plane so that it always crosses the opening view. It is drawn at infinity, so it turns with the camera's heading and tilt and never moves when the view pans or zooms. Its stars are soft points in pale versions of natural star colours. It is always on, never a target, and drawn below everything else. In the sector view its stars are dimmer, so they stay quieter than the sector's own stars; the glow has a factor of its own.
 
 *Scope:* the sky's content, its brightness and colour, how it is projected and where it is drawn, and its place in both views. Not here: a toggle (layer toggles are not specced), a richer sky in the planetary view or the inspection inset, any label on the sky, motion of the sky with time. *Source ideas:* `docs/ideas/presentation/presentation.md` (section 2, Sky), mock-up `28-skybox.png`. It reuses the palette, camera and map area of `system-view.md` and the seed derivation of `sector-generator.md`. Where the mock-up and this spec disagree, this spec wins.
 
@@ -29,11 +29,11 @@
 
 | ID | Requirement | Built |
 |---|---|---|
-| SKY-09 | A star of magnitude *m* is drawn at the opacity `sky_peak` × 10 to the power (−0.4 × `sky_gamma` × *m*) in its colour (SKY-12), over what is beneath it. The brightest possible star is `sky_peak`, and the faintest star keeps a visible opacity, at least `sky_faint_floor`. | ✓ |
-| SKY-10 | A star is a soft point: a Gaussian of standard deviation `sky_sigma_px` + `sky_sigma_bright_px` × max(0, `sky_bright_mag` − *m*), in screen pixels, so brighter stars are larger. Sizes are in screen pixels and do not depend on the zoom or the field of view. | ✓ |
+| SKY-09 | A star of magnitude *m* is drawn at the opacity `sky_peak` × 10 to the power (−0.4 × `sky_gamma` × *m*) in its colour (SKY-12), over what is beneath it. Opacities here and in SKY-13 are in display (sRGB) levels: a star's and the glow's light is added over the ground as an sRGB blend would, not in linear light. Where two stars overlap, their light adds. The brightest possible star is `sky_peak`, and the faintest star keeps a visible opacity, at least `sky_faint_floor`. | ✓ |
+| SKY-10 | A star is a soft point: a Gaussian of standard deviation `sky_sigma_px` + `sky_sigma_bright_px` × max(0, `sky_bright_mag` − *m*), so brighter stars are larger. Sizes are in logical pixels, like markers (MRK-03), and do not depend on the zoom or the field of view. A star's standard deviation is never set below the smallest at which SKY-11's tolerance holds, so a lower `sky_sigma_px` can't make stars flicker. | ✓ |
 | SKY-11 | A star is drawn at its exact position on screen, not rounded to a whole pixel (SYM-16 does not apply), with its light spread over the pixels round it. The total light deposited by one star is within `sky_flicker_tolerance` of its mean for every sub-pixel offset, so a star neither flickers nor drops out as the view turns. | ✓ |
 | SKY-12 | A star's colour is drawn by type: bluish-white `sky_type_blue` with weight 0.25, white `sky_type_white` with weight 0.30, yellow-white `sky_type_yellow` with weight 0.25 and orange `sky_type_orange` with weight 0.20, from the seed. The colour used is the sky tone, moved `sky_colour_keep` of the way towards the type's colour, so it stays pale. No star's colour has an HSV saturation above `sky_max_saturation`, so no star can read as an affiliation colour or the warning orange (SYM-02, MRK-01). | ✓ |
-| SKY-13 | The band has a glow: a translucent fill in the sky tone along the band. Its opacity is `sky_glow_alpha` × a profile that falls off across the band as a normal curve of standard deviation `sky_glow_sigma_deg` from the band's centre line, and along it as `sky_core_floor` + (1 − `sky_core_floor`) × exp(−*l*² / (2 × `sky_core_sigma_deg`²)), × the factor of SKY-14. It is not drawn as a hard edge: the glow is under 5% of its peak at three standard deviations from the centre line. | ✓ |
+| SKY-13 | The band has a glow: a translucent fill in the sky tone along the band. Its opacity is `sky_glow_alpha` × a profile that falls off across the band as a normal curve of standard deviation `sky_glow_sigma_deg` from the band's centre line, and along it as `sky_core_floor` + (1 − `sky_core_floor`) × exp(−*l*² / (2 × `sky_core_sigma_deg`²)), × the factor of SKY-14, in display levels (SKY-09). It is not drawn as a hard edge: the glow is under 5% of its peak at three standard deviations from the centre line. | ✓ |
 | SKY-14 | The glow has dark lanes and a slight mottle, from seeded noise of the direction: a lane lowers the glow by up to `sky_lane_depth` and the mottle varies it by up to `sky_glow_mottle` either way. The pattern depends on the seed. The glow's factor from both stays between (1 − `sky_lane_depth`) × (1 − `sky_glow_mottle`) and 1 + `sky_glow_mottle`. | ✓ |
 | SKY-15 | The glow is dithered: before it is rounded to the display's levels, a seeded noise of `sky_dither_levels` levels at most, either way and averaging zero, is added per pixel, so the gradient shows no visible bands on an 8-bit display. | ✓ |
 
@@ -53,7 +53,7 @@
 
 | ID | Requirement | Built |
 |---|---|---|
-| SKY-23 | The sector view draws the same sky as the system view, from the same seed, projected as SKY-16 says, with the opacity of every star and of the glow multiplied by `sector_sky_factor`. Changing layer changes nothing in the sky but that factor. | ✓ |
+| SKY-23 | The sector view draws the same sky as the system view, from the same seed, projected as SKY-16 says, with the opacity of every star multiplied by `sector_sky_factor` and the glow's opacity by `sector_glow_factor`. Changing layer changes nothing in the sky but those factors. | |
 | SKY-24 | `sky_peak` × `sector_sky_factor` is at most `sector_faint_alpha` (SECT-03): in the sector view, the brightest star in the sky is no brighter than the faintest sector node. The default tunables satisfy it. | ✓ |
 
 ---
@@ -99,12 +99,13 @@ All in the `Tunables` resource (`src/view/tunables.rs`). Defaults are starting v
 | `sky_glow_mottle` | 0.25 | SKY-14 |
 | `sky_dither_levels` | 1 | SKY-15 |
 | `sector_sky_factor` | 0.5 | SKY-23, SKY-24 |
+| `sector_glow_factor` | 1.0 | SKY-23 |
 
 ## Open points
 
 - How the sky is drawn is not prescribed. Tens of thousands of points are one instanced draw, and the glow is a cheap field over the map area. If the frame time suffers, the glow can be baked to a small texture when the seed or the camera changes. The tests (projected positions, deposited light, factors) don't depend on the method.
 - The brightest few stars, at about 0.55 of the sky tone, are a little brighter than the belt's grain (`belt_speck_alpha` 0.5 of the orbit colour, MRK-18). What tells them apart is that the grain sits in a ring round the star and moves with the map while the sky holds still. If the two get confused on screen, lower `sky_peak`.
-- Sizes are in screen pixels, like every marker (MRK-03). There is no display-scale setting yet; if one comes, whether stars follow it is open.
+- Sizes are in logical pixels, like every marker (MRK-03). There is no display-scale setting yet; if one comes, whether stars follow it is open.
 - The planetary view and the inspection inset show no sky. Whether they should, and with what, is open.
 - The sky has no toggle (SKY-22). It joins the layer list when layer toggles are specced.
 - Every look here is a first draft from mock-up 28. Judge it on screen and add findings.

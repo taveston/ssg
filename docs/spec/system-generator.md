@@ -24,7 +24,7 @@
 
 | ID | Requirement | Built |
 |---|---|---|
-| SYSG-10 | The star is named as the system (SGEN-82), has the mass in kg, the mean radius and the class of the summary, and the authored key facts "Class" (the spectral type, SGEN-22), "Age" (in Gyr to one decimal), "Luminosity" (in solar units to 3 significant figures) and "Metallicity" ("[Fe/H]" and the value to 2 decimals). | ✓ |
+| SYSG-10 | The star is named as the system (SGEN-82), has the mass in kg, the mean radius and the class of the summary, and the authored key facts "Class" (the spectral type, SGEN-22), "Age" (in Gyr to one decimal), "Luminosity" (to 3 significant figures and "solar luminosities", for example "0.523 solar luminosities") and "Metallicity" ("[Fe/H]" and the value to 2 decimals with its sign, for example "[Fe/H] +0.16"). Its description is "The system's star.", as the hand-made stars'. | ✓ |
 
 ## 3. Planets
 
@@ -32,8 +32,8 @@
 |---|---|---|
 | SYSG-20 | Each planet of the summary is a record round the star at its summary orbit radius, with its summary mass and radius and the name the sector gave it (SGEN-82). It has its own orbit; natural bodies never share one (SCL-07). | ✓ |
 | SYSG-21 | Each natural body's starting phase is drawn uniformly from its own derived seed (SYSG-02, from the system's seed and the body's place in its list), so adding or removing one body doesn't move the others. | ✓ |
-| SYSG-22 | Each planet, moon and belt body carries **planet facts**: its kind, surface gravity (SGEN-38), equilibrium temperature (SGEN-39), atmosphere (SGEN-40), water (SGEN-41), whether it is tidally locked (SGEN-44) and its geological activity (SGEN-45), as data a rule or a view can read. A planet's kind is the one of SGEN-32, a moon's is "moon" and a belt body's is "rocky". | ✓ |
-| SYSG-23 | Each natural body has a one-line description built from its facts: kind, atmosphere and water in plain words. The wording is a placeholder. | ✓ |
+| SYSG-22 | Each planet, moon and belt body carries **planet facts**: its kind, surface gravity (SGEN-38), equilibrium temperature (SGEN-39), atmosphere (SGEN-40), water (SGEN-41), whether it is tidally locked (SGEN-44) and its geological activity (SGEN-45), as data a rule or a view can read. A planet's kind is the one of SGEN-32, a moon's is "moon" and a belt body's is "small body". | |
+| SYSG-23 | Each natural body has a one-line description built from its facts: kind, atmosphere and water in plain words. A belt body is described as a small body, for example "A small body with …", never as a planet. The wording is a placeholder. | |
 
 ## 4. Moons
 
@@ -42,7 +42,7 @@ A planet's moons follow the realistic spacing of the idea doc (`world-generator.
 | ID | Requirement | Built |
 |---|---|---|
 | SYSG-30 | A planet gets a number of moons drawn from the range for its kind (`moon_counts`): gas giant 3 to 12, ice giant 1 to 6, sub-Neptune 0 to 2, super-Earth 0 to 1, rocky 0, 1 or 2 with probabilities 0.80, 0.15 and 0.05. No planet has more than `moon_max_count` moons. | ✓ |
-| SYSG-31 | A planet's moons lie at orbit radii, measured in planet radii, that start between `moon_first_orbit_radii` and grow by a factor between `moon_orbit_ratio` from one moon to the next. A moon is dropped, and so are all those beyond it, if its orbit lies beyond the outer limit, the smaller of `moon_outer_limit_radii` planet radii and `moon_hill_fraction` of the planet's Hill radius. No moon orbits closer than `moon_inner_limit_radii` planet radii. | ✓ |
+| SYSG-31 | A planet's moons lie at orbit radii, measured in planet radii, that start at a radius drawn uniformly from `moon_first_orbit_radii` and grow by a factor drawn uniformly from `moon_orbit_ratio` from one moon to the next. A moon is dropped, and so are all those beyond it, if its orbit lies beyond the outer limit, the smaller of `moon_outer_limit_radii` planet radii and `moon_hill_fraction` of the planet's Hill radius. No moon orbits closer than `moon_inner_limit_radii` planet radii: a first orbit drawn inside it is raised to it. | ✓ |
 | SYSG-32 | A moon's mass is its planet's mass times a ratio drawn log-uniformly from `moon_mass_ratio_giant` for a giant and from `moon_mass_ratio_other` for any other planet. Its radius follows from the density `moon_density` (icy if the planet orbits at or beyond the snow line, otherwise rocky): R = (3 m ÷ 4 π ρ)^(1/3). | ✓ |
 | SYSG-33 | A moon has planet facts (SYSG-22) by the same rules as a rocky planet (SGEN-38 to SGEN-45), using its own mass and radius, its planet's distance from the star for its equilibrium temperature, and its planet as the parent (mass and orbit radius) and the moon values of `lock_q_over_k2` and `forced_eccentricity` for locking and tidal heat. A belt body's parent is the star and it uses the planet values of those tunables. | ✓ |
 | SYSG-34 | A moon is named for its planet, a space and a lowercase letter by distance from the planet, the nearest "a": for example "Morrow a", "Morrow b". | ✓ |
@@ -53,7 +53,7 @@ A planet's moons follow the realistic spacing of the idea doc (`world-generator.
 | ID | Requirement | Built |
 |---|---|---|
 | SYSG-40 | The belts of the summary become belt records in order from the inside out, each with the name "*System* belt" if the system has one belt, "*System* inner belt" and "*System* outer belt" if two, and "inner", "middle" and "outer" if three. | ✓ |
-| SYSG-41 | Each belt has a number of **belt bodies** drawn with probabilities `belt_body_count_weights` up to `belt_body_max`: ordinary planet-class bodies with orbits inside the belt's annulus, named from the sector's spare names for that belt (SGEN-82). A belt body's mass is log-uniform in `belt_body_mass_me`, and the bodies' masses sum to at most `belt_body_mass_cap` × the belt's mass: the smallest are dropped until they do. Its radius follows from the density `belt_body_density` (icy if the belt is mostly icy, otherwise rocky). Orbit radii are at least 2% apart and `ring_planet_gap` × the ring's radius from the ring's. A belt body has planet facts (SYSG-22) like a rocky planet. | ✓ |
+| SYSG-41 | Each belt has a number of **belt bodies** drawn with probabilities `belt_body_count_weights` up to `belt_body_max`: records of class Planet with orbits inside the belt's annulus, named inside out from the sector's spare names for that belt (SGEN-82). The draws come in this order: the count, then each body's mass and orbit, then the mass cap. A belt body's mass is log-uniform in `belt_body_mass_me`, and the bodies' masses sum to at most `belt_body_mass_cap` × the belt's mass: the smallest are dropped until they do. Its radius follows from the density `belt_body_density` (icy if the belt's icy share is above 0.5, otherwise rocky). Its orbit radius is uniform across the annulus. Of any two orbits in the belt, the larger is at least 1.02 times the smaller, and each is `ring_planet_gap` × the ring's radius from the ring's. An orbit that breaks either is drawn again up to 20 times, then the body is dropped. A belt body has planet facts (SYSG-22) like a rocky planet, with its kind "small body". | |
 
 ## 6. The gate ring
 
@@ -63,9 +63,9 @@ Gates sit at the system's edge, one per link end (`gates.md`, section 2). The ri
 |---|---|---|
 | SYSG-50 | The ring's radius is the one the sector stores for the system (SGEN-58). The detail never moves it or any planet. | ✓ |
 | SYSG-51 | The system has one record for each link end it belongs to: a **gate** if the link is working or dormant, and a **wreck** if it is collapsed. All are on the ring: round the star at the ring's radius, with a period from Kepler's third law (SCL-04). | ✓ |
-| SYSG-52 | A gate is a record of class Gate, named "*Destination* gate", with the destination system's name (EDGE-01), a gate entry tolerance of `gate_entry_tolerance_km_s` (PLAN-30), and a **gate state**: working; or dormant, with whether this end is faulted. | ✓ |
-| SYSG-53 | A wreck is a salvage site, named "*Destination* gate wreck", with the key fact "Wreck of the gate to *Destination*". Its contents are not generated. | ✓ |
-| SYSG-54 | The records on the ring are spread in phase. With n of them, the i-th has the phase θ + i × 360° ÷ n + a jitter drawn uniformly within ± `gate_jitter_fraction` of that spacing, θ being drawn once for the ring. So no two are closer than (1 − 2 × `gate_jitter_fraction`) × 360° ÷ n. They are ordered by the link ids. | ✓ |
+| SYSG-52 | A gate is a record of class Gate, named "*Destination* gate", with a radius of 5 km (as the hand-made gates), the destination system's name (EDGE-01), a gate entry tolerance of `gate_entry_tolerance_km_s` (PLAN-30), and a **gate state**: working; or dormant, with whether this end is faulted. | ✓ |
+| SYSG-53 | A wreck is a salvage site of radius 5 km, named "*Destination* gate wreck", with the key fact "Site" reading "Wreck of the gate to *Destination*". It is neutral and surveyed, with the placeholder description "What is left of a gate that collapsed." Its contents are not generated. | ✓ |
+| SYSG-54 | The records on the ring are spread in phase. With n of them, the i-th has the phase θ + i × 360° ÷ n + a jitter drawn uniformly within ± `gate_jitter_fraction` of that spacing, θ being drawn once for the ring. So no two are closer than (1 − 2 × `gate_jitter_fraction`) × 360° ÷ n. They are ordered by the link ids (a link's id is its index in the sector's link list, SGEN-90). | ✓ |
 | SYSG-55 | The inset of a gate lists its state (INS-08). | ✓ |
 
 ## 7. Names
@@ -79,7 +79,7 @@ Gates sit at the system's edge, one per link end (`gates.md`, section 2). The ri
 | ID | Requirement | Built |
 |---|---|---|
 | SYSG-70 | These are tested over every gated system of at least `invariant_seeds` sectors of each preset: SYSG-02, SYSG-03, SYSG-31, SYSG-32, SYSG-41, SYSG-54, SYSG-60. And in every system: the ring clears every giant's orbit by at least `ring_giant_clearance_hill` Hill radii and every planet's orbit by `ring_planet_gap` × its radius, unless the sector moved the planet (SGEN-59); and the number of gates and wrecks equals the number of the system's links. | ✓ |
-| SYSG-71 | Corvane and Sol stay as they are, hand-made test content. The generator doesn't replace them and doesn't read them (SOL-01). | ✓ |
+| SYSG-71 | Corvane and Sol stay hand-made test content. The generator doesn't replace them and doesn't read them (SOL-01). Their gates list a State in the inset like generated ones (INS-08); each hand-made gate is working. | ✓ |
 
 ## Tunables
 

@@ -8,61 +8,6 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 
 ## To triage
 
-### F-300 · Halden IV is too far out for its description
-- **Observation:** Halden IV orbits at 2.0 AU round Corvane's 0.78 M☉ K2V star. SGEN-22 gives that star about 0.37 L☉ and SGEN-39 gives Halden IV a Teq of about 140 K, against its description's −41 °C (232 K). With procedural surfaces (SURF-62) that Teq with thin air and ice gives the hazy look (SURF-17): a capital drawn as a Titan, surface hidden.
-- **Affects:** TEST-01, SURF-62 · **Type:** conflict
-- **Disposition:** open. Move Halden IV in to about 0.75 AU (its moons' periods are unaffected), or accept a colder capital and change the description.
-
-### F-301 · Halden IV's authored surface fact disagrees with its computed facts
-- **Observation:** Halden IV's authored key fact "Surface" reads "0.82 g, thin N2, -41 C". The inset now also lists the rule-derived Gravity 1.00 g and Equilibrium temperature 141 K, so one panel shows two gravities and two temperatures. The gravity comes from its authored mass and 6,700 km radius.
-- **Affects:** SURF-62, TEST-01 · **Type:** spec gap
-- **Disposition:** open. The build leaves the authored key fact and mass as they are. Either change the mass or radius to give 0.82 g and drop the "Surface" line, or accept both. The temperature half is F-300.
-
-### F-302 · Hand-made stars' key facts list only the class
-- **Observation:** SURF-60 gives each star its spectral type, luminosity and age "(SYSG-10)". SYSG-10 gives a generated star the key facts Class, Age, Luminosity and Metallicity. The build stores the three values as data on every star, but Corvane's and Sol's key facts still show Class only, so their insets show no age or luminosity. SOL-02 names only the class.
-- **Affects:** SURF-60, SYSG-10, SOL-02 · **Type:** spec gap
-- **Disposition:** open. Decide whether hand-made stars also list Age and Luminosity; they have no metallicity to show.
-
-### F-303 · The inset scrolls its 300 px image out of view
-- **Observation:** INS-05 scrolls the selected outline row into view when the selection changes. With the globe at `inset_image_px` (300 px) the details are tall, so for a body low in the outline (a moon, Jupiter) the panel scrolls until the globe is partly or wholly above the top. The 64 px placeholder rarely scrolled off.
-- **Affects:** INS-05, SURF-45 · **Type:** spec wrong
-- **Disposition:** open. Scroll to reveal the row only if the image stays in view, scroll only on a change made in the outline, or use a smaller `inset_image_px`.
-
-### F-304 · Earth under the lava override reads as an evenly glowing orange ball
-- **Observation:** Earth is not locked, so at `earth_override_t_k` (1,500 K) its surface temperature is 1,500 K everywhere: full heat glow all over, a few open lakes, and the terminator lost under the glow. It reads as a hot orange marble rather than a dark world with lava. The build keeps the rule; the glow's strength is a shader constant (`GLOW_STRENGTH`, 0.15).
-- **Affects:** SURF-63, SURF-20, SURF-15 · **Type:** spec wrong
-- **Disposition:** open. Lower `earth_override_t_k` (about 1,000 K gives glowing dark rock), dim the night-side glow, or treat Earth's override as locked so it has a molten dayside.
-
-### F-305 · A locked moon faces its planet
-- **Observation:** SURF-41 turns a locked planet to face its star and leaves every other body at its seed's heading. A moon's `locked` fact means locked to its planet, so the build turns a locked moon's prime meridian to face its planet (the Moon keeps one face to Earth). The temperature rule still treats it as not locked to the star.
-- **Affects:** SURF-41 · **Type:** spec gap
-- **Disposition:** open. Copy into SURF-41 if agreed.
-
-### F-306 · Generated bodies have no id for the surface seed
-- **Observation:** SURF-02 derives a generated body's seed from the sector seed and "surface" plus the body's id, but generated bodies carry no id. The build uses the display name instead; names are unique within a sector, so each body gets its own fixed seed.
-- **Affects:** SURF-02 · **Type:** spec gap
-- **Disposition:** open. Say "name" in SURF-02, or give generated bodies an id.
-
-### F-307 · A surveyed bake is up to 100 MB of VRAM
-- **Observation:** At `bake_face_px` 1024 a strip is 6 × 1024² texels of Rgba16Float: 50 MB, or 100 MB for a body that glows (a second row for the emissive). With `bake_cache_count` 8 the cache can hold 400 to 800 MB. The inset draws 300 px, where 256 px faces are already sharp; 1024 is for the map close in (SURF-34).
-- **Affects:** SURF-32, SURF-33 · **Type:** spec wrong
-- **Disposition:** open. `bake_face_px` 512 with the close-in bake carrying the detail, `bake_cache_count` 3, or an 8-bit emissive row.
-
-### F-308 · The star keeps the placeholder image
-- **Observation:** INS-04 says a natural body's image is its globe, but SURF-10 to SURF-19 give no look for a star. The build keeps the placeholder for stars.
-- **Affects:** INS-04, SURF-45 · **Type:** spec gap
-- **Disposition:** open. A star look (a limb-darkened disc in the class colour) would be a small addition to the chooser.
-
-### F-309 · A volcanic world under a dense atmosphere shows its surface
-- **Observation:** The chooser puts volcanic (activity extreme) before dense, so a generated super-Earth with a dense atmosphere and extreme activity (two of three in the seed-7 sector sample) draws sulphur plains, glowing pits and plumes with no cloud deck or halo. A dense atmosphere would hide them, as it hides a hot surface.
-- **Affects:** SURF-13, SURF-16 · **Type:** spec wrong
-- **Disposition:** open. Put dense before volcanic (then only airless and thin worlds are volcanic), or add a volcanic variant of the dense look (a deck with a warmed halo).
-
-### F-310 · The lava override's temperature raise is not tied to Earth's name
-- **Observation:** SURF-63 raises Earth's Teq to `earth_override_t_k` for its override. The build applies the raise to any lava override on a body whose own facts would not melt it (today only Earth), so content needs no name check and a hotter authored override keeps its own figures.
-- **Affects:** SURF-63 · **Type:** spec gap
-- **Disposition:** open. Copy into SURF-61 or SURF-63 if agreed.
-
 ### F-311 · The close-in re-bake never triggers for the frame body
 - **Observation:** SURF-34 re-bakes once the projected radius passes `bake_face_px` × `rebake_zoom_factor` = 512 px. ZOOM-14's inner limit caps the frame body's diameter at `body_max_screen_fraction` (0.25) of the map's height, so its radius is about 105 px at most. The finer face only shows for a body that isn't the frame, seen large from a close neighbour's frame (a giant from an inner moon), or through `OW_SHOT`'s `distance`. In practice it never shows.
 - **Affects:** SURF-34, ZOOM-14 · **Type:** spec wrong
@@ -93,448 +38,8 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** SURF-16, SURF-17 · **Type:** bug
 - **Disposition:** open. Check the dense and hazy deck's warp in `bake.wesl`.
 
-### F-162 · Which band Iver Yard sits in
-- **Observation:** SCL-07 now puts every station in a band, so the build drops a station's own orbit. TEST-02 and TEST-09 name the band for Arden Highport and Tern Relay, but nothing names one for Iver Yard, which had its own 45,000 km orbit. The build puts it in Iver's High band (197,200 km at 34 radii, period about 10.6 d). That band was nearest its old orbit when High was 10 radii; now the Low band (6,300 km) is nearer. This moves Iver's satellite frame out to 197,200 km.
-- **Affects:** SCL-07, TEST-01 · **Type:** spec gap
-- **Disposition:** open. Accept, or name Iver Yard's band in TEST-01.
-
-### F-163 · Vestige's burn time is longer than the orbit it leaves
-- **Observation:** Vestige's first burn from Earth's Low band to its High band (SOL-17) is about 3.0 km/s at 20 milli-g, so XFER-05 gives it 4.2 h of burn days. Against the 52 h Hohmann crossing that is a small share. The rule keeps the ship Parked in Low for those 4.2 h, then applies the whole burn as one impulse at the crossing start, and solves the crossing again from that later start. So the burn only delays the trip: no thrust arc is drawn, no gravity loss is charged, and the time the ship would spend burning is spent waiting. Yet 4.2 h is about 2.7 laps of Low (94.5 min), so a real burn that long could not be treated as an impulse at one point. Marlin's burn (0.1 g, about 51 min) is about half a lap, which is borderline too.
-- **Affects:** XFER-05, SOL-16, SOL-17 · **Type:** spec gap
-- **Disposition:** open. Accept the delay as a stand-in, or say how a burn that lasts a large share of an orbit is modelled (bears on F-158).
-
-### F-168 · Capture and closest approach inside the primary's frame
-- **Observation:** BAND-06 and PHAS-11 read the point from the hyperbola a ship arrives on from outside a body's frame. A crossing round the body itself (band to band, or to a gate round the star) has no such hyperbola: its arc ends at a real place. The build lands a Rendezvous where the arc ends, and gives an Intercept there the angle of the arc's end as its closest-approach phase. The old rule (the angle of the arrival velocity) put the ship somewhere it never flew.
-- **Affects:** BAND-06, PHAS-11 · **Type:** spec gap
-- **Disposition:** open. Accept, and say so in BAND-06.
-
-### F-169 · "Already there" is a reason to the planner and done at once to an order
-- **Observation:** PHAS-04 says the plan is Done at once, and PLNR-42 and PLNR-92 make "Already there" a reason the solver gives. The build does both: the solver (`preview`) returns `AlreadyThere`, and `schedule` accepts the order and changes nothing, as Hold does for a parked ship. No Done plan is kept on the ship.
-- **Affects:** PHAS-04, PLNR-42 · **Type:** spec gap
-- **Disposition:** open. Accept, or say whether a Done plan should be recorded.
-
-### F-170 · How a low-thrust Intercept is trimmed
-- **Observation:** PHAS-15 trims an Intercept by lengthening `travel_days`, but a low-thrust drive's travel time is fixed by the drive (XFER-06). The build adds the trim to the spiral's length: same delta-v, gentler thrust, ending at the body a little later. Separately, the trim can fail on an impulsive leg when a small change of travel time moves the exit point past the ship, so the departure wait (PHAS-03) jumps by a period; the leg is then "Can't line up".
-- **Affects:** PHAS-15, XFER-06, PHAS-03 · **Type:** spec gap
-- **Disposition:** open. Accept, make a low-thrust Intercept at a station infeasible, or trim it by waiting before departure.
-
-### F-171 · Which band an Intercept at a station passes through
-- **Observation:** XFER-10 says an Intercept at a station or parked ship takes the target's band, but the order also carries `Intercept { band }`. The build uses the target's band and ignores the order's, so an Intercept at a station in a Low band (Arden Highport) passes through Low and is turned (XFER-13). Its speed (XFER-09) is taken at the target's band; for a station round the crossing's primary it is the plain relative speed (XFER-10).
-- **Affects:** XFER-10, XFER-08, XFER-09 · **Type:** spec gap
-- **Disposition:** open. Accept, or say what the order's band means for a station.
-
-### F-172 · The phasing rule of thumb holds only near half a turn
-- **Observation:** PHAS-13's rule of thumb (delta-v × meeting time within 3% of ⅔ × r × angle, for k ≥ 2) holds for the half-turn gap the check gives. For other gaps it can miss: at a gap of 0.8 of a turn, k = 2, inner orbit, it is 3.1% off. The test checks the half-turn case only.
-- **Affects:** PHAS-13 · **Type:** spec wrong
-- **Disposition:** open. Limit the rule to the half-turn case, or widen the tolerance.
-
-### F-173 · Groups are together, but nothing forms them yet
-- **Observation:** PHAS-14 needs the ships of a group to be together. A group is now one body with one orbit and phase, and its ships have no place of their own (F-176), so they are together by construction. Only content makes groups (TEST-06); nothing in play forms or merges one (F-159). `SystemTree::all_together` says whether separate ships could become one group (all parked in one orbit, every two together); whatever forms or merges groups should call it.
-- **Affects:** PHAS-14 · **Type:** spec gap
-- **Disposition:** open. Use the check when group orders are specced.
-
-### F-174 · A pass through a moon's Low band from beyond its planet
-- **Observation:** A crossing from another planet to a moon goes round the star and aims at the moon's planet (XFER-01). An Intercept through the moon's Low band then turns by the moon's gravity, but at the planet's position and with the velocity relative to the planet, which is what the crossing ends on. The closest-approach phase (PHAS-11) already reads the same way. The build accepts this.
-- **Affects:** XFER-13, XFER-01 · **Type:** spec gap
-- **Disposition:** open. Accept, or say how a pass through a moon's band is aimed from outside its planet's frame.
-
-### F-175 · A low-thrust pass through Low reads as half a turn
-- **Observation:** A low-thrust crossing ends on the body's circle at almost the body's own velocity (XFER-06), so it arrives with almost no excess speed. XFER-13 then gives a turn of nearly 180°, though turning an excess velocity that small changes almost nothing. The build applies the rule as written, so the planner's label (PLNR-65) would read "turn 180°".
-- **Affects:** XFER-13, XFER-06, PLNR-65 · **Type:** spec gap
-- **Disposition:** open. Accept, show no turn for a low-thrust leg, or make a low-thrust Intercept through Low infeasible.
-
-### F-176 · How a group is held in the simulation
-- **Observation:** SYM-01 says a group holds its members, but not how. The build makes a group one body (class Ship, with a `ShipGroup` component) in its named orbit, at its own phase. Its ships are member entities holding a name and a ship record only: no orbit, phase, class marker or drive. So the view draws and folds the group as one body and never sees the members (SYM-09, GRP-09). The group's ship record is derived from the members' and kept in step each frame. The spec names class, armed status, load and condition; the build also chose: the track is the weakest member's (stale before weak, the older stale date), command is shared, and a group is requisitioned only if every member is. A group has no drive, so it can't be ordered anyway.
-- **Affects:** SYM-01, SYM-09, PHAS-14, TEST-10 · **Type:** spec gap
-- **Disposition:** open. Confirm, or say how members should be held once groups form and split in play.
-
-### F-177 · The words of a group's member count
-- **Observation:** SYM-13 gives "4 warships" as the only example. The build names the classes "warship", "troop transport", "supply ship", "cargo ship" and "unknown ship" (plural with "s"), lists them most significant first, and joins them with ", " inside the one " · " part: "2 warships, 1 supply ship". The outline (GRP-09) reads "TF-1 · 4", like an orbit row; its small symbol carries no count or bracket. The inset of a group still reads "Ship · own" with the group's description (F-159).
-- **Affects:** SYM-13, GRP-09 · **Type:** spec gap
-- **Disposition:** open. Confirm the words, or give the class names.
-
-### F-179 · Which ends of a crossing take the Low band limit
-- **Observation:** XFER-07 gives the Low band limit to a crossing or coast that starts or ends "in a place round the primary itself (a band, or a station in one)". It doesn't say whether a ship coasting round the primary counts: one setting out from a coast, or a ship target on one. The build gives the Low band limit to every end round the primary, coasts included, as the old exemption did, and also a gate's or site's own orbit round it. A path solved to touch the Low band lands a hair either side of it, so a periapsis within a millionth of the limit (about 6 mm at a Low band) counts as at it.
-- **Affects:** XFER-07 · **Type:** spec gap
-- **Disposition:** open. Accept, or say which ends count as round the primary.
-
-### F-181 · Sol's drives have no display names
-- **Observation:** PLNR-05 gives every drive a display name, and TEST-30 names Corvane's two. Sol's Marlin and Vestige (SOL-15, SOL-16) have drives too, but no names. The build calls Marlin's "hydrogen NTR", like Orison's, and Vestige's "fusion torch".
-- **Affects:** PLNR-05, TEST-30, SOL-15, SOL-16 · **Type:** spec gap
-- **Disposition:** open. Accept, or name them in SOL-15 and SOL-16.
-
-### F-183 · Words the spec doesn't give
-- **Observation:** PLNR-92 words nine of the solver's reasons. The others needed sentences too, and the build chose: no destination found "*target* can't be found"; no High band "*target* has no High orbit"; Hold "Holding is not a trip"; no path "No path gets there in that time"; a low-thrust drive and a coasting path "This drive can't match a coasting path"; a target in flight "*target* is under way, so it can't be met"; the ship in flight "The ship is under way"; already ordered "The ship already has an order"; no drive "The ship has no drive"; more than one leg "Only one leg can be ordered"; an Intercept in the ship's own orbit "*target* is in this ship's orbit, so it can only rendezvous". The laps readout (PLNR-40) says "1 lap" for one. A delta-v that rounds up to 1 km/s reads "1.0 km/s", not "1.00" (UNIT-04).
-- **Affects:** PLNR-92, PLNR-40, UNIT-04 · **Type:** spec gap
-- **Disposition:** open. Accept, or give the words.
-
-### F-184 · How the search fills the gaps in its rules
-- **Observation:** The build chose these where PLNR-80 to PLNR-87 are silent. A Travel time slider's settings are its start plus whole steps, and its end. Refining a preset (PLNR-86) solves those settings within one grid spacing of the sample; if none qualifies (no affordable one for Fastest), the setting nearest the sample is kept. Cheapest is refined by least delta-v alone, as PLNR-86 says, without PLNR-84's tie rule. A phasing leg's meetings are already all on the grid, so nothing is refined. A low-thrust drive's fixed travel time is the one its leg takes when leaving today. A phasing leg's meetings are the *k* whose own orbit fits (PHAS-08), solved with no budget, so a meeting the ship can't afford is still a position, coloured over budget. When nothing on the grid can be planned, the reason shown is the one the solver gave most often. The headless test that searches twice in Corvane, app start included, runs in about 30 ms.
-- **Affects:** PLNR-23, PLNR-82, PLNR-84, PLNR-86, PLNR-40, PLNR-12 · **Type:** spec gap
-- **Disposition:** open. Accept.
-
-### F-192 · Commanded ships with no drive get a planner they can't use
-- **Observation:** PLNR-01 gives every commanded ship parked in a named orbit a Transfer button. In Corvane only Orison and RFA Tolland have drives (TEST-30); Ardent, the transports and Delve have none. The build shows them the button, and the planner opens, but every line reads "The ship has no drive". Commanded stations (Tern Relay) get no button, as PLNR-01 says "ship". PLNR-05's Delta-v and Drive facts show only for a ship with a drive.
-- **Affects:** PLNR-01, PLNR-05, TEST-30 · **Type:** spec gap
-- **Disposition:** open. Accept, hide the button for a ship with no drive, or give every commanded ship a drive in content.
-
-### F-193 · Where the planner's parts sit in the inset
-- **Observation:** The spec orders the tuning rows (PLNR-20) but not the rest. The build chose: the header (name, Focus, Close) and class line stay while the planner is open; the image, description, key facts and planetary-view button give way; the Transfer button hides. The quiet Cancel sits beside Schedule, and under the prompt while choosing. The Gap line follows the Travel time row. An order (PLNR-51) and a coasting ship's place (PLNR-54) sit below the key facts, over a hairline; the PLNR-53 line sits above the header. Fastest shows disabled when nothing is affordable (PLNR-29), though PLNR-83 says it then doesn't exist, which would hide it.
-- **Affects:** PLNR-02, PLNR-20, PLNR-29, PLNR-41, PLNR-51, PLNR-53, PLNR-54 · **Type:** spec gap
-- **Disposition:** open. Accept, or place them.
-
-### F-194 · What a click does while planning, beyond PLNR-11
-- **Observation:** An orbit row in the outline both picks its band and opens, so the ships in it stay within reach. A double-click while planning picks and still moves the camera (ZOOM-16), as camera controls work as usual (PLNR-03). A named orbit that is not a band or a docking orbit (Morrow IX's "Outer") can't be picked, as no place stands for it (BAND-02). An Intercept of a station or ship is ordered through High; the solver takes the target's own band anyway (F-171).
-- **Affects:** PLNR-03, PLNR-11, INS-05, BAND-02 · **Type:** spec gap
-- **Disposition:** open. Accept.
-
-### F-195 · Changing an order cancels it first
-- **Observation:** PLNR-53's Schedule replaces the order. The build sends Cancel and then the new order in one frame, so the old reservation is free for the new one. If the new order were refused there, the old one would already be gone; the panel only schedules a leg it has just solved within the budget, so this should not happen. What the simulation answers (`OrderOutcome`) is not shown anywhere.
-- **Affects:** PLNR-50, PLNR-53, PLAN-22 · **Type:** spec gap
-- **Disposition:** open. Accept, or ask for a replace in the simulation's order API.
-
-### F-196 · How the sliders behave where the spec is silent
-- **Observation:** A phasing leg's meetings sit evenly along the track, one position each, not by time. A slider keeps keyboard focus until a press on the map. The thumb is centred on its setting, so it overhangs the track by half its width at each end.
-- **Affects:** PLNR-23, PLNR-40 · **Type:** spec gap
-- **Disposition:** open. Accept.
-
-### F-197 · Orison can't reach Iver, so its tracks are all orange
-- **Observation:** Seen on screen. A Rendezvous from Halden IV's High band to Iver's needs at least 13.2 km/s, more than Orison's 9.9, so both tracks are the over-budget colour from end to end and no window shows as a bright band. An Intercept of Iver, or Halden IVa, is within reach. The empty colour (the inset's hairline colour) is light grey, close to the dimmest blue, so a rejected setting is hard to tell from a dear one.
-- **Affects:** PLNR-28, TEST-30, F-158 · **Type:** spec wrong
-- **Disposition:** open. Give Orison more delta-v or cheaper bands (F-158), and pick an empty colour darker than the hairline.
-
-### F-198 · The departure ghost of a leg that starts round its own primary
-- **Observation:** PLNR-63's departure ghost is the departure body where the path starts. A leg that starts in an orbit of the crossing's primary has no such body: a phasing leg, or a trip from Halden IV's High band to Halden IVa, goes round Halden IV itself. The build ghosts the ship there instead, a `ship_symbol_px` circle at the path's start. In every other case it ghosts the departure's ancestor directly below the primary (XFER-01), as the path starts from that body's state.
-- **Affects:** PLNR-63 · **Type:** spec gap
-- **Disposition:** open. Accept, or draw no departure ghost for such a leg.
-
-### F-199 · An order being changed hides its own path
-- **Observation:** While Change has the planner open on a Scheduled order (PLNR-53), the map draws only the leg being tuned, not the order still in force. Drawing both would give the ship two paths and two arrival ghosts with near-identical labels.
-- **Affects:** PLNR-53, PLNR-62 · **Type:** spec gap
-- **Disposition:** open. Accept, or show the old path faintly.
-
-
-### F-202 · Dashes crawl along a path in flight
-- **Observation:** Dashes and dots are laid on screen from the start of the dashed part, so their length stays `path_dash_px` at any zoom (PLNR-61). In flight that start is the ship, which moves, so the dashes slide along the path as the ship flies and as the camera moves. Laying them from the path's end would hold them still while the ship flies, but not while the camera zooms.
-- **Affects:** PLNR-61 · **Type:** idea
-- **Disposition:** open. Watch in play; anchor the dashes to the arrival end if the crawl distracts.
-
-### F-219 · At heading 0 the vertical axis lies on the north arm
-- **Observation:** At heading 0, at any tilt between straight down and edge-on, the north arm and the plane's normal both point straight up the screen. They start at the same gap beyond the frame body's box, with the same dot size and pitch, so the axis's upper half sits dot for dot on the north arm. Only the arrowhead, the ticks and a slightly stronger fade show there are two strokes. A few degrees of heading separates them. The build follows REF-06 as written, with no offset or tint.
-- **Affects:** REF-06, REF-01 · **Type:** spec gap
-- **Disposition:** open. Check on screen. If it reads as one line: a different dot pitch or size for the axis, dots offset by half a pitch, or a tint (spec open points).
-
-### F-221 · A window leg skips a start whose crossing would graze the Low band
-- **Observation:** PHAS-16 says to take the cheapest of the sampled starts. Inside a planet's frame the cheapest arc to a station in the Low band often just touches the band, and the burn days alone tip it under, so the leg would be refused (XFER-07). The build prices each start by its arc, then takes the cheapest start whose crossing, flown after its burn days, clears the primary. It takes the cheapest outright only if none clears.
-- **Affects:** PHAS-16, XFER-07 · **Type:** spec gap
-- **Disposition:** open. Accept, and add the sentence to PHAS-16.
-
-### F-222 · A window leg's grid looks for each day's window where Soonest found it
-- **Observation:** Searching every start for every grid cell took about 360 ms per search for a station in the Low band. A window leg costs the same whenever its two ends stand the same way, which recurs every window interval. So the grid searches Soonest in full, and on other days tries the start nearest that phase and one either side, falling back to a full search when none of them can be flown. In tests under 5% of cells differ from a full search, and none is dearer. The solved leg and Schedule always use the full search.
-- **Affects:** PLNR-82, PHAS-16 · **Type:** spec gap
-- **Disposition:** open. Accept, or ask for an exact grid at about 4 times the cost.
-
-### F-223 · Presets are kept as the clock runs
-- **Observation:** PLNR-87 says the clock doesn't recompute the presets. The build keeps their settings. A preset at Soonest, or on a day that has come, moves to Soonest with its travel time kept, as a thumb does (PLNR-24). Its travel time may then be rejected there.
-- **Affects:** PLNR-24, PLNR-29, PLNR-87 · **Type:** spec gap
-- **Disposition:** open. Accept, or pick the presets again on the daily step (about 100 more solves).
-
-### F-224 · No Intercept through the Low band of the crossing's primary, wherever the ship starts
-- **Observation:** PLNR-30 names "the leg's own primary, the body the ship orbits". The build tests the crossing's primary. So a leg from a moon's band to its planet's Low band (or to a station in it) offers no Intercept either, since XFER-07 restricts it the same way.
-- **Affects:** PLNR-30 · **Type:** spec gap
-- **Disposition:** open. Accept, and reword PLNR-30.
-
-### F-225 · How PLNR-33 judges a position off the grid
-- **Observation:** A Depart position that isn't a grid column, and lies between two rejected columns, counts as rejected without being solved, as the track draws it. Otherwise its Travel time track is solved and kept for the session. A travel time between two rejected track samples counts as rejected too. A key step with no accepted setting in its direction leaves the thumb where it is. On a leg with gappy windows a day that is really accepted could be skipped.
-- **Affects:** PLNR-33 · **Type:** spec gap
-- **Disposition:** open. Accept, or always solve the track for such a day (slower).
-
-### F-226 · Short window intervals make a two-position Depart slider
-- **Observation:** From Halden IV's High band to Halden IVa the window interval is 1.7 days. The Depart range is therefore 1.9 days, and the slider has only Soonest and tomorrow. Any window interval between one and about two days gives a slider this short.
-- **Affects:** PLNR-80, PHAS-16 · **Type:** spec wrong
-- **Disposition:** open. Raise PHAS-16's one-day threshold, or give the Depart range a minimum span.
-
-### F-227 · A phasing leg's grid has only the Soonest column
-- **Observation:** PLNR-82 says the grid holds Soonest and the Depart positions. For a phasing leg every day costs the same, so the build keeps only the Soonest column, and the Depart track is drawn in one colour from it (PLNR-40).
-- **Affects:** PLNR-82, PLNR-40 · **Type:** spec gap
-- **Disposition:** open. Accept, and add the sentence to PLNR-82.
-
-### F-228 · The Depart tooltip when a day has no trip
-- **Observation:** PLNR-106 doesn't say what a depart day with no trip at all counts as, or what an empty grid shows. The build counts such a day as outside the margin, so the Depart label shows the full PLNR-96 text, which explains blank. Since Soonest is solved again as the clock runs, the label can switch between its two texts while the planner is open.
-- **Affects:** PLNR-106, PLNR-96 · **Type:** spec gap
-- **Disposition:** open. Accept, and add the sentence to PLNR-106.
-
-### F-245 · The outline follows a selected ship that moves
-- **Observation:** INS-05 opens the path to the selection only when the selection changes. A selected ship that arrives at another body would then drop out of the outline, because its new parent and orbit row are still collapsed. The build also opens the new path (the parent entry and the named orbit's row) when the selected body's parent or named orbit changes, and scrolls it into view; other entries keep their state. That scroll can override where the player had scrolled the outline, on departure and on arrival.
-- **Affects:** INS-05, RAIL-09 · **Type:** spec gap
-- **Disposition:** open. Accept and say so in INS-05, or open the path without scrolling.
-
-### F-246 · The object pip sits too far from its parent
-- **Observation:** In play, the pip reads as slightly detached from its planet. GRP-12 centres it `h + object_pip_gap_px` right of and below the parent's centre, so it clears the parent's marker by the gap.
-- **Affects:** GRP-12 · **Type:** spec wrong
-- **Disposition:** open. Seen by the user in play (build 776cc34), who says it is minor. Bring the pip closer; letting it overlap the parent's marker would be fine and makes the link clearer.
-
-### F-248 · A popped marker holding one thing looks like a group
-- **Observation:** In play, when the pip pops out into the fold marker, it shows a back frame (MUL-01) even when the parent holds only one thing, so a single ship reads as a group. The builder followed MUL-01: a single thing has no back pip at rest, and as it pops its back frame slides out to `back_frame_offset_px`.
-- **Affects:** MUL-01, GRP-12, GRP-13 · **Type:** spec wrong
-- **Disposition:** open. Seen by the user in play (build 776cc34). A popped marker holding one thing should show no group indicator. Mock-up 27 shows it that way.
-
-### F-249 · How long the axis's lower half is once the upper half is clipped
-- **Observation:** REF-07 makes the lower half `ref_down_fraction` of the upper half's length, but doesn't say which length once REF-06 clips the upper half at the map edge. The build uses the unclipped length, so with the frame body high on the map the lower half keeps its full length and can be longer than the clipped upper half. The lower half then doesn't jump as the body nears the edge.
-- **Affects:** REF-06, REF-07 · **Type:** spec gap
-- **Disposition:** open. Accept, and say so in REF-07.
-
-### F-250 · Does the object marker fade out, or vanish at once?
-- **Observation:** GRP-12 says the pip "appears and disappears over `fold_unfold_anim_ms`". INS-06 says a multi-marker whose last thing leaves "hides at once". The build fades the pip in, but drops it at once when its last ship, group or station starts to unfold; the unfolding thing's own slide covers the change.
-- **Affects:** GRP-12, INS-06 · **Type:** spec gap
-- **Disposition:** open. Pick one rule for a fold marker's last thing: drop "and disappears" from GRP-12, or say how it fades out with nothing left in it.
-
-### F-251 · Which parents count for "nearest" when popping, and a tray above
-- **Observation:** GRP-13 pops a marker only when the pointer is nearer its parent than "any other parent's". The build counts every body that has anything folded into it, moons included and on screen or not, so a moons-only planet close by can stop a neighbour's pip from popping. MUL-08 puts a fold marker's tray "above it" when it doesn't fit below; just above the marker it would cover the parent, so the build places it above the parent's box too.
-- **Affects:** GRP-13, MUL-08 · **Type:** spec gap
-- **Disposition:** open. Say which parents count (all with folds, only those with an object marker, only those on screen), and accept the tray rule into MUL-08.
-
-### F-252 · Where a parent's label is centred beside its popped fold marker
-- **Observation:** GRP-12 has the parent's label try left, above, below, then right, "measured from the popped fold marker's box". The build places it beside the union of the parent's box and the popped marker's box, centred along that union's side. The popped marker hangs down and to the right, so a left label sits about 11 px below the planet's centre. In the overview that left slot hits Lantern's marker, so Halden IV's label goes above; centred on the planet it would fit on the left.
-- **Affects:** GRP-12, LBL-01 · **Type:** spec gap
-- **Disposition:** open. Say whether each slot keeps the union box's edge but is centred on the parent's own box, or accept the union centring.
-
-### F-253 · Ships folded into a folded moon have no marker
-- **Observation:** Folded ships, groups and stations go to an object marker, and natural bodies to the moon ring. A satellite of a satellite that has itself folded is counted nowhere. Before, the moon sat in the planet's fold marker and carried its own folds. Now, at the system fit, Morrow IX's Tern Relay (an own station) and the Kessel trader (TEST-09) are on no marker: Morrow shows "+11" and no pip. When one of them is selected, its mark goes round Morrow's marker and ring.
-- **Affects:** GRP-11, GRP-12, MUL-04, INS-06, TEST-09 · **Type:** spec gap
-- **Disposition:** open. Say whether things folded into a folded moon pass up to the nearest drawn parent's object marker (and how its tray lists them), or stay unshown.
-
-### F-254 · A star's age is drawn up to its lifetime, and giants may pass the maximum
-- **Observation:** SGEN-23 says age is drawn from `age_min_gyr` to `age_max_gyr` "and capped at" the main-sequence lifetime. Drawing then capping would put most F and A stars at exactly their lifetime (59% of 1.4 M☉ stars at 4.3 Gyr). The build draws uniformly from `age_min_gyr` to the lesser of `age_max_gyr` and the lifetime. A giant's age (its progenitor's lifetime × 1.0 to 1.1) can pass `age_max_gyr`: a 1 M☉ giant is 10 to 11 Gyr old. The build follows the spec there.
-- **Affects:** SGEN-23 · **Type:** spec gap
-- **Disposition:** open. Copy the draw into SGEN-23, and say whether giants may pass `age_max_gyr`.
-
-### F-255 · Template bounds the spec leaves open
-- **Observation:** SGEN-33 leaves some ranges and mixes open. The build, all in `template_rules`: a hot giant's 0 to 2 outer planets go from 0.5 to 2 snow lines, with the solar-like kinds (0.7 rocky, 0.3 super-Earth); a debris disc's planets go from 0.05 to 2 snow lines, with the compact kinds; a white-dwarf remnant's kinds are gas giant, ice giant and super-Earth, equally likely. Planet counts within a template's range are uniform. Only the Hill rule (SGEN-34) redraws; a planet outside the template's range or beyond the companion limit is dropped at once.
-- **Affects:** SGEN-33, SGEN-34 · **Type:** spec gap
-- **Disposition:** open. Copy the bounds and mixes into the spec, or give others.
-
-### F-256 · Belts also keep inside the companion limit
-- **Observation:** SGEN-30 limits planets to `companion_truncation_fraction` × the nearest companion's separation, but says nothing of belts. A belt at 6 snow lines (16 AU round a G star) could sit outside a companion at 5 AU. The build keeps a belt's outer edge inside the same limit; a belt that finds no room in 20 tries is dropped.
-- **Affects:** SGEN-30, SGEN-37 · **Type:** spec gap
-- **Disposition:** open. Add belts to SGEN-30, or drop the limit for belts.
-
-### F-257 · Companion mass and separation limits
-- **Observation:** SGEN-25 limits a companion's class but not its mass, so a G companion of a 0.85 M☉ G primary could be heavier than it. The build caps a companion's mass at the primary's. SGEN-26 says separations are "limited to" `companion_min_au` and `wide_pair_min_au`; clamping would pile about a fifth of non-M companions at exactly 1,000 AU, so the build redraws an out-of-range separation up to 20 times, then clamps.
-- **Affects:** SGEN-25, SGEN-26 · **Type:** spec gap
-- **Disposition:** open. Copy both into the spec, or choose otherwise.
-
-### F-258 · Spectral types of white dwarfs and giants
-- **Observation:** SGEN-22 builds a spectral type from "its class letter, a digit and V ('D' for a white dwarf, 'III' for a giant)", but neither has a class letter. The build writes a white dwarf as "D" and the digit ("D4"). A giant takes its letter from its temperature (M below 3,700 K, K below 5,200, G below 6,000, F below 7,500, else A), then the digit and "III" ("K2III"). Drawing a giant's radius and luminosity independently could give 1,900 to 10,000 K, so the build draws both at the same place in their log ranges. Every giant is then about 4,300 to 4,600 K, a K giant, with its digit set by mass.
-- **Affects:** SGEN-22 · **Type:** spec gap
-- **Disposition:** open. Copy into SGEN-22, or give another notation.
-
-### F-259 · Same sector on every machine depends on the platform's maths library
-- **Observation:** SGEN-02 asks for the same sector "on every run and machine". The random numbers are integer arithmetic, identical everywhere, and a test pins the published xoshiro256** and SplitMix64 values. But the generator also uses `powf`, `ln`, `exp`, `cbrt`, `sin` and `cos`, which Rust takes from the platform's maths library, and their last bit may differ between operating systems. Range and Hill-spacing branches can turn that into a different sector. The same build target gives the same sector every run. The sky (SKY-01) uses the same generator and functions, so the same holds for it.
-- **Affects:** SGEN-02, SGEN-06, SKY-01 · **Type:** spec gap
-- **Disposition:** open. Accept "same target, same sector", or write the few functions in the repo (SGEN-06 rules out a crate such as `libm`), or allow such a crate.
-
-### F-260 · Every sub-Neptune has the same surface gravity
-- **Observation:** The sub-Neptune curve in SGEN-36, R = 2.4 × (M ÷ 6)^0.5, makes M ÷ R² a constant, so every sub-Neptune has a gravity of 1.04 g, whatever its mass. Envelopes aren't scored for settlement, so nothing depends on it yet, but the inspection inset will show the same figure for every one.
-- **Affects:** SGEN-36, SGEN-38 · **Type:** spec wrong
-- **Disposition:** open. Use another exponent, or accept it.
-
-### F-261 · A moved planet's facts are worked out from a stored endowment
-- **Observation:** Built: the volatile endowment is stored on the planet (`volatile_endowment`, none for envelopes), and a moved planet's atmosphere is worked out again from it (SGEN-59). Water keeps its class unless the new conditions rule it out: surface water that can't stay liquid freezes to ice if the planet is at most `ice_t_eq_max_k`, and is lost otherwise; ice on a planet now too warm is lost; no planet gains water.
-- **Affects:** SGEN-40, SGEN-41, SGEN-59, SYSG-03 · **Type:** spec gap
-- **Disposition:** open. Copy into SGEN-59, or choose otherwise.
-
-### F-262 · Should a fold marker's tray follow its things when they unfold?
-- **Observation:** MUL-10's rule (the tray follows the marker holding most of its rows' things) lets a fold marker's tray leave it. When framing Iver unfolds Iver Yard, the yard and its two docked ships make up the station's own marker, so the tray moves there: it jumps from below the fold marker to beside the station, its header changes from "IVER · 1 IN ORBIT" to "IVER YARD · 2 DOCKED", and Iver stays selected with no row highlighted. Part-way through an unfold, a together group that has unfolded can outnumber what is still folded, and the tray jumps away from a fold marker that is still there. MUL-10's "because they have parted or unfolded, the tray closes" suggests unfolding was meant to close it. The build follows, as the rule says.
-- **Affects:** MUL-10, MUL-07 · **Type:** spec gap
-- **Disposition:** open. Keep following, or say a fold marker's tray follows only its own fold marker and closes when it goes.
-
-### F-263 · Do docked things count for a tray's following when their row is closed?
-- **Observation:** In a larger marker, docked things sit under their station's row and are listed only when that row is open (MUL-09), and MUL-04 says they aren't counted there. For MUL-10's tally the build counts them either way, so a station with two docked ships outweighs two other things.
-- **Affects:** MUL-10, MUL-04, MUL-09 · **Type:** spec gap
-- **Disposition:** open. Accept, or count only the rows shown, or the station as one.
-
-### F-264 · Where an overlap marker's tail starts when its centre is off the lead's orbit
-- **Observation:** MUL-05 says the marker's tail runs "behind the marker's centre along that thing's orbit". An overlap marker sits at the mean of its symbols, which can be off the lead's orbit when the cluster spans several orbits. The build starts the tail at the point of the lead's orbit nearest where the lead's symbol is drawn. As the lead slides into the marker that is the point nearest the marker's centre, and it is the centre itself when they share an orbit, as things together do.
-- **Affects:** MUL-05 · **Type:** spec gap
-- **Disposition:** open. Accept, and say so in MUL-05.
-
-### F-265 · Tails follow symbols into a marker but snap back when they part
-- **Observation:** A joining lead's tail start follows its symbol as it slides into the marker. When things part, every tail jumps straight back to its own body while the symbols are still sliding out over `fold_unfold_anim_ms`, and the other members get their tails back the same way. MUL-05 doesn't say whether tails follow the slide.
-- **Affects:** MUL-05 · **Type:** spec gap
-- **Disposition:** open. Keep it, or have tails follow the symbols out too.
-
-### F-266 · Score details the spec leaves open
-- **Observation:** The habitability factors in SGEN-50 (water 1, 0.8, 0.2; atmosphere 1, 0.5, 0) aren't in the tunables table, so they are named constants in `gates/scores.rs`. For industry (SGEN-52) the build chose: a belt is an icy water source when its icy fraction is at least 0.5 (the belts beyond the snow line); every belt counts as a metal source, since all have rock; a belt orbits at its centre, the geometric mean of its edges; a source never pairs with itself, so one icy belt alone gives no industry; a belt's index is its SGEN-51 term before the metallicity factor.
-- **Affects:** SGEN-50, SGEN-52 · **Type:** spec gap
-- **Disposition:** open. Copy into the spec, make the factors tunables, or choose otherwise.
-
-### F-267 · Gate choice details, and `core_share` barely matters
-- **Observation:** The build chose: the quota is ceil(`reason_quota` × N), and each reason ranks all eligible systems, zeros included; a junction's "nearest" is nearest to its nearest chosen system; the "shortest chain" is fewest relays, then least length; of equal scores the higher id is dropped first; range growth from connectors carries into stage 5; if no system can be dropped, every quota drops by one and the stage restarts; with fewer eligible systems than N, all are gated. Gates and links draw no random numbers, so their stage seeds go unused. The rounds refill by overall score, so `core_share` 0.6 gave the same gated set as 0.8.
-- **Affects:** SGEN-55, SGEN-56, SGEN-57 · **Type:** spec gap
-- **Disposition:** open. Copy the choices into the spec, and say whether `core_share` should matter (for example, fill past the core with connectors' neighbours rather than by score).
-
-### F-268 · How planets move clear of the ring
-- **Observation:** SGEN-59 leaves several cases open. The build moves a blocking planet outward to the edge of its blocked range, and inward only when no outer orbit clears the giant (`ring_giant_clearance_hill` × Hill factor ≥ 1); pushes crowded neighbours on the same way; moves a planet that lands in a belt on past it (SGEN-37); removes the pushed planet when a pair is too heavy for any spacing; and keeps the summaries after the moves, with the moved planets' indices on the gated system. In the sweep it happened in 73 of 15,900 gated systems, mostly giants round M dwarfs: five Hill radii of a Jupiter round a 0.3 M☉ star block 0.49 to 1.51 times its orbit, just past the 50% slide limit, so the giant moves out to about twice the ring's radius.
-- **Affects:** SGEN-34, SGEN-37, SGEN-59, SGEN-90, SYSG-70 · **Type:** spec gap
-- **Disposition:** open. Copy into SGEN-59, or let the ring slide farther for giants.
-
-### F-269 · Step 3 can cross a step-2 link
-- **Observation:** SGEN-61 step 3 avoids a crossing "if one can be avoided", but SGEN-63 says no step-2 link crosses another link. The build's step 3 tries a partner that crosses nothing, then one that crosses only spanning or step-3 links, then the nearest. In the sweep 229 of 34,568 links (0.7%) crossed a step-2 link; the test checks step-2 links against steps 1 and 2 only. Also open: the spanning tree is degree-capped at `links_max`, and the range grows until it covers the tree's longest link; step 3 gives up on a system only when every system is in range and none has room (never seen).
-- **Affects:** SGEN-60, SGEN-61, SGEN-63 · **Type:** conflict
-- **Disposition:** open. Reword SGEN-63 to "crosses no link of steps 1 and 2", or have step 3 grow the range before crossing a step-2 link.
-
-### F-270 · Failure, strategic and name details
-- **Observation:** The build chose: the repair order reaches the group whose dormant link to the held region is shortest; when no group has one, the lightest collapsed link from the held region is made dormant and repaired; a non-repair dormant link is faulted at one end, the other or both, a third of the time each; the main region's ties go to the lowest group id; valuable systems for SGEN-64 number round(`strategic_top_share` × N); the name file is built into the program (`include_str!`), so editing it needs a rebuild; the reserved list also holds the hand-made systems' names; three-part names are redrawn until new.
-- **Affects:** SGEN-64, SGEN-72, SGEN-74, SGEN-80, SGEN-81 · **Type:** spec gap
-- **Disposition:** open. Copy into the spec, or choose otherwise.
-
-### F-271 · `max_gate_rounds` runs out before the top-up at Large
-- **Observation:** The core is round(0.8 N) and each round adds one system. At N = 200 the top-up needs about 40 rounds against the 20 allowed, so a Large sector always ends in the SGEN-57 fallback. Found in review. May overlap F-267.
-- **Affects:** SGEN-55, SGEN-57 · **Type:** spec gap
-- **Disposition:** open. Let a round add all the missing systems at once, or scale `max_gate_rounds` with N.
-
-### F-272 · Connectors almost never happen at the default range
-- **Observation:** Over the 200-sector sweep there were 6 junctions and no relays: at two mean spacings the top scorers are already joined, so SGEN-56 is barely exercised and the gated set is in effect the top N by score. Found in review.
-- **Affects:** SGEN-56, SGEN-60 · **Type:** spec gap
-- **Disposition:** open. Say whether that is intended, or tune the range.
-
-### F-273 · The sky's opacities are applied in display levels, as in the mock-up
-- **Observation:** Bevy blends in linear light, where a faint opacity shows far brighter than in mock-up 28's browser blending: the glow at 0.085 would add about 60 display levels instead of about 15, and the faintest star about 45 instead of 18. The build adds each star's and the glow's light as an sRGB blend over the ground would, so the sky keeps the mock-up's weights. Where two stars overlap their light adds rather than composites, a slight difference. The review confirmed the screenshot levels match the mock-up's.
-- **Affects:** SKY-09, SKY-13 · **Type:** spec gap
-- **Disposition:** open. Say in SKY-09 that opacities are in display (sRGB) levels over the ground, or blend in linear light and lower the opacities.
-
-### F-274 · Star sizes are logical pixels, with a softness floor that keeps SKY-11
-- **Observation:** SKY-10 gives star sizes in "screen pixels". They are built in logical pixels, like markers (MRK-03), so at the 1.25 display scale `sky_sigma_px` 0.55 is 0.69 physical pixels. A star's softness is never set below the size at which SKY-11's tolerance holds (about 0.47 px at tolerance 0.05), so a lower `sky_sigma_px` can't make stars flicker. The defaults are above the floor, so nothing changes today.
-- **Affects:** SKY-10, SKY-11 · **Type:** spec gap
-- **Disposition:** open. Say which pixels, and whether SKY-11 may raise SKY-10's size.
-
-### F-275 · The sky reads thinner and dimmer than mock-up 28 in the game window
-- **Observation:** Mock-up 28's panels fit the camera's 45° field of view into 380 px; the game puts it into 720 logical (900 physical) px, so the same 150,000 stars are several times sparser per pixel and each is a softer, dimmer point. The band shows mostly as extra density and a faint lift towards its core, and the dark lanes are hard to see. Rings and markers keep their weight easily. Screenshots are in the session scratchpad's sky-shots folder; the review saw the same.
-- **Affects:** SKY-04, SKY-09, SKY-13, SKY-14 · **Type:** spec wrong
-- **Disposition:** open. Keep the sky quiet, or raise `sky_field_stars` / `sky_band_stars` (about 0.68 ms of GPU per 150k stars today), or raise `sky_peak` / `sky_glow_alpha` / `sky_lane_depth`.
-
-### F-276 · Glow noise and dither details the spec leaves open
-- **Observation:** Following mock-up 28, these are named constants in `view/sky/glow.rs`, not tunables: lanes are value noise of the direction, 4 octaves at 5.5 cells per unit, above a 0.5 to 0.72 threshold, strongest within 5.5° of the centre line; mottle is 3 octaves at 22 cells; the glow isn't drawn beyond 4 standard deviations, where it is under a hundredth of a level; the dither is triangular, fixed per screen pixel, and fades in over the glow's first level so the plain ground gets no noise.
-- **Affects:** SKY-13, SKY-14, SKY-15 · **Type:** spec gap
-- **Disposition:** open. Confirm these, or make any of them tunables.
-
-### F-277 · The view uses the generator's random numbers
-- **Observation:** The sky (`src/view/sky/generate.rs`, `band.rs`) imports `content::generator::rng::{Rng, derive_seed}`, because SKY-02 asks for the generator's own seed derivation (SGEN-03). ARCH-02 lists view → sim and content → sim, and doesn't name view → content, though it only forbids sim or content → view. Found in review; the code is left as built. The sector view (part 1) goes further: it reads `content::start::LoadedSector` and the generator's `Sector`, `Entry`, `Link` and `GatedSystem` directly, since the sector has no sim representation. Found in that review too.
-- **Affects:** ARCH-02, SKY-01, SKY-02, SECT-01 · **Type:** spec gap
-- **Disposition:** open. Say in ARCH-02 that the view may use content's plain data and utilities, or move `rng.rs` to a shared module outside the three domains that both use, and the sector catalogue types into `sim/`.
-
-### F-278 · Moon and belt-body draws the spec leaves open
-- **Observation:** SYSG-31 and SYSG-41 leave details open. The build: a moon's first orbit and each orbit ratio are uniform in their ranges; a first orbit below `moon_inner_limit_radii` is raised to it (never at the defaults); a belt body's orbit is uniform across the annulus; "2% apart" means the larger orbit is at least 1.02 times the smaller; an orbit too near another body or the ring is drawn again up to 20 times, then the body is dropped (as SGEN-34); the order is count, then each body's mass and orbit, then the mass cap; "mostly icy" is an icy share above 0.5. Belt bodies are class Planet, named inside out from the belt's spare names, and their kind is rocky, so the description reads "A rocky planet with …" even for a body 300 km across.
-- **Affects:** SYSG-31, SYSG-41, SYSG-23 · **Type:** spec gap
-- **Disposition:** open. Copy into SYSG-31 and SYSG-41, and decide whether belt bodies need a word of their own.
-
-### F-279 · Gate and wreck details the spec leaves open
-- **Observation:** A generated gate's radius, and its wreck's, is 5 km, as Corvane's gates are (a named constant). Key facts are label-over-value pairs, so SYSG-53's "Wreck of the gate to *X*" is the value under the label "Site". A wreck is neutral and surveyed, with the placeholder description "What is left of a gate that collapsed." Corvane's hand-made Wreck Field, by contrast, is unsurveyed with "Contents: unknown".
-- **Affects:** SYSG-52, SYSG-53, SYSG-04 · **Type:** spec gap
-- **Disposition:** open. Accept, or give a label and size, and say whether a wreck is unsurveyed until salvage is modelled.
-
-### F-280 · How the star's facts are written
-- **Observation:** SYSG-10 says luminosity is in solar units to 3 significant figures. The build writes "0.523 solar luminosities", matching the inset's "solar masses"; metallicity is written with its sign, "[Fe/H] +0.16"; generated stars keep the shared description "The system's star."
-- **Affects:** SYSG-10, INS-08 · **Type:** spec gap
-- **Disposition:** open. Accept, or give the wording (for example "L☉", if the font has it).
-
-### F-281 · What a link's id is
-- **Observation:** SYSG-54 orders a ring's gates "by the link ids", but the sector spec never gives links an id. The build uses a link's index in the sector's link list, the order SGEN-90 stores them, which is stable. Found in review.
-- **Affects:** SYSG-54, SGEN-90 · **Type:** spec gap
-- **Disposition:** open. Say so in one of them.
-
-### F-282 · Hand-made gates now list a state
-- **Observation:** INS-08 says a gate lists its state, so Corvane's and Sol's gate insets gained "State: Working", while SYSG-71 says the hand-made systems "stay as they are". Found in review.
-- **Affects:** INS-08, SYSG-71 · **Type:** conflict
-- **Disposition:** open. Accept the row, or show it for generated systems only.
-
-### F-283 · A dormant link's width isn't specced
-- **Observation:** SECT-04 gives widths for working and collapsed links but not for dormant dashes. The build draws the dashes at `link_working_px`.
-- **Affects:** SECT-04 · **Type:** spec gap
-- **Disposition:** open. Confirm, or add a `link_dormant_px`.
-
-### F-284 · The sector fit depends on the heading too
-- **Observation:** "Every node fits ... at the current tilt" is built as a fit of every node's position at the current heading and tilt. A round fit was much looser, because its corners never hold nodes. Home fits north up, so the zoom-out limit changes a little as the view turns.
-- **Affects:** SECT-11 · **Type:** spec gap
-- **Disposition:** open. Say "heading and tilt" in the spec, or ask for a fit that ignores heading.
-
-### F-285 · Key facts for brown dwarfs and multi-star systems
-- **Observation:** SECT-22 covers "an entry with a star", but a brown dwarf has no star. The build shows a brown dwarf's Mass, Age, Metallicity and Distance from centre. For systems with companions, Mass and Luminosity are the primary's; Star lists the spectral types separated by ", ", and Companions reads "2, nearest at 34.5 AU".
-- **Affects:** SECT-22 · **Type:** spec gap
-- **Disposition:** open. Confirm or reword.
-
-### F-286 · Close-in orbits read as long km figures in the sector inset
-- **Observation:** UNIT-01 switches to km below 0.1 AU, so M-dwarf planets and belts read like "6,979,824 km to 8,508,710 km".
-- **Affects:** SECT-23, UNIT-01 · **Type:** spec wrong
-- **Disposition:** open. Use AU always in the sector inset, or a lower threshold there.
-
-### F-287 · A large sector at its fit is crowded and mostly unlabelled
-- **Observation:** At the fit of a 200-system sector, the 14 px star markers crowd together and most gated labels give way. Only names round the rim show.
-- **Affects:** SECT-03, SECT-06 · **Type:** spec wrong
-- **Disposition:** open. Smaller nodes when zoomed out, labels only above some zoom, or accept it.
-
-### F-288 · Nodes and labels can draw over the truth readout
-- **Observation:** Panned or tilted, nodes and labels near the top left print over the readout. It is not a label obstacle and has no backing.
-- **Affects:** SECT-08, SECT-06 · **Type:** spec gap
-- **Disposition:** open. Make it a label obstacle, give it a panel backing, or hide nodes under it.
-
-### F-289 · The scale bar reads "10.0 ly"
-- **Observation:** UNIT-05's one decimal place makes a round scale-bar length read with a trailing ".0".
-- **Affects:** SECT-09, UNIT-05 · **Type:** spec wrong
-- **Disposition:** open. Drop the decimal on the bar's whole numbers, or keep it.
-
-### F-290 · The sector view has a render scale of its own
-- **Observation:** SCL-02 names one linear km-to-render scale. The sector view uses a second one, 10 render units per light year, also in `scale.rs`. This keeps a sector inside the camera's distance limits and clip planes.
-- **Affects:** SCL-02, ARCH-12 · **Type:** spec gap
-- **Disposition:** open. Add a line to SCL-02.
-
-### F-291 · Panels let about a fifth of what's beneath show through
-- **Observation:** The top bar and sidebar use `PANEL` at alpha 0.97, but blended in linear light, so nodes, labels and lines under them showed at roughly 20% brightness. The sector view now hides nodes outside the map area. Links, and orbit rings in the system view, still show dimly under the top bar.
-- **Affects:** MRK-01, INS-07, CLK-02 · **Type:** bug
-- **Disposition:** open. Make the panels opaque, or clip map content to the map area.
-
-### F-292 · Lines with `depth_bias -1` can lose pieces to the near clip
-- **Observation:** With the camera's 0.001 near plane, a gizmo biased to the front lands on the near clip, and parts of long lines vanished. Sector links were fixed by using no bias. Planner paths (`paths/strokes.rs`, `IN_FRONT = -1.0`) use the same bias and may drop pieces too.
-- **Affects:** PLNR-60, PLNR-69 · **Type:** bug
-- **Disposition:** open. Check paths and drop the bias, or use a smaller one.
-
-### F-293 · Labels are hover and click targets in the sector view
-- **Observation:** SECT-07 and SECT-20 name only nodes. As in the system view (HOV-02), a node's label also hovers and selects it.
-- **Affects:** SECT-07, SECT-20 · **Type:** spec gap
-- **Disposition:** open. Confirm.
-
-### F-294 · The reason appears twice in a gated system's inset
-- **Observation:** The class line ("Gated system · Extraction") and the Reason fact say the same thing, as the spec asks.
-- **Affects:** SECT-21, SECT-22 · **Type:** spec wrong (minor)
-- **Disposition:** open. Drop the Reason fact, or keep both.
-
-### F-295 · `OW_SHOT` `distance` is in km in the sector view
-- **Observation:** The shot's `distance` key keeps its km unit in the sector view, where 10 ly is 9.46e13 km, awkward to type and read. SECT-44 names only `sector`, `seed`, `select`, `hover` and `enter`. Found in review.
-- **Affects:** SECT-44 · **Type:** spec gap
-- **Disposition:** open. Accept a light-year figure in the sector view (for example `distance=12ly`), or leave it as documented in `CLAUDE.md`.
-
-### F-296 · The band's glow is near invisible in the sector view at the default factor
-- **Observation:** `sector_sky_factor` 0.5 halves every opacity in display levels (F-273). The field stars still read as faint speckles: the brightest is about 37 of 255 over the ground's 7 to 14. But the glow, only about 15 levels at its peak in the system view, drops to about 8 at the core and 3 along most of the band, which a normal monitor barely shows. A contrast-stretched copy of the shot confirms the band crosses the opening sector view as SKY-08 asks; the eye just can't find it.
-- **Affects:** SKY-23, SKY-24 · **Type:** spec gap
-- **Disposition:** open. Judge on screen. Raise `sector_sky_factor` towards the SKY-24 ceiling (about 0.545, which changes little), or give the glow its own factor (say `sector_glow_factor` 1.0), since SKY-24's reason is about stars outshining nodes, not the glow.
-
-### F-297 · What survives a visit to a system
-- **Observation:** The spec says only that the clock carries on and that the system's records are dropped. The build: the clock keeps its date, rate and pause state through entering and leaving. Leaving drops the system view's selection, frame, bookmarks, tray, planner and hover state with the bodies, and entering again starts fresh at the system fit. Re-entering generates the system again, so its bodies stand where the current date puts them. Generated systems have no ships, so no order can be running at the switch; once they can, their orders would be dropped with the records.
-- **Affects:** SECT-31, SECT-32, ZOOM-11 · **Type:** spec gap
-- **Disposition:** open. Keep as built, or decide whether bookmarks and running orders should survive a visit once ships and travel between systems exist.
-
-### F-298 · The sidebar on entering and leaving
-- **Observation:** Entering from the inset would leave the sector's sidebar open with nothing selected in the system. The build starts the system view with the sidebar closed at once, so the system fit uses the whole window. Leaving puts the sector's sidebar back exactly as it was, with no slide, following "a cut between layers is the whole transition".
-- **Affects:** SECT-31, SECT-32, INS-07 · **Type:** spec gap
-- **Disposition:** open. Keep as built, or slide.
-
-### F-299 · Gate wrecks lie outside the system fit
-- **Observation:** In a generated system the gate wrecks sit at the gate ring, far outside the system fit, which counts planets only (ZOOM-15). At the fit some are drawn at the edge or cut off: in Sala (seed 11) "Bal…" is clipped at the right edge. Unlike gates, they have no edge arrows.
-- **Affects:** ZOOM-15, EDGE-01, SYSG-53 · **Type:** spec wrong
-- **Disposition:** open. Give wrecks edge arrows as gates have, take them into the fit, or leave them.
-
 ## Parked
+
 
 ### F-145 · An intercept needs a standoff distance
 - **Observation:** Raised in a combat design session. XFER-10 ends a ship-as-destination crossing at the target's position on the crossing end day, so an Intercept is a collision course with zero miss distance. A real engagement has a chosen miss distance, and it sets how long each side is in weapon range and which weapons can act. The order has no way to carry one. An Intercept at a station is trimmed to meet it (PHAS-15), so it too has zero miss distance.
@@ -553,3 +58,57 @@ Format and types are in `docs/README.md`. New findings go under To triage and ta
 - **Affects:** SYM-09, SYM-10, INS-02, INS-05, GRP-09, PLNR-01, PLNR-05 · **Type:** spec gap
 - **Disposition:** parked. Safe to defer: the player can't form groups yet. Specify the group inset, member access and the meaning of "commander" together with the orders that form and split groups.
 - **Revisit when:** the orders that form and split groups are designed, or a group first appears in play.
+
+### F-163 · Vestige's burn time is longer than the orbit it leaves
+- **Observation:** Vestige's first burn from Earth's Low band to its High band (SOL-17) is about 3.0 km/s at 20 milli-g, so XFER-05 gives it 4.2 h of burn days. Against the 52 h Hohmann crossing that is a small share. The rule keeps the ship Parked in Low for those 4.2 h, then applies the whole burn as one impulse at the crossing start, and solves the crossing again from that later start. So the burn only delays the trip: no thrust arc is drawn, no gravity loss is charged, and the time the ship would spend burning is spent waiting. Yet 4.2 h is about 2.7 laps of Low (94.5 min), so a real burn that long could not be treated as an impulse at one point. Marlin's burn (0.1 g, about 51 min) is about half a lap, which is borderline too.
+- **Affects:** XFER-05, SOL-16, SOL-17 · **Type:** spec gap
+- **Disposition:** parked. Accept the delay as a stand-in, or say how a burn that lasts a large share of an orbit is modelled (bears on F-158).
+- **Revisit when:** the transfer-cost rework (F-158) is scheduled; how a long burn is modelled goes with it.
+
+### F-173 · Groups are together, but nothing forms them yet
+- **Observation:** PHAS-14 needs the ships of a group to be together. A group is now one body with one orbit and phase, and its ships have no place of their own (F-176), so they are together by construction. Only content makes groups (TEST-06); nothing in play forms or merges one (F-159). `SystemTree::all_together` says whether separate ships could become one group (all parked in one orbit, every two together); whatever forms or merges groups should call it.
+- **Affects:** PHAS-14 · **Type:** spec gap
+- **Disposition:** parked. Use the check when group orders are specced.
+- **Revisit when:** the orders that form and split groups are designed (F-159).
+
+### F-197 · Orison can't reach Iver, so its tracks are all orange
+- **Observation:** Seen on screen. A Rendezvous from Halden IV's High band to Iver's needs at least 13.2 km/s, more than Orison's 9.9, so both tracks are the over-budget colour from end to end and no window shows as a bright band. An Intercept of Iver, or Halden IVa, is within reach. The empty colour (the inset's hairline colour) is light grey, close to the dimmest blue, so a rejected setting is hard to tell from a dear one.
+- **Affects:** PLNR-28, TEST-30, F-158 · **Type:** spec wrong
+- **Disposition:** parked. Give Orison more delta-v or cheaper bands (F-158).
+- **Revisit when:** the transfer-cost rework (F-158) sets Orison's delta-v and the band costs. The empty colour is already a spec change.
+
+### F-202 · Dashes crawl along a path in flight
+- **Observation:** Dashes and dots are laid on screen from the start of the dashed part, so their length stays `path_dash_px` at any zoom (PLNR-61). In flight that start is the ship, which moves, so the dashes slide along the path as the ship flies and as the camera moves. Laying them from the path's end would hold them still while the ship flies, but not while the camera zooms.
+- **Affects:** PLNR-61 · **Type:** idea
+- **Disposition:** parked. Watch in play; anchor the dashes to the arrival end if the crawl distracts.
+- **Revisit when:** the crawl distracts in play.
+
+### F-259 · Same sector on every machine depends on the platform's maths library
+- **Observation:** SGEN-02 asks for the same sector "on every run and machine". The random numbers are integer arithmetic, identical everywhere, and a test pins the published xoshiro256** and SplitMix64 values. But the generator also uses `powf`, `ln`, `exp`, `cbrt`, `sin` and `cos`, which Rust takes from the platform's maths library, and their last bit may differ between operating systems. Range and Hill-spacing branches can turn that into a different sector. The same build target gives the same sector every run. The sky (SKY-01) uses the same generator and functions, so the same holds for it.
+- **Affects:** SGEN-02, SGEN-06, SKY-01 · **Type:** spec gap
+- **Disposition:** parked. Accept "same target, same sector", or write the few functions in the repo (SGEN-06 rules out a crate such as `libm`), or allow such a crate.
+- **Revisit when:** saves, shared seeds or multiplayer need the same sector across machines. Until then "same build target, same sector" stands.
+
+### F-267 · Gate choice details, and `core_share` barely matters
+- **Observation:** The build chose: the quota is ceil(`reason_quota` × N), and each reason ranks all eligible systems, zeros included; a junction's "nearest" is nearest to its nearest chosen system; the "shortest chain" is fewest relays, then least length; of equal scores the higher id is dropped first; range growth from connectors carries into stage 5; if no system can be dropped, every quota drops by one and the stage restarts; with fewer eligible systems than N, all are gated. Gates and links draw no random numbers, so their stage seeds go unused. The rounds refill by overall score, so `core_share` 0.6 gave the same gated set as 0.8.
+- **Affects:** SGEN-55, SGEN-56, SGEN-57 · **Type:** spec gap
+- **Disposition:** parked. Copy the choices into the spec, and say whether `core_share` should matter (for example, fill past the core with connectors' neighbours rather than by score).
+- **Revisit when:** gate choice is revisited (with F-272): whether connectors should be common enough for relays to act as chokepoints. Lean: a tighter `connect_range_factor` for SGEN-56 only, swept for the share of junctions and relays.
+
+### F-272 · Connectors almost never happen at the default range
+- **Observation:** Over the 200-sector sweep there were 6 junctions and no relays: at two mean spacings the top scorers are already joined, so SGEN-56 is barely exercised and the gated set is in effect the top N by score. Found in review.
+- **Affects:** SGEN-56, SGEN-60 · **Type:** spec gap
+- **Disposition:** parked. Say whether that is intended, or tune the range.
+- **Revisit when:** gate choice is revisited (with F-267).
+
+### F-287 · A large sector at its fit is crowded and mostly unlabelled
+- **Observation:** At the fit of a 200-system sector, the 14 px star markers crowd together and most gated labels give way. Only names round the rim show.
+- **Affects:** SECT-03, SECT-06 · **Type:** spec wrong
+- **Disposition:** parked. Smaller nodes when zoomed out, labels only above some zoom, or accept it.
+- **Revisit when:** the sector view has been played.
+
+### F-295 · `OW_SHOT` `distance` is in km in the sector view
+- **Observation:** The shot's `distance` key keeps its km unit in the sector view, where 10 ly is 9.46e13 km, awkward to type and read. SECT-44 names only `sector`, `seed`, `select`, `hover` and `enter`. Found in review.
+- **Affects:** SECT-44 · **Type:** spec gap
+- **Disposition:** parked. Accept a light-year figure in the sector view (for example `distance=12ly`), or leave it as documented in `CLAUDE.md`.
+- **Revisit when:** sector-view shots need distances often enough that km gets in the way.
