@@ -18,7 +18,7 @@ use crate::content::generator::rng::Rng;
 use crate::view::tunables::Tunables;
 
 /// The band's orientation: its normal, the direction of its core on the
-/// centre line, and the two angles the normal was drawn from.
+/// centre line, and the tilt the normal was drawn with.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Band {
     /// The pole of the band's great circle, a unit vector.
@@ -27,9 +27,6 @@ pub struct Band {
     pub core: DVec3,
     /// The angle between the normal and the plane's normal, in radians.
     pub tilt: f64,
-    /// Which way round the plane the normal leans, in radians from north
-    /// towards east.
-    pub azimuth: f64,
 }
 
 impl Band {
@@ -139,12 +136,7 @@ pub fn make_band(rng: &mut Rng, tunables: &Tunables) -> Band {
     let reference = reference_on_line(normal);
     let core_longitude = rng.uniform(0.0, TAU);
     let core = reference * core_longitude.cos() + normal.cross(reference) * core_longitude.sin();
-    Band {
-        normal,
-        core,
-        tilt,
-        azimuth,
-    }
+    Band { normal, core, tilt }
 }
 
 #[cfg(test)]
