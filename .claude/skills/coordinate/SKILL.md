@@ -12,7 +12,7 @@ You plan, dispatch, merge and talk. Agents build. Each to-do item ends as a gree
 - Read `docs/todo.md`. Skip blocked items, anything under Parked, and items that only touch docs. Say which you skip and why.
 - Order by the dependencies the items name ("build after …"). Group them into streams that touch different areas (for example view vs `sim/transfer`, `content`, `crates/orbits`). Run at most 2–3 agents at once.
 - Split a very large item into parts run one after another (for example rules → panel → map). Each part marks ✓ only what it built and edits the item to list what's left. Write each part's API summary to a scratch file for the next part.
-- Effort per agent: **low** for mechanical renames, **medium** for content and small view items, **high** for orbital maths, large UI and wide changes. Weigh risk as well as kind: subtle per-frame state can need high even when the diff is small. Reviews run at medium, or high for large or orbital diffs. Tell the user the level whenever you start an agent; no approval needed.
+- Effort per agent: **low** for mechanical renames, **medium** for content and small view items, **high** for orbital maths, large UI and wide changes. Weigh risk as well as kind: subtle per-frame state can need high even when the diff is small. Reviews follow the tiers in section 3, step 0. Tell the user the level whenever you start an agent; no approval needed.
 - Write the plan, then exit plan mode for approval.
 
 ## 2. Dispatch
@@ -31,7 +31,12 @@ You plan, dispatch, merge and talk. Agents build. Each to-do item ends as a gree
 
 ## 3. Merge each finished item
 
-0. Review first: start a review agent in the item's worktree (medium effort, high for large or orbital items). Start it without `isolation`: it works in the builder's worktree, and its own would be an empty extra one. It reviews `git diff master...HEAD`, commits simple behaviour-preserving fixes, and reports larger issues. Put larger issues that need no design decision straight onto `docs/todo.md` (bugs under Fixes, clean-up under Other) without asking the user. Only spec questions go to the user, as findings.
+0. Review first, by risk. In cycle 3 every real bug a review found was in input or per-frame state; reviews of large items specced as rules found almost nothing, while the merge check and playtests caught what they missed.
+   - **Coordinator reads the diff:** under about 500 lines, mechanical work, or tests only. Read `git diff master...HEAD` yourself and fix or send back anything wrong.
+   - **Review agent at medium:** anything touching input, clicks, hover, trays, per-frame ordering or state carried across frames (high for wide state changes or orbital maths).
+   - **Targeted review at medium:** large items specced as rules (generators, rendering, content). Ask only for tests that can't fail, plus one named risk for that item. Skip it when the build reports nothing risky.
+
+   Start a review agent without `isolation`: it works in the builder's worktree, and its own would be an empty extra one. It reviews `git diff master...HEAD`, commits simple behaviour-preserving fixes, and reports larger issues. Send issues it finds back to the builder with SendMessage when the builder can fix them; that reuses its context. Put larger issues that need no design decision straight onto `docs/todo.md` (bugs under Fixes, clean-up under Other) without asking the user. Only spec questions go to the user, as findings.
 1. In the agent's worktree: `git rebase master`. Conflicts should now be in code only. Resolve them with small Python scripts. Chain every step of a merge with `&&`: `set -e` is not reliable in the Bash tool (a failed `git merge --ff-only` once went on to delete the branch). Never chain `git add`/commit after a script that might have failed.
 2. Run `touch crates/orbits/src/*.rs`, then `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test --workspace`.
 3. From the repo root: `git merge --ff-only <branch>`. Then `git worktree remove --force <path>`, `git worktree prune` and `git branch -D <branch>`.
