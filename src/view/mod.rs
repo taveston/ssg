@@ -18,8 +18,8 @@
 //! picking and near arcs), `symbols/` (ship symbols,
 //! their drawing and shader), `edge/` (edge arrows and tabs),
 //! `inset/` (the inspection sidebar's contents), `topbar/`, `frame_cue/`,
-//! `planner/` (the transfer planner) and `paths/` (transfers drawn on the
-//! map).
+//! `planner/` (the transfer planner), `paths/` (transfers drawn on the
+//! map) and `sky/` (the stars and the Milky Way behind the map).
 
 use bevy::prelude::*;
 
@@ -64,6 +64,7 @@ pub mod selection;
 pub mod shared_orbit;
 pub mod ship_groups;
 pub mod sidebar;
+pub mod sky;
 pub mod symbols;
 pub mod targets;
 pub mod text_size;
@@ -137,6 +138,8 @@ impl Plugin for ViewPlugin {
                 frame_cue::FrameCuePlugin,
                 frame_cue::stroke::CueStrokeMaterialPlugin,
                 tray::TrayPlugin,
+                sky::SkyPlugin,
+                sky::SkyMaterialPlugin,
             ));
     }
 }

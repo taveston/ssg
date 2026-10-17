@@ -16,7 +16,7 @@ fn click_app() -> App {
 }
 
 /// `click_app` with more plugins added before startup runs.
-fn click_app_with(extra: impl FnOnce(&mut App)) -> App {
+pub(super) fn click_app_with(extra: impl FnOnce(&mut App)) -> App {
     use crate::view::rings::marks::RingMarksPlugin;
     use bevy::picking::{InteractionPlugin, PickingPlugin, PickingSystems};
     let mut app = symbols_app_with(|app| {
@@ -47,7 +47,7 @@ fn click_app_with(extra: impl FnOnce(&mut App)) -> App {
 
 /// Run `frames` frames, keeping the headless camera's projection in step
 /// with its viewport as the inset narrows it.
-fn step(app: &mut App, frames: usize) {
+pub(super) fn step(app: &mut App, frames: usize) {
     for _ in 0..frames {
         app.update();
         compute_camera_headless(app);
@@ -56,7 +56,7 @@ fn step(app: &mut App, frames: usize) {
 
 /// A press and release of the left button at `at`, through Bevy's picking
 /// as well as the button input.
-fn click_at(app: &mut App, at: Vec2) {
+pub(super) fn click_at(app: &mut App, at: Vec2) {
     use bevy::camera::NormalizedRenderTarget;
     use bevy::picking::pointer::{Location, PointerAction, PointerId, PointerInput};
     let window = the_window(app);
@@ -111,7 +111,7 @@ fn ring_of(app: &App, body: Entity) -> (Entity, Vec<(Vec2, Vec2)>) {
 /// The rightmost point on `body`'s ring that is clear of every other
 /// ring. There the ring runs up and down the screen, so when the inset
 /// narrows the map and slides it sideways the ring leaves the point.
-fn side_of_ring(app: &App, body: Entity) -> Vec2 {
+pub(super) fn side_of_ring(app: &App, body: Entity) -> Vec2 {
     let tolerance = Tunables::default().ring_hit_px;
     let (ring, segments) = ring_of(app, body);
     let paths = &app.world().resource::<RingPaths>().0;
@@ -127,7 +127,7 @@ fn side_of_ring(app: &App, body: Entity) -> Vec2 {
         .expect("a point on the ring clear of the others")
 }
 
-fn selected(app: &App) -> Option<Entity> {
+pub(super) fn selected(app: &App) -> Option<Entity> {
     app.world().resource::<Selection>().selected
 }
 

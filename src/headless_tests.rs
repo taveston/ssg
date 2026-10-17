@@ -83,6 +83,7 @@ mod planet_marker;
 mod planner;
 mod rings;
 mod shared_orbit_marks;
+mod sky;
 mod symbols;
 mod systems;
 mod text_sizes;

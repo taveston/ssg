@@ -406,6 +406,102 @@ pub struct Tunables {
     pub ghost_width_px: f32,
     /// ...with dashes this long and as far apart (PLNR-63).
     pub ghost_dash_px: f32,
+
+    // --- The sky (docs/spec/sky.md) ---
+    /// The sky's seed while no sector gives one (SKY-01, SKY-02).
+    pub sky_default_seed: u64,
+    /// How many field stars the sky holds, scattered over the whole
+    /// sphere (SKY-04, SKY-05).
+    pub sky_field_stars: usize,
+    /// How many stars make up the band, the Milky Way (SKY-04, SKY-06).
+    pub sky_band_stars: usize,
+    /// The brightest a field star can be, as a magnitude: smaller is
+    /// brighter, each step of 1 about 2.5 times fainter (SKY-05).
+    pub sky_mag_min: f32,
+    /// The faintest a field star can be, as a magnitude (SKY-05).
+    pub sky_mag_max: f32,
+    /// How steeply field-star counts climb towards the faint end: the
+    /// number at magnitude m goes as 10 to the power (slope × m) (SKY-05).
+    pub sky_mag_slope: f32,
+    /// The brightest a band star can be, as a magnitude (SKY-06).
+    pub sky_band_mag_min: f32,
+    /// The faintest a band star can be, as a magnitude (SKY-06).
+    pub sky_band_mag_max: f32,
+    /// How steeply band-star counts climb towards the faint end, as
+    /// `sky_mag_slope` (SKY-06).
+    pub sky_band_mag_slope: f32,
+    /// The spread of band stars either side of the band's centre line: the
+    /// standard deviation of their latitude, in degrees (SKY-06).
+    pub sky_band_sigma_deg: f32,
+    /// How far along the band its dense core reaches: the standard
+    /// deviation, in degrees of longitude from the core, of the extra
+    /// density of stars and glow there (SKY-06, SKY-13).
+    pub sky_core_sigma_deg: f32,
+    /// How dense the band is far from the core, as a fraction of its
+    /// density at the core (SKY-06, SKY-13).
+    pub sky_core_floor: f32,
+    /// The least angle between the band and the orbital plane, in degrees
+    /// (SKY-07).
+    pub sky_tilt_min_deg: f32,
+    /// The greatest angle between the band and the orbital plane, in
+    /// degrees (SKY-07).
+    pub sky_tilt_max_deg: f32,
+    /// The band's centre line passes within this many degrees of the
+    /// standard view's line of sight, so a new game opens with the band on
+    /// screen (SKY-08).
+    pub sky_band_view_margin_deg: f32,
+    /// The sky tone: the neutral cool white the glow is drawn in and star
+    /// colours are paled towards (SKY-12, SKY-13).
+    pub sky_tone: Srgba,
+    /// The opacity of the brightest possible star (SKY-09).
+    pub sky_peak: f32,
+    /// How fast opacity falls with magnitude: a star of magnitude m is
+    /// drawn at `sky_peak` × 10 to the power (−0.4 × gamma × m) (SKY-09).
+    pub sky_gamma: f32,
+    /// The least opacity any star is drawn at, so the faintest stay
+    /// visible (SKY-09).
+    pub sky_faint_floor: f32,
+    /// The softness of the faintest star: the standard deviation of its
+    /// Gaussian, in screen pixels (SKY-10).
+    pub sky_sigma_px: f32,
+    /// How much wider a star is drawn per magnitude it is brighter than
+    /// `sky_bright_mag`, in screen pixels (SKY-10).
+    pub sky_sigma_bright_px: f32,
+    /// Stars fainter than this magnitude are all drawn at `sky_sigma_px`;
+    /// brighter ones grow (SKY-10).
+    pub sky_bright_mag: f32,
+    /// How far, as a fraction of its mean, the total light one star
+    /// leaves on the screen may vary as it moves between pixels (SKY-11).
+    pub sky_flicker_tolerance: f32,
+    /// The colour of a bluish-white star, before it is paled (SKY-12).
+    pub sky_type_blue: Srgba,
+    /// The colour of a white star, before it is paled (SKY-12).
+    pub sky_type_white: Srgba,
+    /// The colour of a yellow-white star, before it is paled (SKY-12).
+    pub sky_type_yellow: Srgba,
+    /// The colour of an orange star, before it is paled (SKY-12).
+    pub sky_type_orange: Srgba,
+    /// How far a star's colour moves from the sky tone towards its type's
+    /// colour: 0 is the tone, 1 the full colour (SKY-12).
+    pub sky_colour_keep: f32,
+    /// No star colour is more saturated than this (HSV saturation), so
+    /// none reads as an affiliation colour or the warning orange (SKY-12).
+    pub sky_max_saturation: f32,
+    /// The glow's opacity at its brightest: on the band's centre line, at
+    /// the core (SKY-13).
+    pub sky_glow_alpha: f32,
+    /// How fast the glow falls off across the band: the standard deviation
+    /// of its normal curve, in degrees from the centre line (SKY-13).
+    pub sky_glow_sigma_deg: f32,
+    /// How much a dark lane can take from the glow, as a fraction of it
+    /// (SKY-14).
+    pub sky_lane_depth: f32,
+    /// How much the glow's mottle can raise or lower it, as a fraction of
+    /// it (SKY-14).
+    pub sky_glow_mottle: f32,
+    /// The most the glow's dither moves a pixel, either way, in display
+    /// levels (of 255) (SKY-15).
+    pub sky_dither_levels: f32,
 }
 
 impl Default for Tunables {
@@ -558,6 +654,41 @@ impl Default for Tunables {
             ghost_alpha: 0.5,
             ghost_width_px: 1.0,
             ghost_dash_px: 2.0,
+
+            sky_default_seed: 1,
+            sky_field_stars: 40_000,
+            sky_band_stars: 110_000,
+            sky_mag_min: 0.0,
+            sky_mag_max: 8.6,
+            sky_mag_slope: 0.42,
+            sky_band_mag_min: 2.5,
+            sky_band_mag_max: 9.2,
+            sky_band_mag_slope: 0.5,
+            sky_band_sigma_deg: 9.0,
+            sky_core_sigma_deg: 40.0,
+            sky_core_floor: 0.4,
+            sky_tilt_min_deg: 45.0,
+            sky_tilt_max_deg: 75.0,
+            sky_band_view_margin_deg: 10.0,
+            sky_tone: Srgba::rgb_u8(0xC7, 0xD6, 0xE0),
+            sky_peak: 0.55,
+            sky_gamma: 0.22,
+            sky_faint_floor: 0.04,
+            sky_sigma_px: 0.55,
+            sky_sigma_bright_px: 0.17,
+            sky_bright_mag: 3.2,
+            sky_flicker_tolerance: 0.05,
+            sky_type_blue: Srgba::rgb_u8(0xA8, 0xC7, 0xFF),
+            sky_type_white: Srgba::rgb_u8(0xE6, 0xF0, 0xFF),
+            sky_type_yellow: Srgba::rgb_u8(0xFF, 0xF2, 0xD1),
+            sky_type_orange: Srgba::rgb_u8(0xFF, 0xC7, 0x94),
+            sky_colour_keep: 0.4,
+            sky_max_saturation: 0.25,
+            sky_glow_alpha: 0.085,
+            sky_glow_sigma_deg: 10.0,
+            sky_lane_depth: 0.6,
+            sky_glow_mottle: 0.25,
+            sky_dither_levels: 1.0,
         }
     }
 }
