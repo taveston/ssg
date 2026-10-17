@@ -155,42 +155,63 @@ fn shortest_chain(
     let ends: Vec<usize> = in_group(to).collect();
     // Nodes: the starts, the relays that may be used, then the ends.
     let nodes: Vec<usize> = starts.iter().chain(outside).chain(&ends).copied().collect();
-    let first_end = starts.len() + outside.len();
-    let mut cost: Vec<(usize, f64)> = vec![(usize::MAX, f64::INFINITY); nodes.len()];
-    let mut previous: Vec<Option<usize>> = vec![None; nodes.len()];
-    let mut done = vec![false; nodes.len()];
-    for start in cost.iter_mut().take(starts.len()) {
-        *start = (0, 0.0);
-    }
-    loop {
-        // The cheapest node not yet settled: fewest hops, then shortest.
-        let next = (0..nodes.len())
-            .filter(|&i| !done[i] && cost[i].0 != usize::MAX)
-            .min_by(|&a, &b| {
-                cost[a]
-                    .0
-                    .cmp(&cost[b].0)
-                    .then(cost[a].1.total_cmp(&cost[b].1))
-            })?;
-        if next >= first_end {
-            return Some(relays_on_path(next, &previous, &nodes, starts.len()));
+    let path = Path {
+        nodes: &nodes,
+        starts: starts.len(),
+        first_end: starts.len() + outside.len(),
+    };
+    let (end, previous) = path.cheapest(field, range_km)?;
+    Some(relays_on_path(end, &previous, &nodes, starts.len()))
+}
+
+/// The nodes a chain may use: the start group's members first, then the
+/// systems that may become relays, then the end group's members from
+/// `first_end` on. Entries are entry ids.
+struct Path<'a> {
+    nodes: &'a [usize],
+    starts: usize,
+    first_end: usize,
+}
+
+impl Path<'_> {
+    /// The cheapest path from any start to any end with every hop within
+    /// range, fewest hops first, then least length (Dijkstra's search).
+    /// Returns the end reached and each node's predecessor on the way.
+    fn cheapest(&self, field: &Field, range_km: f64) -> Option<(usize, Vec<Option<usize>>)> {
+        let count = self.nodes.len();
+        let mut cost: Vec<(usize, f64)> = vec![(usize::MAX, f64::INFINITY); count];
+        let mut previous: Vec<Option<usize>> = vec![None; count];
+        let mut done = vec![false; count];
+        for start in cost.iter_mut().take(self.starts) {
+            *start = (0, 0.0);
         }
-        done[next] = true;
-        let here = field.positions[nodes[next]];
-        for other in starts.len()..nodes.len() {
-            if done[other] {
-                continue;
+        loop {
+            // The cheapest node not yet settled: fewest hops, then shortest.
+            let next = (0..count)
+                .filter(|&i| !done[i] && cost[i].0 != usize::MAX)
+                .min_by(|&a, &b| {
+                    cost[a]
+                        .0
+                        .cmp(&cost[b].0)
+                        .then(cost[a].1.total_cmp(&cost[b].1))
+                })?;
+            if next >= self.first_end {
+                return Some((next, previous));
             }
-            let hop = here.distance(field.positions[nodes[other]]);
-            if hop > range_km {
-                continue;
-            }
-            let through = (cost[next].0 + 1, cost[next].1 + hop);
-            let cheaper = through.0 < cost[other].0
-                || (through.0 == cost[other].0 && through.1 < cost[other].1);
-            if cheaper {
-                cost[other] = through;
-                previous[other] = Some(next);
+            done[next] = true;
+            let here = field.positions[self.nodes[next]];
+            for other in self.starts..count {
+                let hop = here.distance(field.positions[self.nodes[other]]);
+                if done[other] || hop > range_km {
+                    continue;
+                }
+                let through = (cost[next].0 + 1, cost[next].1 + hop);
+                let cheaper = through.0 < cost[other].0
+                    || (through.0 == cost[other].0 && through.1 < cost[other].1);
+                if cheaper {
+                    cost[other] = through;
+                    previous[other] = Some(next);
+                }
             }
         }
     }
